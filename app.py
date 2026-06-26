@@ -199,22 +199,8 @@ def load_properties_data():
             
         df['จังหวัด'] = df.apply(clean_prov_row, axis=1)
         
-        # จัดกลุ่มประเภททรัพย์สินให้เรียบง่ายและเป็นระบบ
-        def simplify_type(val):
-            v = str(val).strip()
-            if any(k in v for k in ["คอนโด", "Condo", "ห้องชุด", "อพาร์ทเม้นท์", "Apartment"]):
-                return "คอนโดมิเนียม"
-            if any(k in v for k in ["บ้าน", "ทาวน์", "Town", "อาคารแฝด", "ตึกแถว", "โฮม"]):
-                return "บ้านเดี่ยว / ทาวน์โฮม"
-            if any(k in v for k in ["ที่ดิน", "เกษตร", "สวน", "ไร่"]):
-                return "ที่ดินเปล่า / การเกษตร"
-            if any(k in v for k in ["สำนักงาน", "Office", "โรงแรม", "รีสอร์ท", "พาณิชย์", "อาคารพาณิชย์"]):
-                return "พาณิชย์ / สำนักงาน"
-            if any(k in v for k in ["โรงงาน", "โกดัง", "คลังสินค้า", "Factory", "Warehouse"]):
-                return "โรงงาน / โกดัง"
-            return "อื่นๆ"
-            
-        df['ประเภททรัพย์_กลุ่ม'] = df['ประเภททรัพย์'].apply(simplify_type)
+        # ใช้ประเภททรัพย์สินเดิมจากไฟล์ Excel โดยตรงตามต้องการ
+        pass
         
         # Clean titles dynamically
         df['ชื่อประกาศ_สะอาด'] = df['ชื่อประกาศ'].apply(get_clean_title)
@@ -305,7 +291,7 @@ with st.sidebar:
         else:
             df_by_company = df_raw
             
-        unique_types = sorted(df_by_company['ประเภททรัพย์_กลุ่ม'].unique().tolist())
+        unique_types = sorted(df_by_company['ประเภททรัพย์'].unique().tolist())
         selected_types = st.pills(
             "ประเภททรัพย์สิน", 
             options=unique_types, 
@@ -736,7 +722,7 @@ if selected_companies:
 
 # 3. Property Types
 if selected_types:
-    df_filtered = df_filtered[df_filtered['ประเภททรัพย์_กลุ่ม'].isin(selected_types)]
+    df_filtered = df_filtered[df_filtered['ประเภททรัพย์'].isin(selected_types)]
 
 # 4. Provinces
 if selected_provinces:
