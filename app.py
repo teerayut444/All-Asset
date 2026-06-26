@@ -1072,6 +1072,30 @@ with tab4:
     with inp_col2:
         st.markdown("##### ⚙️ ส่วนที่ 2: เงื่อนไขการค้นหา")
         search_radius = st.slider("รัศมีการค้นหา (กิโลเมตร)", min_value=0.5, max_value=50.0, value=5.0, step=0.5)
+        
+        # Company Filter for Comparison (Pills)
+        compare_companies = st.pills(
+            "บริษัททรัพย์สิน (เปรียบเทียบ)",
+            options=["Baania", "BAM", "ZmyHome"],
+            selection_mode="multi",
+            default=["Baania", "BAM", "ZmyHome"],
+            key="comp_companies"
+        )
+        
+        # Price Range Filter for Comparison
+        valid_prices = df_raw['ราคา'].dropna() if df_raw is not None else pd.Series()
+        min_price_val = float(valid_prices.min()) if not valid_prices.empty else 0.0
+        max_price_val = float(valid_prices.max()) if not valid_prices.empty else 100000000.0
+        
+        compare_price_range = st.slider(
+            "ช่วงราคาขาย (บาท) (เปรียบเทียบ)",
+            min_value=min_price_val,
+            max_value=max_price_val,
+            value=(min_price_val, max_price_val),
+            format="%d",
+            key="comp_price_slider"
+        )
+        
         filter_by_type = st.checkbox("กรองประเภททรัพย์สินให้เหมือนกัน", value=False)
         selected_compare_type = st.selectbox(
             "ประเภททรัพย์สินที่ต้องการค้นหา (หากกรองประเภททรัพย์)",
@@ -1085,8 +1109,20 @@ with tab4:
             m_type = selected_compare_type if filter_by_type else None
             nearby_df = find_nearby_properties(inp_lat, inp_lng, df_raw, search_radius, match_type=m_type)
             
+            if not nearby_df.empty:
+                # Apply company filter
+                if compare_companies:
+                    nearby_df = nearby_df[nearby_df['บริษัท'].isin(compare_companies)]
+                
+                # Apply price range filter
+                if not valid_prices.empty:
+                    nearby_df = nearby_df[
+                        (nearby_df['ราคา'].isna()) |
+                        ((nearby_df['ราคา'] >= compare_price_range[0]) & (nearby_df['ราคา'] <= compare_price_range[1]))
+                    ]
+            
             if nearby_df.empty:
-                st.warning(f"❌ ไม่พบทรัพย์สิน NPA ในรัศมี {search_radius} กิโลเมตร รอบจุดพิกัด ({inp_lat}, {inp_lng})")
+                st.warning(f"❌ ไม่พบทรัพย์สิน NPA ตามเงื่อนไขตัวกรองในรัศมี {search_radius} กิโลเมตร รอบจุดพิกัด ({inp_lat}, {inp_lng})")
             else:
                 st.success(f"พบทรัพย์ NPA ทั้งหมด {len(nearby_df)} รายการ ในรัศมี {search_radius} กิโลเมตร!")
                 
@@ -1144,6 +1180,12 @@ with tab4:
                         "ZmyHome": "#ec4899"
                     },
                     template=plotly_template
+                )
+                # Set base marker styling for all points, then override the reference point to make it prominent
+                fig_compare.update_traces(marker=dict(size=10, opacity=0.8))
+                fig_compare.update_traces(
+                    selector=dict(name="จุดอ้างอิง"),
+                    marker=dict(size=24, opacity=1.0)
                 )
                 fig_compare.update_layout(
                     mapbox_style=mapbox_style,
