@@ -271,16 +271,14 @@ with st.sidebar:
         # Search Box
         search_query = st.text_input("ค้นหา ชื่อโครงการ/รหัสทรัพย์/ชื่อประกาศ", value="")
         
-        # Company Filter (Formal Checkboxes)
-        st.markdown("<p style='font-weight: 600; margin-top: 10px; margin-bottom: 2px; color: #0f172a;'>บริษัททรัพย์สิน</p>", unsafe_allow_html=True)
-        c_baania = st.checkbox("Baania", value=True, key="filter_baania")
-        c_bam = st.checkbox("BAM", value=True, key="filter_bam")
-        c_zmyhome = st.checkbox("ZmyHome", value=True, key="filter_zmyhome")
-        
-        selected_companies = []
-        if c_baania: selected_companies.append("Baania")
-        if c_bam: selected_companies.append("BAM")
-        if c_zmyhome: selected_companies.append("ZmyHome")
+        # Company Filter (Pills)
+        selected_companies = st.pills(
+            "บริษัททรัพย์สิน",
+            options=["Baania", "BAM", "ZmyHome"],
+            selection_mode="multi",
+            default=["Baania", "BAM", "ZmyHome"],
+            key="filter_companies"
+        )
         
         if not selected_companies:
             selected_companies = ["Baania", "BAM", "ZmyHome"]
