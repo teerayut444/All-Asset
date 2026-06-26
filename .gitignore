@@ -1,0 +1,29 @@
+# Python Cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual Environments
+.venv/
+venv/
+env/
+ENV/
+
+# Data Files (หลีกเลี่ยงการดันไฟล์ขนาดใหญ่)
+*.xlsx
+*.xls
+*.csv
+
+# Temporary and Backups
+*backup*
+*restored*
+Backup/
+ttt/
+T Test.txt
+Co pilot.py
+
+# VS Code specific
+.vscode/
+.history/
+.project
