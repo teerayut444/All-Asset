@@ -127,24 +127,35 @@ if not st.session_state['logged_in']:
         margin: 15vh auto auto auto !important;
     }
     
-    /* Style inputs */
-    input[type="password"] {
-        background-color: rgba(255, 255, 255, 0.07) !important;
-        color: #ffffff !important;
-        -webkit-text-fill-color: #ffffff !important;
-        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    /* Style the input wrapper to override default white background */
+    div[data-testid="stForm"] div[data-baseweb="input"] {
         border-radius: 12px !important;
-        height: 50px !important;
-        font-size: 1.05rem !important;
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        background-color: rgba(255, 255, 255, 0.07) !important;
         transition: all 0.3s ease !important;
-        padding: 10px 15px !important;
-        text-align: center !important;
     }
     
-    input[type="password"]:focus {
+    div[data-testid="stForm"] div[data-baseweb="input"] > div {
+        background-color: transparent !important;
+        border: none !important;
+    }
+    
+    div[data-testid="stForm"] div[data-baseweb="input"]:focus-within {
         border-color: #6366f1 !important;
         box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2) !important;
         background-color: rgba(255, 255, 255, 0.1) !important;
+    }
+    
+    /* Style the actual input element */
+    input[type="password"] {
+        background-color: transparent !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        border: none !important;
+        height: 50px !important;
+        font-size: 1.05rem !important;
+        text-align: center !important;
+        width: 100% !important;
     }
     
     /* Form Submit Button */
