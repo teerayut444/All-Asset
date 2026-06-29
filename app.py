@@ -462,10 +462,19 @@ with st.sidebar:
         else:
             df_by_company = df_raw
             
-        unique_types = sorted(df_by_company['ประเภททรัพย์'].unique().tolist())
+        # Group property types into common and rare (เพิ่มเติม)
+        type_counts = df_by_company['ประเภททรัพย์'].value_counts()
+        top_n = 7
+        common_types = type_counts.head(top_n).index.tolist()
+        rare_types = type_counts.index[top_n:].tolist()
+        
+        display_types = sorted(common_types)
+        if rare_types:
+            display_types.append("เพิ่มเติม")
+            
         selected_types = st.pills(
             "ประเภททรัพย์สิน", 
-            options=unique_types, 
+            options=display_types, 
             selection_mode="multi", 
             default=None
         )
@@ -893,7 +902,21 @@ if selected_companies:
 
 # 3. Property Types
 if selected_types:
-    df_filtered = df_filtered[df_filtered['ประเภททรัพย์'].isin(selected_types)]
+    if "เพิ่มเติม" in selected_types:
+        # Get rare types dynamically based on selected companies
+        if selected_companies:
+            df_by_company = df_raw[df_raw['บริษัท'].isin(selected_companies)]
+        else:
+            df_by_company = df_raw
+        type_counts = df_by_company['ประเภททรัพย์'].value_counts()
+        top_n = 7
+        rare_types = type_counts.index[top_n:].tolist()
+        
+        actual_selected_types = [t for t in selected_types if t != "เพิ่มเติม"] + rare_types
+    else:
+        actual_selected_types = selected_types
+        
+    df_filtered = df_filtered[df_filtered['ประเภททรัพย์'].isin(actual_selected_types)]
 
 # 4. Provinces
 if selected_provinces:
