@@ -860,16 +860,7 @@ div[data-baseweb="tab-panel"]:has(.st-key-tab_map) {
     font-weight: 500;
 }
 
-/* Map chart container styling specifically in map tab to sit below static KPI cards */
-div[data-baseweb="tab-panel"]:has(.floating-kpi-container) .stPlotlyChart, 
-div[data-baseweb="tab-panel"]:has(.floating-kpi-container) .stPlotlyChart > div, 
-div[data-baseweb="tab-panel"]:has(.floating-kpi-container) .stPlotlyChart .js-plotly-plot, 
-div[data-baseweb="tab-panel"]:has(.floating-kpi-container) .stPlotlyChart .plotly {
-    margin-top: 0px !important;
-    padding-top: 0px !important;
-    height: calc(100vh - 215px) !important;
-    width: 100% !important;
-}
+/* Map chart height override removed to prevent Plotly mouse hover coordinate mismatch */
 
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
@@ -1058,7 +1049,7 @@ with tab1:
                     "ลองจิจูด": False
                 },
                 zoom=5.5,
-                height=750,
+                height=680,
                 color_discrete_map={"Baania": "#f59e0b", "BAM": "#3b82f6", "SAM": "#10b981", "ZmyHome": "#ec4899"},
                 template=plotly_template
             )
@@ -1487,7 +1478,7 @@ with tab4:
                     color="บริษัท",
                     hover_name="ชื่อ",
                     zoom=11.5,
-                    height=750,
+                    height=680,
                     color_discrete_map={
                         "จุดอ้างอิง": "#ef4444",
                         "Baania": "#f59e0b",
