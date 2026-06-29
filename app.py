@@ -447,14 +447,14 @@ with st.sidebar:
         # Company Filter (Pills)
         selected_companies = st.pills(
             "บริษัททรัพย์สิน",
-            options=["Baania", "BAM", "ZmyHome"],
+            options=["Baania", "BAM", "SAM", "ZmyHome"],
             selection_mode="multi",
-            default=["Baania", "BAM", "ZmyHome"],
+            default=["Baania", "BAM", "SAM", "ZmyHome"],
             key="filter_companies"
         )
         
         if not selected_companies:
-            selected_companies = ["Baania", "BAM", "ZmyHome"]
+            selected_companies = ["Baania", "BAM", "SAM", "ZmyHome"]
         
         # Property Type Filter
         if selected_companies:
@@ -940,6 +940,7 @@ avg_price = df_filtered['ราคา'].mean() / 1e6 if total_count > 0 else 0  
 # Count by company in filtered set
 baania_count = len(df_filtered[df_filtered['บริษัท'] == 'Baania'])
 bam_count = len(df_filtered[df_filtered['บริษัท'] == 'BAM'])
+sam_count = len(df_filtered[df_filtered['บริษัท'] == 'SAM'])
 zmyhome_count = len(df_filtered[df_filtered['บริษัท'] == 'ZmyHome'])
 
 # ----------------- TABS CREATION -----------------
@@ -974,7 +975,7 @@ with tab1:
                 <div class="floating-card">
                     <div class="floating-card-title"><i class="fa fa-list" style="color: #6366f1;"></i> ทรัพย์สินที่พบ</div>
                     <div class="floating-card-value">{total_count_str}</div>
-                    <div class="floating-card-sub">Baania: {baania_count:,} | BAM: {bam_count:,} | ZmyHome: {zmyhome_count:,}</div>
+                    <div class="floating-card-sub">Baania: {baania_count:,} | BAM: {bam_count:,} | SAM: {sam_count:,} | ZmyHome: {zmyhome_count:,}</div>
                 </div>
                 <div class="floating-card">
                     <div class="floating-card-title"><i class="fa fa-wallet" style="color: #06b6d4;"></i> มูลค่ารวมทรัพย์สิน</div>
@@ -1013,7 +1014,7 @@ with tab1:
                 },
                 zoom=5.5,
                 height=750,
-                color_discrete_map={"Baania": "#f59e0b", "BAM": "#3b82f6", "ZmyHome": "#ec4899"},
+                color_discrete_map={"Baania": "#f59e0b", "BAM": "#3b82f6", "SAM": "#10b981", "ZmyHome": "#ec4899"},
                 template=plotly_template
             )
             
@@ -1053,7 +1054,7 @@ with tab2:
                 y='จำนวนทรัพย์สิน',
                 color='บริษัท',
                 title='จำนวนรายการทรัพย์สินเปรียบเทียบแต่ละบริษัท',
-                color_discrete_map={"Baania": "#f59e0b", "BAM": "#3b82f6", "ZmyHome": "#ec4899"},
+                color_discrete_map={"Baania": "#f59e0b", "BAM": "#3b82f6", "SAM": "#10b981", "ZmyHome": "#ec4899"},
                 template=plotly_template
             )
             fig_comp.update_layout(title_font=dict(size=15, family="Outfit"))
@@ -1088,7 +1089,7 @@ with tab2:
                 y='ราคาเฉลี่ย (บาท)',
                 color='บริษัท',
                 title='ราคาประเมิน/ตั้งขายเฉลี่ยรายบริษัท',
-                color_discrete_map={"Baania": "#f59e0b", "BAM": "#3b82f6", "ZmyHome": "#ec4899"},
+                color_discrete_map={"Baania": "#f59e0b", "BAM": "#3b82f6", "SAM": "#10b981", "ZmyHome": "#ec4899"},
                 template=plotly_template
             )
             fig_avg_p.update_layout(title_font=dict(size=15, family="Outfit"))
@@ -1158,7 +1159,8 @@ with tab3:
             col_pos = idx % 3
             with grid_cols[col_pos]:
                 comp = row.get("บริษัท")
-                color_theme = "#f59e0b" if comp == "Baania" else ("#3b82f6" if comp == "BAM" else "#ec4899")
+                company_colors = {"Baania": "#f59e0b", "BAM": "#3b82f6", "SAM": "#10b981", "ZmyHome": "#ec4899"}
+                color_theme = company_colors.get(comp, "#6366f1")
                 
                 # Image block
                 image_tag = f'<div style="height: 150px; background-color: #f8fafc; border-bottom: 2px solid {color_theme}; border-radius: 8px 8px 0 0; display: flex; align-items: center; justify-content: center; color: #94a3b8;"><i class="fa fa-building" style="font-size: 2.8rem; color: {color_theme};"></i></div>'
@@ -1255,9 +1257,9 @@ with tab4:
         # Company Filter for Comparison (Pills)
         compare_companies = st.pills(
             "บริษัททรัพย์สิน (เปรียบเทียบ)",
-            options=["Baania", "BAM", "ZmyHome"],
+            options=["Baania", "BAM", "SAM", "ZmyHome"],
             selection_mode="multi",
-            default=["Baania", "BAM", "ZmyHome"],
+            default=["Baania", "BAM", "SAM", "ZmyHome"],
             key="comp_companies"
         )
         
@@ -1437,6 +1439,7 @@ with tab4:
                         "จุดอ้างอิง": "#ef4444",
                         "Baania": "#f59e0b",
                         "BAM": "#3b82f6",
+                        "SAM": "#10b981",
                         "ZmyHome": "#ec4899"
                     },
                     template=plotly_template

@@ -90,7 +90,15 @@ def main():
         args_list=["--pages", args.pages, "--start-page", args.start_page]
     )
     
-    # 4. รวมข้อมูลลง Excel
+    # 4. รัน SAM Scraper
+    run_scraper(
+        name="SAM",
+        script_name="sam_scraper.py",
+        cwd=base_dir / "SAM NPA",
+        args_list=[]
+    )
+    
+    # 5. รวมข้อมูลลง Excel
     print("\n==========================================")
     print("กำลังเริ่มรวมข้อมูลของทุกบริษัทลง Excel...")
     print("==========================================\n")
