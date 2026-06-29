@@ -990,8 +990,11 @@ tab1, tab2, tab3, tab4 = st.tabs([
 # ----- TAB 1: MAP GRID -----
 with tab1:
     with st.container(key="tab_map"):
-        # Filter rows with coordinates
-        map_data = df_filtered[df_filtered['ละติจูด'].notna() & df_filtered['ลองจิจูด'].notna()].copy()
+        # Filter rows with coordinates and remove out-of-range values that break Plotly mapbox hover
+        map_data = df_filtered[
+            df_filtered['ละติจูด'].notna() & df_filtered['ลองจิจูด'].notna() &
+            df_filtered['ละติจูด'].between(5, 21) & df_filtered['ลองจิจูด'].between(97, 106)
+        ].copy()
         
         # Pre-format the price column in Python as a string to avoid Plotly mapbox hover crash on NaN values
         if not map_data.empty:
