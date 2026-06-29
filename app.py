@@ -1036,26 +1036,34 @@ with tab1:
             """
             st.markdown(floating_kpi_html, unsafe_allow_html=True)
             
-            # Create map
+            # Create map – use customdata + hovertemplate for reliable hover on all traces (fixes BAM hover bug)
+            import numpy as np_arr
+            map_data['_hover_price'] = map_data['ราคาขาย (บาท)']
+            map_data['_hover_title'] = map_data['ชื่อประกาศ_สะอาด'].fillna('ไม่มีชื่อ').astype(str)
+            map_data['_hover_id'] = map_data['รหัสทรัพย์'].fillna('-').astype(str)
+            map_data['_hover_prov'] = map_data['จังหวัด'].fillna('-').astype(str)
+            map_data['_hover_type'] = map_data['ประเภททรัพย์'].fillna('-').astype(str)
+            
             fig_map = px.scatter_mapbox(
                 map_data,
                 lat="ละติจูด",
                 lon="ลองจิจูด",
                 color="บริษัท",
-                hover_name="ชื่อประกาศ_สะอาด",
-                hover_data={
-                    "รหัสทรัพย์": True,
-                    "ราคาขาย (บาท)": True,
-                    "จังหวัด": True,
-                    "ประเภททรัพย์": True,
-                    "บริษัท": False,
-                    "ละติจูด": False,
-                    "ลองจิจูด": False
-                },
+                custom_data=['_hover_title', '_hover_id', '_hover_price', '_hover_prov', '_hover_type'],
                 zoom=5.5,
                 height=680,
                 color_discrete_map={"Baania": "#f59e0b", "BAM": "#3b82f6", "SAM": "#10b981", "ZmyHome": "#ec4899"},
                 template=plotly_template
+            )
+            fig_map.update_traces(
+                hovertemplate=(
+                    "<b>%{customdata[0]}</b><br>"
+                    "รหัสทรัพย์: %{customdata[1]}<br>"
+                    "ราคา: %{customdata[2]}<br>"
+                    "จังหวัด: %{customdata[3]}<br>"
+                    "ประเภท: %{customdata[4]}"
+                    "<extra></extra>"
+                )
             )
             
             fig_map.update_layout(
