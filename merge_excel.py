@@ -40,6 +40,17 @@ def merge_all_excel():
             df = pd.read_excel(path, dtype=str)
             df = df.loc[:, ~df.columns.str.contains('^Unnamed')] # ลบคอลัมน์ไม่มีชื่อ
             
+            # ปรับจูนโครงสร้างคอลัมน์สำหรับ ZmyHome กรณีที่หัวตารางเป็นเวอร์ชันอื่น
+            if company == "ZmyHome":
+                rename_map = {
+                    "พื้นที่ดิน": "พื้นที่ (ไร่-งาน-วา)",
+                    "พื้นที่ (ตร.ม.)": "พื้นที่ใช้สอย (ตร.ม.)",
+                    "วันที่ดึง": "วันที่ดึงข้อมูล"
+                }
+                df = df.rename(columns=rename_map)
+                if ("รหัสทรัพย์" not in df.columns or df["รหัสทรัพย์"].isna().all()) and "ID" in df.columns:
+                    df["รหัสทรัพย์"] = df["ID"]
+            
             # ลบค่า $undefined หรือ undefined ที่อาจติดมาจาก scraper
             df = df.replace(["$undefined", "undefined", "nan", "NaN", "NAN"], np.nan)
             
