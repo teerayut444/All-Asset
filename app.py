@@ -131,6 +131,7 @@ if not st.session_state['logged_in']:
     input[type="password"] {
         background-color: rgba(255, 255, 255, 0.07) !important;
         color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
         border: 1px solid rgba(255, 255, 255, 0.15) !important;
         border-radius: 12px !important;
         height: 50px !important;
