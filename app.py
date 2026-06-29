@@ -468,22 +468,26 @@ with st.sidebar:
         common_types = type_counts.head(top_n).index.tolist()
         rare_types = type_counts.index[top_n:].tolist()
         
-        display_types = sorted(common_types)
+        display_types = [f"{t} ({type_counts[t]:,})" for t in sorted(common_types)]
         if rare_types:
-            display_types.append("เพิ่มเติม")
+            rare_total = type_counts.iloc[top_n:].sum()
+            display_types.append(f"เพิ่มเติม ({rare_total:,})")
             
-        selected_types = st.pills(
+        selected_types_raw = st.pills(
             "ประเภททรัพย์สิน", 
             options=display_types, 
             selection_mode="multi", 
             default=None
         )
         
+        selected_types = [t.rsplit(" (", 1)[0] for t in selected_types_raw] if selected_types_raw else []
+        
         # If "เพิ่มเติม" is selected, show a multiselect for rare types
-        if selected_types and "เพิ่มเติม" in selected_types:
+        if "เพิ่มเติม" in selected_types:
+            rare_options = [f"{t} ({type_counts[t]:,})" for t in sorted(rare_types)]
             st.multiselect(
                 "เลือกประเภททรัพย์สินเพิ่มเติม",
-                options=sorted(rare_types),
+                options=rare_options,
                 default=[],
                 key="selected_rare_types"
             )
@@ -923,9 +927,11 @@ if selected_types:
         
         # Check if the user selected specific rare types in the dynamically shown multiselect
         selected_rare = st.session_state.get("selected_rare_types", [])
-        if selected_rare:
+        selected_rare_clean = [t.rsplit(" (", 1)[0] for t in selected_rare] if selected_rare else []
+        
+        if selected_rare_clean:
             # Only filter for selected rare types + selected main types
-            actual_selected_types = [t for t in selected_types if t != "เพิ่มเติม"] + selected_rare
+            actual_selected_types = [t for t in selected_types if t != "เพิ่มเติม"] + selected_rare_clean
         else:
             # If no specific rare type is chosen, include all rare types as fallback
             actual_selected_types = [t for t in selected_types if t != "เพิ่มเติม"] + rare_types
