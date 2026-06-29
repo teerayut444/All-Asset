@@ -51,6 +51,59 @@ def merge_all_excel():
                 df = df.rename(columns=rename_map)
                 if ("รหัสทรัพย์" not in df.columns or df["รหัสทรัพย์"].isna().all()) and "ID" in df.columns:
                     df["รหัสทรัพย์"] = df["ID"]
+                
+                # โหลดชื่อประกาศจาก temp_title_map.json มาแมปป้อนลงในช่อง ชื่อประกาศ
+                json_path = base_dir / "ZmyHome NPA" / "temp_title_map.json"
+                if json_path.exists():
+                    import json
+                    print(f"  -> พบไฟล์ temp_title_map.json ของ ZmyHome กำลังดึงข้อมูลชื่อประกาศ...")
+                    try:
+                        with open(json_path, "r", encoding="utf-8") as f:
+                            title_map = json.load(f)
+                        
+                        # สร้างฟังก์ชันแมปชื่อประกาศ
+                        def map_title(row):
+                            orig = str(row.get("ชื่อประกาศ", "")).strip()
+                            if orig and orig.lower() != "nan" and orig != "":
+                                return orig
+                            
+                            ref_id = str(row.get("รหัสทรัพย์", "")).strip()
+                            if ref_id in title_map and title_map[ref_id]:
+                                return title_map[ref_id]
+                            
+                            ref_id_id = str(row.get("ID", "")).strip()
+                            if ref_id_id in title_map and title_map[ref_id_id]:
+                                return title_map[ref_id_id]
+                            
+                            # หากไม่มีชื่อประกาศโฆษณา ให้ดึงจาก ชื่อโครงการ
+                            proj_name = str(row.get("ชื่อโครงการ", "")).strip()
+                            if proj_name and proj_name.lower() != "nan" and proj_name != "":
+                                return proj_name
+                                
+                            # หากไม่มีชื่อโครงการ ให้สร้างจาก ประเภททรัพย์ + ทำเลที่ตั้ง
+                            prop_type = str(row.get("ประเภททรัพย์", "ทรัพย์สิน")).strip()
+                            subdistrict = str(row.get("ตำบล", "")).strip()
+                            district = str(row.get("อำเภอ", "")).strip()
+                            province = str(row.get("จังหวัด", "")).strip()
+                            
+                            loc_parts = []
+                            if subdistrict:
+                                loc_parts.append(subdistrict)
+                            if district:
+                                loc_parts.append(district)
+                            if province and province != "ไม่ระบุ":
+                                loc_parts.append(province)
+                                
+                            loc_str = " ".join(loc_parts)
+                            if loc_str:
+                                return f"{prop_type} ทำเล {loc_str}"
+                            return f"{prop_type} (ZmyHome)"
+                            
+                        df["ชื่อประกาศ"] = df.apply(map_title, axis=1)
+                        filled_count = (df["ชื่อประกาศ"].fillna("").astype(str).str.strip() != "").sum()
+                        print(f"  -> แมปชื่อประกาศสำเร็จ (รวม fallback): {filled_count} รายการ")
+                    except Exception as json_err:
+                        print(f"  [Warning] ไม่สามารถโหลดไฟล์แมปชื่อประกาศได้: {json_err}")
             
             # ลบค่า $undefined หรือ undefined ที่อาจติดมาจาก scraper
             df = df.replace(["$undefined", "undefined", "nan", "NaN", "NAN"], np.nan)
