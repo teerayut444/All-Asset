@@ -993,6 +993,10 @@ with tab1:
         # Filter rows with coordinates
         map_data = df_filtered[df_filtered['ละติจูด'].notna() & df_filtered['ลองจิจูด'].notna()].copy()
         
+        # Pre-format the price column in Python as a string to avoid Plotly mapbox hover crash on NaN values
+        if not map_data.empty:
+            map_data['ราคาขาย (บาท)'] = map_data['ราคา'].apply(lambda x: f"฿{x:,.0f} บาท" if pd.notnull(x) and x > 0 else "ไม่ระบุ")
+            
         if map_data.empty:
             st.warning("⚠️ ไม่พบพิกัดตำแหน่ง ละติจูด/ลองจิจูด ในรายการทรัพย์สินที่คุณเลือกค้นหา")
         else:
@@ -1041,7 +1045,7 @@ with tab1:
                 hover_name="ชื่อประกาศ_สะอาด",
                 hover_data={
                     "รหัสทรัพย์": True,
-                    "ราคา": ":,.0f",
+                    "ราคาขาย (บาท)": True,
                     "จังหวัด": True,
                     "ประเภททรัพย์": True,
                     "บริษัท": False,
