@@ -177,7 +177,7 @@ if not st.session_state['logged_in']:
         visibility: hidden !important;
     }
     </style>
-    """, unsafe_allow_html=True)
+    """)
     
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
