@@ -114,13 +114,12 @@ if not st.session_state['logged_in']:
         background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #311042 100%) !important;
     }
     
-    /* Login Card container styling */
-    div[data-testid="stVerticalBlockBorderWrapper"]:has(input[type="password"]),
-    div[data-testid="stVerticalBlock"]:has(input[type="password"]) {
+    /* Card form styling (strictly target the form wrapper to prevent recursive nested layouts) */
+    div[data-testid="stForm"] {
         background: rgba(255, 255, 255, 0.05) !important;
         backdrop-filter: blur(20px) !important;
         -webkit-backdrop-filter: blur(20px) !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        border: 1px solid rgba(255, 255, 255, 0.12) !important;
         border-radius: 24px !important;
         padding: 40px !important;
         box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4) !important;
@@ -147,8 +146,8 @@ if not st.session_state['logged_in']:
         background-color: rgba(255, 255, 255, 0.1) !important;
     }
     
-    /* Login button style */
-    div.stButton > button {
+    /* Form Submit Button */
+    div[data-testid="stFormSubmitButton"] button {
         background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%) !important;
         color: #ffffff !important;
         border: none !important;
@@ -156,18 +155,20 @@ if not st.session_state['logged_in']:
         font-weight: 600 !important;
         font-size: 1.1rem !important;
         height: 50px !important;
+        width: 100% !important;
         box-shadow: 0 8px 20px rgba(99, 102, 241, 0.3) !important;
         transition: all 0.3s ease !important;
         margin-top: 15px !important;
     }
     
-    div.stButton > button:hover {
+    div[data-testid="stFormSubmitButton"] button:hover {
         transform: translateY(-2px) !important;
         box-shadow: 0 12px 25px rgba(99, 102, 241, 0.5) !important;
         background: linear-gradient(135deg, #4f46e5 0%, #9333ea 100%) !important;
+        color: #ffffff !important;
     }
     
-    div.stButton > button:active {
+    div[data-testid="stFormSubmitButton"] button:active {
         transform: translateY(0) !important;
     }
     
@@ -181,7 +182,7 @@ if not st.session_state['logged_in']:
     
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        with st.container():
+        with st.form("login_form", clear_on_submit=False):
             st.markdown("""
             <div style="text-align: center; margin-bottom: 25px;">
                 <div style="display: inline-flex; align-items: center; justify-content: center; width: 80px; height: 80px; background: rgba(99, 102, 241, 0.1); border-radius: 50%; margin-bottom: 20px; border: 1px solid rgba(99, 102, 241, 0.2);">
@@ -194,7 +195,9 @@ if not st.session_state['logged_in']:
             
             password = st.text_input("รหัสผ่าน (Password)", type="password", key="login_password", label_visibility="collapsed")
             
-            if st.button("เข้าสู่ระบบ", use_container_width=True):
+            submit = st.form_submit_button("เข้าสู่ระบบ")
+            
+            if submit:
                 if check_password(password):
                     st.session_state['logged_in'] = True
                     st.rerun()
