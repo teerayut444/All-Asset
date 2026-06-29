@@ -479,6 +479,15 @@ with st.sidebar:
             default=None
         )
         
+        # If "เพิ่มเติม" is selected, show a multiselect for rare types
+        if selected_types and "เพิ่มเติม" in selected_types:
+            st.multiselect(
+                "เลือกประเภททรัพย์สินเพิ่มเติม",
+                options=sorted(rare_types),
+                default=[],
+                key="selected_rare_types"
+            )
+        
         # Province Filter
         unique_provinces = sorted(df_by_company['จังหวัด'].unique().tolist())
         # Clean up province lists, removing "ไม่ระบุ" or blank
@@ -912,7 +921,14 @@ if selected_types:
         top_n = 7
         rare_types = type_counts.index[top_n:].tolist()
         
-        actual_selected_types = [t for t in selected_types if t != "เพิ่มเติม"] + rare_types
+        # Check if the user selected specific rare types in the dynamically shown multiselect
+        selected_rare = st.session_state.get("selected_rare_types", [])
+        if selected_rare:
+            # Only filter for selected rare types + selected main types
+            actual_selected_types = [t for t in selected_types if t != "เพิ่มเติม"] + selected_rare
+        else:
+            # If no specific rare type is chosen, include all rare types as fallback
+            actual_selected_types = [t for t in selected_types if t != "เพิ่มเติม"] + rare_types
     else:
         actual_selected_types = selected_types
         
