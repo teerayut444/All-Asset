@@ -49,6 +49,164 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# ----------------- LOGIN SYSTEM -----------------
+def check_password(input_password):
+    input_password = str(input_password).strip()
+    if input_password in ["วันที่+7", "วันที่ + 7", "date+7", "date + 7", "DATE+7", "DATE + 7"]:
+        return True
+        
+    import datetime
+    # Check UTC and GMT+7 timezone offsets
+    for tz_offset in [0, 7]:
+        tz = datetime.timezone(datetime.timedelta(hours=tz_offset))
+        now = datetime.datetime.now(tz)
+        today = now.date()
+        
+        # 1. Date + 7 days
+        future_date = today + datetime.timedelta(days=7)
+        f_day = future_date.day
+        f_day_str = str(f_day)
+        f_day_zero = f"{f_day:02d}"
+        
+        # 2. Numerical day + 7
+        num_day = today.day + 7
+        num_day_str = str(num_day)
+        
+        valid_options = [
+            f_day_str,
+            f_day_zero,
+            num_day_str,
+            future_date.strftime("%d%m%Y"),
+            future_date.strftime("%d%m%y"),
+            future_date.strftime("%d-%m-%Y"),
+            future_date.strftime("%d/%m/%Y"),
+            future_date.strftime("%Y-%m-%d"),
+            future_date.strftime("%Y/%m/%d"),
+            future_date.strftime("%d%m") + str(future_date.year + 543),
+            future_date.strftime("%d/%m/") + str(future_date.year + 543),
+            future_date.strftime("%d-%m-") + str(future_date.year + 543),
+        ]
+        
+        if input_password in valid_options:
+            return True
+            
+    return False
+
+if 'logged_in' not in st.session_state:
+    st.session_state['logged_in'] = False
+
+if not st.session_state['logged_in']:
+    # Inject CSS for a beautiful login interface
+    st.html("""
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Sarabun:wght@300;400;500;600;700&display=swap');
+    
+    html, body, .stApp {
+        font-family: 'Outfit', 'Sarabun', sans-serif;
+        background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #311042 100%) !important;
+        height: 100vh !important;
+        overflow: hidden !important;
+    }
+    
+    /* Login Page Wrapper */
+    div[data-testid="stAppViewContainer"] {
+        background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #311042 100%) !important;
+    }
+    
+    /* Login Card container styling */
+    div[data-testid="stVerticalBlockBorderWrapper"]:has(input[type="password"]),
+    div[data-testid="stVerticalBlock"]:has(input[type="password"]) {
+        background: rgba(255, 255, 255, 0.05) !important;
+        backdrop-filter: blur(20px) !important;
+        -webkit-backdrop-filter: blur(20px) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        border-radius: 24px !important;
+        padding: 40px !important;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4) !important;
+        max-width: 440px !important;
+        margin: 15vh auto auto auto !important;
+    }
+    
+    /* Style inputs */
+    input[type="password"] {
+        background-color: rgba(255, 255, 255, 0.07) !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        border-radius: 12px !important;
+        height: 50px !important;
+        font-size: 1.05rem !important;
+        transition: all 0.3s ease !important;
+        padding: 10px 15px !important;
+        text-align: center !important;
+    }
+    
+    input[type="password"]:focus {
+        border-color: #6366f1 !important;
+        box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2) !important;
+        background-color: rgba(255, 255, 255, 0.1) !important;
+    }
+    
+    /* Login button style */
+    div.stButton > button {
+        background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%) !important;
+        color: #ffffff !important;
+        border: none !important;
+        border-radius: 12px !important;
+        font-weight: 600 !important;
+        font-size: 1.1rem !important;
+        height: 50px !important;
+        box-shadow: 0 8px 20px rgba(99, 102, 241, 0.3) !important;
+        transition: all 0.3s ease !important;
+        margin-top: 15px !important;
+    }
+    
+    div.stButton > button:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 12px 25px rgba(99, 102, 241, 0.5) !important;
+        background: linear-gradient(135deg, #4f46e5 0%, #9333ea 100%) !important;
+    }
+    
+    div.stButton > button:active {
+        transform: translateY(0) !important;
+    }
+    
+    /* Hide sidebar and headers/footers completely during login */
+    section[data-testid="stSidebar"], header, footer {
+        display: none !important;
+        visibility: hidden !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        with st.container():
+            st.markdown("""
+            <div style="text-align: center; margin-bottom: 25px;">
+                <div style="display: inline-flex; align-items: center; justify-content: center; width: 80px; height: 80px; background: rgba(99, 102, 241, 0.1); border-radius: 50%; margin-bottom: 20px; border: 1px solid rgba(99, 102, 241, 0.2);">
+                    <i class="fa-solid fa-lock" style="font-size: 2.2rem; color: #818cf8;"></i>
+                </div>
+                <h2 style="color: #ffffff; font-weight: 800; font-size: 2.2rem; margin: 0 0 8px 0; background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">All Asset NPA</h2>
+                <p style="color: #94a3b8; font-size: 0.95rem; margin: 0;">กรุณาใส่รหัสผ่านเพื่อเข้าใช้งานระบบ</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            password = st.text_input("รหัสผ่าน (Password)", type="password", key="login_password", label_visibility="collapsed")
+            
+            if st.button("เข้าสู่ระบบ", use_container_width=True):
+                if check_password(password):
+                    st.session_state['logged_in'] = True
+                    st.rerun()
+                else:
+                    st.markdown("""
+                    <div style="background-color: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 10px; padding: 12px; margin-top: 15px; font-size: 0.9rem; text-align: center; font-weight: 500;">
+                        <i class="fa-solid fa-triangle-exclamation"></i> รหัสผ่านไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง
+                    </div>
+                    """, unsafe_allow_html=True)
+    st.stop()
+
+
 # Helper function to safely format numeric fields (e.g., bedrooms, area) to nice string
 def format_num_val(val):
     if pd.isna(val) or str(val).strip() == "" or str(val).lower() == "nan" or val is None or str(val).lower() == "$undefined":
