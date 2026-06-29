@@ -1067,6 +1067,14 @@ with tab1:
                 mapbox_style=mapbox_style,
                 margin={"r": 0, "t": 0, "l": 0, "b": 0},
                 paper_bgcolor="rgba(0,0,0,0)",
+                hovermode='closest',
+                hoverlabel=dict(
+                    bgcolor="rgba(15, 23, 42, 0.9)",
+                    font_size=13,
+                    font_color="white",
+                    font_family="Sarabun, Outfit, sans-serif",
+                    bordercolor="rgba(255, 255, 255, 0.1)"
+                ),
                 legend=dict(
                     yanchor="top",
                     y=0.99,
@@ -1498,7 +1506,15 @@ with tab4:
                 fig_compare.update_layout(
                     mapbox_style=mapbox_style,
                     margin={"r": 0, "t": 0, "l": 0, "b": 0},
-                    paper_bgcolor="rgba(0,0,0,0)"
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    hovermode='closest',
+                    hoverlabel=dict(
+                        bgcolor="rgba(15, 23, 42, 0.9)",
+                        font_size=13,
+                        font_color="white",
+                        font_family="Sarabun, Outfit, sans-serif",
+                        bordercolor="rgba(255, 255, 255, 0.1)"
+                    )
                 )
                 st.plotly_chart(fig_compare, use_container_width=True, theme=None, config={"scrollZoom": True})
 
