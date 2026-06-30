@@ -62,45 +62,72 @@ def merge_all_excel():
                         with open(json_path, "r", encoding="utf-8") as f:
                             title_map = json.load(f)
                         
-                        # สร้างฟังก์ชันแมปชื่อประกาศ
+                        # สร้างฟังก์ชันแมปชื่อประกาศแบบอัจฉริยะสำหรับ ZmyHome
                         def map_title(row):
-                            # ลำดับที่ 1: ใช้ ชื่อโครงการ เป็น ชื่อประกาศ เสมอตามความต้องการของลูกค้า
+                            # 1. ข้อมูลประเภททรัพย์หลัก
+                            prop_type = str(row.get("ประเภททรัพย์", "")).strip()
+                            if not prop_type or prop_type.lower() == "nan":
+                                prop_type = "ทรัพย์สิน"
+                            
+                            # 2. ชื่อโครงการ
                             proj_name = str(row.get("ชื่อโครงการ", "")).strip()
-                            if proj_name and proj_name.lower() != "nan" and proj_name != "" and proj_name != "-":
-                                return proj_name
-                                
-                            # ลำดับที่ 2: หากไม่มีชื่อโครงการ ค่อยดึงจากชื่อประกาศเดิม (โฆษณา)
-                            orig = str(row.get("ชื่อประกาศ", "")).strip()
-                            if orig and orig.lower() != "nan" and orig != "":
-                                return orig
+                            if proj_name.lower() == "nan" or proj_name == "-" or proj_name == "":
+                                proj_name = ""
                             
-                            # ลำดับที่ 3: ดึงข้อมูลจาก temp_title_map.json
-                            ref_id = str(row.get("รหัสทรัพย์", "")).strip()
-                            if ref_id in title_map and title_map[ref_id]:
-                                return title_map[ref_id]
+                            # 3. รายละเอียดสเปกทรัพย์ (พื้นที่ และ ห้องนอน/ห้องน้ำ)
+                            spec_parts = []
                             
-                            ref_id_id = str(row.get("ID", "")).strip()
-                            if ref_id_id in title_map and title_map[ref_id_id]:
-                                return title_map[ref_id_id]
+                            area_use = row.get("พื้นที่ใช้สอย (ตร.ม.)")
+                            if pd.notnull(area_use) and str(area_use).strip() != "" and str(area_use).strip().lower() != "nan":
+                                try:
+                                    spec_parts.append(f"{float(area_use):,.0f} ตร.ม.")
+                                except:
+                                    spec_parts.append(f"{area_use} ตร.ม.")
+                                    
+                            area_land = str(row.get("พื้นที่ (ไร่-งาน-วา)", "")).strip()
+                            if area_land and area_land.lower() != "nan" and area_land != "0-0-0" and area_land != "":
+                                spec_parts.append(f"ที่ดิน {area_land}")
                                 
-                            # ลำดับที่ 4: Fallback สุดท้ายด้วย ประเภททรัพย์ + ทำเลที่ตั้ง
-                            prop_type = str(row.get("ประเภททรัพย์", "ทรัพย์สิน")).strip()
+                            beds = row.get("ห้องนอน")
+                            if pd.notnull(beds) and str(beds).strip() != "" and str(beds).strip().lower() != "nan":
+                                try:
+                                    spec_parts.append(f"{int(float(beds))} นอน")
+                                except:
+                                    spec_parts.append(f"{beds} นอน")
+                                    
+                            baths = row.get("ห้องน้ำ")
+                            if pd.notnull(baths) and str(baths).strip() != "" and str(baths).strip().lower() != "nan":
+                                try:
+                                    spec_parts.append(f"{int(float(baths))} น้ำ")
+                                except:
+                                    spec_parts.append(f"{baths} น้ำ")
+                                    
+                            spec_str = " | ".join(spec_parts)
+                            
+                            # 4. ทำเลที่ตั้ง
                             subdistrict = str(row.get("ตำบล", "")).strip()
                             district = str(row.get("อำเภอ", "")).strip()
                             province = str(row.get("จังหวัด", "")).strip()
                             
                             loc_parts = []
-                            if subdistrict:
+                            if subdistrict and subdistrict.lower() != "nan" and subdistrict != "":
                                 loc_parts.append(subdistrict)
-                            if district:
+                            if district and district.lower() != "nan" and district != "":
                                 loc_parts.append(district)
-                            if province and province != "ไม่ระบุ":
+                            if province and province.lower() != "nan" and province != "ไม่ระบุ" and province != "":
                                 loc_parts.append(province)
-                                
                             loc_str = " ".join(loc_parts)
+                            
+                            # ประกอบข้อความชื่อประกาศ
+                            title_parts = [f"ขาย{prop_type}"]
+                            if proj_name:
+                                title_parts.append(f"โครงการ {proj_name}")
+                            if spec_str:
+                                title_parts.append(f"({spec_str})")
                             if loc_str:
-                                return f"{prop_type} ทำเล {loc_str}"
-                            return f"{prop_type} (ZmyHome)"
+                                title_parts.append(f"ทำเล {loc_str}")
+                                
+                            return " ".join(title_parts)
                             
                         df["ชื่อประกาศ"] = df.apply(map_title, axis=1)
                         filled_count = (df["ชื่อประกาศ"].fillna("").astype(str).str.strip() != "").sum()
