@@ -3,6 +3,10 @@ import sys
 import argparse
 from pathlib import Path
 
+# Reconfigure stdout to UTF-8 to prevent encoding crashes on Windows console
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
+
 def run_scraper(name: str, script_name: str, cwd: Path, args_list: list) -> bool:
     print(f"\n==========================================")
     print(f"กำลังเริ่มรันระบบดึงข้อมูล: {name}")

@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 import os
+import time
 
 def merge_all_excel():
     print("=== เริ่มการรวมไฟล์ Excel ===")
@@ -63,10 +64,17 @@ def merge_all_excel():
                         
                         # สร้างฟังก์ชันแมปชื่อประกาศ
                         def map_title(row):
+                            # ลำดับที่ 1: ใช้ ชื่อโครงการ เป็น ชื่อประกาศ เสมอตามความต้องการของลูกค้า
+                            proj_name = str(row.get("ชื่อโครงการ", "")).strip()
+                            if proj_name and proj_name.lower() != "nan" and proj_name != "" and proj_name != "-":
+                                return proj_name
+                                
+                            # ลำดับที่ 2: หากไม่มีชื่อโครงการ ค่อยดึงจากชื่อประกาศเดิม (โฆษณา)
                             orig = str(row.get("ชื่อประกาศ", "")).strip()
                             if orig and orig.lower() != "nan" and orig != "":
                                 return orig
                             
+                            # ลำดับที่ 3: ดึงข้อมูลจาก temp_title_map.json
                             ref_id = str(row.get("รหัสทรัพย์", "")).strip()
                             if ref_id in title_map and title_map[ref_id]:
                                 return title_map[ref_id]
@@ -74,13 +82,8 @@ def merge_all_excel():
                             ref_id_id = str(row.get("ID", "")).strip()
                             if ref_id_id in title_map and title_map[ref_id_id]:
                                 return title_map[ref_id_id]
-                            
-                            # หากไม่มีชื่อประกาศโฆษณา ให้ดึงจาก ชื่อโครงการ
-                            proj_name = str(row.get("ชื่อโครงการ", "")).strip()
-                            if proj_name and proj_name.lower() != "nan" and proj_name != "":
-                                return proj_name
                                 
-                            # หากไม่มีชื่อโครงการ ให้สร้างจาก ประเภททรัพย์ + ทำเลที่ตั้ง
+                            # ลำดับที่ 4: Fallback สุดท้ายด้วย ประเภททรัพย์ + ทำเลที่ตั้ง
                             prop_type = str(row.get("ประเภททรัพย์", "ทรัพย์สิน")).strip()
                             subdistrict = str(row.get("ตำบล", "")).strip()
                             district = str(row.get("อำเภอ", "")).strip()
@@ -276,15 +279,31 @@ def merge_all_excel():
     # คัดแยกค่าว่างให้สวยงาม
     combined_df["ชื่อโครงการ"] = combined_df["ชื่อโครงการ"].replace("", np.nan)
     
-    try:
-        # บันทึกไฟล์ Excel
-        print(f"กำลังบันทึกไฟล์รวมไปที่: {output_file}")
-        combined_df.to_excel(output_file, index=False, engine="openpyxl")
-        print(f"=== บันทึกสำเร็จ! รวมแถวทั้งหมด: {len(combined_df)} แถว ===")
-        return True
-    except Exception as e:
-        print(f"[Error] ไม่สามารถบันทึกไฟล์ Excel ได้: {e}")
-        return False
+    # Retry loop for saving
+    max_save_retries = 3
+    for attempt in range(max_save_retries):
+        try:
+            print(f"กำลังบันทึกไฟล์รวมไปที่: {output_file}")
+            combined_df.to_excel(output_file, index=False, engine="openpyxl")
+            print(f"=== บันทึกสำเร็จ! รวมแถวทั้งหมด: {len(combined_df)} แถว ===")
+            return True
+        except PermissionError as pe:
+            if attempt < max_save_retries - 1:
+                print(f"[Warning] ไฟล์ {output_file.name} ถูกล็อกอยู่ (อาจเปิดอยู่ใน Excel) จะลองใหม่ใน 5 วินาที... (พยายามครั้งที่ {attempt+1}/{max_save_retries})")
+                time.sleep(5)
+            else:
+                alt_output = output_file.with_name("all_assets_TEMP.xlsx")
+                print(f"[Error] ไม่สามารถเขียนทับ {output_file.name} ได้เนื่องจากถูกล็อก บันทึกข้อมูลสำรองไว้ที่ {alt_output.name} แทน: {pe}")
+                try:
+                    combined_df.to_excel(alt_output, index=False, engine="openpyxl")
+                    print(f"=== บันทึกไฟล์สำรองสำเร็จ! จำนวน: {len(combined_df)} แถว ===")
+                    return True
+                except Exception as alt_e:
+                    print(f"[Error] ไม่สามารถบันทึกไฟล์สำรองได้เช่นกัน: {alt_e}")
+                    return False
+        except Exception as e:
+            print(f"[Error] ไม่สามารถบันทึกไฟล์ Excel ได้: {e}")
+            return False
 
 if __name__ == "__main__":
     merge_all_excel()
