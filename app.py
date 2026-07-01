@@ -1048,7 +1048,7 @@ with tab1:
             map_data['_hover_prov'] = map_data['จังหวัด'].fillna('-').astype(str)
             map_data['_hover_type'] = map_data['ประเภททรัพย์'].fillna('-').astype(str)
             
-            fig_map = px.scatter_mapbox(
+            fig_map = px.scatter_map(
                 map_data,
                 lat="ละติจูด",
                 lon="ลองจิจูด",
@@ -1071,7 +1071,7 @@ with tab1:
             )
             
             fig_map.update_layout(
-                mapbox_style=mapbox_style,
+                map_style=mapbox_style,
                 margin={"r": 0, "t": 0, "l": 0, "b": 0},
                 paper_bgcolor="rgba(0,0,0,0)",
                 hovermode='closest',
@@ -1093,7 +1093,7 @@ with tab1:
                     font=dict(color="#1f2937", size=12)
                 )
             )
-            st.plotly_chart(fig_map, use_container_width=True, theme=None, config={"scrollZoom": True})
+            st.plotly_chart(fig_map, width="stretch", theme=None, config={"scrollZoom": True})
 
 # ----- TAB 2: ANALYTICS -----
 with tab2:
@@ -1118,7 +1118,7 @@ with tab2:
                 template=plotly_template
             )
             fig_comp.update_layout(title_font=dict(size=15, family="Outfit"))
-            st.plotly_chart(fig_comp, use_container_width=True)
+            st.plotly_chart(fig_comp, width="stretch")
             
         # 2. Distribution of Property Type
         with col_c2:
@@ -1134,7 +1134,7 @@ with tab2:
                 template=plotly_template
             )
             fig_type.update_layout(title_font=dict(size=15, family="Outfit"))
-            st.plotly_chart(fig_type, use_container_width=True)
+            st.plotly_chart(fig_type, width="stretch")
             
         st.markdown("---")
         col_c3, col_c4 = st.columns(2)
@@ -1153,7 +1153,7 @@ with tab2:
                 template=plotly_template
             )
             fig_avg_p.update_layout(title_font=dict(size=15, family="Outfit"))
-            st.plotly_chart(fig_avg_p, use_container_width=True)
+            st.plotly_chart(fig_avg_p, width="stretch")
             
         # 4. Top 10 Provinces
         with col_c4:
@@ -1170,7 +1170,7 @@ with tab2:
                 template=plotly_template
             )
             fig_prov.update_layout(title_font=dict(size=15, family="Outfit"), coloraxis_showscale=False)
-            st.plotly_chart(fig_prov, use_container_width=True)
+            st.plotly_chart(fig_prov, width="stretch")
 
 # ----- TAB 3: PROPERTY LISTING -----
 with tab3:
@@ -1186,7 +1186,7 @@ with tab3:
                 "ประเภทการขาย", "ราคา", "จังหวัด", "อำเภอ", "ตำบล",
                 "พื้นที่ (ไร่-งาน-วา)", "พื้นที่ใช้สอย (ตร.ม.)", "ห้องนอน", "ห้องน้ำ", "ที่จอดรถ", "วันที่ดึงข้อมูล"
             ]],
-            use_container_width=True,
+            width="stretch",
             column_config={
                 "ราคา": st.column_config.NumberColumn("ราคาขาย (บาท)", format="%d"),
                 "พื้นที่ใช้สอย (ตร.ม.)": st.column_config.NumberColumn(format="%.1f")
@@ -1454,7 +1454,7 @@ with tab4:
                         "บริษัท", "รหัสทรัพย์", "ชื่อประกาศ_สะอาด", "ประเภททรัพย์", "ราคา", 
                         "จังหวัด", "อำเภอ", "ตำบล", "ระยะทาง (กม.)", "ลิงก์_สะอาด"
                     ]].sort_values("ระยะทาง (กม.)"),
-                    use_container_width=True,
+                    width="stretch",
                     column_config={
                         "ราคา": st.column_config.NumberColumn("ราคาขาย (บาท)", format="%d"),
                         "ระยะทาง (กม.)": st.column_config.NumberColumn("ระยะทาง (กม.)", format="%.2f")
@@ -1487,7 +1487,7 @@ with tab4:
                     })
                     
                 map_compare_df = pd.DataFrame(map_points)
-                fig_compare = px.scatter_mapbox(
+                fig_compare = px.scatter_map(
                     map_compare_df,
                     lat="ละติจูด",
                     lon="ลองจิจูด",
@@ -1512,7 +1512,7 @@ with tab4:
                     marker=dict(size=24, opacity=1.0)
                 )
                 fig_compare.update_layout(
-                    mapbox_style=mapbox_style,
+                    map_style=mapbox_style,
                     margin={"r": 0, "t": 0, "l": 0, "b": 0},
                     paper_bgcolor="rgba(0,0,0,0)",
                     hovermode='closest',
@@ -1524,5 +1524,5 @@ with tab4:
                         bordercolor="rgba(255, 255, 255, 0.1)"
                     )
                 )
-                st.plotly_chart(fig_compare, use_container_width=True, theme=None, config={"scrollZoom": True})
+                st.plotly_chart(fig_compare, width="stretch", theme=None, config={"scrollZoom": True})
 
