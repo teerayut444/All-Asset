@@ -14,6 +14,7 @@ def merge_all_excel():
         "BAM": base_dir / "BAM NPA" / "BAM NPA.xlsx",
         "SAM": base_dir / "SAM NPA" / "SAM NPA.xlsx",
         "ZmyHome": base_dir / "ZmyHome NPA" / "ZmyHome NPA.xlsx",
+        "Livinginsider": base_dir / "Livinginsider NPA" / "Livinginsider NPA.xlsx",
     }
     
     # กำหนดพาธไฟล์ปลายทาง
@@ -41,6 +42,11 @@ def merge_all_excel():
             # โหลดไฟล์ (โหลดทุกคอลัมน์เป็น String เพื่อรักษาฟอร์แมตเดิม แล้วค่อยแปลงภายหลัง)
             df = pd.read_excel(path, dtype=str)
             df = df.loc[:, ~df.columns.str.contains('^Unnamed')] # ลบคอลัมน์ไม่มีชื่อ
+            
+            # ปรับจูนโครงสร้างคอลัมน์สำหรับ Livinginsider
+            if company == "Livinginsider":
+                if ("รหัสทรัพย์" not in df.columns or df["รหัสทรัพย์"].isna().all()) and "ID" in df.columns:
+                    df["รหัสทรัพย์"] = df["ID"]
             
             # ปรับจูนโครงสร้างคอลัมน์สำหรับ ZmyHome กรณีที่หัวตารางเป็นเวอร์ชันอื่น
             if company == "ZmyHome":
