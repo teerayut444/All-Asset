@@ -1,0 +1,10 @@
+[server]
+maxMessageSize = 500
+enableStaticServing = true
+
+[theme]
+base = "light"
+primaryColor = "#6366f1"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f8fafc"
+textColor = "#0f172a"
