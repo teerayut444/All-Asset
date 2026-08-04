@@ -2122,7 +2122,7 @@ with tab3:
 
         with inp_col2:
             st.markdown("##### ⚙️ ส่วนที่ 2: เงื่อนไขการค้นหา")
-            search_radius = st.slider("รัศมีการค้นหา (กิโลเมตร)", min_value=0.5, max_value=50.0, value=5.0, step=0.5)
+            search_radius = st.slider("รัศมีการค้นหา (กิโลเมตร)", min_value=0.5, max_value=10.0, value=5.0, step=0.5)
 
             # Company Filter for Comparison (Pills)
             all_comp_list = sorted(df_raw['บริษัท'].unique().tolist()) if df_raw is not None else ["Baania", "BAM", "SAM", "Livinginsider", "DDproperty", "Taladnudbaan", "ZmyHome"]
