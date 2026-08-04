@@ -37,7 +37,22 @@ def haversine_distance_vectorized(lat1, lon1, lats, lons):
     a = np.sin(dlat / 2.0) ** 2 + np.cos(lat1_rad) * np.cos(lats_rad) * np.sin(dlon / 2.0) ** 2
     c = 2.0 * np.arcsin(np.sqrt(a))
     
-    return R * c
+def sanitize_session_state(key, valid_options, default_val=None):
+    """Ensure st.session_state[key] only contains items present in valid_options to prevent desync errors."""
+    if key in st.session_state and st.session_state[key] is not None:
+        val = st.session_state[key]
+        if isinstance(val, (list, set, tuple)):
+            sanitized = [v for v in val if v in valid_options]
+            if len(sanitized) != len(val):
+                st.session_state[key] = sanitized
+        else:
+            if val not in valid_options:
+                if default_val is not None and default_val in valid_options:
+                    st.session_state[key] = default_val
+                elif valid_options:
+                    st.session_state[key] = valid_options[0]
+                else:
+                    st.session_state[key] = None
 
 def find_nearby_properties(input_lat, input_lon, df_all, radius_km, match_type=None, company=None):
     """Find properties within radius_km of the given coordinates (memory-optimized & vectorized)."""
@@ -627,6 +642,7 @@ with st.sidebar:
         if len(rare_types) > 0:
             display_type_keys.append("เพิ่มเติม")
             
+        sanitize_session_state("filter_types", display_type_keys)
         selected_types = st.pills(
             "ประเภททรัพย์สิน", 
             options=display_type_keys, 
@@ -641,6 +657,7 @@ with st.sidebar:
         # If "เพิ่มเติม" is selected, show a multiselect for rare types
         if "เพิ่มเติม" in selected_types:
             rare_options = [f"{t} ({type_counts[t]:,})" for t in sorted(rare_types)]
+            sanitize_session_state("selected_rare_types", rare_options)
             st.multiselect(
                 "เลือกประเภททรัพย์สินเพิ่มเติม",
                 options=rare_options,
@@ -653,6 +670,7 @@ with st.sidebar:
         sale_types_list = ["ขาย", "ขาย/เช่า", "ให้เช่า", "ประมูล / ขายทอดตลาด", "ขายดาวน์ / รอประกาศ", "ไม่ระบุ"]
         available_sale_types = [s for s in sale_types_list if sale_type_counts.get(s, 0) > 0]
         
+        sanitize_session_state("filter_sale_types", available_sale_types)
         selected_sale_types = st.pills(
             "ประเภทการขาย",
             options=available_sale_types,
@@ -1984,9 +2002,11 @@ with tab3:
                 with col_sel2:
                     ref_comp_df = df_raw[df_raw['บริษัท'] == sel_ref_company] if df_raw is not None else pd.DataFrame()
                     ref_comp_types = sorted(ref_comp_df['ประเภททรัพย์'].dropna().unique().tolist()) if not ref_comp_df.empty else []
+                    valid_ref_types = ["ทั้งหมด"] + ref_comp_types
+                    sanitize_session_state("comp_sel_type", valid_ref_types, "ทั้งหมด")
                     sel_ref_type = st.selectbox(
                         "ประเภททรัพย์ (เลือกจุดอ้างอิง)",
-                        options=["ทั้งหมด"] + ref_comp_types,
+                        options=valid_ref_types,
                         index=0,
                         key="comp_sel_type"
                     )
@@ -2042,9 +2062,11 @@ with tab3:
 
                         st.write(f"แสดงผล {len(display_df)} รายการแรก จากที่ค้นพบทั้งหมด {total_matches:,} รายการ (ใช้กล่องค้นหาเพื่อกรองเพิ่มได้)")
 
+                        valid_labels = display_df['label'].tolist()
+                        sanitize_session_state("comp_sel_asset", valid_labels)
                         selected_asset_label = st.selectbox(
                             "ค้นหาและเลือกรายการทรัพย์สินอ้างอิง",
-                            options=display_df['label'].tolist(),
+                            options=valid_labels,
                             index=0,
                             key="comp_sel_asset"
                         )
@@ -2345,9 +2367,11 @@ with tab3:
                 )
                 df_a_filtered = df_raw[df_raw['บริษัท'] == comp_a_co].copy()
                 types_a = sorted(df_a_filtered['ประเภททรัพย์'].dropna().unique().tolist()) if not df_a_filtered.empty else []
+                valid_types_a = ["ทั้งหมด"] + types_a
+                sanitize_session_state("oneone_type_a", valid_types_a, "ทั้งหมด")
                 comp_a_type = st.selectbox(
                     "เลือกประเภททรัพย์ (รายการที่ 1)",
-                    options=["ทั้งหมด"] + types_a,
+                    options=valid_types_a,
                     index=0,
                     key="oneone_type_a"
                 )
@@ -2382,9 +2406,11 @@ with tab3:
                     display_a = df_a_subset.head(100)
                     
                     st.write(f"พบที่ตรงกัน {len(df_a_subset):,} รายการ แสดงผล 100 รายการแรก")
+                    valid_labels_a = display_a['label'].tolist()
+                    sanitize_session_state("oneone_sel_a", valid_labels_a)
                     sel_label_a = st.selectbox(
                         "ค้นหาและเลือกทรัพย์สินรายการที่ 1",
-                        options=display_a['label'].tolist(),
+                        options=valid_labels_a,
                         index=0,
                         key="oneone_sel_a"
                     )
@@ -2407,9 +2433,11 @@ with tab3:
                 )
                 df_b_filtered = df_raw[df_raw['บริษัท'] == comp_b_co].copy()
                 types_b = sorted(df_b_filtered['ประเภททรัพย์'].dropna().unique().tolist()) if not df_b_filtered.empty else []
+                valid_types_b = ["ทั้งหมด"] + types_b
+                sanitize_session_state("oneone_type_b", valid_types_b, "ทั้งหมด")
                 comp_b_type = st.selectbox(
                     "เลือกประเภททรัพย์ (รายการที่ 2)",
-                    options=["ทั้งหมด"] + types_b,
+                    options=valid_types_b,
                     index=0,
                     key="oneone_type_b"
                 )
@@ -2444,9 +2472,11 @@ with tab3:
                     display_b = df_b_subset.head(100)
                     
                     st.write(f"พบที่ตรงกัน {len(df_b_subset):,} รายการ แสดงผล 100 รายการแรก")
+                    valid_labels_b = display_b['label'].tolist()
+                    sanitize_session_state("oneone_sel_b", valid_labels_b)
                     sel_label_b = st.selectbox(
                         "ค้นหาและเลือกทรัพย์สินรายการที่ 2",
-                        options=display_b['label'].tolist(),
+                        options=valid_labels_b,
                         index=0,
                         key="oneone_sel_b"
                     )
