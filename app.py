@@ -1433,10 +1433,9 @@ floating_kpi_html = f"""
 st.markdown(floating_kpi_html, unsafe_allow_html=True)
 
 # ----------------- TABS CREATION -----------------
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
+tab1, tab2, tab3, tab4 = st.tabs([
     "🗺️ แผนที่พิกัดทรัพย์ (Map Grid)", 
     "📈 สถิติ & วิเคราะห์ (Analytics)", 
-    "📋 รายการทรัพย์สิน (Property Listing)", 
     "🔍 เปรียบเทียบตำแหน่ง (Comparison)",
     "💎 ค้นหาของดีราคาถูก (Bargain Hunter)"
 ])
@@ -1556,12 +1555,11 @@ with tab1:
             
 
             
-            # Embed the HTML code inline inside a sandboxed iframe using st.components.v1.html
-            # Bypasses all server directory mappings & network fetches entirely!
+            # Embed the HTML code inline inside a sandboxed iframe using st.html
             try:
-                st.components.v1.html(html_content, height=680)
-            except AttributeError:
-                st.html(html_content)
+                st.html(html_content, height=680)
+            except Exception as e:
+                st.error(f"เกิดข้อผิดพลาดในการแสดงแผนที่: {e}")
             
             # Clear progress bar
             progress_bar.empty()
@@ -1918,38 +1916,9 @@ with tab2:
             else:
                 st.warning("⚠️ ไม่มีข้อมูลพื้นที่ใช้สอยหรือราคาทรัพย์สินสำหรับวิเคราะห์ราคาต่อตารางเมตร")
 
-# ----- TAB 3: PROPERTY LISTING -----
+
+# ----- TAB 3: COMPARISON -----
 with tab3:
-    st.markdown(f"### 📋 รายการทรัพยสินที่ค้นพบ ({total_count:,} รายการ)")
-    
-    if df_filtered.empty:
-        st.warning("⚠️ ไม่พบข้อมูลตามเงื่อนไข")
-    else:
-        # Show top 5,000 rows in the interactive table for performance
-        display_limit = 5000
-        if len(df_filtered) > display_limit:
-            st.info(f"💡 แสดงผลตารางเฉพาะ {display_limit:,} รายการแรก เพื่อลดการใช้ข้อมูลหน้าเว็บและช่วยให้โหลดรวดเร็ว (กรุณาใช้แถบตัวกรองที่คอลัมน์ซ้ายเพื่อบีบขอบเขตข้อมูลเพิ่มเติม)")
-            df_table = df_filtered.head(display_limit)
-        else:
-            df_table = df_filtered
-            
-        st.dataframe(
-            df_table[[
-                "บริษัท", "รหัสทรัพย์", "ชื่อโครงการ", "ชื่อประกาศ_สะอาด", "ประเภททรัพย์", 
-                "ประเภทการขาย", "ราคา", "จังหวัด", "อำเภอ", "ตำบล",
-                "พื้นที่ (ไร่-งาน-วา)", "พื้นที่ใช้สอย (ตร.ม.)", "ห้องนอน", "ห้องน้ำ", "ที่จอดรถ", "วันที่ดึงข้อมูล"
-            ]],
-            width="stretch",
-            column_config={
-                "ราคา": st.column_config.NumberColumn("ราคาขาย (บาท)", format="%d"),
-                "พื้นที่ใช้สอย (ตร.ม.)": st.column_config.NumberColumn(format="%.1f")
-            }
-        )
-        
-
-
-# ----- TAB 4: COMPARISON -----
-with tab4:
     comp_sub_tab1, comp_sub_tab2 = st.tabs([
         "📍 เปรียบเทียบตามรัศมีทำเล (Radius Location Analysis)",
         "⚔️ เปรียบเทียบแบบ 1 ต่อ 1 (1-on-1 Asset Comparison)"
@@ -2861,8 +2830,8 @@ with tab4:
                     else:
                         st.markdown("- เหมาะสำหรับเปรียบเทียบในเชิงทำเลหรือมิติพิเศษอื่น ๆ")
 
-# ----- TAB 5: BARGAIN HUNTER -----
-with tab5:
+# ----- TAB 4: BARGAIN HUNTER -----
+with tab4:
     st.markdown("### 💎 ระบบค้นหาและคัดกรองทรัพย์ของดีราคาถูก (Bargain Hunter & Outliers)")
     st.write("คัดกรองและเปรียบเทียบหาทรัพย์สินที่มีราคาถูกกว่าราคาเฉลี่ยอย่างผิดปกติในทำเลที่คุณเลือก")
     
