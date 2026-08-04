@@ -1549,14 +1549,29 @@ with tab1:
             
 
             
-            # Embed the HTML map with JavaScript enabled (required for deck.gl WebGL rendering)
-            try:
-                st.html(html_content, height=680, unsafe_allow_javascript=True)
-            except TypeError:
-                # Fallback: if height/unsafe_allow_javascript not supported in this Streamlit version
-                st.html(html_content)
-            except Exception as e:
-                st.error(f"เกิดข้อผิดพลาดในการแสดงแผนที่: {e}")
+            # Render the interactive map (deck.gl requires JavaScript + iframe isolation)
+            # Try multiple methods in priority order for Streamlit version compatibility
+            map_rendered = False
+            
+            # Method 1: st.components.v1.html (deprecated but still functional)
+            if not map_rendered:
+                try:
+                    import streamlit.components.v1 as stc
+                    stc.html(html_content, height=680)
+                    map_rendered = True
+                except Exception:
+                    pass
+            
+            # Method 2: st.html with unsafe_allow_javascript (newer Streamlit)
+            if not map_rendered:
+                try:
+                    st.html(html_content, unsafe_allow_javascript=True)
+                    map_rendered = True
+                except Exception:
+                    pass
+            
+            if not map_rendered:
+                st.error("❌ ไม่สามารถแสดงแผนที่ได้ กรุณาลองรีเฟรชหน้าเว็บ")
             
             # Clear progress bar
             progress_bar.empty()
