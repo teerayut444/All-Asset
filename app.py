@@ -1556,8 +1556,10 @@ with tab1:
 
             
             # Embed the HTML code inline inside a sandboxed iframe using st.html
+            # Wrap in a fixed-height container since st.html no longer supports height param
+            wrapped_html = f'<div style="width:100%;height:680px;overflow:hidden;">{html_content}</div>'
             try:
-                st.html(html_content, height=680)
+                st.html(wrapped_html)
             except Exception as e:
                 st.error(f"เกิดข้อผิดพลาดในการแสดงแผนที่: {e}")
             
