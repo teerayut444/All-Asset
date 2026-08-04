@@ -36,7 +36,8 @@ def haversine_distance_vectorized(lat1, lon1, lats, lons):
     
     a = np.sin(dlat / 2.0) ** 2 + np.cos(lat1_rad) * np.cos(lats_rad) * np.sin(dlon / 2.0) ** 2
     c = 2.0 * np.arcsin(np.sqrt(a))
-    
+    return R * c
+
 def sanitize_session_state(key, valid_options, default_val=None):
     """Ensure st.session_state[key] only contains items present in valid_options to prevent desync errors."""
     if key in st.session_state and st.session_state[key] is not None:
@@ -56,7 +57,7 @@ def sanitize_session_state(key, valid_options, default_val=None):
 
 def find_nearby_properties(input_lat, input_lon, df_all, radius_km, match_type=None, company=None):
     """Find properties within radius_km of the given coordinates (memory-optimized & vectorized)."""
-    if df_all is None or df_all.empty:
+    if df_all is None or df_all.empty or input_lat is None or input_lon is None or pd.isna(input_lat) or pd.isna(input_lon):
         return pd.DataFrame()
         
     # Build mask without full dataframe copy
