@@ -587,7 +587,7 @@ with st.sidebar:
         is_dark_mode = st.toggle("🌙 มืด", value=False, key="app_theme_mode", help="สลับระหว่างโหมดมืด (Dark Mode) และโหมดสว่าง (Light Mode)")
     st.markdown("---")
     
-    max_map_points = 25000
+    max_map_points = 15000
     # Configure variables for forced styling
     bg_color = "rgba(243, 244, 246, 0.9)"
     border_color = "rgba(0, 0, 0, 0.08)"
@@ -773,9 +773,10 @@ with st.sidebar:
             max_limit = int(len(df_raw)) if df_raw is not None else 600329
             max_map_points = st.slider(
                 "จำนวนจุดสูงสุดบนแผนที่",
-                min_value=10000,
-                max_value=max_limit,
-                value=min(80000, max_limit),
+                min_value=5000,
+                max_value=min(50000, max_limit),
+                value=min(15000, max_limit),
+                step=5000,
                 help="หากจุดพิกัดจริงมีมากกว่าค่าที่เลือกไว้ ระบบจะสุ่มเลือกตัวอย่างมาวาดตามสัดส่วนเพื่อรักษาความลื่นไหลและป้องกันเบราว์เซอร์ค้าง"
             )
             st.markdown(f"📍 ขีดจำกัดบนแผนที่ขณะนี้: **{max_map_points:,}** จุด")
@@ -783,7 +784,7 @@ with st.sidebar:
                 st.warning("⚠️ การแสดงผลจุดเกิน 200,000 จุด อาจส่งผลให้เบราว์เซอร์ทำงานหนักและหน่วงได้ในบางเครื่อง")
         else:
             price_range = (0.0, 1000000000.0)
-            max_map_points = 80000
+            max_map_points = 15000
             mapbox_style = "open-street-map"
             map_is_dark = False
     else:
