@@ -1556,11 +1556,12 @@ with tab1:
             
 
             
-            # Embed the HTML code inline inside a sandboxed iframe using st.html
-            # Wrap in a fixed-height container since st.html no longer supports height param
-            wrapped_html = f'<div style="width:100%;height:680px;overflow:hidden;">{html_content}</div>'
+            # Embed the HTML map with JavaScript enabled (required for deck.gl WebGL rendering)
             try:
-                st.html(wrapped_html)
+                st.html(html_content, height=680, unsafe_allow_javascript=True)
+            except TypeError:
+                # Fallback: if height/unsafe_allow_javascript not supported in this Streamlit version
+                st.html(html_content)
             except Exception as e:
                 st.error(f"เกิดข้อผิดพลาดในการแสดงแผนที่: {e}")
             
