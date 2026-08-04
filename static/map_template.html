@@ -124,13 +124,9 @@
       <div style="border-top: 1px solid #e2e8f0; margin-top: 6px; padding-top: 6px; font-size: 10px; color: #94a3b8;" id="points-count">📍 กำลังโหลด...</div>
     </div>
 
-    <!-- Embed local scripts as inline placeholders -->
-    <script>
-      // D3_LIBRARY_PLACEHOLDER
-    </script>
-    <script>
-      // DECKGL_LIBRARY_PLACEHOLDER
-    </script>
+    <!-- Load JS libraries from CDN (much faster than inline embedding) -->
+    <script src="https://cdn.jsdelivr.net/npm/d3-dsv@3/dist/d3-dsv.min.js"></script>
+    <script src="https://unpkg.com/deck.gl@9.0.16/dist.min.js"></script>
 
     <script>
       const tooltip = document.getElementById('tooltip');

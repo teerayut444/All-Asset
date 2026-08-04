@@ -564,14 +564,7 @@ def load_properties_data():
 def get_base_map_html():
     try:
         with open("static/map_template.html", "r", encoding="utf-8") as f:
-            tmpl = f.read()
-        with open("static/d3.js", "r", encoding="utf-8") as f:
-            d3 = f.read()
-        with open("static/deck.gl.js", "r", encoding="utf-8") as f:
-            deck = f.read()
-        tmpl = tmpl.replace("// D3_LIBRARY_PLACEHOLDER", d3)
-        tmpl = tmpl.replace("// DECKGL_LIBRARY_PLACEHOLDER", deck)
-        return tmpl
+            return f.read()
     except Exception as e:
         return ""
 
