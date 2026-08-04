@@ -40,38 +40,35 @@ def haversine_distance_vectorized(lat1, lon1, lats, lons):
     return R * c
 
 def find_nearby_properties(input_lat, input_lon, df_all, radius_km, match_type=None, company=None):
-    """Find properties within radius_km of the given coordinates (vectorized for speed)."""
-    df_filtered = df_all.copy()
-    
-    # Filter by company
-    if company:
-        df_filtered = df_filtered[df_filtered['บริษัท'] == company]
-        
-    # Filter by property type
-    if match_type and str(match_type).strip() != '' and str(match_type).lower() != 'nan':
-        df_filtered = df_filtered[df_filtered['ประเภททรัพย์'] == str(match_type).strip()]
-        
-    # Drop rows without coordinates or with coordinates out of bounds
-    df_filtered = df_filtered[df_filtered['ละติจูด'].notna() & df_filtered['ลองจิจูด'].notna()]
-    df_filtered = df_filtered[df_filtered['ละติจูด'].between(5, 21) & df_filtered['ลองจิจูด'].between(97, 106)]
-    
-    if df_filtered.empty:
+    """Find properties within radius_km of the given coordinates (memory-optimized & vectorized)."""
+    if df_all is None or df_all.empty:
         return pd.DataFrame()
         
-    lats = df_filtered['ละติจูด'].to_numpy(dtype=float)
-    lons = df_filtered['ลองจิจูด'].to_numpy(dtype=float)
+    # Build mask without full dataframe copy
+    mask = df_all['ละติจูด'].notna() & df_all['ลองจิจูด'].notna() & df_all['ละติจูด'].between(5, 21) & df_all['ลองจิจูด'].between(97, 106)
+    
+    if company:
+        mask &= (df_all['บริษัท'] == company)
+        
+    if match_type and str(match_type).strip() != '' and str(match_type).lower() != 'nan':
+        mask &= (df_all['ประเภททรัพย์'] == str(match_type).strip())
+        
+    df_sub = df_all[mask]
+    if df_sub.empty:
+        return pd.DataFrame()
+        
+    lats = df_sub['ละติจูด'].to_numpy(dtype=float)
+    lons = df_sub['ลองจิจูด'].to_numpy(dtype=float)
     
     distances = haversine_distance_vectorized(input_lat, input_lon, lats, lons)
-    
-    # Filter on unrounded distance first to match original logic
     nearby_mask = distances <= radius_km
-    df_filtered = df_filtered[nearby_mask]
     
-    if df_filtered.empty:
+    if not np.any(nearby_mask):
         return pd.DataFrame()
         
-    df_filtered['ระยะทาง (กม.)'] = np.round(distances[nearby_mask], 2)
-    return df_filtered
+    df_result = df_sub[nearby_mask].copy()
+    df_result['ระยะทาง (กม.)'] = np.round(distances[nearby_mask], 2)
+    return df_result
 
 # Helper function to parse 'พื้นที่ (ไร่-งาน-วา)' to square wah
 def parse_area_to_sqwah(area_str):
@@ -2265,8 +2262,9 @@ with tab3:
                         "บริษัท": "จุดอ้างอิง"
                     })
 
-                    # Found points
-                    for _, r in nearby_df.iterrows():
+                    # Found points (limit top 1,000 closest properties for map performance and RAM optimization)
+                    map_nearby_df = nearby_df.sort_values("ระยะทาง (กม.)").head(1000)
+                    for _, r in map_nearby_df.iterrows():
                         formatted_price = f"฿{r['ราคา']:,.0f}" if pd.notna(r['ราคา']) else "ไม่ระบุ"
                         map_points.append({
                             "ละติจูด": r["ละติจูด"],
