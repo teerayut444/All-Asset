@@ -2126,202 +2126,202 @@ with tab3:
 
         st.markdown("<br/>", unsafe_allow_html=True)
 
-        if st.button("🔍 เริ่มการวิเคราะห์เปรียบเทียบพิกัด", type="primary"):
-            with st.spinner("กำลังค้นหาทำเลและทรัพย์ที่อยู่รอบๆ..."):
-                m_type = inp_type if filter_by_type else None
-                nearby_df = find_nearby_properties(inp_lat, inp_lng, df_raw, search_radius, match_type=m_type)
+        # Auto-run radius analysis whenever valid coordinates exist
+        if inp_lat != 0.0 and inp_lng != 0.0:
+            m_type = inp_type if filter_by_type else None
+            nearby_df = find_nearby_properties(inp_lat, inp_lng, df_raw, search_radius, match_type=m_type)
 
-                if not nearby_df.empty:
-                    # Apply company filter
-                    if compare_companies:
-                        nearby_df = nearby_df[nearby_df['บริษัท'].isin(compare_companies)]
+            if not nearby_df.empty:
+                # Apply company filter
+                if compare_companies:
+                    nearby_df = nearby_df[nearby_df['บริษัท'].isin(compare_companies)]
 
-                    # Apply price range filter
-                    if not valid_prices.empty:
-                        nearby_df = nearby_df[
-                            (nearby_df['ราคา'].isna()) |
-                            ((nearby_df['ราคา'] >= compare_price_range[0]) & (nearby_df['ราคา'] <= compare_price_range[1]))
-                        ]
+                # Apply price range filter
+                if not valid_prices.empty:
+                    nearby_df = nearby_df[
+                        (nearby_df['ราคา'].isna()) |
+                        ((nearby_df['ราคา'] >= compare_price_range[0]) & (nearby_df['ราคา'] <= compare_price_range[1]))
+                    ]
 
-                if nearby_df.empty:
-                    st.warning(f"❌ ไม่พบทรัพย์สิน NPA ตามเงื่อนไขตัวกรองในรัศมี {search_radius} กิโลเมตร รอบจุดพิกัด ({inp_lat}, {inp_lng})")
-                else:
-                    st.success(f"พบทรัพย์ NPA ทั้งหมด {len(nearby_df)} รายการ ในรัศมี {search_radius} กิโลเมตร!")
+            if nearby_df.empty:
+                st.warning(f"❌ ไม่พบทรัพย์สิน NPA ตามเงื่อนไขตัวกรองในรัศมี {search_radius} กิโลเมตร รอบจุดพิกัด ({inp_lat}, {inp_lng})")
+            else:
+                st.success(f"พบทรัพย์ NPA ทั้งหมด {len(nearby_df):,} รายการ ในรัศมี {search_radius} กิโลเมตร!")
 
-                    # ----------------- PRICE COMPARISON ANALYSIS -----------------
-                    prices = nearby_df['ราคา'].dropna()
-                    if not prices.empty:
-                        min_price = float(prices.min())
-                        max_price = float(prices.max())
-                        avg_price = float(prices.mean())
-                        range_diff = max_price - min_price
+            # ----------------- PRICE COMPARISON ANALYSIS -----------------
+            prices = nearby_df['ราคา'].dropna()
+            if not prices.empty:
+                min_price = float(prices.min())
+                max_price = float(prices.max())
+                avg_price = float(prices.mean())
+                range_diff = max_price - min_price
 
-                        st.markdown("#### 📊 ผลการวิเคราะห์ราคาเปรียบเทียบทำเล")
+                st.markdown("#### 📊 ผลการวิเคราะห์ราคาเปรียบเทียบทำเล")
 
-                        # Columns for metrics
-                        m_col1, m_col2, m_col3, m_col4 = st.columns(4)
+                # Columns for metrics
+                m_col1, m_col2, m_col3, m_col4 = st.columns(4)
 
-                        # Col 1: Reference Point
-                        ref_html = f"""
-                        <div class="metric-card">
-                            <div class="metric-title"><i class="fa fa-map-marker" style="color: #ef4444;"></i> พิกัดอ้างอิงของคุณ</div>
-                            <div class="metric-value">฿{inp_price:,.0f}</div>
-                            <div class="metric-sub">{inp_type}</div>
-                        </div>
-                        """
-                        m_col1.markdown(ref_html, unsafe_allow_html=True)
+                # Col 1: Reference Point
+                ref_html = f"""
+                <div class="metric-card">
+                    <div class="metric-title"><i class="fa fa-map-marker" style="color: #ef4444;"></i> พิกัดอ้างอิงของคุณ</div>
+                    <div class="metric-value">฿{inp_price:,.0f}</div>
+                    <div class="metric-sub">{inp_type}</div>
+                </div>
+                """
+                m_col1.markdown(ref_html, unsafe_allow_html=True)
 
-                        # Helper function to generate sub text for diff
-                        def get_diff_sub_html(val, ref_val):
-                            if ref_val <= 0:
-                                return '<div class="metric-sub">ไม่ได้กำหนดราคาอ้างอิง</div>'
-                            diff = val - ref_val
-                            pct = (diff / ref_val) * 100
-                            if diff < 0:
-                                return f'<div class="metric-sub"><span style="color: #10b981; font-weight: 600;"><i class="fa fa-arrow-down"></i> ถูกกว่า {pct:+.1f}%</span> (ต่าง ฿{abs(diff):,.0f})</div>'
-                            elif diff > 0:
-                                return f'<div class="metric-sub"><span style="color: #ef4444; font-weight: 600;"><i class="fa fa-arrow-up"></i> แพงกว่า {pct:+.1f}%</span> (ต่าง ฿{abs(diff):,.0f})</div>'
-                            else:
-                                return '<div class="metric-sub"><span style="color: #64748b; font-weight: 600;">ราคาเท่ากัน</span></div>'
+                # Helper function to generate sub text for diff
+                def get_diff_sub_html(val, ref_val):
+                    if ref_val <= 0:
+                        return '<div class="metric-sub">ไม่ได้กำหนดราคาอ้างอิง</div>'
+                    diff = val - ref_val
+                    pct = (diff / ref_val) * 100
+                    if diff < 0:
+                        return f'<div class="metric-sub"><span style="color: #10b981; font-weight: 600;"><i class="fa fa-arrow-down"></i> ถูกกว่า {pct:+.1f}%</span> (ต่าง ฿{abs(diff):,.0f})</div>'
+                    elif diff > 0:
+                        return f'<div class="metric-sub"><span style="color: #ef4444; font-weight: 600;"><i class="fa fa-arrow-up"></i> แพงกว่า {pct:+.1f}%</span> (ต่าง ฿{abs(diff):,.0f})</div>'
+                    else:
+                        return '<div class="metric-sub"><span style="color: #64748b; font-weight: 600;">ราคาเท่ากัน</span></div>'
 
-                        # Col 2: Min Price
-                        min_sub = get_diff_sub_html(min_price, inp_price)
-                        min_html = f"""
-                        <div class="metric-card">
-                            <div class="metric-title"><i class="fa fa-arrow-down" style="color: #10b981;"></i> ราคาต่ำสุดในพื้นที่</div>
-                            <div class="metric-value">฿{min_price:,.0f}</div>
-                            {min_sub}
-                        </div>
-                        """
-                        m_col2.markdown(min_html, unsafe_allow_html=True)
+                # Col 2: Min Price
+                min_sub = get_diff_sub_html(min_price, inp_price)
+                min_html = f"""
+                <div class="metric-card">
+                    <div class="metric-title"><i class="fa fa-arrow-down" style="color: #10b981;"></i> ราคาต่ำสุดในพื้นที่</div>
+                    <div class="metric-value">฿{min_price:,.0f}</div>
+                    {min_sub}
+                </div>
+                """
+                m_col2.markdown(min_html, unsafe_allow_html=True)
 
-                        # Col 3: Max Price
-                        max_sub = get_diff_sub_html(max_price, inp_price)
-                        max_html = f"""
-                        <div class="metric-card">
-                            <div class="metric-title"><i class="fa fa-arrow-up" style="color: #ef4444;"></i> ราคาสูงสุดในพื้นที่</div>
-                            <div class="metric-value">฿{max_price:,.0f}</div>
-                            {max_sub}
-                        </div>
-                        """
-                        m_col3.markdown(max_html, unsafe_allow_html=True)
+                # Col 3: Max Price
+                max_sub = get_diff_sub_html(max_price, inp_price)
+                max_html = f"""
+                <div class="metric-card">
+                    <div class="metric-title"><i class="fa fa-arrow-up" style="color: #ef4444;"></i> ราคาสูงสุดในพื้นที่</div>
+                    <div class="metric-value">฿{max_price:,.0f}</div>
+                    {max_sub}
+                </div>
+                """
+                m_col3.markdown(max_html, unsafe_allow_html=True)
 
-                        # Col 4: Avg Price
-                        avg_sub = get_diff_sub_html(avg_price, inp_price)
-                        avg_html = f"""
-                        <div class="metric-card">
-                            <div class="metric-title"><i class="fa fa-calculator" style="color: #3b82f6;"></i> ราคาเฉลี่ยในพื้นที่</div>
-                            <div class="metric-value">฿{avg_price:,.0f}</div>
-                            {avg_sub}
-                        </div>
-                        """
-                        m_col4.markdown(avg_html, unsafe_allow_html=True)
+                # Col 4: Avg Price
+                avg_sub = get_diff_sub_html(avg_price, inp_price)
+                avg_html = f"""
+                <div class="metric-card">
+                    <div class="metric-title"><i class="fa fa-calculator" style="color: #3b82f6;"></i> ราคาเฉลี่ยในพื้นที่</div>
+                    <div class="metric-value">฿{avg_price:,.0f}</div>
+                    {avg_sub}
+                </div>
+                """
+                m_col4.markdown(avg_html, unsafe_allow_html=True)
 
-                        st.markdown("<br/>", unsafe_allow_html=True)
+                st.markdown("<br/>", unsafe_allow_html=True)
 
-                        # Summary info box
-                        comp_word = "ถูกกว่า" if avg_price < inp_price else ("แพงกว่า" if avg_price > inp_price else "เท่ากับ")
-                        diff_avg = abs(avg_price - inp_price)
-                        diff_avg_pct = (diff_avg / inp_price * 100) if inp_price > 0 else 0
+                # Summary info box
+                comp_word = "ถูกกว่า" if avg_price < inp_price else ("แพงกว่า" if avg_price > inp_price else "เท่ากับ")
+                diff_avg = abs(avg_price - inp_price)
+                diff_avg_pct = (diff_avg / inp_price * 100) if inp_price > 0 else 0
 
-                        st.info(f"""
-                        💡 **บทวิเคราะห์ด้านราคาและส่วนต่างทำเล**:
-                        - ทรัพย์สิน NPA ในทำเลนี้มีราคาระหว่าง **฿{min_price:,.0f}** ถึง **฿{max_price:,.0f}** บาท
-                        - **ส่วนต่างของช่วงราคา (ราคาสูงสุด - ต่ำสุด)** อยู่ที่ **฿{range_diff:,.0f}** บาท
-                        - ราคาเฉลี่ยของทรัพย์สิน NPA รอบๆ คือ **฿{avg_price:,.0f}** บาท ซึ่ง **{comp_word}** จุดอ้างอิงของคุณอยู่ **฿{diff_avg:,.0f}** บาท (คิดเป็น {diff_avg_pct:.1f}%)
-                        """)
+                st.info(f"""
+                💡 **บทวิเคราะห์ด้านราคาและส่วนต่างทำเล**:
+                - ทรัพย์สิน NPA ในทำเลนี้มีราคาระหว่าง **฿{min_price:,.0f}** ถึง **฿{max_price:,.0f}** บาท
+                - **ส่วนต่างของช่วงราคา (ราคาสูงสุด - ต่ำสุด)** อยู่ที่ **฿{range_diff:,.0f}** บาท
+                - ราคาเฉลี่ยของทรัพย์สิน NPA รอบๆ คือ **฿{avg_price:,.0f}** บาท ซึ่ง **{comp_word}** จุดอ้างอิงของคุณอยู่ **฿{diff_avg:,.0f}** บาท (คิดเป็น {diff_avg_pct:.1f}%)
+                """)
 
-                    st.markdown("##### 📋 รายการทรัพย์สิน NPA ที่พบในรัศมีค้นหา")
+            st.markdown("##### 📋 รายการทรัพย์สิน NPA ที่พบในรัศมีค้นหา")
 
-                    # Show Table
-                    st.dataframe(
-                        nearby_df[[
-                            "บริษัท", "รหัสทรัพย์", "ชื่อประกาศ_สะอาด", "ประเภททรัพย์", "ราคา", 
-                            "จังหวัด", "อำเภอ", "ตำบล", "ระยะทาง (กม.)", "ลิงก์_สะอาด"
-                        ]].sort_values("ระยะทาง (กม.)"),
-                        width="stretch",
-                        column_config={
-                            "ราคา": st.column_config.NumberColumn("ราคาขาย (บาท)", format="%d"),
-                            "ระยะทาง (กม.)": st.column_config.NumberColumn("ระยะทาง (กม.)", format="%.2f")
-                        }
-                    )
+            # Show Table
+            st.dataframe(
+                nearby_df[[
+                    "บริษัท", "รหัสทรัพย์", "ชื่อประกาศ_สะอาด", "ประเภททรัพย์", "ราคา", 
+                    "จังหวัด", "อำเภอ", "ตำบล", "ระยะทาง (กม.)", "ลิงก์_สะอาด"
+                ]].sort_values("ระยะทาง (กม.)"),
+                width="stretch",
+                column_config={
+                    "ราคา": st.column_config.NumberColumn("ราคาขาย (บาท)", format="%d"),
+                    "ระยะทาง (กม.)": st.column_config.NumberColumn("ระยะทาง (กม.)", format="%.2f")
+                }
+            )
 
-                    # Show map
-                    st.markdown("##### 🗺️ แผนที่ตำแหน่งจุดอ้างอิงเทียบกับตำแหน่งทรัพย์ NPA ที่พบ")
+            # Show map
+            st.markdown("##### 🗺️ แผนที่ตำแหน่งจุดอ้างอิงเทียบกับตำแหน่งทรัพย์ NPA ที่พบ")
 
-                    map_points = []
-                    # Reference point
-                    map_points.append({
-                        "ละติจูด": inp_lat,
-                        "ลองจิจูด": inp_lng,
-                        "ชื่อ": f"📍 จุดอ้างอิง: {inp_name}",
-                        "ราคา (บาท)": f"฿{inp_price:,.0f}",
-                        "ประเภท": "จุดอ้างอิงของคุณ",
-                        "ขนาดพิกัด": 12,
-                        "บริษัท": "จุดอ้างอิง"
-                    })
+            map_points = []
+            # Reference point
+            map_points.append({
+                "ละติจูด": inp_lat,
+                "ลองจิจูด": inp_lng,
+                "ชื่อ": f"📍 จุดอ้างอิง: {inp_name}",
+                "ราคา (บาท)": f"฿{inp_price:,.0f}",
+                "ประเภท": "จุดอ้างอิงของคุณ",
+                "ขนาดพิกัด": 12,
+                "บริษัท": "จุดอ้างอิง"
+            })
 
-                    # Found points (limit top 1,000 closest properties for map performance and RAM optimization)
-                    map_nearby_df = nearby_df.sort_values("ระยะทาง (กม.)").head(1000)
-                    for _, r in map_nearby_df.iterrows():
-                        formatted_price = f"฿{r['ราคา']:,.0f}" if pd.notna(r['ราคา']) else "ไม่ระบุ"
-                        map_points.append({
-                            "ละติจูด": r["ละติจูด"],
-                            "ลองจิจูด": r["ลองจิจูด"],
-                            "ชื่อ": f"{r['ชื่อประกาศ_สะอาด']} ({formatted_price})",
-                            "ราคา (บาท)": formatted_price,
-                            "ประเภท": f"ทรัพย์ NPA ({r['บริษัท']})",
-                            "ขนาดพิกัด": 8,
-                            "บริษัท": r["บริษัท"]
-                        })
+            # Found points (limit top 300 closest properties for map performance and RAM optimization)
+            map_nearby_df = nearby_df.sort_values("ระยะทาง (กม.)").head(300)
+            for _, r in map_nearby_df.iterrows():
+                formatted_price = f"฿{r['ราคา']:,.0f}" if pd.notna(r['ราคา']) else "ไม่ระบุ"
+                map_points.append({
+                    "ละติจูด": r["ละติจูด"],
+                    "ลองจิจูด": r["ลองจิจูด"],
+                    "ชื่อ": f"{r['ชื่อประกาศ_สะอาด']} ({formatted_price})",
+                    "ราคา (บาท)": formatted_price,
+                    "ประเภท": f"ทรัพย์ NPA ({r['บริษัท']})",
+                    "ขนาดพิกัด": 8,
+                    "บริษัท": r["บริษัท"]
+                })
 
-                    map_compare_df = pd.DataFrame(map_points)
-                    fig_compare = px.scatter_map(
-                        map_compare_df,
-                        lat="ละติจูด",
-                        lon="ลองจิจูด",
-                        color="บริษัท",
-                        hover_name="ชื่อ",
-                        hover_data={
-                            "ราคา (บาท)": True,
-                            "บริษัท": True,
-                            "ละติจูด": False,
-                            "ลองจิจูด": False
-                        },
-                        zoom=11.5,
-                        height=680,
-                        color_discrete_map={
-                            "จุดอ้างอิง": "#ef4444",
-                            "Baania": "#f59e0b",
-                            "BAM": "#3b82f6",
-                            "SAM": "#10b981",
-                            "Livinginsider": "#84cc16",
-                            "DDproperty": "#a855f7",
-                            "Taladnudbaan": "#06b6d4",
-                            "ZmyHome": "#ec4899"
-                        },
-                        template=plotly_template
-                    )
-                    # Set base marker styling for all points, then override the reference point to make it prominent
-                    fig_compare.update_traces(marker=dict(size=10, opacity=0.8))
-                    fig_compare.update_traces(
-                        selector=dict(name="จุดอ้างอิง"),
-                        marker=dict(size=24, opacity=1.0)
-                    )
-                    fig_compare.update_layout(
-                        map_style=mapbox_style,
-                        margin={"r": 0, "t": 0, "l": 0, "b": 0},
-                        paper_bgcolor="rgba(0,0,0,0)",
-                        hovermode='closest',
-                        hoverlabel=dict(
-                            bgcolor="rgba(15, 23, 42, 0.9)",
-                            font_size=13,
-                            font_color="white",
-                            font_family="Sarabun, Outfit, sans-serif",
-                            bordercolor="rgba(255, 255, 255, 0.1)"
-                        )
-                    )
-                    st.plotly_chart(style_plotly_fig(fig_compare), width="stretch", theme=None, config={"scrollZoom": True})
+            map_compare_df = pd.DataFrame(map_points)
+            fig_compare = px.scatter_map(
+                map_compare_df,
+                lat="ละติจูด",
+                lon="ลองจิจูด",
+                color="บริษัท",
+                hover_name="ชื่อ",
+                hover_data={
+                    "ราคา (บาท)": True,
+                    "บริษัท": True,
+                    "ละติจูด": False,
+                    "ลองจิจูด": False
+                },
+                zoom=11.5,
+                height=680,
+                color_discrete_map={
+                    "จุดอ้างอิง": "#ef4444",
+                    "Baania": "#f59e0b",
+                    "BAM": "#3b82f6",
+                    "SAM": "#10b981",
+                    "Livinginsider": "#84cc16",
+                    "DDproperty": "#a855f7",
+                    "Taladnudbaan": "#06b6d4",
+                    "ZmyHome": "#ec4899"
+                },
+                template=plotly_template
+            )
+            # Set base marker styling for all points, then override the reference point to make it prominent
+            fig_compare.update_traces(marker=dict(size=10, opacity=0.8))
+            fig_compare.update_traces(
+                selector=dict(name="จุดอ้างอิง"),
+                marker=dict(size=24, opacity=1.0)
+            )
+            fig_compare.update_layout(
+                map_style=mapbox_style,
+                margin={"r": 0, "t": 0, "l": 0, "b": 0},
+                paper_bgcolor="rgba(0,0,0,0)",
+                hovermode='closest',
+                hoverlabel=dict(
+                    bgcolor="rgba(15, 23, 42, 0.9)",
+                    font_size=13,
+                    font_color="white",
+                    font_family="Sarabun, Outfit, sans-serif",
+                    bordercolor="rgba(255, 255, 255, 0.1)"
+                )
+            )
+            st.plotly_chart(style_plotly_fig(fig_compare), width="stretch", theme=None, config={"scrollZoom": True})
 
     with comp_sub_tab2:
         st.markdown("### ⚔️ เปรียบเทียบแบบ 1 ต่อ 1 (1-on-1 Asset Comparison)")
