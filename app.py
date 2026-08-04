@@ -2287,8 +2287,8 @@ with tab3:
                     "บริษัท": "จุดอ้างอิง"
                 })
 
-                # Found points (limit top 300 closest properties for map performance and RAM optimization)
-                map_nearby_df = nearby_df.sort_values("ระยะทาง (กม.)").head(300)
+                # Found points (display all properties found within radius)
+                map_nearby_df = nearby_df.sort_values("ระยะทาง (กม.)")
                 for _, r in map_nearby_df.iterrows():
                     formatted_price = f"฿{r['ราคา']:,.0f}" if pd.notna(r['ราคา']) else "ไม่ระบุ"
                     map_points.append({
