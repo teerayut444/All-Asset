@@ -2222,15 +2222,54 @@ with tab4:
                 else:
                     st.success(f"พบทรัพย์ NPA ทั้งหมด {len(nearby_df):,} รายการ ในรัศมี {search_radius} กิโลเมตร!")
 
+                    # ----------------- UNIT PRICE CALCULATIONS -----------------
+                    def get_unit_info(r):
+                        p_type = str(r.get('ประเภททรัพย์', '')).lower()
+                        is_condo = any(kw in p_type for kw in ['คอนโด', 'ห้องชุด'])
+                        price = r.get('ราคา')
+                        if pd.isna(price) or float(price) <= 0:
+                            return np.nan, "-", "-"
+                            
+                        if is_condo:
+                            sqm = r.get('พื้นที่ใช้สอย (ตร.ม.)')
+                            if pd.notna(sqm) and float(sqm) > 0:
+                                u_price = float(price) / float(sqm)
+                                return u_price, "บาท/ตร.ม.", f"{float(sqm):,.1f} ตร.ม."
+                        else:
+                            sqwah = r.get('พื้นที่_ตารางวา')
+                            if pd.notna(sqwah) and float(sqwah) > 0:
+                                u_price = float(price) / float(sqwah)
+                                return u_price, "บาท/วา", f"{float(sqwah):,.1f} วา"
+                        return np.nan, "-", "-"
+
+                    unit_results = nearby_df.apply(get_unit_info, axis=1)
+                    nearby_df['ราคาต่อหน่วย'] = [res[0] for res in unit_results]
+                    nearby_df['หน่วยวัด'] = [res[1] for res in unit_results]
+                    nearby_df['ขนาดพื้นที่'] = [res[2] for res in unit_results]
+                    nearby_df['ราคาต่อหน่วย (แสดงผล)'] = nearby_df.apply(
+                        lambda r: f"฿{r['ราคาต่อหน่วย']:,.0f} /{r['หน่วยวัด']}" if pd.notna(r['ราคาต่อหน่วย']) else "-", axis=1
+                    )
+
                     # ----------------- PRICE COMPARISON ANALYSIS -----------------
                     prices = nearby_df['ราคา'].dropna()
+                    unit_prices = nearby_df['ราคาต่อหน่วย'].dropna()
+                    
                     if not prices.empty:
                         min_price = float(prices.min())
                         max_price = float(prices.max())
                         median_price = float(prices.median())
                         range_diff = max_price - min_price
 
-                        st.markdown("#### 📊 ผลการวิเคราะห์ราคาเปรียบเทียบทำเล")
+                        # Unit price stats
+                        has_unit_stats = not unit_prices.empty
+                        if has_unit_stats:
+                            median_unit_p = float(unit_prices.median())
+                            min_unit_p = float(unit_prices.min())
+                            max_unit_p = float(unit_prices.max())
+                            valid_units = nearby_df[nearby_df['หน่วยวัด'] != '-']['หน่วยวัด']
+                            primary_unit_label = valid_units.mode()[0] if not valid_units.empty else "บาท/หน่วย"
+
+                        st.markdown("#### 📊 ผลการวิเคราะห์ราคาและมูลค่าทรัพย์สินเปรียบเทียบทำเล")
 
                         # Columns for metrics
                         m_col1, m_col2, m_col3, m_col4 = st.columns(4)
@@ -2291,6 +2330,41 @@ with tab4:
                         """
                         m_col4.markdown(median_html, unsafe_allow_html=True)
 
+                        # Second row of metrics if unit price stats exist
+                        if has_unit_stats:
+                            u_col1, u_col2, u_col3, u_col4 = st.columns(4)
+                            u_col1.markdown(f"""
+                            <div class="metric-card" style="background: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.2);">
+                                <div class="metric-title"><i class="fa fa-ruler-combined" style="color: #3b82f6;"></i> มาตรวัดทำเลหลัก</div>
+                                <div class="metric-value" style="font-size: 1.1rem; color: #3b82f6;">{primary_unit_label}</div>
+                                <div class="metric-sub">ที่ดิน: บาท/วา | คอนโด: บาท/ตร.ม.</div>
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                            u_col2.markdown(f"""
+                            <div class="metric-card" style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2);">
+                                <div class="metric-title"><i class="fa fa-tag" style="color: #10b981;"></i> ราคากลางต่อหน่วย (Median)</div>
+                                <div class="metric-value" style="color: #10b981;">฿{median_unit_p:,.0f}</div>
+                                <div class="metric-sub">{primary_unit_label}</div>
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                            u_col3.markdown(f"""
+                            <div class="metric-card">
+                                <div class="metric-title"><i class="fa fa-arrow-down" style="color: #10b981;"></i> ราคาต่ำสุดต่อหน่วย</div>
+                                <div class="metric-value">฿{min_unit_p:,.0f}</div>
+                                <div class="metric-sub">{primary_unit_label}</div>
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                            u_col4.markdown(f"""
+                            <div class="metric-card">
+                                <div class="metric-title"><i class="fa fa-arrow-up" style="color: #ef4444;"></i> ราคาสูงสุดต่อหน่วย</div>
+                                <div class="metric-value">฿{max_unit_p:,.0f}</div>
+                                <div class="metric-sub">{primary_unit_label}</div>
+                            </div>
+                            """, unsafe_allow_html=True)
+
                         st.markdown("<br/>", unsafe_allow_html=True)
 
                         # Summary info box
@@ -2298,25 +2372,29 @@ with tab4:
                         diff_median = abs(median_price - inp_price)
                         diff_median_pct = (diff_median / inp_price * 100) if inp_price > 0 else 0
 
+                        unit_summary_str = f"\n- **ราคากลางต่อหน่วยของทำเล ({primary_unit_label}):** **฿{median_unit_p:,.0f}** {primary_unit_label} (ช่วงระหว่าง ฿{min_unit_p:,.0f} - ฿{max_unit_p:,.0f} {primary_unit_label})" if has_unit_stats else ""
+
                         st.info(f"""
-                        💡 **บทวิเคราะห์ด้านราคาและส่วนต่างทำเล**:
+                        💡 **บทวิเคราะห์ด้านราคาและมูลค่าทรัพย์สินเทียบตลาด**:
                         - ทรัพย์สิน NPA ในทำเลนี้มีราคาระหว่าง **฿{min_price:,.0f}** ถึง **฿{max_price:,.0f}** บาท
                         - **ส่วนต่างของช่วงราคา (ราคาสูงสุด - ต่ำสุด)** อยู่ที่ **฿{range_diff:,.0f}** บาท
-                        - ราคากลาง (Median) ของทรัพย์สิน NPA รอบๆ คือ **฿{median_price:,.0f}** บาท ซึ่ง **{comp_word}** จุดอ้างอิงของคุณอยู่ **฿{diff_median:,.0f}** บาท (คิดเป็น {diff_median_pct:.1f}%)
+                        - **ราคากลาง (Median) รวม**: **฿{median_price:,.0f}** บาท ซึ่ง **{comp_word}** จุดอ้างอิงของคุณอยู่ **฿{diff_median:,.0f}** บาท (คิดเป็น {diff_median_pct:.1f}%){unit_summary_str}
                         """)
 
-                    st.markdown("##### 📋 รายการทรัพย์สิน NPA ที่พบในรัศมีค้นหา")
+                    st.markdown("##### 📋 รายการทรัพย์สิน NPA ที่พบในรัศมีค้นหา (พร้อมราคาต่อตารางวา / ตารางเมตร)")
 
                     # Show Table
                     st.dataframe(
                         nearby_df[[
                             "บริษัท", "รหัสทรัพย์", "ชื่อประกาศ", "ประเภททรัพย์", "ราคา", 
+                            "ขนาดพื้นที่", "ราคาต่อหน่วย (แสดงผล)",
                             "จังหวัด", "อำเภอ", "ตำบล", "ระยะทาง (กม.)", "ลิงก์"
                         ]].sort_values("ระยะทาง (กม.)"),
                         width="stretch",
                         column_config={
                             "ราคา": st.column_config.NumberColumn("ราคาขาย (บาท)", format="%d"),
-                            "ระยะทาง (กม.)": st.column_config.NumberColumn("ระยะทาง (กม.)", format="%.2f")
+                            "ระยะทาง (กม.)": st.column_config.NumberColumn("ระยะทาง (กม.)", format="%.2f"),
+                            "ราคาต่อหน่วย (แสดงผล)": st.column_config.TextColumn("ราคาต่อหน่วย (บาท/วา หรือ บาท/ตร.ม.)")
                         }
                     )
 
