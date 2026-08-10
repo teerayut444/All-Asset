@@ -1987,7 +1987,7 @@ with tab3:
             ]],
             width="stretch",
             column_config={
-                "ราคา": st.column_config.NumberColumn("ราคาขาย (บาท)", format="%d"),
+                "ราคา": st.column_config.NumberColumn("ราคาขาย (บาท)", format="฿%,d"),
                 "พื้นที่ใช้สอย (ตร.ม.)": st.column_config.NumberColumn(format="%.1f")
             }
         )
@@ -2392,7 +2392,7 @@ with tab4:
                         ]].sort_values("ระยะทาง (กม.)"),
                         width="stretch",
                         column_config={
-                            "ราคา": st.column_config.NumberColumn("ราคาขาย (บาท)", format="%d"),
+                            "ราคา": st.column_config.NumberColumn("ราคาขาย (บาท)", format="฿%,d"),
                             "ระยะทาง (กม.)": st.column_config.NumberColumn("ระยะทาง (กม.)", format="%.2f"),
                             "ราคาต่อหน่วย (แสดงผล)": st.column_config.TextColumn("ราคาต่อหน่วย (บาท/วา หรือ บาท/ตร.ม.)")
                         }
@@ -3152,11 +3152,11 @@ with tab5:
                 bargain_display,
                 width="stretch",
                 column_config={
-                    "ราคา": st.column_config.NumberColumn("ราคาเสนอขาย (บาท)", format="%d"),
-                    unit_col: st.column_config.NumberColumn(f"ราคา/หน่วย (บาท/{unit_short})", format="%.0f"),
+                    "ราคา": st.column_config.NumberColumn("ราคาเสนอขาย (บาท)", format="฿%,d"),
+                    unit_col: st.column_config.NumberColumn(f"ราคา/หน่วย (บาท/{unit_short})", format="฿%,.0f"),
                     "ส่วนต่างจากราคากลาง (%)": st.column_config.NumberColumn("เทียบราคากลาง (%)", format="%+.1f%%"),
                     "พื้นที่ใช้สอย (ตร.ม.)": st.column_config.NumberColumn("พื้นที่ใช้สอย (ตร.ม.)", format="%.1f"),
-                    "ลิงก์_สะอาด": st.column_config.LinkColumn("ลิงก์ประกาศ")
+                    "ลิงก์": st.column_config.LinkColumn("ลิงก์ประกาศ")
                 }
             )
 
