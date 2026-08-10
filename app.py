@@ -1979,15 +1979,18 @@ with tab3:
         else:
             df_table = df_filtered
             
+        df_table_show = df_table[[
+            "บริษัท", "รหัสทรัพย์", "ชื่อโครงการ", "ชื่อประกาศ", "ประเภททรัพย์", 
+            "ประเภทการขาย", "ราคา", "จังหวัด", "อำเภอ", "ตำบล",
+            "พื้นที่ (ไร่-งาน-วา)", "พื้นที่ใช้สอย (ตร.ม.)", "ห้องนอน", "ห้องน้ำ", "ที่จอดรถ", "วันที่ดึงข้อมูล"
+        ]].copy()
+        df_table_show['ราคา'] = pd.to_numeric(df_table_show['ราคา'], errors='coerce')
+
         st.dataframe(
-            df_table[[
-                "บริษัท", "รหัสทรัพย์", "ชื่อโครงการ", "ชื่อประกาศ", "ประเภททรัพย์", 
-                "ประเภทการขาย", "ราคา", "จังหวัด", "อำเภอ", "ตำบล",
-                "พื้นที่ (ไร่-งาน-วา)", "พื้นที่ใช้สอย (ตร.ม.)", "ห้องนอน", "ห้องน้ำ", "ที่จอดรถ", "วันที่ดึงข้อมูล"
-            ]],
+            df_table_show,
             width="stretch",
             column_config={
-                "ราคา": st.column_config.NumberColumn("ราคาขาย (บาท)", format="฿%,d"),
+                "ราคา": st.column_config.NumberColumn("ราคาขาย (บาท)", format="฿%.0f"),
                 "พื้นที่ใช้สอย (ตร.ม.)": st.column_config.NumberColumn(format="%.1f")
             }
         )
@@ -2384,15 +2387,18 @@ with tab4:
                     st.markdown("##### 📋 รายการทรัพย์สิน NPA ที่พบในรัศมีค้นหา (พร้อมราคาต่อตารางวา / ตารางเมตร)")
 
                     # Show Table
+                    nearby_show = nearby_df[[
+                        "บริษัท", "รหัสทรัพย์", "ชื่อประกาศ", "ประเภททรัพย์", "ราคา", 
+                        "ขนาดพื้นที่", "ราคาต่อหน่วย (แสดงผล)",
+                        "จังหวัด", "อำเภอ", "ตำบล", "ระยะทาง (กม.)", "ลิงก์"
+                    ]].sort_values("ระยะทาง (กม.)").copy()
+                    nearby_show['ราคา'] = pd.to_numeric(nearby_show['ราคา'], errors='coerce')
+
                     st.dataframe(
-                        nearby_df[[
-                            "บริษัท", "รหัสทรัพย์", "ชื่อประกาศ", "ประเภททรัพย์", "ราคา", 
-                            "ขนาดพื้นที่", "ราคาต่อหน่วย (แสดงผล)",
-                            "จังหวัด", "อำเภอ", "ตำบล", "ระยะทาง (กม.)", "ลิงก์"
-                        ]].sort_values("ระยะทาง (กม.)"),
+                        nearby_show,
                         width="stretch",
                         column_config={
-                            "ราคา": st.column_config.NumberColumn("ราคาขาย (บาท)", format="฿%,d"),
+                            "ราคา": st.column_config.NumberColumn("ราคาขาย (บาท)", format="฿%.0f"),
                             "ระยะทาง (กม.)": st.column_config.NumberColumn("ระยะทาง (กม.)", format="%.2f"),
                             "ราคาต่อหน่วย (แสดงผล)": st.column_config.TextColumn("ราคาต่อหน่วย (บาท/วา หรือ บาท/ตร.ม.)")
                         }
@@ -3148,12 +3154,13 @@ with tab5:
                 'จังหวัด', 'อำเภอ', 'ตำบล', 'พื้นที่ (ไร่-งาน-วา)', 'พื้นที่ใช้สอย (ตร.ม.)', 'ลิงก์_สะอาด'
             ]].copy()
             
+            bargain_display['ราคา'] = pd.to_numeric(bargain_display['ราคา'], errors='coerce')
             st.dataframe(
                 bargain_display,
                 width="stretch",
                 column_config={
-                    "ราคา": st.column_config.NumberColumn("ราคาเสนอขาย (บาท)", format="฿%,d"),
-                    unit_col: st.column_config.NumberColumn(f"ราคา/หน่วย (บาท/{unit_short})", format="฿%,.0f"),
+                    "ราคา": st.column_config.NumberColumn("ราคาเสนอขาย (บาท)", format="฿%.0f"),
+                    unit_col: st.column_config.NumberColumn(f"ราคา/หน่วย (บาท/{unit_short})", format="฿%.0f"),
                     "ส่วนต่างจากราคากลาง (%)": st.column_config.NumberColumn("เทียบราคากลาง (%)", format="%+.1f%%"),
                     "พื้นที่ใช้สอย (ตร.ม.)": st.column_config.NumberColumn("พื้นที่ใช้สอย (ตร.ม.)", format="%.1f"),
                     "ลิงก์": st.column_config.LinkColumn("ลิงก์ประกาศ")
