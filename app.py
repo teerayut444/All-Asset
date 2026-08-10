@@ -363,19 +363,18 @@ def load_properties_data():
         return None
         
     def ensure_derived_cols(df):
-        if 'ชื่อประกาศ_สะอาด' not in df.columns:
-            if 'ชื่อประกาศ' in df.columns:
-                df['ชื่อประกาศ_สะอาด'] = df['ชื่อประกาศ'].apply(get_clean_title)
-            elif 'ชื่อโครงการ' in df.columns:
-                df['ชื่อประกาศ_สะอาด'] = df['ชื่อโครงการ'].astype(object).fillna('ไม่มีชื่อ').astype(str)
+        if 'ชื่อประกาศ' not in df.columns:
+            if 'ชื่อโครงการ' in df.columns:
+                df['ชื่อประกาศ'] = df['ชื่อโครงการ'].astype(object).fillna('ไม่มีชื่อ').astype(str)
             else:
-                df['ชื่อประกาศ_สะอาด'] = df['รหัสทรัพย์'].astype(object).fillna('ทรัพย์สิน NPA').astype(str)
+                df['ชื่อประกาศ'] = df['รหัสทรัพย์'].astype(object).fillna('ทรัพย์สิน NPA').astype(str)
+        else:
+            df['ชื่อประกาศ'] = df['ชื่อประกาศ'].astype(object).fillna('ไม่มีชื่อ').astype(str)
 
-        if 'ลิงก์_สะอาด' not in df.columns:
-            if 'ลิงก์' in df.columns:
-                df['ลิงก์_สะอาด'] = df['ลิงก์'].apply(get_clean_link)
-            else:
-                df['ลิงก์_สะอาด'] = ""
+        if 'ลิงก์' not in df.columns:
+            df['ลิงก์'] = ""
+        else:
+            df['ลิงก์'] = df['ลิงก์'].astype(object).fillna("").astype(str)
 
         if 'ราคา' in df.columns:
             df['ราคา'] = pd.to_numeric(df['ราคา'], errors='coerce')
@@ -543,9 +542,9 @@ def load_properties_data():
 
         df['ประเภทการขาย'] = df['ประเภทการขาย'].apply(clean_sale_type_val)
         
-        # Clean titles and links dynamically
-        df['ชื่อประกาศ_สะอาด'] = df['ชื่อประกาศ'].apply(get_clean_title)
-        df['ลิงก์_สะอาด'] = df['ลิงก์'].apply(get_clean_link)
+        # Clean titles and links
+        df['ชื่อประกาศ'] = df['ชื่อประกาศ'].astype(object).fillna('ไม่มีชื่อ').astype(str)
+        df['ลิงก์'] = df['ลิงก์'].astype(object).fillna('').astype(str)
         
         # Derived fields
         df['พื้นที่_ตารางวา'] = df['พื้นที่ (ไร่-งาน-วา)'].apply(parse_area_to_sqwah)
@@ -1318,7 +1317,7 @@ df_filtered = df_raw.copy()
 if search_query:
     search_pattern = re.escape(search_query)
     df_filtered = df_filtered[
-        df_filtered['ชื่อประกาศ_สะอาด'].str.contains(search_pattern, case=False, na=False) |
+        df_filtered['ชื่อประกาศ'].str.contains(search_pattern, case=False, na=False) |
         df_filtered['รหัสทรัพย์'].str.contains(search_pattern, case=False, na=False) |
         df_filtered['ชื่อโครงการ'].str.contains(search_pattern, case=False, na=False) |
         df_filtered['จังหวัด'].str.contains(search_pattern, case=False, na=False)
@@ -1770,7 +1769,7 @@ with tab2:
                 ]
                 
                 # Optimize by subsetting and sampling to 10k points to prevent scatter plot lag
-                df_scatter_data = df_usable_area[['พื้นที่ใช้สอย (ตร.ม.)', 'ราคา', 'ประเภททรัพย์ ', 'ชื่อประกาศ_สะอาด', 'จังหวัด', 'อำเภอ']]
+                df_scatter_data = df_usable_area[['พื้นที่ใช้สอย (ตร.ม.)', 'ราคา', 'ประเภททรัพย์ ', 'ชื่อประกาศ', 'จังหวัด', 'อำเภอ']]
                 if len(df_scatter_data) > 10000:
                     df_scatter_data = df_scatter_data.sample(n=10000, random_state=42)
                 
@@ -1785,7 +1784,7 @@ with tab2:
                     x='พื้นที่ใช้สอย (ตร.ม.)',
                     y='ราคา',
                     color='ประเภททรัพย์ ',
-                    hover_data=['ชื่อประกาศ_สะอาด', 'จังหวัด', 'อำเภอ'],
+                    hover_data=['ชื่อประกาศ', 'จังหวัด', 'อำเภอ'],
                     title='ราคาเริ่มต้น เทียบกับ พื้นที่ใช้สอย (ตร.ม.)',
                     labels={'พื้นที่ใช้สอย (ตร.ม.)': 'พื้นที่ใช้สอย (ตร.ม.)', 'ราคา': 'ราคาเริ่มต้น (บาท)', 'ประเภททรัพย์ ': 'ประเภททรัพย์'},
                     color_discrete_map=color_map_scatter,
@@ -1982,7 +1981,7 @@ with tab3:
             
         st.dataframe(
             df_table[[
-                "บริษัท", "รหัสทรัพย์", "ชื่อโครงการ", "ชื่อประกาศ_สะอาด", "ประเภททรัพย์", 
+                "บริษัท", "รหัสทรัพย์", "ชื่อโครงการ", "ชื่อประกาศ", "ประเภททรัพย์", 
                 "ประเภทการขาย", "ราคา", "จังหวัด", "อำเภอ", "ตำบล",
                 "พื้นที่ (ไร่-งาน-วา)", "พื้นที่ใช้สอย (ตร.ม.)", "ห้องนอน", "ห้องน้ำ", "ที่จอดรถ", "วันที่ดึงข้อมูล"
             ]],
@@ -2087,7 +2086,7 @@ with tab4:
                     if ref_search_query:
                         q = ref_search_query.strip().lower()
                         ref_assets_df = ref_assets_df[
-                            ref_assets_df['ชื่อประกาศ_สะอาด'].astype(str).str.lower().str.contains(q, na=False) |
+                            ref_assets_df['ชื่อประกาศ'].astype(str).str.lower().str.contains(q, na=False) |
                             ref_assets_df['รหัสทรัพย์'].astype(str).str.lower().str.contains(q, na=False) |
                             ref_assets_df['ชื่อโครงการ'].astype(str).str.lower().str.contains(q, na=False)
                         ]
@@ -2096,9 +2095,9 @@ with tab4:
                         # Force a copy to avoid SettingWithCopyWarning or copy-on-write errors in pandas 2.0+
                         ref_assets_df = ref_assets_df.copy()
 
-                        # Create labels for selectbox: "ชื่อประกาศ_สะอาด (รหัสทรัพย์) - ฿ราคา"
+                        # Create labels for selectbox: "ชื่อประกาศ (รหัสทรัพย์) - ฿ราคา"
                         ref_assets_df['label'] = (
-                            ref_assets_df['ชื่อประกาศ_สะอาด'].astype(str).str[:35] + " (" + 
+                            ref_assets_df['ชื่อประกาศ'].astype(str).str[:35] + " (" + 
                             ref_assets_df['รหัสทรัพย์'].astype(str) + ") - ฿" + 
                             ref_assets_df['ราคา'].map('{:,.0f}'.format)
                         )
@@ -2128,7 +2127,7 @@ with tab4:
                                 selected_asset = matching_assets.iloc[0]
 
                                 # Set values directly from selected asset
-                                inp_name = f"[{selected_asset['บริษัท']}] {selected_asset['ชื่อประกาศ_สะอาด']} ({selected_asset['รหัสทรัพย์']})"
+                                inp_name = f"[{selected_asset['บริษัท']}] {selected_asset['ชื่อประกาศ']} ({selected_asset['รหัสทรัพย์']})"
                                 inp_lat = float(selected_asset['ละติจูด'])
                                 inp_lng = float(selected_asset['ลองจิจูด'])
                                 inp_price = float(selected_asset['ราคา'])
@@ -2136,7 +2135,7 @@ with tab4:
 
                                 st.info(f"""
                                 🏠 **รายละเอียดทรัพย์อ้างอิงที่เลือก**:
-                                - **ชื่อประกาศ:** {selected_asset['ชื่อประกาศ_สะอาด']}
+                                - **ชื่อประกาศ:** {selected_asset['ชื่อประกาศ']}
                                 - **รหัสทรัพย์:** {selected_asset['รหัสทรัพย์']} ({selected_asset['บริษัท']})
                                 - **พิกัด:** {inp_lat:.6f}, {inp_lng:.6f}
                                 - **ราคาขาย:** ฿{inp_price:,.0f} บาท
@@ -2308,8 +2307,8 @@ with tab4:
                 # Show Table
                 st.dataframe(
                     nearby_df[[
-                        "บริษัท", "รหัสทรัพย์", "ชื่อประกาศ_สะอาด", "ประเภททรัพย์", "ราคา", 
-                        "จังหวัด", "อำเภอ", "ตำบล", "ระยะทาง (กม.)", "ลิงก์_สะอาด"
+                        "บริษัท", "รหัสทรัพย์", "ชื่อประกาศ", "ประเภททรัพย์", "ราคา", 
+                        "จังหวัด", "อำเภอ", "ตำบล", "ระยะทาง (กม.)", "ลิงก์"
                     ]].sort_values("ระยะทาง (กม.)"),
                     width="stretch",
                     column_config={
@@ -2340,7 +2339,7 @@ with tab4:
                     map_points.append({
                         "ละติจูด": r["ละติจูด"],
                         "ลองจิจูด": r["ลองจิจูด"],
-                        "ชื่อ": f"{r['ชื่อประกาศ_สะอาด']} ({formatted_price})",
+                        "ชื่อ": f"{r['ชื่อประกาศ']} ({formatted_price})",
                         "ราคา (บาท)": formatted_price,
                         "ประเภท": f"ทรัพย์ NPA ({r['บริษัท']})",
                         "ขนาดพิกัด": 8,
@@ -2440,7 +2439,7 @@ with tab4:
                 if search_a:
                     q = search_a.strip().lower()
                     df_a_subset = df_a_subset[
-                        df_a_subset['ชื่อประกาศ_สะอาด'].astype(str).str.lower().str.contains(q, na=False) |
+                        df_a_subset['ชื่อประกาศ'].astype(str).str.lower().str.contains(q, na=False) |
                         df_a_subset['รหัสทรัพย์'].astype(str).str.lower().str.contains(q, na=False) |
                         df_a_subset['ชื่อโครงการ'].astype(str).str.lower().str.contains(q, na=False)
                     ]
@@ -2448,7 +2447,7 @@ with tab4:
                 if not df_a_subset.empty:
                     df_a_subset = df_a_subset.copy()
                     df_a_subset['label'] = (
-                        df_a_subset['ชื่อประกาศ_สะอาด'].astype(str).str[:35] + " (" + 
+                        df_a_subset['ชื่อประกาศ'].astype(str).str[:35] + " (" + 
                         df_a_subset['รหัสทรัพย์'].astype(str) + ") - ฿" + 
                         df_a_subset['ราคา'].map('{:,.0f}'.format)
                     )
@@ -2506,7 +2505,7 @@ with tab4:
                 if search_b:
                     q = search_b.strip().lower()
                     df_b_subset = df_b_subset[
-                        df_b_subset['ชื่อประกาศ_สะอาด'].astype(str).str.lower().str.contains(q, na=False) |
+                        df_b_subset['ชื่อประกาศ'].astype(str).str.lower().str.contains(q, na=False) |
                         df_b_subset['รหัสทรัพย์'].astype(str).str.lower().str.contains(q, na=False) |
                         df_b_subset['ชื่อโครงการ'].astype(str).str.lower().str.contains(q, na=False)
                     ]
@@ -2514,7 +2513,7 @@ with tab4:
                 if not df_b_subset.empty:
                     df_b_subset = df_b_subset.copy()
                     df_b_subset['label'] = (
-                        df_b_subset['ชื่อประกาศ_สะอาด'].astype(str).str[:35] + " (" + 
+                        df_b_subset['ชื่อประกาศ'].astype(str).str[:35] + " (" + 
                         df_b_subset['รหัสทรัพย์'].astype(str) + ") - ฿" + 
                         df_b_subset['ราคา'].map('{:,.0f}'.format)
                     )
@@ -2637,8 +2636,8 @@ with tab4:
                             </tr>
                             <tr style="border-bottom: 1px solid var(--card-border);">
                                 <td style="padding: 10px; font-weight: 600; color: var(--card-subtext); border-right: 1px solid var(--card-border);">ชื่อประกาศ / ชื่อโครงการ</td>
-                                <td style="padding: 10px; text-align: center; color: var(--card-text); font-weight: 500; border-right: 1px solid var(--card-border);">{asset_a['ชื่อประกาศ_สะอาด']}</td>
-                                <td style="padding: 10px; text-align: center; color: var(--card-text); font-weight: 500;">{asset_b['ชื่อประกาศ_สะอาด']}</td>
+                                <td style="padding: 10px; text-align: center; color: var(--card-text); font-weight: 500; border-right: 1px solid var(--card-border);">{asset_a['ชื่อประกาศ']}</td>
+                                <td style="padding: 10px; text-align: center; color: var(--card-text); font-weight: 500;">{asset_b['ชื่อประกาศ']}</td>
                             </tr>
                             <tr style="border-bottom: 1px solid var(--card-border);">
                                 <td style="padding: 10px; font-weight: 600; color: var(--card-subtext); border-right: 1px solid var(--card-border);">ประเภททรัพย์</td>
@@ -2678,10 +2677,10 @@ with tab4:
                             <tr style="border-bottom: 1px solid var(--card-border);">
                                 <td style="padding: 10px; font-weight: 600; color: var(--card-subtext); border-right: 1px solid var(--card-border);">ลิงก์รายละเอียด</td>
                                 <td style="padding: 10px; text-align: center; border-right: 1px solid var(--card-border);">
-                                    {'<a href="' + asset_a['ลิงก์_สะอาด'] + '" target="_blank" style="color: #3b82f6; text-decoration: none; font-weight: 600;"><i class="fa fa-external-link-alt"></i> เปิดหน้าประกาศ</a>' if asset_a['ลิงก์_สะอาด'].startswith('http') else '<span style="color:#94a3b8;">ไม่มีลิงก์</span>'}
+                                    {'<a href="' + asset_a['ลิงก์'] + '" target="_blank" style="color: #3b82f6; text-decoration: none; font-weight: 600;"><i class="fa fa-external-link-alt"></i> เปิดหน้าประกาศ</a>' if asset_a['ลิงก์'].startswith('http') else '<span style="color:#94a3b8;">ไม่มีลิงก์</span>'}
                                 </td>
                                 <td style="padding: 10px; text-align: center;">
-                                    {'<a href="' + asset_b['ลิงก์_สะอาด'] + '" target="_blank" style="color: #ec4899; text-decoration: none; font-weight: 600;"><i class="fa fa-external-link-alt"></i> เปิดหน้าประกาศ</a>' if asset_b['ลิงก์_สะอาด'].startswith('http') else '<span style="color:#94a3b8;">ไม่มีลิงก์</span>'}
+                                    {'<a href="' + asset_b['ลิงก์'] + '" target="_blank" style="color: #ec4899; text-decoration: none; font-weight: 600;"><i class="fa fa-external-link-alt"></i> เปิดหน้าประกาศ</a>' if asset_b['ลิงก์'].startswith('http') else '<span style="color:#94a3b8;">ไม่มีลิงก์</span>'}
                                 </td>
                             </tr>
                         </tbody>
@@ -2700,7 +2699,7 @@ with tab4:
                         map_points.append({
                             'lat': lat_a,
                             'lon': lng_a,
-                            'ชื่อ': f"A: {asset_a['ชื่อประกาศ_สะอาด'][:30]}",
+                            'ชื่อ': f"A: {asset_a['ชื่อประกาศ'][:30]}",
                             'บริษัท': f"A ({asset_a['บริษัท']})",
                             'ราคา': f"฿{price_a:,.0f}" if price_a > 0 else "ไม่ระบุราคา"
                         })
@@ -2708,7 +2707,7 @@ with tab4:
                         map_points.append({
                             'lat': lat_b,
                             'lon': lng_b,
-                            'ชื่อ': f"B: {asset_b['ชื่อประกาศ_สะอาด'][:30]}",
+                            'ชื่อ': f"B: {asset_b['ชื่อประกาศ'][:30]}",
                             'บริษัท': f"B ({asset_b['บริษัท']})",
                             'ราคา': f"฿{price_b:,.0f}" if price_b > 0 else "ไม่ระบุราคา"
                         })
