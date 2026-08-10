@@ -11,6 +11,8 @@ import ast
 from pathlib import Path
 import base64
 
+from dashboard_metrics import build_kpi_summary_text
+
 # Haversine distance calculation (km)
 # Haversine distance calculation (km)
 def haversine_distance(lat1, lon1, lat2, lon2):
@@ -365,9 +367,9 @@ def load_properties_data():
             if 'ชื่อประกาศ' in df.columns:
                 df['ชื่อประกาศ_สะอาด'] = df['ชื่อประกาศ'].apply(get_clean_title)
             elif 'ชื่อโครงการ' in df.columns:
-                df['ชื่อประกาศ_สะอาด'] = df['ชื่อโครงการ'].fillna('ไม่มีชื่อ').astype(str)
+                df['ชื่อประกาศ_สะอาด'] = df['ชื่อโครงการ'].astype(object).fillna('ไม่มีชื่อ').astype(str)
             else:
-                df['ชื่อประกาศ_สะอาด'] = df['รหัสทรัพย์'].fillna('ทรัพย์สิน NPA').astype(str)
+                df['ชื่อประกาศ_สะอาด'] = df['รหัสทรัพย์'].astype(object).fillna('ทรัพย์สิน NPA').astype(str)
 
         if 'ลิงก์_สะอาด' not in df.columns:
             if 'ลิงก์' in df.columns:
@@ -434,16 +436,16 @@ def load_properties_data():
         # Clean prices
         df['ราคา'] = pd.to_numeric(df['ราคา'], errors='coerce')
         
-        # Fill NaN values in essential text columns
-        df['รหัสทรัพย์'] = df['รหัสทรัพย์'].fillna("-").astype(str).str.strip()
-        df['ประเภททรัพย์'] = df['ประเภททรัพย์'].fillna("อื่นๆ").astype(str).str.strip()
-        df['จังหวัด'] = df['จังหวัด'].fillna("ไม่ระบุ").astype(str).str.strip()
-        df['ตำบล'] = df['ตำบล'].fillna("").astype(str).str.strip()
-        df['อำเภอ'] = df['อำเภอ'].fillna("").astype(str).str.strip()
-        df['ชื่อโครงการ'] = df['ชื่อโครงการ'].fillna("").astype(str).str.strip()
-        df['ประเภทการขาย'] = df['ประเภทการขาย'].fillna("").astype(str).str.strip()
-        df['พื้นที่ (ไร่-งาน-วา)'] = df['พื้นที่ (ไร่-งาน-วา)'].fillna("").astype(str).str.strip()
-        df['วันที่ดึงข้อมูล'] = df['วันที่ดึงข้อมูล'].fillna("").astype(str).str.strip()
+        # Fill NaN values in essential text columns (cast to object first to prevent Categorical fillna errors)
+        df['รหัสทรัพย์'] = df['รหัสทรัพย์'].astype(object).fillna("-").astype(str).str.strip()
+        df['ประเภททรัพย์'] = df['ประเภททรัพย์'].astype(object).fillna("อื่นๆ").astype(str).str.strip()
+        df['จังหวัด'] = df['จังหวัด'].astype(object).fillna("ไม่ระบุ").astype(str).str.strip()
+        df['ตำบล'] = df['ตำบล'].astype(object).fillna("").astype(str).str.strip()
+        df['อำเภอ'] = df['อำเภอ'].astype(object).fillna("").astype(str).str.strip()
+        df['ชื่อโครงการ'] = df['ชื่อโครงการ'].astype(object).fillna("").astype(str).str.strip()
+        df['ประเภทการขาย'] = df['ประเภทการขาย'].astype(object).fillna("").astype(str).str.strip()
+        df['พื้นที่ (ไร่-งาน-วา)'] = df['พื้นที่ (ไร่-งาน-วา)'].astype(object).fillna("").astype(str).str.strip()
+        df['วันที่ดึงข้อมูล'] = df['วันที่ดึงข้อมูล'].astype(object).fillna("").astype(str).str.strip()
         
         # ทำความสะอาดข้อมูลจังหวัด ป้องกันอำเภอ/ตำบลเบียดเข้ามาปะปน
         THAI_PROVINCES = {
@@ -532,7 +534,7 @@ def load_properties_data():
             if v_lower in ["sale-rent", "sale/rent", "sale_rent", "ขายและเช่า", "ขาย/เช่า", "ขาย/ ให้เช่า", "ขาย / เช่า", "ขาย / ให้เช่า"]:
                 return "ขาย/เช่า"
             if v_lower in ["rent", "for-rent", "for_rent", "เช่า", "ให้เช่า", "เซ้ง"]:
-                return "ให้เช่า"
+                return "เช่า"
             if v_lower in ["auction", "ประมูล", "ขายทอดตลาด"]:
                 return "ประมูล / ขายทอดตลาด"
             if v_lower in ["down-payment", "ขายดาวน์", "รอประกาศราคา"]:
@@ -596,7 +598,7 @@ with st.sidebar:
         is_dark_mode = st.toggle("🌙 มืด", value=False, key="app_theme_mode", help="สลับระหว่างโหมดมืด (Dark Mode) และโหมดสว่าง (Light Mode)")
     st.markdown("---")
     
-    max_map_points = 15000
+    max_map_points = 100000
     # Configure variables for forced styling
     bg_color = "rgba(243, 244, 246, 0.9)"
     border_color = "rgba(0, 0, 0, 0.08)"
@@ -642,7 +644,8 @@ with st.sidebar:
         common_types = type_counts.head(top_n).index.tolist()
         rare_types = type_counts.index[top_n:].tolist()
         
-        display_type_keys = sorted(common_types)
+        display_type_keys = list(common_types)
+        display_type_keys.sort()
         if len(rare_types) > 0:
             display_type_keys.append("เพิ่มเติม")
             
@@ -660,7 +663,9 @@ with st.sidebar:
         
         # If "เพิ่มเติม" is selected, show a multiselect for rare types
         if "เพิ่มเติม" in selected_types:
-            rare_options = [f"{t} ({type_counts[t]:,})" for t in sorted(rare_types)]
+            rare_types_sorted = list(rare_types)
+            rare_types_sorted.sort()
+            rare_options = [f"{t} ({type_counts[t]:,})" for t in rare_types_sorted]
             sanitize_session_state("selected_rare_types", rare_options)
             st.multiselect(
                 "เลือกประเภททรัพย์สินเพิ่มเติม",
@@ -671,7 +676,7 @@ with st.sidebar:
         
         # Sale Type Filter (ประเภทการขาย)
         sale_type_counts = df_by_company['ประเภทการขาย'].astype(str).str.strip().value_counts()
-        sale_types_list = ["ขาย", "ขาย/เช่า", "ให้เช่า", "ประมูล / ขายทอดตลาด", "ขายดาวน์ / รอประกาศ", "ไม่ระบุ"]
+        sale_types_list = ["ขาย", "ขาย/เช่า", "เช่า", "ประมูล / ขายทอดตลาด", "ขายดาวน์ / รอประกาศ"]
         available_sale_types = [s for s in sale_types_list if sale_type_counts.get(s, 0) > 0]
         
         sanitize_session_state("filter_sale_types", available_sale_types)
@@ -687,7 +692,13 @@ with st.sidebar:
             selected_sale_types = []
         
         # Province Filter
-        unique_provinces = sorted(df_by_company['จังหวัด'].unique().tolist())
+        unique_provinces = (
+            df_by_company['จังหวัด']
+            .dropna()
+            .unique()
+            .tolist()
+        )
+        unique_provinces.sort()
         # Clean up province lists, removing "ไม่ระบุ" or blank
         if "ไม่ระบุ" in unique_provinces:
             unique_provinces.remove("ไม่ระบุ")
@@ -703,10 +714,11 @@ with st.sidebar:
         # Get unique pairs of (อำเภอ, จังหวัด) to display parent province in parentheses
         dist_df = filtered_provinces_df[['อำเภอ', 'จังหวัด']].drop_duplicates().dropna()
         dist_df = dist_df[dist_df['อำเภอ'].str.strip() != ""]
-        unique_districts_formatted = sorted([
+        unique_districts_formatted = [
             f"{row['อำเภอ']} ({row['จังหวัด']})" 
             for _, row in dist_df.iterrows()
-        ])
+        ]
+        unique_districts_formatted.sort()
         selected_districts_formatted = st.multiselect("อำเภอ / เขต", options=unique_districts_formatted, default=[])
         
         # Parse selected districts into tuples for subdistrict option filtering
@@ -727,10 +739,11 @@ with st.sidebar:
         # Get unique trios of (ตำบล, อำเภอ, จังหวัด) to display parent district & province in parentheses
         sub_df = filtered_districts_df[['ตำบล', 'อำเภอ', 'จังหวัด']].drop_duplicates().dropna()
         sub_df = sub_df[sub_df['ตำบล'].str.strip() != ""]
-        unique_subdistricts_formatted = sorted([
+        unique_subdistricts_formatted = [
             f"{row['ตำบล']} ({row['อำเภอ']}, {row['จังหวัด']})"
             for _, row in sub_df.iterrows()
-        ])
+        ]
+        unique_subdistricts_formatted.sort()
         selected_subdistricts_formatted = st.multiselect("ตำบล / แขวง", options=unique_subdistricts_formatted, default=[])
         
         # Price Filter
@@ -785,10 +798,10 @@ with st.sidebar:
             max_limit = int(len(df_raw)) if df_raw is not None else 600329
             max_map_points = st.slider(
                 "จำนวนจุดสูงสุดบนแผนที่",
-                min_value=5000,
-                max_value=min(50000, max_limit),
-                value=min(15000, max_limit),
-                step=5000,
+                min_value=1,
+                max_value=min( max_val, max_limit),
+                value=min(100000, max_limit),
+                step=50000,
                 help="หากจุดพิกัดจริงมีมากกว่าค่าที่เลือกไว้ ระบบจะสุ่มเลือกตัวอย่างมาวาดตามสัดส่วนเพื่อรักษาความลื่นไหลและป้องกันเบราว์เซอร์ค้าง"
             )
             st.markdown(f"📍 ขีดจำกัดบนแผนที่ขณะนี้: **{max_map_points:,}** จุด")
@@ -796,7 +809,7 @@ with st.sidebar:
                 st.warning("⚠️ การแสดงผลจุดเกิน 200,000 จุด อาจส่งผลให้เบราว์เซอร์ทำงานหนักและหน่วงได้ในบางเครื่อง")
         else:
             price_range = (0.0, 1000000000.0)
-            max_map_points = 15000
+            max_map_points = 100000
             mapbox_style = "open-street-map"
             map_is_dark = False
     else:
@@ -1394,7 +1407,8 @@ if not valid_prices.empty:
         ]
 
 # ----------------- GLOBAL KPI METRICS COMPUTATION -----------------
-total_count = len(df_filtered)
+total_count = len(df_raw) if df_raw is not None else 0
+filtered_count = len(df_filtered)
 valid_prices_filtered = df_filtered['ราคา'].dropna()
 
 if not valid_prices_filtered.empty:
@@ -1407,6 +1421,7 @@ else:
     max_price = 0.0
 
 total_count_str = f"{total_count:,.0f}"
+filtered_count_str = f"{filtered_count:,.0f}"
 total_value_str = f"฿{total_value:,.2f}M"
 avg_price_str = f"฿{avg_price:,.2f}M"
 max_price_str = f"฿{max_price:,.2f}M"
@@ -1417,12 +1432,14 @@ active_companies = selected_companies if selected_companies else ["Baania", "BAM
 co_breakdown_items = [f"{co}: {active_co_counts.get(co, 0):,}" for co in active_companies if active_co_counts.get(co, 0) > 0]
 co_breakdown_str = " | ".join(co_breakdown_items) if co_breakdown_items else "ไม่มีรายการในตัวกรองนี้"
 
+summary_text = build_kpi_summary_text(total_count, filtered_count)
+
 floating_kpi_html = f"""
 <div class="floating-kpi-container" style="margin-bottom: 20px;">
     <div class="floating-card">
         <div class="floating-card-title"><i class="fa fa-list" style="color: #6366f1;"></i> ทรัพย์สินที่พบ</div>
-        <div class="floating-card-value">{total_count_str}</div>
-        <div class="floating-card-sub">{co_breakdown_str}</div>
+        <div class="floating-card-value">{filtered_count_str}</div>
+        <div class="floating-card-sub">{summary_text}</div>
     </div>
     <div class="floating-card">
         <div class="floating-card-title"><i class="fa fa-wallet" style="color: #06b6d4;"></i> มูลค่ารวมทรัพย์สิน</div>
@@ -1446,10 +1463,12 @@ floating_kpi_html = f"""
 st.markdown(floating_kpi_html, unsafe_allow_html=True)
 
 # ----------------- TABS CREATION -----------------
-tab1, tab2, tab3 = st.tabs([
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "🗺️ แผนที่พิกัดทรัพย์ (Map Grid)", 
     "📈 สถิติ & วิเคราะห์ (Analytics)", 
-    "🔍 เปรียบเทียบตำแหน่ง (Comparison)"
+    "📋 รายการทรัพย์สิน (Property Listing)", 
+    "🔍 เปรียบเทียบตำแหน่ง (Comparison)",
+    "💎 ค้นหาของดีราคาถูก (Bargain Hunter)"
 ])
 
 # ----- TAB 1: MAP GRID -----
@@ -1498,11 +1517,11 @@ with tab1:
             
             # Build dataset for embedding
             title_col = 'ชื่อประกาศ_สะอาด' if 'ชื่อประกาศ_สะอาด' in map_data.columns else ('ชื่อโครงการ' if 'ชื่อโครงการ' in map_data.columns else 'รหัสทรัพย์')
-            titles = map_data[title_col].fillna('ไม่มีชื่อ').astype(str).str[:30].values
-            ids = map_data['รหัสทรัพย์'].fillna('-').astype(str).str[:15].values
-            provs = map_data['จังหวัด'].fillna('-').astype(str).values
-            types = map_data['ประเภททรัพย์'].fillna('-').astype(str).values
-            companies = map_data['บริษัท'].fillna('-').astype(str).values
+            titles = map_data[title_col].astype(object).fillna('ไม่มีชื่อ').astype(str).str[:30].values
+            ids = map_data['รหัสทรัพย์'].astype(object).fillna('-').astype(str).str[:15].values
+            provs = map_data['จังหวัด'].astype(object).fillna('-').astype(str).values
+            types = map_data['ประเภททรัพย์'].astype(object).fillna('-').astype(str).values
+            companies = map_data['บริษัท'].astype(object).fillna('-').astype(str).values
             prices = map_data['ราคาขาย'].astype(str).values
             
             # Colors
@@ -1689,8 +1708,8 @@ with tab2:
                 # Simplify property type mapping for visualization
                 def map_simplified_type(t):
                     t_str = str(t).strip()
-                    if 'ที่ดิน' in t_str:
-                        return 'ที่ดิน'
+                    if 'ที่ดินเปล่า' in t_str:
+                        return 'ที่ดินเปล่า'
                     elif 'คอนโด' in t_str:
                         return 'คอนโด'
                     elif 'บ้านเดี่ยว' in t_str or 'บ้านแฝด' in t_str or 'พูลวิลล่า' in t_str or 'บ้าน' in t_str:
@@ -1708,7 +1727,7 @@ with tab2:
                     df_hist_data = df_hist_data.sample(n=50000, random_state=42)
                 
                 color_map_dist = {
-                    "ที่ดิน": "#56B4E9", 
+                    "ที่ดินเปล่า": "#56B4E9", 
                     "บ้านเดี่ยว": "#CC79A7", 
                     "คอนโด": "#E69F00", 
                     "ทาวน์เฮ้าส์": "#107c41"
@@ -1739,15 +1758,15 @@ with tab2:
             with col_c6:
                 df_usable_area = df_filtered[
                     (df_filtered['พื้นที่ใช้สอย (ตร.ม.)'].notna()) & 
-                    (df_filtered['พื้นที่ใช้สอย (ตร.ม.)'] > 0) & 
+                    (df_filtered['พื้นที่ใช้สอย (ตร.ม.)'] < 1500) & 
                     (df_filtered['ราคา'].notna()) & 
-                    (df_filtered['ราคา'] <= 50000000)
+                    (df_filtered['ราคา'] <= 60000000)
                 ].copy()
                 
                 df_usable_area['ประเภททรัพย์ '] = df_usable_area['ประเภททรัพย์'].apply(map_simplified_type)
                 df_usable_area = df_usable_area[
                     df_usable_area['ประเภททรัพย์ '].notna() & 
-                    (df_usable_area['ประเภททรัพย์ '] != 'ที่ดิน')
+                    (df_usable_area['ประเภททรัพย์ '] != 'ที่ดินเปล่า')
                 ]
                 
                 # Optimize by subsetting and sampling to 10k points to prevent scatter plot lag
@@ -1758,7 +1777,7 @@ with tab2:
                 color_map_scatter = {
                     "บ้านเดี่ยว": "#3182bd", 
                     "คอนโด": "#9ecae1", 
-                    "ทาวน์เฮ้าส์": "#ef3b2c"
+                    "ทาวน์เฮ้าส์": "#ef3b2c",
                 }
                 
                 fig_price_vs_area = px.scatter(
@@ -1831,7 +1850,7 @@ with tab2:
                 
                 colors = px.colors.qualitative.Pastel
                 # Top property types that are considered "important"
-                TOP_TYPES = ['บ้านเดี่ยว', 'คอนโด', 'ทาวน์เฮ้าส์', 'ที่ดิน', 'อาคารพาณิชย์', 'โรงงาน/โกดัง', 'บ้านแฝด']
+                TOP_TYPES = ['บ้านเดี่ยว', 'คอนโด', 'ทาวน์เฮ้าส์', 'ที่ดินเปล่า', 'อาคารพาณิชย์', 'โรงงาน/โกดัง', 'บ้านแฝด']
                 other_color = '#d1d5db'
                 color_map = {t: colors[i % len(colors)] for i, t in enumerate(TOP_TYPES)}
                 color_map['อื่นๆ'] = other_color
@@ -1903,8 +1922,8 @@ with tab2:
             # Map property types to major categories for visualization
             def map_major_type(t):
                 t_str = str(t).strip()
-                if 'ที่ดิน' in t_str:
-                    return None # Land is measured in Sq. Wah, not Sq. M
+                if 'ที่ดินเปล่า' in t_str:
+                    return 'ที่ดินเปล่า'
                 elif 'คอนโด' in t_str:
                     return 'คอนโด'
                 elif 'บ้านเดี่ยว' in t_str or 'บ้านแฝด' in t_str or 'บ้าน' in t_str:
@@ -1946,9 +1965,36 @@ with tab2:
             else:
                 st.warning("⚠️ ไม่มีข้อมูลพื้นที่ใช้สอยหรือราคาทรัพย์สินสำหรับวิเคราะห์ราคาต่อตารางเมตร")
 
-
-# ----- TAB 3: COMPARISON -----
+# ----- TAB 3: PROPERTY LISTING -----
 with tab3:
+    st.markdown(f"### 📋 รายการทรัพยสินที่ค้นพบ ({total_count:,} รายการ)")
+    
+    if df_filtered.empty:
+        st.warning("⚠️ ไม่พบข้อมูลตามเงื่อนไข")
+    else:
+        # Show top 5,000 rows in the interactive table for performance
+        display_limit = 5000
+        if len(df_filtered) > display_limit:
+            st.info(f"💡 แสดงผลตารางเฉพาะ {display_limit:,} รายการแรก เพื่อลดการใช้ข้อมูลหน้าเว็บและช่วยให้โหลดรวดเร็ว (กรุณาใช้แถบตัวกรองที่คอลัมน์ซ้ายเพื่อบีบขอบเขตข้อมูลเพิ่มเติม)")
+            df_table = df_filtered.head(display_limit)
+        else:
+            df_table = df_filtered
+            
+        st.dataframe(
+            df_table[[
+                "บริษัท", "รหัสทรัพย์", "ชื่อโครงการ", "ชื่อประกาศ_สะอาด", "ประเภททรัพย์", 
+                "ประเภทการขาย", "ราคา", "จังหวัด", "อำเภอ", "ตำบล",
+                "พื้นที่ (ไร่-งาน-วา)", "พื้นที่ใช้สอย (ตร.ม.)", "ห้องนอน", "ห้องน้ำ", "ที่จอดรถ", "วันที่ดึงข้อมูล"
+            ]],
+            width="stretch",
+            column_config={
+                "ราคา": st.column_config.NumberColumn("ราคาขาย (บาท)", format="%d"),
+                "พื้นที่ใช้สอย (ตร.ม.)": st.column_config.NumberColumn(format="%.1f")
+            }
+        )
+
+# ----- TAB 4: COMPARISON -----
+with tab4:
     comp_sub_tab1, comp_sub_tab2 = st.tabs([
         "📍 เปรียบเทียบตามรัศมีทำเล (Radius Location Analysis)",
         "⚔️ เปรียบเทียบแบบ 1 ต่อ 1 (1-on-1 Asset Comparison)"
@@ -2873,5 +2919,166 @@ with tab3:
                     else:
                         st.markdown("- เหมาะสำหรับเปรียบเทียบในเชิงทำเลหรือมิติพิเศษอื่น ๆ")
 
-
+# ----- TAB 5: BARGAIN HUNTER -----
+with tab5:
+    st.markdown("### 💎 ระบบค้นหาและคัดกรองทรัพย์ของดีราคาถูก (Bargain Hunter & Outliers)")
+    st.write("คัดกรองและเปรียบเทียบหาทรัพย์สินที่มีราคาถูกกว่าราคาเฉลี่ยอย่างผิดปกติในทำเลที่คุณเลือก")
+    
+    st.markdown("---")
+    
+    if df_raw is None or df_raw.empty:
+        st.warning("⚠️ ไม่มีข้อมูลทรัพย์สินให้ทำการวิเคราะห์")
+    else:
+        # Form for filtering location & property type for analysis
+        col_b1, col_b2, col_b3 = st.columns(3)
+        with col_b1:
+            # Clean province list (excluding ไม่ระบุ)
+            prov_list = sorted([p for p in df_raw['จังหวัด'].unique() if p != "ไม่ระบุ"])
+            sel_b_prov = st.selectbox("เลือกจังหวัด (Province) (วิเคราะห์ส่วนลด)", options=prov_list, index=0)
+            
+        with col_b2:
+            # Filter districts by province
+            dist_list = sorted(df_raw[df_raw['จังหวัด'] == sel_b_prov]['อำเภอ'].dropna().unique())
+            if "" in dist_list:
+                dist_list.remove("")
+            sel_b_dist = st.selectbox("เลือกอำเภอ/เขต (District) (วิเคราะห์ส่วนลด)", options=["ทั้งหมด"] + dist_list, index=0)
+            
+        with col_b3:
+            # Filter property types by location
+            loc_df = df_raw[df_raw['จังหวัด'] == sel_b_prov]
+            if sel_b_dist != "ทั้งหมด":
+                loc_df = loc_df[loc_df['อำเภอ'] == sel_b_dist]
+            prop_types = sorted(loc_df['ประเภททรัพย์'].dropna().unique())
+            sel_b_type = st.selectbox("ประเภททรัพย์สิน (Property Type) (วิเคราะห์ส่วนลด)", options=prop_types if prop_types else ["ไม่มีข้อมูล"], index=0)
+            
+        # Perform analysis on this filtered dataset
+        analysis_df = loc_df[loc_df['ประเภททรัพย์'] == sel_b_type].copy()
+        
+        # Decide unit to use dynamically based on data availability
+        w_count = analysis_df['พื้นที่_ตารางวา'].notna().sum() if not analysis_df.empty else 0
+        m_count = analysis_df['พื้นที่ใช้สอย (ตร.ม.)'].notna().sum() if not analysis_df.empty else 0
+        
+        if w_count >= m_count and w_count > 0:
+            unit_col = 'ราคาต่อตารางวา'
+            unit_label = 'ตารางวา'
+            unit_short = 'ตร.ว.'
+        else:
+            unit_col = 'ราคาต่อตารางเมตร'
+            unit_label = 'ตารางเมตร'
+            unit_short = 'ตร.ม.'
+        
+        # Drop rows with no price, non-positive price, or no unit area
+        analysis_df = analysis_df[
+            analysis_df['ราคา'].notna() & 
+            (analysis_df['ราคา'] > 0) & 
+            analysis_df[unit_col].notna() &
+            (analysis_df[unit_col] > 0)
+        ]
+        
+        if analysis_df.empty or len(analysis_df) < 3:
+            st.info("💡 มีข้อมูลไม่เพียงพอในการวิเคราะห์สถิติเชิงลึกในทำเลนี้ (ต้องการข้อมูลราคาและพื้นที่อย่างน้อย 3 รายการขึ้นไป)")
+        else:
+            # Calculate Statistics
+            median_val = float(analysis_df[unit_col].median())
+            mean_val = float(analysis_df[unit_col].mean())
+            std_val = float(analysis_df[unit_col].std())
+            min_val = float(analysis_df[unit_col].min())
+            max_val = float(analysis_df[unit_col].max())
+            
+            # Display Statistics Cards
+            s_col1, s_col2, s_col3, s_col4 = st.columns(4)
+            s_col1.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-title"><i class="fa fa-calculator"></i> ค่ากลางราคาต่อหน่วย</div>
+                <div class="metric-value">฿{median_val:,.0f}</div>
+                <div class="metric-sub">บาท / {unit_label} (Median)</div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            s_col2.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-title"><i class="fa fa-arrow-down" style="color: #10b981;"></i> ราคาต่ำสุดต่อหน่วย</div>
+                <div class="metric-value">฿{min_val:,.0f}</div>
+                <div class="metric-sub">บาท / {unit_label} (Min)</div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            s_col3.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-title"><i class="fa fa-arrow-up" style="color: #ef4444;"></i> ราคาสูงสุดต่อหน่วย</div>
+                <div class="metric-value">฿{max_val:,.0f}</div>
+                <div class="metric-sub">บาท / {unit_label} (Max)</div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            s_col4.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-title"><i class="fa fa-list"></i> จำนวนทรัพย์วิเคราะห์</div>
+                <div class="metric-value">{len(analysis_df)}</div>
+                <div class="metric-sub">รายการในทำเลนี้</div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            st.markdown("<br/>", unsafe_allow_html=True)
+            
+            # Display Layout: Box Plot and AMC vs Portal average price
+            col_graph1, col_graph2 = st.columns(2)
+            
+            with col_graph1:
+                # Box Plot
+                fig_box = px.box(
+                    analysis_df,
+                    y=unit_col,
+                    color='บริษัท',
+                    points="all",
+                    hover_data=['ชื่อประกาศ_สะอาด', 'รหัสทรัพย์', 'ราคา'],
+                    title=f'แผนภูมิการกระจายตัวราคาต่อ{unit_label} (Box Plot)',
+                    color_discrete_map={"Baania": "#f59e0b", "BAM": "#3b82f6", "SAM": "#10b981", "Livinginsider": "#84cc16", "DDproperty": "#a855f7", "Taladnudbaan": "#06b6d4", "ZmyHome": "#ec4899"},
+                    template=plotly_template
+                )
+                fig_box.update_layout(title_font=dict(size=14, family="Outfit"), yaxis_title=f"ราคา (บาท / {unit_label})")
+                st.plotly_chart(style_plotly_fig(fig_box), width="stretch", theme=None)
+                
+            with col_graph2:
+                # AMC vs Portal average price comparison
+                amc_portal_group = analysis_df.groupby('บริษัท')[unit_col].mean().reset_index()
+                fig_amc_vs_portal = px.bar(
+                    amc_portal_group,
+                    x='บริษัท',
+                    y=unit_col,
+                    color='บริษัท',
+                    title=f'ราคาเฉลี่ยต่อ{unit_label} เปรียบเทียบ AMC vs พอร์ทัลทั่วไป',
+                    color_discrete_map={"Baania": "#f59e0b", "BAM": "#3b82f6", "SAM": "#10b981", "Livinginsider": "#84cc16", "DDproperty": "#a855f7", "Taladnudbaan": "#06b6d4", "ZmyHome": "#ec4899"},
+                    template=plotly_template
+                )
+                fig_amc_vs_portal.update_layout(title_font=dict(size=14, family="Outfit"), yaxis_title=f"ราคาเฉลี่ย (บาท / {unit_label})")
+                st.plotly_chart(style_plotly_fig(fig_amc_vs_portal), width="stretch", theme=None)
+                
+            # Underpriced Assets Finder
+            st.markdown("#### 💎 ทรัพย์สินที่ราคาต่อหน่วยคุ้มค่าที่สุด (ส่วนลดสูงสุดเทียบกับราคากลางทำเล)")
+            st.write(f"แสดงรายการทรัพย์สินที่มีราคาต่อ{unit_label} ต่ำกว่าราคาเฉลี่ยกลาง (Median) ของพื้นที่ ซึ่งคิดเป็นดีลสุดคุ้มในการลงทุน")
+            
+            # Calculate discount from median
+            analysis_df['ส่วนต่างจากราคากลาง (%)'] = ((analysis_df[unit_col] - median_val) / median_val) * 100.0
+            
+            # Sort by lowest unit price (or most negative deviation)
+            bargain_df = analysis_df.sort_values(by=unit_col)
+            
+            # Format and show columns
+            bargain_display = bargain_df[[
+                'บริษัท', 'รหัสทรัพย์', 'ชื่อประกาศ_สะอาด', 'ราคา', unit_col, 'ส่วนต่างจากราคากลาง (%)', 
+                'จังหวัด', 'อำเภอ', 'ตำบล', 'พื้นที่ (ไร่-งาน-วา)', 'พื้นที่ใช้สอย (ตร.ม.)', 'ลิงก์_สะอาด'
+            ]].copy()
+            
+            st.dataframe(
+                bargain_display,
+                width="stretch",
+                column_config={
+                    "ราคา": st.column_config.NumberColumn("ราคาเสนอขาย (บาท)", format="%d"),
+                    unit_col: st.column_config.NumberColumn(f"ราคา/หน่วย (บาท/{unit_short})", format="%.0f"),
+                    "ส่วนต่างจากราคากลาง (%)": st.column_config.NumberColumn("เทียบราคากลาง (%)", format="%+.1f%%"),
+                    "พื้นที่ใช้สอย (ตร.ม.)": st.column_config.NumberColumn("พื้นที่ใช้สอย (ตร.ม.)", format="%.1f"),
+                    "ลิงก์_สะอาด": st.column_config.LinkColumn("ลิงก์ประกาศ")
+                }
+            )
 
