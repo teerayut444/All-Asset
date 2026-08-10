@@ -2198,8 +2198,8 @@ with tab4:
         st.markdown("<br/>", unsafe_allow_html=True)
         run_comp_btn = st.button("🚀 เริ่มเปรียบเทียบทำเล", type="primary", use_container_width=True, key="btn_run_comp_radius")
 
-        # Run radius analysis when button clicked or session state active
-        if run_comp_btn or st.session_state.get("has_run_comp", False):
+        # Run radius analysis when button clicked or by default when coordinates exist
+        if run_comp_btn or st.session_state.setdefault("has_run_comp", True):
             st.session_state["has_run_comp"] = True
             if inp_lat != 0.0 and inp_lng != 0.0:
                 m_type = inp_type if filter_by_type else None
