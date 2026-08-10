@@ -2045,13 +2045,13 @@ with tab4:
                 with col_sel1:
                     sel_ref_company = st.selectbox(
                         "บริษัททรัพย์สิน (เลือกจุดอ้างอิง)",
-                        options=sorted(df_raw['บริษัท'].unique().tolist()) if df_raw is not None else ["BAM"],
+                        options=sorted([str(c) for c in df_raw['บริษัท'].dropna().unique()]) if df_raw is not None else ["BAM"],
                         index=0,
                         key="comp_sel_company"
                     )
                 with col_sel2:
                     ref_comp_df = df_raw[df_raw['บริษัท'] == sel_ref_company] if df_raw is not None else pd.DataFrame()
-                    ref_comp_types = sorted(ref_comp_df['ประเภททรัพย์'].dropna().unique().tolist()) if not ref_comp_df.empty else []
+                    ref_comp_types = sorted([str(t) for t in ref_comp_df['ประเภททรัพย์'].dropna().unique()]) if not ref_comp_df.empty else []
                     valid_ref_types = ["ทั้งหมด"] + ref_comp_types
                     sanitize_session_state("comp_sel_type", valid_ref_types, "ทั้งหมด")
                     sel_ref_type = st.selectbox(
@@ -2158,7 +2158,7 @@ with tab4:
                 inp_lng = st.number_input("ลองจิจูด (Longitude)", value=100.5383, format="%.6f", key="comp_manual_lng")
                 inp_price = st.number_input("ราคาของจุดอ้างอิง (บาท)", min_value=0.0, value=5000000.0, step=100000.0, format="%.0f", key="comp_manual_price")
 
-                prop_options = sorted(df_raw['ประเภททรัพย์'].unique().tolist()) if df_raw is not None and not df_raw.empty else ["บ้านเดี่ยว"]
+                prop_options = sorted([str(t) for t in df_raw['ประเภททรัพย์'].dropna().unique()]) if df_raw is not None and not df_raw.empty else ["บ้านเดี่ยว"]
                 inp_type = st.selectbox(
                     "ประเภททรัพย์ของจุดอ้างอิง",
                     options=prop_options,
@@ -2171,7 +2171,7 @@ with tab4:
             search_radius = st.slider("รัศมีการค้นหา (กิโลเมตร)", min_value=0.5, max_value=10.0, value=5.0, step=0.5)
 
             # Company Filter for Comparison (Pills)
-            all_comp_list = sorted(df_raw['บริษัท'].unique().tolist()) if df_raw is not None else ["Baania", "BAM", "SAM", "Livinginsider", "DDproperty", "Taladnudbaan", "ZmyHome"]
+            all_comp_list = sorted([str(c) for c in df_raw['บริษัท'].dropna().unique()]) if df_raw is not None else ["Baania", "BAM", "SAM", "Livinginsider", "DDproperty", "Taladnudbaan", "ZmyHome"]
             compare_companies = st.pills(
                 "บริษัททรัพย์สิน (เปรียบเทียบ)",
                 options=all_comp_list,
@@ -2411,12 +2411,12 @@ with tab4:
                 st.markdown("<h5 style='color: #3b82f6;'><i class='fa fa-home'></i> ทรัพย์สินรายการที่ 1 (Asset A)</h5>", unsafe_allow_html=True)
                 comp_a_co = st.selectbox(
                     "เลือกบริษัท (รายการที่ 1)",
-                    options=sorted(df_raw['บริษัท'].unique().tolist()),
+                    options=sorted([str(c) for c in df_raw['บริษัท'].dropna().unique()]),
                     index=0,
                     key="oneone_co_a"
                 )
                 df_a_filtered = df_raw[df_raw['บริษัท'] == comp_a_co].copy()
-                types_a = sorted(df_a_filtered['ประเภททรัพย์'].dropna().unique().tolist()) if not df_a_filtered.empty else []
+                types_a = sorted([str(t) for t in df_a_filtered['ประเภททรัพย์'].dropna().unique()]) if not df_a_filtered.empty else []
                 valid_types_a = ["ทั้งหมด"] + types_a
                 sanitize_session_state("oneone_type_a", valid_types_a, "ทั้งหมด")
                 comp_a_type = st.selectbox(
@@ -2473,7 +2473,7 @@ with tab4:
             # --- ASSET B SELECTOR ---
             with col_comp_2:
                 st.markdown("<h5 style='color: #ec4899;'><i class='fa fa-home'></i> ทรัพย์สินรายการที่ 2 (Asset B)</h5>", unsafe_allow_html=True)
-                companies_list = sorted(df_raw['บริษัท'].unique().tolist())
+                companies_list = sorted([str(c) for c in df_raw['บริษัท'].dropna().unique()])
                 default_idx_b = 1 if len(companies_list) > 1 else 0
                 comp_b_co = st.selectbox(
                     "เลือกบริษัท (รายการที่ 2)",
@@ -2482,7 +2482,7 @@ with tab4:
                     key="oneone_co_b"
                 )
                 df_b_filtered = df_raw[df_raw['บริษัท'] == comp_b_co].copy()
-                types_b = sorted(df_b_filtered['ประเภททรัพย์'].dropna().unique().tolist()) if not df_b_filtered.empty else []
+                types_b = sorted([str(t) for t in df_b_filtered['ประเภททรัพย์'].dropna().unique()]) if not df_b_filtered.empty else []
                 valid_types_b = ["ทั้งหมด"] + types_b
                 sanitize_session_state("oneone_type_b", valid_types_b, "ทั้งหมด")
                 comp_b_type = st.selectbox(
@@ -2933,14 +2933,12 @@ with tab5:
         col_b1, col_b2, col_b3 = st.columns(3)
         with col_b1:
             # Clean province list (excluding ไม่ระบุ)
-            prov_list = sorted([p for p in df_raw['จังหวัด'].unique() if p != "ไม่ระบุ"])
-            sel_b_prov = st.selectbox("เลือกจังหวัด (Province) (วิเคราะห์ส่วนลด)", options=prov_list, index=0)
+            prov_list = sorted([str(p) for p in df_raw['จังหวัด'].dropna().unique() if str(p) not in ["ไม่ระบุ", "nan", "None", ""]])
+            sel_b_prov = st.selectbox("เลือกจังหวัด (Province) (วิเคราะห์ส่วนลด)", options=prov_list if prov_list else ["ไม่มีข้อมูล"], index=0)
             
         with col_b2:
             # Filter districts by province
-            dist_list = sorted(df_raw[df_raw['จังหวัด'] == sel_b_prov]['อำเภอ'].dropna().unique())
-            if "" in dist_list:
-                dist_list.remove("")
+            dist_list = sorted([str(d) for d in df_raw[df_raw['จังหวัด'] == sel_b_prov]['อำเภอ'].dropna().unique() if str(d).strip() not in ["", "nan", "None"]])
             sel_b_dist = st.selectbox("เลือกอำเภอ/เขต (District) (วิเคราะห์ส่วนลด)", options=["ทั้งหมด"] + dist_list, index=0)
             
         with col_b3:
@@ -2948,7 +2946,7 @@ with tab5:
             loc_df = df_raw[df_raw['จังหวัด'] == sel_b_prov]
             if sel_b_dist != "ทั้งหมด":
                 loc_df = loc_df[loc_df['อำเภอ'] == sel_b_dist]
-            prop_types = sorted(loc_df['ประเภททรัพย์'].dropna().unique())
+            prop_types = sorted([str(t) for t in loc_df['ประเภททรัพย์'].dropna().unique() if str(t).strip() not in ["", "nan", "None"]])
             sel_b_type = st.selectbox("ประเภททรัพย์สิน (Property Type) (วิเคราะห์ส่วนลด)", options=prop_types if prop_types else ["ไม่มีข้อมูล"], index=0)
             
         # Perform analysis on this filtered dataset
