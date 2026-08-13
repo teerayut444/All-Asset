@@ -120,6 +120,88 @@ def check_link_health(session):
             time.sleep(2)
     return False, 0, 0, 0
 
+# --- Offline GIS Engine Data Loader ---
+_GIS_FEATURES = None
+
+def _get_gis_features():
+    global _GIS_FEATURES
+    if _GIS_FEATURES is None:
+        geojson_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "subdistricts.geojson")
+        if os.path.exists(geojson_path):
+            try:
+                with open(geojson_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                features = []
+                for feat in data.get("features", []):
+                    geom = feat.get("geometry", {})
+                    props = feat.get("properties", {})
+                    features.append((geom, props.get("tam_th", ""), props.get("amp_th", ""), props.get("pro_th", "")))
+                _GIS_FEATURES = features
+            except Exception:
+                _GIS_FEATURES = []
+        else:
+            _GIS_FEATURES = []
+    return _GIS_FEATURES
+
+def _point_in_poly(x, y, poly_coords):
+    n = len(poly_coords)
+    inside = False
+    p1x, p1y = poly_coords[0]
+    for i in range(n + 1):
+        p2x, p2y = poly_coords[i % n]
+        if y > min(p1y, p2y):
+            if y <= max(p1y, p2y):
+                if x <= max(p1x, p2x):
+                    if p1y != p2y:
+                        xinters = (y - p1y) * (p2x - p1x) / (p2y - p1y) + p1x
+                    if p1x == p2x or x <= xinters:
+                        inside = not inside
+        p1x, p1y = p2x, p2y
+    return inside
+
+def _check_geom(lng, lat, geometry):
+    gtype = geometry.get("type")
+    coords = geometry.get("coordinates", [])
+    if gtype == "Polygon":
+        for ring in coords:
+            if _point_in_poly(lng, lat, ring): return True
+    elif gtype == "MultiPolygon":
+        for poly in coords:
+            for ring in poly:
+                if _point_in_poly(lng, lat, ring): return True
+    return False
+
+def reverse_geocode_location(session, lat, lng):
+    """Reverse geocode Lat/Lng into ตำบล, อำเภอ, จังหวัด using Offline Thailand GeoJSON Engine."""
+    if not lat or not lng or str(lat) == "nan":
+        return "", "", ""
+    try:
+        lat_v, lng_v = float(lat), float(lng)
+        features = _get_gis_features()
+        for geom, tam_th, amp_th, pro_th in features:
+            if _check_geom(lng_v, lat_v, geom):
+                p = pro_th
+                if "กรุงเทพ" in p: p = "กรุงเทพมหานคร"
+                return tam_th, amp_th, p
+    except Exception:
+        pass
+        
+    # Nominatim Fallback if offline GIS misses
+    url = f"https://nominatim.openstreetmap.org/reverse?format=json&lat={lat}&lon={lng}&accept-language=th"
+    headers = {"User-Agent": "AllAssetDashboardApp/1.0"}
+    try:
+        r = session.get(url, headers=headers, timeout=5)
+        if r.status_code == 200:
+            addr = r.json().get('address', {})
+            sd = clean_text(addr.get('quarter') or addr.get('suburb') or addr.get('neighbourhood') or addr.get('village'))
+            d = clean_text(addr.get('city_district') or addr.get('district') or addr.get('county') or addr.get('town'))
+            p = clean_text(addr.get('city') or addr.get('state') or addr.get('province'))
+            if p and "กรุงเทพ" in p: p = "กรุงเทพมหานคร"
+            return sd, d, p
+    except Exception:
+        pass
+    return "", "", ""
+
 def fetch_zmyhome_detail(session, item):
     link = item.get("ลิงก์")
     if not link:
@@ -131,57 +213,182 @@ def fetch_zmyhome_detail(session, item):
             r = session.get(link, headers=headers, timeout=12)
             if r.status_code == 200:
                 html = r.text
-                
-                # 1. Lat/Lng
-                m_map = re.search(r'query=([\d\.-]+),([\d\.-]+)', html) or re.search(r'q=([\d\.-]+),([\d\.-]+)', html) or re.search(r'maps\.google\.com[^\'"]*?@([\d\.-]+),([\d\.-]+)', html)
-                if m_map:
-                    try:
-                        item["ละติจูด"] = float(m_map.group(1))
-                        item["ลองจิจูด"] = float(m_map.group(2))
-                    except Exception:
-                        pass
-                        
-                # 2. Location (subdistrict, district, province)
-                m_sd = re.search(r'(?:ตำบล|ต\.|แขวง)\s*([^\s,\|<"\']+)', html)
-                if m_sd and not item.get("ตำบล"):
-                    item["ตำบล"] = m_sd.group(1).strip()
-                    
-                m_d = re.search(r'(?:อำเภอ|อ\.|เขต)\s*([^\s,\|<"\']+)', html)
-                if m_d and not item.get("อำเภอ"):
-                    item["อำเภอ"] = m_d.group(1).strip()
-                    
-                m_p = re.search(r'(?:จังหวัด|จ\.)\s*([^\s,\|<"\']+)', html)
-                if m_p and not item.get("จังหวัด"):
-                    item["จังหวัด"] = m_p.group(1).strip()
-                elif "กรุงเทพ" in html and not item.get("จังหวัด"):
-                    item["จังหวัด"] = "กรุงเทพมหานคร"
-                    
-                # 3. Usable Area & Land Area
-                m_u = re.search(r'([\d\.]+)\s*(?:ตร\.ม\.|ตารางเมตร)', html)
+                soup = BeautifulSoup(html, 'html.parser')
+
+                # --- 1. Lat/Lng from Google Maps link / static map ---
+                map_link = soup.find('a', href=re.compile(r'google.*map|maps\.google', re.I))
+                if map_link:
+                    href = map_link.get('href', '')
+                    m_ll = re.search(r'q=([\d\.-]+),([\d\.-]+)', href) or re.search(r'@([\d\.-]+),([\d\.-]+)', href) or re.search(r'center=([\d\.-]+),([\d\.-]+)', href)
+                    if m_ll:
+                        try:
+                            lat_v, lng_v = float(m_ll.group(1)), float(m_ll.group(2))
+                            if 5.0 <= lat_v <= 21.0 and 97.0 <= lng_v <= 106.0:
+                                item["ละติจูด"] = lat_v
+                                item["ลองจิจูด"] = lng_v
+                        except Exception: pass
+                            
+                if not item.get("ละติจูด"):
+                    m_map = re.search(r'query=([\d\.-]+),([\d\.-]+)', html) or re.search(r'q=([\d\.-]+),([\d\.-]+)', html) or re.search(r'@([\d\.-]+),([\d\.-]+)', html)
+                    if m_map:
+                        try:
+                            lat_v, lng_v = float(m_map.group(1)), float(m_map.group(2))
+                            if 5.0 <= lat_v <= 21.0 and 97.0 <= lng_v <= 106.0:
+                                item["ละติจูด"] = lat_v
+                                item["ลองจิจูด"] = lng_v
+                        except Exception: pass
+
+                # --- 2. Location (Primary: Reverse Geocode from Lat/Lng) ---
+                if item.get("ละติจูด") and item.get("ลองจิจูด"):
+                    sd, d, p = reverse_geocode_location(session, item["ละติจูด"], item["ลองจิจูด"])
+                    if sd: item["ตำบล"] = sd
+                    if d: item["อำเภอ"] = d
+                    if p: item["จังหวัด"] = p
+
+                # --- 2.5 Location Fallbacks (JSON-LD & Breadcrumb) if missing ---
+                if not item.get("ตำบล") or not item.get("อำเภอ") or not item.get("จังหวัด"):
+                    m_jsonld = re.search(r'<script type="application/ld\+json">(.*?)</script>', html, re.DOTALL)
+                    if m_jsonld:
+                        try:
+                            j_data = json.loads(m_jsonld.group(1))
+                            if isinstance(j_data, list):
+                                for j_obj in j_data:
+                                    if j_obj.get("@type") == "Offer":
+                                        item_off = j_obj.get("itemOffered", {})
+                                        addr_obj = item_off.get("address", {})
+                                        if addr_obj:
+                                            loc_district = clean_text(addr_obj.get("addressLocality"))
+                                            loc_region = clean_text(addr_obj.get("addressRegion"))
+                                            desc_text = clean_text(item_off.get("description", ""))
+                                            
+                                            if loc_district and not item.get("อำเภอ"): item["อำเภอ"] = loc_district
+                                            if loc_region and not item.get("จังหวัด"):
+                                                if "กรุงเทพ" in loc_region: item["จังหวัด"] = "กรุงเทพมหานคร"
+                                                else: item["จังหวัด"] = loc_region
+
+                                            if not item.get("ตำบล"):
+                                                m_sd = re.search(r'(?:ตำบล|แขวง)\s*([^\s,]+)', desc_text)
+                                                if m_sd:
+                                                    sd_candidate = m_sd.group(1).strip()
+                                                    if not any(k in sd_candidate for k in ["ถนน", "ซอย", "ถ.", "ซ."]):
+                                                        item["ตำบล"] = sd_candidate
+                                            break
+                        except Exception: pass
+
+                # Fallback location from breadcrumbs if subdistrict/district still missing
+                bc = soup.find(class_=re.compile(r'breadcrumb', re.I))
+                if bc:
+                    bc_texts = [clean_text(li.get_text()) for li in bc.find_all(['li', 'a'])]
+                    bc_clean = [x for x in bc_texts if x and x not in ["หน้าแรก", "รวมประกาศขาย", "ขาย", ">"] and not x.isdigit()]
+                    # Typical ZmyHome breadcrumb: [หน้าแรก, ขาย, คอนโด, จังหวัด, อำเภอ/เขต, ตำบล/แขวง]
+                    for idx, text in enumerate(bc_clean):
+                        if any(prov in text for prov in ["กรุงเทพ", "นนทบุรี", "ปทุมธานี", "สมุทรปราการ", "ชลบุรี", "เชียงใหม่", "ภูเก็ต"]):
+                            if not item.get("จังหวัด"): item["จังหวัด"] = text
+                            if idx + 1 < len(bc_clean) and not item.get("อำเภอ"):
+                                item["อำเภอ"] = bc_clean[idx + 1]
+                            if idx + 2 < len(bc_clean) and not item.get("ตำบล"):
+                                item["ตำบล"] = bc_clean[idx + 2]
+                            break
+
+                # Fallback location from nearby-place__address if still missing
+                addr_el = soup.find(class_='nearby-place__address')
+                if addr_el:
+                    addr_text = clean_text(addr_el.get_text())
+                    if addr_text:
+                        if not item.get("อำเภอ"):
+                            m_d = re.search(r'(?:อำเภอ|อ\.|เขต)\s*([^\s,]+)', addr_text)
+                            if m_d: item["อำเภอ"] = m_d.group(1).strip()
+                        if not item.get("จังหวัด"):
+                            m_p = re.search(r'(?:จังหวัด|จ\.)\s*([^\s,]+)', addr_text)
+                            if m_p: item["จังหวัด"] = m_p.group(1).strip()
+                            elif "กรุงเทพ" in addr_text or "กรุงเทพมหานคร" in addr_text:
+                                item["จังหวัด"] = "กรุงเทพมหานคร"
+
+                # HTML Province Search Fallback
+                if not item.get("จังหวัด"):
+                    ALL_PROVINCES = [
+                        "กรุงเทพมหานคร", "กรุงเทพ", "กระบี่", "กาญจนบุรี", "กาฬสินธุ์", "กำแพงเพชร", "ขอนแก่น", "จันทบุรี",
+                        "ฉะเชิงเทรา", "ชลบุรี", "ชัยนาท", "ชัยภูมิ", "ชุมพร", "เชียงราย", "เชียงใหม่", "ตรัง", "ตราด",
+                        "ตาก", "นครนายก", "นครปฐม", "นครพนม", "นครราชสีมา", "นครศรีธรรมราช", "นครสวรรค์", "นนทบุรี",
+                        "นราธิวาส", "น่าน", "บึงกาฬ", "บุรีรัมย์", "ปทุมธานี", "ประจวบคีรีขันธ์", "ปราจีนบุรี", "ปัตตานี",
+                        "พระนครศรีอยุธยา", "อยุธยา", "พะเยา", "พังงา", "พัทลุง", "พิจิตร", "พิษณุโลก", "เพชรบุรี",
+                        "เพชรบูรณ์", "แพร่", "ภูเก็ต", "มหาสารคาม", "มุกดาหาร", "แม่ฮ่องสอน", "ยโสธร", "ยะลา", "ร้อยเอ็ด",
+                        "ระนอง", "ระยอง", "ราชบุรี", "ลพบุรี", "ลำปาง", "ลำพูน", "เลย", "ศรีสะเกษ", "สกลนคร", "สงขลา",
+                        "สตูล", "สมุทรปราการ", "สมุทรสงคราม", "สมุทรสาคร", "สระแก้ว", "สระบุรี", "สิงห์บุรี", "สุโขทัย",
+                        "สุพรรณบุรี", "สุราษฎร์ธานี", "สุรินทร์", "หนองคาย", "หนองบัวลำภู", "อ่างทอง", "อำนาจเจริญ",
+                        "อุดรธานี", "อุตรดิตถ์", "อุทัยธานี", "อุบลราชธานี"
+                    ]
+                    for p_name in ALL_PROVINCES:
+                        if p_name in html:
+                            item["จังหวัด"] = "กรุงเทพมหานคร" if p_name in ["กรุงเทพ", "กรุงเทพมหานคร"] else p_name
+                            break
+
+                # --- 3. ชื่อประกาศ from og:title ---
+                og = soup.find('meta', property='og:title')
+                if og and clean_text(og.get('content', '')):
+                    item["ชื่อประกาศ"] = clean_text(og.get('content', ''))
+
+                # --- 4. ชื่อโครงการ & ประเภททรัพย์ ---
+                proj_name = ""
+                bc = soup.find(class_=re.compile(r'breadcrumb', re.I))
+                if bc:
+                    bc_items = []
+                    for li in bc.find_all('li'):
+                        a = li.find('a')
+                        txt = (a.get_text().strip() if a else li.get_text().strip()).replace('>', '').replace('\xa0', '').strip()
+                        if txt and txt not in bc_items:
+                            bc_items.append(txt)
+                    if len(bc_items) >= 3:
+                        ptype_bc = bc_items[2]
+                        if ptype_bc in ["คอนโด", "บ้าน", "ทาวน์เฮาส์", "ที่ดิน", "อาคารพาณิชย์"]:
+                            item["ประเภททรัพย์"] = ptype_bc
+                        elif "บ้าน" in ptype_bc: item["ประเภททรัพย์"] = "บ้านเดี่ยว"
+                        elif "ทาวน์" in ptype_bc: item["ประเภททรัพย์"] = "ทาวน์เฮาส์"
+                    if len(bc_items) >= 4:
+                        proj_cand = bc_items[3]
+                        if proj_cand and proj_cand not in ["รวมประกาศขาย", "ขาย", "หน้าแรก"] and not proj_cand.startswith("ขาย"):
+                            proj_name = proj_cand
+
+                proj_section = soup.find(class_=re.compile(r'info-project', re.I))
+                if proj_section:
+                    first_item = proj_section.find('li', class_=re.compile(r'info-project__item', re.I))
+                    if first_item:
+                        p_txt = first_item.get_text().strip()
+                        if p_txt and p_txt != item.get("ชื่อประกาศ", ""):
+                            proj_name = p_txt
+
+                if proj_name:
+                    item["ชื่อโครงการ"] = proj_name
+
+                # --- 5. Usable Area & Land Area ---
+                main_text = soup.get_text()
+                m_u = re.search(r'([\d\.]+)\s*(?:ตร\.ม\.|ตารางเมตร)', main_text)
                 if m_u and not item.get("พื้นที่ใช้สอย (ตร.ม.)"):
                     item["พื้นที่ใช้สอย (ตร.ม.)"] = m_u.group(1).strip()
                     
-                m_l = re.search(r'([\d\.]+)\s*(?:ตร\.วา|ตารางวา|วา)', html)
+                m_l = re.search(r'([\d\.]+)\s*(?:ตร\.วา|ตารางวา|วา)', main_text)
                 if m_l and not item.get("พื้นที่ (ไร่-งาน-วา)"):
                     item["พื้นที่ (ไร่-งาน-วา)"] = f"{m_l.group(1)} วา"
                     
-                # 4. Posted Date
-                m_post = re.search(r'(?:ลงประกาศเมื่อ|อัปเดตเมื่อ|สร้างเมื่อ|ประกาศเมื่อ)\s*[:\s]*([^\n\r<"]+)', html)
+                # --- 6. Posted Date ---
+                m_post = re.search(r'(?:ลงประกาศเมื่อ|อัปเดตเมื่อ|สร้างเมื่อ|ประกาศเมื่อ)\s*[:\s]*([^\n\r<"]+)', main_text)
                 if m_post and not item.get("วันประกาศ"):
                     item["วันประกาศ"] = clean_text(m_post.group(1))
                     
-                # 5. Bedrooms, Bathrooms, Parking
-                m_bed = re.search(r'(\d+)\s*ห้องนอน', html)
+                # --- 7. Bedrooms, Bathrooms, Parking ---
+                m_bed = re.search(r'(\d+)\s*ห้องนอน', main_text)
                 if m_bed: item["ห้องนอน"] = int(m_bed.group(1))
-                m_bath = re.search(r'(\d+)\s*ห้องน้ำ', html)
+                m_bath = re.search(r'(\d+)\s*ห้องน้ำ', main_text)
                 if m_bath: item["ห้องน้ำ"] = int(m_bath.group(1))
-                m_park = re.search(r'(\d+)\s*ที่จอดรถ', html)
+                m_park = re.search(r'(\d+)\s*ที่จอดรถ', main_text)
                 if m_park: item["ที่จอดรถ"] = int(m_park.group(1))
                 
                 break
         except Exception:
             time.sleep(0.5)
     return item
+
+
 
 def parse_zmyhome_card(card):
     try:
@@ -247,13 +454,13 @@ def parse_zmyhome_card(card):
             "บริษัท": COMPANY_NAME,
             "ID": item_id,
             "รหัสทรัพย์": item_id,
-            "ชื่อโครงการ": title,
+            "ชื่อโครงการ": "",  # จะดึงจาก info-project ในหน้ารายละเอียด
             "ประเภททรัพย์": "คอนโด" if item_id.startswith("V") else "บ้านเดี่ยว/ทาวน์เฮาส์",
             "ประเภทการขาย": "ขาย",
             "ราคา": price,
-            "ตำบล": subdist,
-            "อำเภอ": dist,
-            "จังหวัด": prov,
+            "ตำบล": "",  # จะดึงจากหน้ารายละเอียด (nearby-place__address)
+            "อำเภอ": "",
+            "จังหวัด": "",
             "ละติจูด": None,
             "ลองจิจูด": None,
             "ชื่อประกาศ": title,
@@ -294,7 +501,7 @@ def fetch_zmyhome_page(session, page_num):
             records = []
             with concurrent.futures.ThreadPoolExecutor(max_workers=THREAD_POOL_SIZE) as executor:
                 futures = [executor.submit(fetch_zmyhome_detail, session, item) for item in raw_records]
-                for future in concurrent.futures.as_completed(futures):
+                for future in futures:
                     try:
                         records.append(future.result())
                     except Exception:

@@ -37,7 +37,7 @@ COLUMNS = [
 ]
 
 ITEMS_PER_PAGE = 20
-THREAD_POOL_SIZE = 35
+THREAD_POOL_SIZE = 5
 
 def print_alert(msg: str, level: str = "ERROR"):
     border = "=" * 75
@@ -54,25 +54,24 @@ def make_progress_bar(pct, length=20):
     bar = '█' * filled + '░' * (length - filled)
     return f"[{bar}] {pct:3d}%"
 
-def format_eta(elapsed_sec, completed_units, total_units):
-    if completed_units <= 0 or total_units <= 0 or elapsed_sec <= 0:
+def format_eta(elapsed_sec, pages_done_session, total_pages_left):
+    if pages_done_session <= 0 or total_pages_left <= 0 or elapsed_sec <= 0:
         return "กำลังคำนวณ..."
-    rate = completed_units / elapsed_sec
-    remaining_units = max(0, total_units - completed_units)
+    rate = pages_done_session / elapsed_sec
     if rate <= 0:
         return "กำลังคำนวณ..."
-    eta_sec = remaining_units / rate
+    eta_sec = total_pages_left / rate
     finish_clock = datetime.fromtimestamp(datetime.now().timestamp() + eta_sec).strftime("%H:%M:%S")
     mins = int(eta_sec // 60)
     secs = int(eta_sec % 60)
-    if mins > 60:
+    if mins >= 60:
         hrs = mins // 60
         mins = mins % 60
-        return f"เหลือ ~{hrs}ชม.{mins}น. ({finish_clock} น.)"
+        return f"เหลือเวลาอีก ~{hrs} ชม. {mins} นาที (เสร็จประมาณ {finish_clock} น.)"
     elif mins > 0:
-        return f"เหลือ ~{mins}น.{secs}ว. ({finish_clock} น.)"
+        return f"เหลือเวลาอีก ~{mins} นาที {secs} วินาที (เสร็จประมาณ {finish_clock} น.)"
     else:
-        return f"เหลือ ~{secs}ว. ({finish_clock} น.)"
+        return f"เหลือเวลาอีก ~{secs} วินาที (เสร็จประมาณ {finish_clock} น.)"
 
 def clean_text(val):
     if not val or str(val).strip().lower() in ["none", "null", "undefined"]:
@@ -126,126 +125,158 @@ def fetch_talad_detail(session, item):
     if not link:
         return item
         
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
-    for attempt in range(2):
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"}
+    max_retries = 5
+    for attempt in range(max_retries):
         try:
-            r = session.get(link, headers=headers, timeout=10)
-            if r.status_code == 200:
-                html = r.text
-                soup = BeautifulSoup(html, 'html.parser')
-                main_box = soup.find(class_=re.compile(r'card-body|content|detail', re.I)) or soup
-                main_text = main_box.get_text()
+            r = session.get(link, headers=headers, timeout=30)
+            if r.status_code == 429 or r.status_code == 503:
+                sleep_time = (2 ** attempt) + random.uniform(2.0, 5.0)
+                time.sleep(sleep_time)
+                continue
+            if r.status_code != 200:
+                time.sleep(1 + attempt)
+                continue
                 
-                # 1. Lat/Lng (JS properties object, data-lat/lng, gmap iframe or html regex)
-                lat_v, lng_v = None, None
-                m_lat = re.search(r'Lat\s*:\s*\[\s*["\']([\d\.-]+)["\']\s*\]', html, re.I) or re.search(r'lat[a-z_]*["\']?\s*[:=]\s*["\']?([\d\.-]+)', html, re.I) or re.search(r'data-lat=["\']([\d\.-]+)["\']', html, re.I)
-                m_lng = re.search(r'Lng\s*:\s*\[\s*["\']([\d\.-]+)["\']\s*\]', html, re.I) or re.search(r'lng[a-z_]*["\']?\s*[:=]\s*["\']?([\d\.-]+)', html, re.I) or re.search(r'data-lng=["\']([\d\.-]+)["\']', html, re.I)
+            html = r.text
+            soup = BeautifulSoup(html, 'html.parser')
+            main_box = soup.find(class_=re.compile(r'card-body|content|detail', re.I)) or soup
+            main_text = main_box.get_text()
                 
-                if m_lat and m_lng:
+            # 1. Lat/Lng (JS properties object, data-lat/lng, gmap iframe or html regex)
+            lat_v, lng_v = None, None
+            m_lat = re.search(r'Lat\s*:\s*\[\s*["\']([\d\.-]+)["\']\s*\]', html, re.I) or re.search(r'lat[a-z_]*["\']?\s*[:=]\s*["\']?([\d\.-]+)', html, re.I) or re.search(r'data-lat=["\']([\d\.-]+)["\']', html, re.I)
+            m_lng = re.search(r'Lng\s*:\s*\[\s*["\']([\d\.-]+)["\']\s*\]', html, re.I) or re.search(r'lng[a-z_]*["\']?\s*[:=]\s*["\']?([\d\.-]+)', html, re.I) or re.search(r'data-lng=["\']([\d\.-]+)["\']', html, re.I)
+                
+            if m_lat and m_lng:
+                try:
+                    lat_cand = float(m_lat.group(1))
+                    lng_cand = float(m_lng.group(1))
+                    if 5.0 <= lat_cand <= 21.0 and 97.0 <= lng_cand <= 106.0:
+                        lat_v, lng_v = lat_cand, lng_cand
+                except Exception: pass
+                    
+            if not lat_v:
+                m_gmap = re.search(r'(?:q|center|ll|location|place)=([\d\.-]+)%2C([\d\.-]+)', html, re.I) or re.search(r'(?:q|center|ll|location|place)=([\d\.-]+),([\d\.-]+)', html, re.I) or re.search(r'@([\d\.-]+),([\d\.-]+)', html)
+                if m_gmap:
                     try:
-                        lat_cand = float(m_lat.group(1))
-                        lng_cand = float(m_lng.group(1))
+                        lat_cand = float(m_gmap.group(1))
+                        lng_cand = float(m_gmap.group(2))
                         if 5.0 <= lat_cand <= 21.0 and 97.0 <= lng_cand <= 106.0:
                             lat_v, lng_v = lat_cand, lng_cand
                     except Exception: pass
-                    
-                if not lat_v:
-                    m_gmap = re.search(r'(?:q|center|ll|location|place)=([\d\.-]+)%2C([\d\.-]+)', html, re.I) or re.search(r'(?:q|center|ll|location|place)=([\d\.-]+),([\d\.-]+)', html, re.I) or re.search(r'@([\d\.-]+),([\d\.-]+)', html)
-                    if m_gmap:
-                        try:
-                            lat_cand = float(m_gmap.group(1))
-                            lng_cand = float(m_gmap.group(2))
-                            if 5.0 <= lat_cand <= 21.0 and 97.0 <= lng_cand <= 106.0:
-                                lat_v, lng_v = lat_cand, lng_cand
-                        except Exception: pass
                         
-                if lat_v and lng_v:
-                    item["ละติจูด"] = lat_v
-                    item["ลองจิจูด"] = lng_v
+            if lat_v and lng_v:
+                item["ละติจูด"] = lat_v
+                item["ลองจิจูด"] = lng_v
                         
-                # 2. Location (subdistrict, district, province) from Breadcrumbs (100% Reliable)
-                bc_items = []
-                bc_ol = soup.find('ol', class_=re.compile(r'breadcrumb', re.I)) or soup.find(class_=re.compile(r'breadcrumb', re.I))
-                if bc_ol:
-                    for li in bc_ol.find_all(['li', 'a']):
-                        t = clean_text(li.get_text())
-                        if t and t not in bc_items and not t.isdigit() and len(t) < 35:
-                            bc_items.append(t)
+            # 2. Location (subdistrict, district, province) from Breadcrumbs & Multiline Regex Fallback
+            bc_items = []
+            bc_ol = soup.find('ol', class_=re.compile(r'breadcrumb', re.I)) or soup.find(class_=re.compile(r'breadcrumb', re.I))
+            if bc_ol:
+                for li in bc_ol.find_all(['li', 'a']):
+                    t = clean_text(li.get_text())
+                    if t and t not in bc_items and not t.isdigit() and len(t) < 35:
+                        bc_items.append(t)
                             
-                filtered_bc = [x for x in bc_items if x not in ["หน้าหลัก", "รายการทรัพย์", "Home"] and not x.isdigit()]
+            # Filter out breadcrumb navigation keywords AND the item ID itself
+            item_id_str = str(item.get("ID") or "").strip()
+            filtered_bc = [x for x in bc_items if x not in ["หน้าหลัก", "รายการทรัพย์", "Home", item_id_str] and not x.isdigit()]
                 
-                if len(filtered_bc) >= 4:
-                    item["จังหวัด"] = filtered_bc[1]
-                    item["อำเภอ"] = filtered_bc[2]
-                    item["ตำบล"] = filtered_bc[3]
-                elif len(filtered_bc) == 3:
-                    item["จังหวัด"] = filtered_bc[1]
-                    item["อำเภอ"] = filtered_bc[2]
-                elif len(filtered_bc) == 2:
-                    item["จังหวัด"] = filtered_bc[1]
+            # Breadcrumbs structure: [ประเภททรัพย์, จังหวัด, อำเภอ, ตำบล]
+            if len(filtered_bc) >= 4:
+                item["จังหวัด"] = filtered_bc[1]
+                item["อำเภอ"] = filtered_bc[2]
+                item["ตำบล"] = filtered_bc[3]
+            elif len(filtered_bc) == 3:
+                item["จังหวัด"] = filtered_bc[1]
+                item["อำเภอ"] = filtered_bc[2]
+            elif len(filtered_bc) == 2:
+                item["จังหวัด"] = filtered_bc[1]
                     
-                # Regex Fallback for Location if missing
-                if not item.get("ตำบล"):
-                    m_sd = re.search(r'(?:แขวง\s*/\s*ตำบล|ตำบล|แขวง)\s*[:\s]*([^\n\r<"]+)', main_text)
-                    if m_sd: item["ตำบล"] = clean_text(m_sd.group(1))
-                    
-                if not item.get("อำเภอ"):
-                    m_d = re.search(r'(?:เขต\s*/\s*อำเภอ|อำเภอ|เขต)\s*[:\s]*([^\n\r<"]+)', main_text)
-                    if m_d: item["อำเภอ"] = clean_text(m_d.group(1))
-                    
-                if not item.get("จังหวัด"):
-                    m_p = re.search(r'จังหวัด\s*[:\s]*([^\n\r<"]+)', main_text)
-                    if m_p: item["จังหวัด"] = clean_text(m_p.group(1))
-                
-                # 3. Land Area (ไร่-งาน-วา)
-                m_land = re.search(r'ขนาดที่ดิน\s*:\s*([^\n\r<"]+)', main_text)
-                if m_land:
-                    land_str = m_land.group(1).strip()
-                    rai_m = re.search(r'(\d+)\s*ไร่', land_str)
-                    ngan_m = re.search(r'(\d+)\s*งาน', land_str)
-                    wa_m = re.search(r'([\d\.,]+)\s*(?:ตร\.ว\.|ตารางวา|วา)', land_str)
-                    parts = []
-                    if rai_m and rai_m.group(1) != "0": parts.append(f"{rai_m.group(1)} ไร่")
-                    if ngan_m and ngan_m.group(1) != "0": parts.append(f"{ngan_m.group(1)} งาน")
-                    if wa_m and wa_m.group(1) != "0": parts.append(f"{wa_m.group(1)} วา")
-                    if parts: item["พื้นที่ (ไร่-งาน-วา)"] = " ".join(parts)
-                    
-                # 4. Usable Area (ตร.ม.)
-                m_u = re.search(r'ขนาดพื้นที่ใช้สอย\s*:\s*([^\n\r<"]+)', main_text) or re.search(r'พื้นที่ใช้สอย\s*:\s*([^\n\r<"]+)', main_text)
-                if m_u:
-                    u_clean = re.sub(r'[^\d\.]', '', m_u.group(1)).strip('.')
-                    if u_clean: item["พื้นที่ใช้สอย (ตร.ม.)"] = u_clean
-                    
-                # 5. Posted / Completed Date (วันประกาศ)
-                m_post = re.search(r'(?:โพสวันที่|สร้างเมื่อ|วันที่ประกาศ|สร้างเสร็จปี|ปรับปรุงวันที่)\s*[:\s]*([^\n\r<"]+)', main_text)
-                if m_post:
-                    item["วันประกาศ"] = clean_text(m_post.group(1))
-                    
-                # 7. Refine Property Type, Project Name and Compose Full Listing Title
-                h1_elem = soup.find('h1')
-                h1_text = clean_text(h1_elem.get_text()) if h1_elem else ""
-                
-                ptype = detect_talad_property_type(link, h1_text, main_text)
-                item["ประเภททรัพย์"] = ptype
-                
-                m_proj = re.search(r'(?:ชื่อโครงการ|โครงการ)\s*:\s*([^\n\r<"]+)', main_text)
-                if m_proj:
-                    p_cand = clean_text(m_proj.group(1))
-                    if p_cand and p_cand.lower() not in ["none", "null", "-", "/", "โครงการ", "หมู่บ้าน"]:
-                        item["ชื่อโครงการ"] = p_cand
+            # Multiline Regex Fallback for Location if missing
+            if not item.get("ตำบล") or item.get("ตำบล") == item_id_str:
+                m_sd = re.search(r'(?:แขวง\s*/\s*ตำบล|ตำบล|แขวง)\s*[:\s]*[\n\r]*([^\n\r<"\|]{2,30})', main_text)
+                if m_sd and clean_text(m_sd.group(1)):
+                    item["ตำบล"] = clean_text(m_sd.group(1))
                 else:
-                    item["ชื่อโครงการ"] = ""  # Leave blank if no project name exists
+                    item["ตำบล"] = ""
                     
-                # Compose informative title from Type + Location
-                loc_parts = [x for x in [item.get("ตำบล"), item.get("อำเภอ"), item.get("จังหวัด")] if x]
-                if loc_parts:
-                    item["ชื่อประกาศ"] = f"{ptype} {' '.join(loc_parts)}".strip()
-                else:
-                    item["ชื่อประกาศ"] = f"{ptype} ({item.get('ID', '')})".strip()
+            if not item.get("อำเภอ") or item.get("อำเภอ") == item_id_str:
+                m_d = re.search(r'(?:เขต\s*/\s*อำเภอ|อำเภอ|เขต)\s*[:\s]*[\n\r]*([^\n\r<"\|]{2,30})', main_text)
+                if m_d and clean_text(m_d.group(1)):
+                    item["อำเภอ"] = clean_text(m_d.group(1))
+                    
+            if not item.get("จังหวัด") or item.get("จังหวัด") == item_id_str:
+                m_p = re.search(r'จังหวัด\s*[:\s]*[\n\r]*([^\n\r<"\|]{2,30})', main_text)
+                if m_p and clean_text(m_p.group(1)):
+                    item["จังหวัด"] = clean_text(m_p.group(1))
+
+            # --- 2.5 Mapping ID & รหัสทรัพย์ ---
+            # ในเว็บ: "รหัสทรัพย์" คือ ID จริงของเว็บ (เช่น ALPHA211228378981) -> ใส่ช่อง ID
+            # ในเว็บ: "รหัสหน่วยงาน" คือ รหัสอ้างอิงทรัพย์ (เช่น L4_6_0520_G01) -> ใส่ช่อง รหัสทรัพย์
+            m_code_prop = re.search(r'รหัสทรัพย์\s*[:\s]*([^\n\r<"\|]+)', html)
+            if m_code_prop:
+                real_id = clean_text(m_code_prop.group(1))
+                if real_id:
+                    item["ID"] = real_id
+
+            m_code_agency = re.search(r'รหัสหน่วยงาน\s*[:\s]*([^\n\r<"\|]+)', html)
+            if m_code_agency:
+                agency_code = clean_text(m_code_agency.group(1))
+                if agency_code:
+                    item["รหัสทรัพย์"] = agency_code
                 
-                break
-        except Exception:
-            time.sleep(0.5)
+            # 3. Land Area (ไร่-งาน-วา)
+            m_land = re.search(r'ขนาดที่ดิน\s*:\s*([^\n\r<"]+)', main_text)
+            if m_land:
+                land_str = m_land.group(1).strip()
+                rai_m = re.search(r'(\d+)\s*ไร่', land_str)
+                ngan_m = re.search(r'(\d+)\s*งาน', land_str)
+                wa_m = re.search(r'([\d\.,]+)\s*(?:ตร\.ว\.|ตารางวา|วา)', land_str)
+                parts = []
+                if rai_m and rai_m.group(1) != "0": parts.append(f"{rai_m.group(1)} ไร่")
+                if ngan_m and ngan_m.group(1) != "0": parts.append(f"{ngan_m.group(1)} งาน")
+                if wa_m and wa_m.group(1) != "0": parts.append(f"{wa_m.group(1)} วา")
+                if parts: item["พื้นที่ (ไร่-งาน-วา)"] = " ".join(parts)
+                    
+            # 4. Usable Area (ตร.ม.)
+            m_u = re.search(r'ขนาดพื้นที่ใช้สอย\s*:\s*([^\n\r<"]+)', main_text) or re.search(r'พื้นที่ใช้สอย\s*:\s*([^\n\r<"]+)', main_text)
+            if m_u:
+                u_clean = re.sub(r'[^\d\.]', '', m_u.group(1)).strip('.')
+                if u_clean: item["พื้นที่ใช้สอย (ตร.ม.)"] = u_clean
+                    
+            # 5. Posted / Completed Date (วันประกาศ)
+            m_post = re.search(r'(?:โพสวันที่|สร้างเมื่อ|วันที่ประกาศ|สร้างเสร็จปี|ปรับปรุงวันที่)\s*[:\s]*([^\n\r<"]+)', main_text)
+            if m_post:
+                item["วันประกาศ"] = clean_text(m_post.group(1))
+                    
+            # 7. Refine Property Type, Project Name and Compose Full Listing Title
+            h1_elem = soup.find('h1')
+            h1_text = clean_text(h1_elem.get_text()) if h1_elem else ""
+                
+            ptype = detect_talad_property_type(link, h1_text, main_text)
+            item["ประเภททรัพย์"] = ptype
+                
+            m_proj = re.search(r'(?:ชื่อโครงการ|โครงการ)\s*:\s*([^\n\r<"]+)', main_text)
+            if m_proj:
+                p_cand = clean_text(m_proj.group(1))
+                if p_cand and p_cand.lower() not in ["none", "null", "-", "/", "โครงการ", "หมู่บ้าน"]:
+                    item["ชื่อโครงการ"] = p_cand
+            else:
+                item["ชื่อโครงการ"] = ""  # Leave blank if no project name exists
+                    
+            # Compose informative title from Type + Location
+            loc_parts = [x for x in [item.get("ตำบล"), item.get("อำเภอ"), item.get("จังหวัด")] if x]
+            if loc_parts:
+                item["ชื่อประกาศ"] = f"{ptype} {' '.join(loc_parts)}".strip()
+            else:
+                item["ชื่อประกาศ"] = f"{ptype} ({item.get('ID', '')})".strip()
+                
+            break
+        except Exception as e:
+            sleep_time = (2 ** attempt) + random.uniform(1.0, 3.0)
+            time.sleep(sleep_time)
     return item
 
 def detect_talad_property_type(link, title="", text=""):
@@ -296,17 +327,14 @@ COMPANY_MAP = {
     "BAY": "กรุงศรีอยุธยา",
     "KTB": "กรุงไทย",
     "TTB": "ทหารไทยธนชาต",
-    "GSB": "ออมสิน",
-    "EST": "บริษัทคู่ค้า (EST)",
-    "GWP": "บริษัทคู่ค้า (GWP)",
-    "MEM": "บริษัทคู่ค้า (MEM)"
+    "GSB": "ออมสิน"
 }
 
 def extract_talad_source_company(link):
     m = re.search(r'/property/[^/]+/([^/]+)/', str(link or ""))
     if m:
         code = m.group(1).upper()
-        name = COMPANY_MAP.get(code, f"บริษัทคู่ค้า ({code})")
+        name = COMPANY_MAP.get(code, code)
         return code, name
     return "", ""
 
@@ -384,18 +412,21 @@ def save_state(last_page, skipped_bamsam=0):
 
 def fetch_talad_page(session, page_num):
     url = BASE_URL.format(page_num=page_num)
-    max_retries = 5
+    max_retries = 8
     for attempt in range(max_retries):
         try:
-            r = session.get(url, timeout=20)
+            r = session.get(url, timeout=30)
             if r.status_code == 429 or r.status_code == 503:
-                sleep_time = (2 ** attempt) + random.uniform(1.0, 3.0)
-                print_alert(f"HTTP Status {r.status_code} (Rate Limit) ในหน้า {page_num} -> พักรอ {sleep_time:.1f} วินาที", level="WARNING")
+                sleep_time = (2 ** min(attempt, 5)) + random.uniform(3.0, 8.0)
+                ts = datetime.now().strftime("%H:%M:%S")
+                print(f"\n[{ts}] [{COMPANY_NAME}] ⚠️ HTTP {r.status_code} (Rate Limit) หน้า {page_num} (ครั้งที่ {attempt+1}/{max_retries}) -> พักรอ {sleep_time:.1f} วินาที", flush=True)
                 time.sleep(sleep_time)
                 continue
             if r.status_code != 200:
-                print_alert(f"HTTP Status {r.status_code} ในหน้า {page_num} (พยายามที่ {attempt+1}/{max_retries})", level="WARNING")
-                time.sleep(2 + attempt)
+                sleep_time = 3 + attempt * 2 + random.uniform(1.0, 3.0)
+                ts = datetime.now().strftime("%H:%M:%S")
+                print(f"\n[{ts}] [{COMPANY_NAME}] ⚠️ HTTP {r.status_code} หน้า {page_num} (ครั้งที่ {attempt+1}/{max_retries}) -> พัก {sleep_time:.1f} วินาที", flush=True)
+                time.sleep(sleep_time)
                 continue
                 
             soup = BeautifulSoup(r.text, 'html.parser')
@@ -413,19 +444,20 @@ def fetch_talad_page(session, page_num):
                     seen_page_ids.add(item["ID"])
                     raw_records.append(item)
                     
-            # Fetch detail pages concurrently for coordinates (Lat/Lng), Location & Areas
+            # Fetch detail pages sequentially with small delay to avoid overwhelming server
             records = []
             with concurrent.futures.ThreadPoolExecutor(max_workers=THREAD_POOL_SIZE) as executor:
                 futures = [executor.submit(fetch_talad_detail, session, item) for item in raw_records]
-                for future in concurrent.futures.as_completed(futures):
+                for future in futures:
                     try:
                         records.append(future.result())
                     except Exception:
                         pass
             return records, skipped_bamsam
         except Exception as e:
-            sleep_time = (2 ** attempt) + random.uniform(0.5, 2.0)
-            print_alert(f"เกิดข้อผิดพลาดในการดึงข้อมูลหน้า {page_num} (พยายามที่ {attempt+1}/{max_retries}): {e} -> พัก {sleep_time:.1f} วินาที", level="WARNING")
+            sleep_time = (2 ** min(attempt, 5)) + random.uniform(3.0, 8.0)
+            ts = datetime.now().strftime("%H:%M:%S")
+            print(f"\n[{ts}] [{COMPANY_NAME}] ⚠️ เกิดข้อผิดพลาดหน้า {page_num} (ครั้งที่ {attempt+1}/{max_retries}): {e} -> พัก {sleep_time:.1f} วินาที", flush=True)
             time.sleep(sleep_time)
     return None, 0
 
@@ -494,18 +526,19 @@ def main():
     if completed_pages > 0:
         print(f"[{COMPANY_NAME}] ⏩ Fast-Forward Resume: ข้าม {completed_pages:,} หน้าแรกที่เคยดึงแล้ว -> เริ่มสแครปหน้า {start_page:,} ต่อทันที", flush=True)
     
-    for page in pages_order:
+    def process_page(page):
+        nonlocal total_skipped, processed_count, new_added
         if total_count > 0 and len(all_records) >= total_count:
-            print(f"\n[{COMPANY_NAME}] 🎉 สะสมข้อมูลครบถ้วนทั้งหมดแล้ว ({len(all_records):,}/{total_count:,} รายการ) -> สิ้นสุดการสแครป!", flush=True)
-            break
+            return False  # signal to stop
         items, skipped_bamsam = fetch_talad_page(session, page)
         total_skipped += skipped_bamsam
         if items is None:
             failed_pages.append(page)
-            print(f"\n[{COMPANY_NAME}] ⚠️ ข้ามหน้า {page} เนื่องจากดึงข้อมูลไม่สำเร็จหลังจากลองหลายครั้ง", flush=True)
+            ts = datetime.now().strftime("%H:%M:%S")
+            print(f"\n[{ts}] [{COMPANY_NAME}] ⚠️ ข้ามหน้า {page} ชั่วคราว (จะกลับมาดึงใหม่ภายหลัง)", flush=True)
             processed_count += 1
             save_state(page, total_skipped)
-            continue
+            return True
 
         page_added = 0
         for item in items:
@@ -519,12 +552,14 @@ def main():
             new_added += 1
             
         processed_count += 1
+        pages_done_session = processed_count - completed_pages
+        remaining_pages = max(0, max_page - processed_count)
         pct = int((processed_count / max_page) * 100)
         elapsed_sec = time.time() - start_time
-        eta_msg = format_eta(elapsed_sec, processed_count, max_page)
+        eta_msg = format_eta(elapsed_sec, pages_done_session, remaining_pages)
         pbar = make_progress_bar(pct)
         
-        print(f"\r[{COMPANY_NAME:<13s}] {pbar} | ({processed_count:5,d}/{max_page:5,d} หน้า) | สะสม: {len(all_records):>6,d} รายการ (คัด BAM/SAM ออกแล้ว {total_skipped:,} รายการ) | {eta_msg}", end="", flush=True)
+        print(f"\r[{COMPANY_NAME:<13s}] {pbar} | ({processed_count:5,d}/{max_page:5,d} หน้า) | สะสม: {len(all_records):>6,d} รายการ (คัด BAM/SAM ออกแล้ว {total_skipped:,} รายการ) | ⏱️ {eta_msg}", end="", flush=True)
         
         if len(all_records) >= 10 and "initial_10" not in saved_milestones:
             saved_milestones.add("initial_10")
@@ -539,7 +574,26 @@ def main():
                 save_to_csv(all_records, OUTPUT_CSV)
                 save_state(page, total_skipped)
                 
-        time.sleep(0.5 + random.uniform(0.1, 0.3))
+        time.sleep(1.0 + random.uniform(0.3, 1.0))
+        return True
+
+    # --- Main page loop ---
+    for page in pages_order:
+        if not process_page(page):
+            print(f"\n[{COMPANY_NAME}] 🎉 สะสมข้อมูลครบถ้วนทั้งหมดแล้ว ({len(all_records):,}/{total_count:,} รายการ) -> สิ้นสุดการสแครป!", flush=True)
+            break
+
+    # --- Retry failed pages (up to 3 rounds) ---
+    for retry_round in range(1, 4):
+        if not failed_pages:
+            break
+        retry_list = list(failed_pages)
+        failed_pages.clear()
+        print(f"\n🔄 [{COMPANY_NAME}] Retry รอบที่ {retry_round}: กลับมาดึง {len(retry_list)} หน้าที่ล้มเหลว... (พักรอ 15 วินาทีก่อนเริ่ม)", flush=True)
+        time.sleep(15)  # Rest before retrying to let server cool down
+        for page in retry_list:
+            process_page(page)
+            time.sleep(2.0 + random.uniform(0.5, 1.5))  # Extra delay for retries
         
     print("", flush=True)
     save_to_csv(all_records, OUTPUT_CSV)

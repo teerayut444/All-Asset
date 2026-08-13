@@ -30,7 +30,7 @@ HEADERS = {
 COLUMNS = [
     "บริษัท", "ID", "รหัสทรัพย์", "ชื่อโครงการ", "ประเภททรัพย์", "ประเภทการขาย", "ราคา",
     "ตำบล", "อำเภอ", "จังหวัด", "ละติจูด", "ลองจิจูด", "ชื่อประกาศ", "ลิงก์",
-    "พื้นที่ (ไร่-งาน-วา)", "พื้นที่ใช้สอย (ตร.ม.)", "วันที่ดึงข้อมูล",
+    "เนื้อที่ (ตร.ว.)", "พื้นที่ใช้สอย (ตร.ม.)", "วันที่ดึงข้อมูล",
     "ห้องนอน", "ห้องน้ำ", "ที่จอดรถ", "วันประกาศ"
 ]
 
@@ -136,7 +136,7 @@ def check_link_health(session):
                 match = re.search(r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>', res.text)
                 if match:
                     data = json.loads(match.group(1))
-                    hits = data.get("props", {}).get("pageProps", {}).get("defaultData", {}).get("hits", {})
+                    hits = (((data.get("props") or {}).get("pageProps") or {}).get("defaultData") or {}).get("hits") or {}
                     tot = hits.get("total")
                     total_val = 0
                     if isinstance(tot, dict):
@@ -173,7 +173,7 @@ def fetch_page_items(session, page_num):
                 return []
             
             data = json.loads(match.group(1))
-            hits = data.get("props", {}).get("pageProps", {}).get("defaultData", {}).get("hits", {}).get("hits", [])
+            hits = ((((data.get("props") or {}).get("pageProps") or {}).get("defaultData") or {}).get("hits") or {}).get("hits") or []
             records = []
             scrape_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             
@@ -195,9 +195,9 @@ def fetch_page_items(session, page_num):
                 
                 price = vd.get("price_start") or vd.get("price_rent")
                 
-                subdist = clean_text(addr.get("subdistrict", {}).get("title", {}).get("th", "") if isinstance(addr.get("subdistrict"), dict) else "")
-                dist = clean_text(addr.get("district", {}).get("title", {}).get("th", "") if isinstance(addr.get("district"), dict) else "")
-                prov = clean_text(addr.get("province", {}).get("title", {}).get("th", "") if isinstance(addr.get("province"), dict) else "")
+                subdist = clean_text(((addr.get("subdistrict") or {}).get("title") or {}).get("th") or "" if isinstance(addr.get("subdistrict"), dict) else "")
+                dist = clean_text(((addr.get("district") or {}).get("title") or {}).get("th") or "" if isinstance(addr.get("district"), dict) else "")
+                prov = clean_text(((addr.get("province") or {}).get("title") or {}).get("th") or "" if isinstance(addr.get("province"), dict) else "")
                 
                 link = f"https://www.baania.com/th/listing/{item_id}" if item_id else ""
                 
@@ -216,7 +216,7 @@ def fetch_page_items(session, page_num):
                     "ลองจิจูด": loc.get("lon") if isinstance(loc, dict) else None,
                     "ชื่อประกาศ": title_th,
                     "ลิงก์": link,
-                    "พื้นที่ (ไร่-งาน-วา)": clean_text(parse_land_area(vd.get("area_total"))),
+                    "เนื้อที่ (ตร.ว.)": clean_text(parse_land_area(vd.get("area_total"))),
                     "พื้นที่ใช้สอย (ตร.ม.)": vd.get("area_usable"),
                     "วันที่ดึงข้อมูล": scrape_time,
                     "วันประกาศ": clean_text(vd.get("created_at") or vd.get("published_at") or vd.get("updated_at") or ""),

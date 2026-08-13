@@ -8,6 +8,7 @@ import random
 import urllib.parse
 from datetime import datetime
 import concurrent.futures
+import threading
 import pandas as pd
 from bs4 import BeautifulSoup
 
@@ -24,27 +25,45 @@ OUTPUT_CSV = os.path.join(OUTPUT_DIR, f"DDproperty_NPA_New_{MONTH_STR}.csv")
 CATEGORIES = [
     {
         "type": "รวมประกาศขาย",
-        "url": "https://www.ddproperty.com" + urllib.parse.quote("/รวมประกาศขาย")
+        "url": "https://www.ddproperty.com/รวมประกาศขาย"
     }
 ]
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-    "Accept-Language": "th-TH,th;q=0.9,en-US;q=0.8,en;q=0.7"
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+    "Accept-Language": "th-TH,th;q=0.9,en-US;q=0.8,en;q=0.7",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Connection": "keep-alive",
+    "Upgrade-Insecure-Requests": "1",
+    "Sec-Ch-Ua": '"Chromium";v="126", "Google Chrome";v="126", "Not-A.Brand";v="8"',
+    "Sec-Ch-Ua-Mobile": "?0",
+    "Sec-Ch-Ua-Platform": '"Windows"',
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "same-origin",
+    "Sec-Fetch-User": "?1",
+    "Cache-Control": "max-age=0"
 }
 
 COLUMNS = [
     "บริษัท", "ID", "รหัสทรัพย์", "ชื่อโครงการ", "ประเภททรัพย์", "ประเภทการขาย", "ราคา",
     "ตำบล", "อำเภอ", "จังหวัด", "ละติจูด", "ลองจิจูด", "ชื่อประกาศ", "ลิงก์",
-    "พื้นที่ (ไร่-งาน-วา)", "พื้นที่ใช้สอย (ตร.ม.)", "วันที่ดึงข้อมูล",
+    "เนื้อที่ (ตร.ว.)", "พื้นที่ใช้สอย (ตร.ม.)", "วันที่ดึงข้อมูล",
     "ห้องนอน", "ห้องน้ำ", "ที่จอดรถ", "วันประกาศ"
 ]
 
 PROVINCES = [
-    "กรุงเทพมหานคร", "กรุงเทพ", "นนทบุรี", "ปทุมธานี", "สมุทรปราการ", "ชลบุรี", "เชียงใหม่",
-    "ภูเก็ต", "นครราชสีมา", "ระยอง", "ประจวบคีรีขันธ์", "สุราษฎร์ธานี", "ขอนแก่น", "สงขลา",
-    "สมุทรสาคร", "นครปฐม", "อยุธยา", "พระนครศรีอยุธยา", "ฉะเชิงเทรา", "เพชรบุรี", "หัวหิน", "พัทยา"
+    "กรุงเทพมหานคร", "กรุงเทพ", "กระบี่", "กาญจนบุรี", "กาฬสินธุ์", "กำแพงเพชร", "ขอนแก่น", "จันทบุรี",
+    "ฉะเชิงเทรา", "ชลบุรี", "ชัยนาท", "ชัยภูมิ", "ชุมพร", "เชียงราย", "เชียงใหม่", "ตรัง", "ตราด",
+    "ตาก", "นครนายก", "นครปฐม", "นครพนม", "นครราชสีมา", "นครศรีธรรมราช", "นครสวรรค์", "นนทบุรี",
+    "นราธิวาส", "น่าน", "บึงกาฬ", "บุรีรัมย์", "ปทุมธานี", "ประจวบคีรีขันธ์", "ปราจีนบุรี", "ปัตตานี",
+    "พระนครศรีอยุธยา", "อยุธยา", "พะเยา", "พังงา", "พัทลุง", "พิจิตร", "พิษณุโลก", "เพชรบุรี",
+    "เพชรบูรณ์", "แพร่", "ภูเก็ต", "มหาสารคาม", "มุกดาหาร", "แม่ฮ่องสอน", "ยโสธร", "ยะลา", "ร้อยเอ็ด",
+    "ระนอง", "ระยอง", "ราชบุรี", "ลพบุรี", "ลำปาง", "ลำพูน", "เลย", "ศรีสะเกษ", "สกลนคร", "สงขลา",
+    "สตูล", "สมุทรปราการ", "สมุทรสงคราม", "สมุทรสาคร", "สระแก้ว", "สระบุรี", "สิงห์บุรี", "สุโขทัย",
+    "สุพรรณบุรี", "สุราษฎร์ธานี", "สุรินทร์", "หนองคาย", "หนองบัวลำภู", "อ่างทอง", "อำนาจเจริญ",
+    "อุดรธานี", "อุตรดิตถ์", "อุทัยธานี", "อุบลราชธานี", "หัวหิน", "พัทยา"
 ]
 
 DISTRICTS = [
@@ -165,165 +184,197 @@ def load_existing_csv(filename, session=None):
             print_alert(f"ไม่สามารถอ่านไฟล์สะสมเดิม {filename}: {e}", level="WARNING")
     return records, seen_ids
 
+def _http_get_ddproperty(url, timeout=20, referer=None, cookie=None, return_cookies=False):
+    import ssl
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "th-TH,th;q=0.9,en-US;q=0.8,en;q=0.7",
+    }
+    if referer:
+        headers["Referer"] = referer
+    if cookie:
+        headers["Cookie"] = cookie
+    req = urllib.request.Request(url, headers=headers)
+    with urllib.request.urlopen(req, context=ctx, timeout=timeout) as resp:
+        html = resp.read().decode('utf-8', errors='ignore')
+        if return_cookies:
+            cookies = resp.info().get_all('Set-Cookie')
+            return resp.status, html, cookies
+        return resp.status, html
+
 def get_category_total_pages(session, base_url) -> tuple[int, int]:
-    url = "https://www.ddproperty.com" + urllib.parse.quote("/รวมประกาศขาย")
+    raw_path = "/รวมประกาศขาย"
+    url = "https://www.ddproperty.com" + urllib.parse.quote(raw_path)
     for attempt in range(3):
         try:
-            r = session.get(url, timeout=10)
-            if r.status_code == 200:
-                soup = BeautifulSoup(r.text, 'html.parser')
+            status, html_text = _http_get_ddproperty(url, timeout=15)
+            if status == 200:
+                soup = BeautifulSoup(html_text, 'html.parser')
                 script = soup.find("script", id="__NEXT_DATA__")
-                if script and script.string:
-                    js = json.loads(script.string)
+                script_content = (script.string or script.text) if script else ""
+                if script_content:
+                    js = json.loads(script_content)
                     page_data = js.get("props", {}).get("pageProps", {}).get("pageData", {})
                     data_dict = page_data.get("data", {})
                     pagination = data_dict.get("paginationData", {})
                     tp = pagination.get("totalPages")
                     if tp:
-                        return r.status_code, int(tp)
-                return r.status_code, 5695
+                        return status, int(tp)
+                return status, 5695
         except Exception:
             time.sleep(1)
     return 200, 5695
 
 def fetch_ddproperty_page(session, base_url, target_type, page_num):
     if page_num == 1:
-        url = "https://www.ddproperty.com" + urllib.parse.quote("/รวมประกาศขาย")
+        raw_path = "/รวมประกาศขาย"
     else:
-        url = f"https://www.ddproperty.com" + urllib.parse.quote(f"/รวมประกาศขาย/{page_num}")
+        raw_path = f"/รวมประกาศขาย/{page_num}"
+    url = "https://www.ddproperty.com" + urllib.parse.quote(raw_path)
 
     max_retries = 5
     for attempt in range(max_retries):
         try:
-            r = session.get(url, timeout=20)
-            if r.status_code != 200:
+            time.sleep(random.uniform(0.3, 0.8))
+            status, html_text = _http_get_ddproperty(url, timeout=20)
+            if status != 200:
                 if attempt < max_retries - 1:
-                    sleep_time = (1.5 * (attempt + 1)) + random.uniform(1.0, 2.5)
+                    sleep_time = (2.0 * (attempt + 1)) + random.uniform(1.0, 3.0)
                     time.sleep(sleep_time)
                     continue
                 else:
-                    print_alert(f"HTTP Status {r.status_code} บนหน้า {page_num} หมวด {target_type} (พยายามครบ {max_retries} ครั้ง)", level="WARNING")
-                    continue
+                    print_alert(f"HTTP Status {status} บนหน้า {page_num} หมวด {target_type} (พยายามครบ {max_retries} ครั้ง)", level="WARNING")
+                    return None
                 
-            soup = BeautifulSoup(r.text, 'html.parser')
+            soup = BeautifulSoup(html_text, 'html.parser')
             records = []
             now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             
             # 1. Try __NEXT_DATA__ JSON first
             script = soup.find("script", id="__NEXT_DATA__")
-            if script and script.string:
-                try:
-                    js = json.loads(script.string)
-                    page_data = js.get("props", {}).get("pageProps", {}).get("pageData", {})
-                    listings = page_data.get("data", {}).get("listingsData", [])
-                    for listing in listings:
-                        ld = listing.get("listingData", {}) or listing
-                        prop = ld.get("property", {}) or {}
-                        lid = str(ld.get("id") or listing.get("id") or "")
-                        if not lid: continue
+            script_content = (script.string or script.text) if script else ""
+            if script_content:
+                js = json.loads(script_content)
+                page_data = js.get("props", {}).get("pageProps", {}).get("pageData", {})
+                listings = page_data.get("data", {}).get("listingsData", [])
+                for listing in listings:
+                    ld = listing.get("listingData", {}) or listing
+                    prop = ld.get("property", {}) or {}
+                    lid = str(ld.get("id") or listing.get("id") or "")
+                    if not lid: continue
+                    
+                    title = clean_text(ld.get("localizedTitle") or ld.get("title") or ld.get("name") or ld.get("heading") or listing.get("title") or listing.get("name") or "")
+                    code = clean_text(ld.get("code") or ld.get("listingCode") or ld.get("propertyCode") or "")
+                    if not code:
+                        code = lid
+                    
+                    prop_type = prop.get("subTypeText") or ld.get("localizedPropertyType") or ld.get("propertyTypeLabel") or ld.get("typeText") or target_type
+                    prop_type = re.sub(r'^ขาย', '', str(prop_type)).strip() or "บ้านเดี่ยว"
+                    
+                    link = ld.get("url") or ""
+                    if link and not link.startswith('http'): link = 'https://www.ddproperty.com' + link
+                    
+                    # Title fallback from HTML link tag matching lid if localizedTitle missing
+                    card_match = soup.find('a', href=re.compile(rf'-{lid}(?:#|$|\?)')) or soup.find('a', href=re.compile(rf'/{lid}(?:#|$|\?)'))
+                    if card_match and not link:
+                        link = card_match.get('href', '')
+                        if link and not link.startswith('http'): link = 'https://www.ddproperty.com' + link
+                    
+                    if not title and card_match:
+                        if not title or len(title) < 3 or any(x in title.upper() for x in ["จำกัด", "นายหน้า", "CO., LTD"]):
+                            parts = link.split('/property/')[-1].split('/project/')[-1].split('#')[0].split('?')[0].split('-ขาย-')[0]
+                            title = urllib.parse.unquote(parts).replace('-', ' ').strip().title()
+                    if title.startswith("Project/"):
+                        title = title.replace("Project/", "").strip()
+                    if not link:
+                        link = f"https://www.ddproperty.com/property/{lid}"
                         
-                        title = clean_text(ld.get("title") or ld.get("name") or ld.get("heading") or listing.get("title") or listing.get("name") or "")
-                        code = clean_text(ld.get("code") or "")
+                    price_raw = ld.get("price") or listing.get("price")
+                    price = None
+                    if isinstance(price_raw, dict):
+                        p_val = price_raw.get("value") or price_raw.get("pretty")
+                        if p_val:
+                            p_clean = re.sub(r"[^\d\.]", "", str(p_val))
+                            try: price = float(p_clean) if p_clean else None
+                            except Exception: pass
+                    elif isinstance(price_raw, (int, float)):
+                        price = float(price_raw)
+                    elif price_raw:
+                        p_clean = re.sub(r"[^\d\.]", "", str(price_raw))
+                        try: price = float(p_clean) if p_clean else None
+                        except Exception: pass
                         
-                        prop_type = prop.get("subTypeText") or ld.get("localizedPropertyType") or ld.get("propertyTypeLabel") or ld.get("typeText") or target_type
-                        prop_type = re.sub(r'^ขาย', '', str(prop_type)).strip() or "บ้านเดี่ยว"
+                    addr = ld.get("address", {}) or ld.get("localizedAddress", {}) or listing.get("address", {}) or listing.get("localizedAddress", {})
+                    subdist, dist, prov = "", "", ""
+                    if isinstance(addr, str) and "," in addr:
+                        parts = [x.strip() for x in addr.split(",") if x.strip()]
+                        if len(parts) >= 3: subdist, dist, prov = parts[0], parts[1], parts[2]
+                        elif len(parts) == 2: dist, prov = parts[0], parts[1]
+                        elif len(parts) == 1: prov = parts[0]
+                    elif isinstance(addr, dict):
+                        prov = clean_text(addr.get("province") or addr.get("region") or addr.get("state") or "")
+                        dist = clean_text(addr.get("district") or addr.get("city") or "")
+                        subdist = clean_text(addr.get("subdistrict") or addr.get("area") or "")
                         
-                        # Title fallback from HTML link tag matching lid
-                        card_match = soup.find('a', href=re.compile(rf'-{lid}(?:#|$|\?)')) or soup.find('a', href=re.compile(rf'/{lid}(?:#|$|\?)'))
-                        link = ""
-                        if card_match:
-                            link = card_match.get('href', '')
-                            if link and not link.startswith('http'): link = 'https://www.ddproperty.com' + link
-                            if not title or len(title) < 3 or any(x in title.upper() for x in ["จำกัด", "นายหน้า", "CO., LTD"]):
-                                parts = link.split('/property/')[-1].split('/project/')[-1].split('#')[0].split('?')[0].split('-ขาย-')[0]
-                                title = urllib.parse.unquote(parts).replace('-', ' ').strip().title()
-                        if title.startswith("Project/"):
-                            title = title.replace("Project/", "").strip()
-                        if not link:
-                            link = f"https://www.ddproperty.com/property/{lid}"
-                            
-                        price_raw = ld.get("price") or listing.get("price")
-                        price = None
-                        if isinstance(price_raw, dict):
-                            p_val = price_raw.get("value") or price_raw.get("pretty")
-                            if p_val:
-                                p_clean = re.sub(r"[^\d\.]", "", str(p_val))
-                                price = float(p_clean) if p_clean else None
-                        elif isinstance(price_raw, (int, float)):
-                            price = float(price_raw)
-                        elif price_raw:
-                            p_clean = re.sub(r"[^\d\.]", "", str(price_raw))
-                            price = float(p_clean) if p_clean else None
-                            
-                        addr = ld.get("address", {}) or ld.get("localizedAddress", {}) or listing.get("address", {}) or listing.get("localizedAddress", {})
-                        subdist, dist, prov = "", "", ""
-                        if isinstance(addr, str) and "," in addr:
-                            parts = [x.strip() for x in addr.split(",") if x.strip()]
-                            if len(parts) >= 3: subdist, dist, prov = parts[0], parts[1], parts[2]
-                            elif len(parts) == 2: dist, prov = parts[0], parts[1]
-                            elif len(parts) == 1: prov = parts[0]
-                        elif isinstance(addr, dict):
-                            prov = clean_text(addr.get("province") or addr.get("region") or addr.get("state") or "")
-                            dist = clean_text(addr.get("district") or addr.get("city") or "")
-                            subdist = clean_text(addr.get("subdistrict") or addr.get("area") or "")
-                            
-                        card_parent = card_match.find_parent(class_=re.compile(r'listing-card|hui-card', re.I)) if card_match else None
-                        card_text = card_parent.get_text() if card_parent else str(listing)
-                        
-                        s_fb, d_fb, p_fb = parse_dd_location(title, link, card_text)
-                        if not prov: prov = p_fb
-                        if not dist: dist = d_fb
-                        if not subdist: subdist = s_fb
+                    card_parent = card_match.find_parent(class_=re.compile(r'listing-card|hui-card', re.I)) if card_match else None
+                    card_text = card_parent.get_text() if card_parent else str(listing)
+                    
+                    s_fb, d_fb, p_fb = parse_dd_location(title, link, card_text)
+                    if not prov: prov = p_fb
+                    if not dist: dist = d_fb
+                    if not subdist: subdist = s_fb
 
-                        coords = ld.get("coordinates", {}) or ld.get("location", {}) or ld.get("geo", {}) or listing.get("coordinates", {}) or listing.get("location", {}) or {}
-                        lat, lng = None, None
-                        if isinstance(coords, dict):
-                            lat = coords.get("lat") or coords.get("latitude")
-                            lng = coords.get("lng") or coords.get("longitude") or coords.get("lon")
-                            
-                        if not lat and card_parent:
-                            m_map = re.search(r'(?:center|query|markers|staticmap)[^"\']*=([\d\.-]+)%2C([\d\.-]+)', str(card_parent), re.I)
-                            if m_map:
-                                try: lat = float(m_map.group(1)); lng = float(m_map.group(2))
-                                except Exception: pass
-
-                        area_raw = ld.get("area") or ld.get("usableArea") or listing.get("area")
-                        area_str = ""
-                        if isinstance(area_raw, dict):
-                            area_str = clean_text(area_raw.get("localeStringValue") or area_raw.get("value") or "")
-                        elif area_raw:
-                            area_str = clean_text(area_raw)
-                            
-                        post_date = clean_text(ld.get("listingDate") or ld.get("createdDate") or ld.get("postDate") or ld.get("completionYear") or ld.get("builtYear") or "")
-                        if not post_date and card_parent:
-                            m_year = re.search(r'(?:สร้างเสร็จ|โพสต์เมื่อ|อัปเดตเมื่อ|สร้างเสร็จ:)\s*[:\s]*(\d{4})', card_text)
-                            if m_year: post_date = m_year.group(1)
+                    coords = ld.get("coordinates", {}) or ld.get("location", {}) or ld.get("geo", {}) or listing.get("coordinates", {}) or listing.get("location", {}) or {}
+                    lat, lng = None, None
+                    if isinstance(coords, dict):
+                        lat = coords.get("lat") or coords.get("latitude")
+                        lng = coords.get("lng") or coords.get("longitude") or coords.get("lon")
                         
-                        records.append({
-                            "บริษัท": COMPANY_NAME,
-                            "ID": lid,
-                            "รหัสทรัพย์": code,
-                            "ชื่อโครงการ": title,
-                            "ประเภททรัพย์": prop_type,
-                            "ประเภทการขาย": "ขาย",
-                            "ราคา": price,
-                            "ตำบล": subdist,
-                            "อำเภอ": dist,
-                            "จังหวัด": prov,
-                            "ละติจูด": lat,
-                            "ลองจิจูด": lng,
-                            "ชื่อประกาศ": title,
-                            "ลิงก์": link,
-                            "พื้นที่ (ไร่-งาน-วา)": "",
-                            "พื้นที่ใช้สอย (ตร.ม.)": area_str,
-                            "วันที่ดึงข้อมูล": now_str,
-                            "วันประกาศ": post_date,
-                            "ห้องนอน": ld.get("bedrooms"),
-                            "ห้องน้ำ": ld.get("bathrooms"),
-                            "ที่จอดรถ": None
-                        })
-                except Exception:
-                    pass
+                    if not lat and card_parent:
+                        m_map = re.search(r'(?:center|query|markers|staticmap)[^"\']*=([\d\.-]+)%2C([\d\.-]+)', str(card_parent), re.I)
+                        if m_map:
+                            try: lat = float(m_map.group(1)); lng = float(m_map.group(2))
+                            except Exception: pass
+
+                    area_raw = ld.get("area") or ld.get("usableArea") or listing.get("area")
+                    area_str = ""
+                    if isinstance(area_raw, dict):
+                        area_str = clean_text(area_raw.get("localeStringValue") or area_raw.get("value") or "")
+                    elif area_raw:
+                        area_str = clean_text(area_raw)
+                        
+                    post_date = clean_text(ld.get("listingDate") or ld.get("createdDate") or ld.get("postDate") or ld.get("completionYear") or ld.get("builtYear") or "")
+                    if not post_date and card_parent:
+                        m_year = re.search(r'(?:สร้างเสร็จ|โพสต์เมื่อ|อัปเดตเมื่อ|สร้างเสร็จ:)\s*[:\s]*(\d{4})', card_text)
+                        if m_year: post_date = m_year.group(1)
+                    
+                    records.append({
+                        "บริษัท": COMPANY_NAME,
+                        "ID": lid,
+                        "รหัสทรัพย์": code,
+                        "ชื่อโครงการ": title,
+                        "ประเภททรัพย์": prop_type,
+                        "ประเภทการขาย": "ขาย",
+                        "ราคา": price,
+                        "ตำบล": subdist,
+                        "อำเภอ": dist,
+                        "จังหวัด": prov,
+                        "ละติจูด": lat,
+                        "ลองจิจูด": lng,
+                        "ชื่อประกาศ": title,
+                        "ลิงก์": link,
+                        "พื้นที่ (ไร่-งาน-วา)": "",
+                        "พื้นที่ใช้สอย (ตร.ม.)": area_str,
+                        "วันที่ดึงข้อมูล": now_str,
+                        "วันประกาศ": post_date,
+                        "ห้องนอน": ld.get("bedrooms"),
+                        "ห้องน้ำ": ld.get("bathrooms"),
+                        "ที่จอดรถ": None
+                    })
                     
             # 2. Fallback to HTML cards if records empty
             if not records:
@@ -392,7 +443,7 @@ def fetch_ddproperty_page(session, base_url, target_type, page_num):
                     records.append({
                         "บริษัท": COMPANY_NAME,
                         "ID": lid,
-                        "รหัสทรัพย์": "",
+                        "รหัสทรัพย์": lid,
                         "ชื่อโครงการ": title,
                         "ประเภททรัพย์": target_type,
                         "ประเภทการขาย": "ขาย",
@@ -416,6 +467,7 @@ def fetch_ddproperty_page(session, base_url, target_type, page_num):
                 records = enrich_ddproperty_coords(records, session)
             return records
         except Exception as e:
+            print(f"[DEBUG ERROR] Exception in fetch_ddproperty_page({page_num}): {e}", flush=True)
             print_alert(f"เกิดข้อผิดพลาดในการดึงข้อมูลหน้า {page_num} ({target_type}): {e}", level="WARNING")
             time.sleep(2)
     return None
@@ -425,7 +477,7 @@ def is_empty_coord(val):
     v_str = str(val).strip().lower()
     return v_str == "" or v_str == "nan" or v_str == "none"
 
-def enrich_ddproperty_coords(records, session, max_workers=10):
+def enrich_ddproperty_coords(records, session, max_workers=5):
     for r in records:
         lid = str(r.get("ID") or "").strip()
         if lid in DD_KNOWN_COORDINATES:
@@ -436,14 +488,36 @@ def enrich_ddproperty_coords(records, session, max_workers=10):
     missing = [r for r in records if is_empty_coord(r.get("ละติจูด")) and (r.get("ID") or r.get("ลิงก์"))]
     if not missing:
         return records
+    
+    ref_url = "https://www.ddproperty.com" + urllib.parse.quote("/รวมประกาศขาย")
+    cookie_header = ""
+    try:
+        status_w, _, cookies_w = _http_get_ddproperty(ref_url, timeout=10, return_cookies=True)
+        if cookies_w:
+            cookie_header = "; ".join([c.split(';')[0] for c in cookies_w])
+    except Exception:
+        pass
+    
     def worker(r):
         lid = str(r.get("ID") or "").strip()
-        link = f"https://www.ddproperty.com/property/{lid}" if lid else r.get("ลิงก์")
+        link = r.get("ลิงก์") or ""
+        if "ddproperty.com" in link:
+            parsed_l = urllib.parse.urlparse(link)
+            link = f"{parsed_l.scheme}://{parsed_l.netloc}" + urllib.parse.quote(parsed_l.path)
+        else:
+            link = f"https://www.ddproperty.com/property/{lid}"
         if not link: return r
-        try:
-            r_d = session.get(link, timeout=12, allow_redirects=True)
-            if r_d.status_code == 200:
-                html = r_d.text
+        
+        for attempt in range(3):
+            try:
+                # Small delay to avoid rate limiting
+                time.sleep(random.uniform(0.3, 0.8))
+                status, html = _http_get_ddproperty(link, timeout=12, referer=ref_url, cookie=cookie_header)
+                if status == 403 or status == 429:
+                    time.sleep(2 + attempt * 2)
+                    continue
+                if status != 200:
+                    continue
                 lat, lng = None, None
                 
                 # 1. __NEXT_DATA__ JSON script tag
@@ -483,9 +557,26 @@ def enrich_ddproperty_coords(records, session, max_workers=10):
                                 lat = float(geo.get('latitude'))
                                 lng = float(geo.get('longitude'))
                                 break
+                            elif isinstance(data, list):
+                                for item in data:
+                                    if isinstance(item, dict) and 'geo' in item:
+                                        geo = item['geo']
+                                        lat = float(geo.get('latitude'))
+                                        lng = float(geo.get('longitude'))
+                                        break
                         except Exception: pass
 
-                # 3. Static map / google maps URL / location parameters
+                # 3. Static map / google maps URL / location parameters / JSON latitude longitude regex
+                if not lat:
+                    m_lat = re.search(r'"latitude"\s*:\s*([\d\.-]+)', html) or re.search(r'"lat"\s*:\s*([\d\.-]+)', html)
+                    m_lng = re.search(r'"longitude"\s*:\s*([\d\.-]+)', html) or re.search(r'"lng"\s*:\s*([\d\.-]+)', html)
+                    if m_lat and m_lng:
+                        try:
+                            la, lo = float(m_lat.group(1)), float(m_lng.group(1))
+                            if 5.0 <= la <= 21.0 and 97.0 <= lo <= 106.0:
+                                lat, lng = la, lo
+                        except Exception: pass
+                        
                 if not lat:
                     m_map = (
                         re.search(r'(?:center|query|markers|staticmap|location)[^"\']*=([\d\.-]+)(?:%2C|,)([\d\.-]+)', html, re.I) or
@@ -494,8 +585,9 @@ def enrich_ddproperty_coords(records, session, max_workers=10):
                     )
                     if m_map:
                         try:
-                            lat = float(m_map.group(1))
-                            lng = float(m_map.group(2))
+                            la, lo = float(m_map.group(1)), float(m_map.group(2))
+                            if 5.0 <= la <= 21.0 and 97.0 <= lo <= 106.0:
+                                lat, lng = la, lo
                         except Exception: pass
 
                 # 4. Regex fallback for lat/lng key-value pairs
@@ -504,15 +596,24 @@ def enrich_ddproperty_coords(records, session, max_workers=10):
                     m_lng = re.search(r'["\']?(?:lng|lon|longitude|lng_value)["\']?\s*[:=]\s*["\']?([\d]{2,3}\.[\d]{4,15})', html, re.I)
                     if m_lat and m_lng:
                         try:
-                            lat = float(m_lat.group(1))
-                            lng = float(m_lng.group(1))
+                            la, lo = float(m_lat.group(1)), float(m_lng.group(1))
+                            if 5.0 <= la <= 21.0 and 97.0 <= lo <= 106.0:
+                                lat, lng = la, lo
                         except Exception: pass
+
+                # Extract รหัสทรัพย์ / รหัสประกาศ from detail page text if present
+                m_code = re.search(r'(?:รหัสประกาศ|รหัสทรัพย์|Listing ID|Ref ID)\s*[:\s]*([A-Za-z0-9\-_]+)', html, re.I)
+                if m_code:
+                    code_val = m_code.group(1).strip()
+                    if code_val and len(code_val) >= 4:
+                        r["รหัสทรัพย์"] = code_val
 
                 if lat and lng:
                     r["ละติจูด"] = lat
                     r["ลองจิจูด"] = lng
-        except Exception:
-            pass
+                break  # Success, exit retry loop
+            except Exception:
+                time.sleep(1)
         return r
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         list(executor.map(worker, missing))
@@ -527,12 +628,14 @@ def save_to_csv(records, filename, session=None):
             if col not in df.columns:
                 df[col] = ""
         df = df[COLUMNS]
-        for attempt in range(3):
+        tmp_filename = filename + ".tmp"
+        df.to_csv(tmp_filename, index=False, encoding="utf-8-sig")
+        for attempt in range(5):
             try:
-                df.to_csv(filename, index=False, encoding="utf-8-sig")
+                os.replace(tmp_filename, filename)
                 return True
             except PermissionError:
-                if attempt < 2:
+                if attempt < 4:
                     time.sleep(1)
                 else:
                     alt_file = filename.replace(".csv", "_BACKUP.csv")
@@ -543,6 +646,25 @@ def save_to_csv(records, filename, session=None):
     except Exception as e:
         print_alert(f"เกิดข้อผิดพลาดในการเซฟไฟล์ CSV '{filename}': {e}", level="CRITICAL")
         return False
+
+STATE_FILE = os.path.join(OUTPUT_DIR, f".ddproperty_state_{MONTH_STR}.json")
+
+def load_state():
+    if os.path.exists(STATE_FILE):
+        try:
+            with open(STATE_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return data.get("completed_pages", 0)
+        except Exception:
+            pass
+    return 0
+
+def save_state(completed_pages):
+    try:
+        with open(STATE_FILE, "w", encoding="utf-8") as f:
+            json.dump({"completed_pages": completed_pages}, f)
+    except Exception:
+        pass
 
 def main():
     print(f"==================================================", flush=True)
@@ -572,7 +694,7 @@ def main():
         
     status_msg = f"🌐 สถานะลิงก์: ปกติ (HTTP {last_code}) | ทั้งหมด 3 หมวด ({total_task_pages:,} หน้า) | {ITEMS_PER_PAGE} รายการ/หน้า ({total_task_pages*ITEMS_PER_PAGE:,} รายการ)"
     estimated_total = total_task_pages * ITEMS_PER_PAGE
-    if estimated_total > 0 and len(all_records) >= estimated_total:
+    if estimated_total > 0 and len(all_records) > 0 and len(all_records) >= estimated_total:
         print(f"[{COMPANY_NAME}] 🎉 ข้อมูลใน CSV ครบถ้วน 100% แล้ว ({len(all_records):,}/{estimated_total:,} รายการ) -> สแครปเสร็จสมบูรณ์ทันที!", flush=True)
         save_to_csv(all_records, OUTPUT_CSV, session=session)
         return
@@ -581,7 +703,7 @@ def main():
     new_added = 0
     
     for ctype, curl, total_p in cat_tasks:
-        pages_order = list(range(total_p, 0, -1))
+        pages_order = list(range(1, total_p + 1))
         for p in pages_order:
             if estimated_total > 0 and len(all_records) >= estimated_total:
                 print(f"\n[{COMPANY_NAME}] 🎉 สะสมข้อมูลครบถ้วนทั้งหมดแล้ว ({len(all_records):,}/{estimated_total:,} รายการ) -> สิ้นสุดการสแครป!", flush=True)
@@ -605,26 +727,27 @@ def main():
                 new_added += 1
                 
             processed_pages += 1
+            if page_added > 0:
+                save_to_csv(all_records, OUTPUT_CSV, session=session)
+                
             pct = int((processed_pages / total_task_pages) * 100) if total_task_pages > 0 else 0
             elapsed_sec = time.time() - start_time
             eta_msg = format_eta(elapsed_sec, processed_pages, total_task_pages)
             pbar = make_progress_bar(pct)
             
-            print(f"\r[{COMPANY_NAME:<13s}] {pbar} | ({processed_pages:5,d}/{total_task_pages:5,d} หน้า) | สะสม: {len(all_records):>7,d} รายการ | {eta_msg}", end="", flush=True)
+            print(f"[{COMPANY_NAME:<13s}] {pbar} | ({processed_pages:5,d}/{total_task_pages:5,d} หน้า) | สะสม: {len(all_records):>7,d} รายการ | {eta_msg}", flush=True)
             
             if len(all_records) >= 10 and "initial_10" not in saved_milestones:
                 saved_milestones.add("initial_10")
-                print(f"\n💾 [{COMPANY_NAME}] ครบ 10 รายการแรก -> บันทึกไฟล์เริ่มต้นลง {OUTPUT_CSV}...", flush=True)
-                save_to_csv(all_records, OUTPUT_CSV, session=session)
+                save_state(processed_pages)
 
             if total_task_pages > 0:
                 for target_pct in [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100]:
                     if pct >= target_pct and target_pct not in saved_milestones:
                         saved_milestones.add(target_pct)
-                        print(f"\n💾 [{COMPANY_NAME}] ครบ Milestone {target_pct}% ({processed_pages:,}/{total_task_pages:,} หน้า) -> บันทึกสำรองลง {OUTPUT_CSV}...", flush=True)
-                        save_to_csv(all_records, OUTPUT_CSV, session=session)
+                        save_state(processed_pages)
                         
-            time.sleep(0.8)
+            time.sleep(0.5)
             
     print("", flush=True)
     save_to_csv(all_records, OUTPUT_CSV, session=session)

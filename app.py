@@ -1515,7 +1515,7 @@ with tab1:
             # This runs 100% locally and remotely, bypassing relative paths, CORS, and sandboxing 404 issues!
             
             # Build dataset for embedding
-            title_col = 'ชื่อประกาศ_สะอาด' if 'ชื่อประกาศ_สะอาด' in map_data.columns else ('ชื่อโครงการ' if 'ชื่อโครงการ' in map_data.columns else 'รหัสทรัพย์')
+            title_col = 'ชื่อประกาศ' if 'ชื่อประกาศ' in map_data.columns else ('ชื่อโครงการ' if 'ชื่อโครงการ' in map_data.columns else 'รหัสทรัพย์')
             titles = map_data[title_col].astype(object).fillna('ไม่มีชื่อ').astype(str).str[:30].values
             ids = map_data['รหัสทรัพย์'].astype(object).fillna('-').astype(str).str[:15].values
             provs = map_data['จังหวัด'].astype(object).fillna('-').astype(str).values
@@ -1908,59 +1908,61 @@ with tab2:
                 st.plotly_chart(style_plotly_fig(fig_asset_focus), width="stretch", theme=None)
             
         with sub_tab3:
-            st.markdown("#### 📐 วิเคราะห์ราคาเฉลี่ยต่อตารางเมตร (Price per Sq.M. Insights)")
-            st.write("เปรียบเทียบราคาเฉลี่ยต่อตารางเมตรสำหรับทรัพย์สินประเภทสิ่งปลูกสร้าง (คอนโด, บ้านเดี่ยว, ทาวน์โฮม, อาคารพาณิชย์) แยกตามแบรนด์คู่แข่ง เพื่อดูความคุ้มค่าเชิงเปรียบเทียบ")
+            st.markdown("#### 📐 วิเคราะห์ราคาเฉลี่ยและราคากลางต่อตารางเมตร (Price per Sq.M. Insights)")
+            st.write("เปรียบเทียบราคากลางต่อตารางเมตรแยกตามประเภททรัพย์สินและบริษัทคู่แข่ง (ตรงตามประเภททรัพย์สินที่เลือกทางแถบฝั่งซ้าย)")
             
+            # Calculate fallback price per sq.m. (using sq.m. or 1 sq.wah = 4 sq.m.)
+            sqm_calc = np.where(
+                (df_filtered['ราคาต่อตารางเมตร'].notna()) & (df_filtered['ราคาต่อตารางเมตร'] > 0),
+                df_filtered['ราคาต่อตารางเมตร'],
+                np.where(
+                    (df_filtered['พื้นที่_ตารางวา'] > 0) & (df_filtered['ราคา'] > 0),
+                    df_filtered['ราคา'] / (df_filtered['พื้นที่_ตารางวา'] * 4.0),
+                    np.nan
+                )
+            )
+            df_filtered['ราคาต่อตารางเมตร_คำนวณ'] = sqm_calc
+
             # Filter properties with valid price per sq.m. and positive price
             area_df = df_filtered[
-                (df_filtered['ราคาต่อตารางเมตร'].notna()) & 
-                (df_filtered['ราคาต่อตารางเมตร'] > 0) & 
-                (df_filtered['ราคาต่อตารางเมตร'] < 1000000) # Exclude extreme outliers
+                (df_filtered['ราคาต่อตารางเมตร_คำนวณ'].notna()) & 
+                (df_filtered['ราคาต่อตารางเมตร_คำนวณ'] > 0) & 
+                (df_filtered['ราคาต่อตารางเมตร_คำนวณ'] < 5000000) # Exclude extreme outliers
             ].copy()
             
-            # Map property types to major categories for visualization
-            def map_major_type(t):
-                t_str = str(t).strip()
-                if 'ที่ดินเปล่า' in t_str:
-                    return 'ที่ดินเปล่า'
-                elif 'คอนโด' in t_str:
-                    return 'คอนโด'
-                elif 'บ้านเดี่ยว' in t_str or 'บ้านแฝด' in t_str or 'บ้าน' in t_str:
-                    return 'บ้านเดี่ยว'
-                elif 'ทาวน์โฮม' in t_str or 'ทาวน์เฮ้าส์' in t_str or 'ทาวน์เฮาส์' in t_str:
-                    return 'ทาวน์โฮม'
-                elif 'อาคารพาณิชย์' in t_str or 'ตึกแถว' in t_str:
-                    return 'อาคารพาณิชย์'
-                return None
-                
             if not area_df.empty:
-                area_df['กลุ่มประเภททรัพย์'] = area_df['ประเภททรัพย์'].apply(map_major_type)
-                area_df = area_df[area_df['กลุ่มประเภททรัพย์'].notna()]
+                # Group directly by Company and exact Property Type (matching the sidebar selection)
+                median_per_sqm = area_df.groupby(['บริษัท', 'ประเภททรัพย์'])['ราคาต่อตารางเมตร_คำนวณ'].median().reset_index()
+                median_per_sqm.columns = ['บริษัท', 'ประเภททรัพย์', 'ราคากลางต่อ ตร.ม. (บาท)']
                 
-                if not area_df.empty:
-                    # Calculate median price per sq.m. grouped by Company and Property Type Group
-                    median_per_sqm = area_df.groupby(['บริษัท', 'กลุ่มประเภททรัพย์'])['ราคาต่อตารางเมตร'].median().reset_index()
-                    median_per_sqm.columns = ['บริษัท', 'ประเภททรัพย์', 'ราคากลางต่อ ตร.ม. (บาท)']
-                    
-                    fig_sqm = px.bar(
-                        median_per_sqm,
-                        x='ประเภททรัพย์',
-                        y='ราคากลางต่อ ตร.ม. (บาท)',
-                        color='บริษัท',
-                        barmode='group',
-                        title='เปรียบเทียบราคากลาง (Median) ต่อตารางเมตร แยกตามบริษัทและประเภททรัพย์สิน',
-                        color_discrete_map={"Baania": "#f59e0b", "BAM": "#3b82f6", "SAM": "#10b981", "Livinginsider": "#84cc16", "DDproperty": "#a855f7", "Taladnudbaan": "#06b6d4", "ZmyHome": "#ec4899"},
-                        template=plotly_template
-                    )
-                    fig_sqm.update_layout(
-                        title_font=dict(size=14, family="Outfit"),
-                        xaxis_title="ประเภททรัพย์สิน",
-                        yaxis_title="ราคากลางต่อ ตร.ม. (บาท)",
-                        legend_title="บริษัท"
-                    )
-                    st.plotly_chart(style_plotly_fig(fig_sqm), width="stretch", theme=None)
-                else:
-                    st.warning("⚠️ ไม่มีข้อมูลประเภททรัพย์สินหลักที่มีข้อมูลราคาต่อตารางเมตร")
+                fig_sqm = px.bar(
+                    median_per_sqm,
+                    x='ประเภททรัพย์',
+                    y='ราคากลางต่อ ตร.ม. (บาท)',
+                    color='บริษัท',
+                    barmode='group',
+                    title='เปรียบเทียบราคากลาง (Median) ต่อตารางเมตร เชื่อมโยงกับประเภททรัพย์สินฝั่งซ้าย',
+                    color_discrete_map={"Baania": "#f59e0b", "BAM": "#3b82f6", "SAM": "#10b981", "Livinginsider": "#84cc16", "DDproperty": "#a855f7", "Taladnudbaan": "#06b6d4", "ZmyHome": "#ec4899"},
+                    template=plotly_template
+                )
+                fig_sqm.update_layout(
+                    title_font=dict(size=14, family="Outfit"),
+                    xaxis_title="ประเภททรัพย์สิน (จากแถบตัวกรองฝั่งซ้าย)",
+                    yaxis_title="ราคากลางต่อ ตร.ม. (บาท)",
+                    legend_title="บริษัท"
+                )
+                st.plotly_chart(style_plotly_fig(fig_sqm), width="stretch", theme=None)
+
+                # Show Summary Pivot Table
+                st.markdown("##### 📋 ตารางสรุปราคากลางต่อตารางเมตร (บาท/ตร.ม.) แยกตามประเภททรัพย์สินฝั่งซ้าย รายบริษัท")
+                pivot_sqm = median_per_sqm.pivot(index='บริษัท', columns='ประเภททรัพย์', values='ราคากลางต่อ ตร.ม. (บาท)')
+                st.dataframe(
+                    pivot_sqm,
+                    width="stretch",
+                    column_config={
+                        col: st.column_config.NumberColumn(format="%,d") for col in pivot_sqm.columns if pd.notna(col)
+                    }
+                )
             else:
                 st.warning("⚠️ ไม่มีข้อมูลพื้นที่ใช้สอยหรือราคาทรัพย์สินสำหรับวิเคราะห์ราคาต่อตารางเมตร")
 
@@ -1984,13 +1986,21 @@ with tab3:
             "ประเภทการขาย", "ราคา", "จังหวัด", "อำเภอ", "ตำบล",
             "พื้นที่ (ไร่-งาน-วา)", "พื้นที่ใช้สอย (ตร.ม.)", "ห้องนอน", "ห้องน้ำ", "ที่จอดรถ", "วันที่ดึงข้อมูล"
         ]].copy()
-        df_table_show['ราคา'] = pd.to_numeric(df_table_show['ราคา'], errors='coerce')
+        df_table_show['ราคาขาย (บาท)'] = pd.to_numeric(df_table_show['ราคา'], errors='coerce')
+        df_table_show = df_table_show.drop(columns=['ราคา'])
+
+        cols_table = [
+            "บริษัท", "รหัสทรัพย์", "ชื่อโครงการ", "ชื่อประกาศ", "ประเภททรัพย์", 
+            "ประเภทการขาย", "ราคาขาย (บาท)", "จังหวัด", "อำเภอ", "ตำบล",
+            "พื้นที่ (ไร่-งาน-วา)", "พื้นที่ใช้สอย (ตร.ม.)", "ห้องนอน", "ห้องน้ำ", "ที่จอดรถ", "วันที่ดึงข้อมูล"
+        ]
+        df_table_show = df_table_show[cols_table]
 
         st.dataframe(
             df_table_show,
             width="stretch",
             column_config={
-                "ราคา": st.column_config.NumberColumn("ราคาขาย (บาท)", format="฿%.0f"),
+                "ราคาขาย (บาท)": st.column_config.NumberColumn("ราคาขาย (บาท)", format="%,d"),
                 "พื้นที่ใช้สอย (ตร.ม.)": st.column_config.NumberColumn(format="%.1f")
             }
         )
@@ -2034,6 +2044,126 @@ with tab4:
                 key="comp_ref_method"
             )
 
+            # Helper to parse land sqwah from pandas Series or Row
+            def parse_land_sqwah(r):
+                if r is None:
+                    return np.nan
+                # 1. Direct numeric column 'พื้นที่_ตารางวา'
+                val = r.get('พื้นที่_ตารางวา')
+                if pd.notna(val):
+                    try:
+                        f_val = float(val)
+                        if f_val > 0:
+                            return f_val
+                    except (ValueError, TypeError):
+                        pass
+                    
+                # 2. Derive from pre-calculated 'ราคาต่อตารางวา' if present
+                price = r.get('ราคา')
+                p_sqwah = r.get('ราคาต่อตารางวา')
+                if pd.notna(price) and pd.notna(p_sqwah):
+                    try:
+                        fp = float(price)
+                        fpsq = float(p_sqwah)
+                        if fp > 0 and fpsq > 0:
+                            return fp / fpsq
+                    except (ValueError, TypeError):
+                        pass
+                    
+                # 3. Parse text format e.g. "1-2-50" or "1 ไร่ 2 งาน 50 ตารางวา"
+                txt = str(r.get('พื้นที่ (ไร่-งาน-วา)', r.get('พื้นที่ดิน', ''))).strip()
+                if txt and txt not in ['nan', 'None', '-', '']:
+                    import re
+                    rai_m = re.search(r'(\d+)\s*ไร่', txt)
+                    ngan_m = re.search(r'(\d+)\s*งาน', txt)
+                    wah_m = re.search(r'(\d+(?:\.\d+)?)\s*(?:วา|ตารางวา|ตร\.วา|ตร\.ว\.)', txt)
+                    
+                    if rai_m or ngan_m or wah_m:
+                        rai = float(rai_m.group(1)) if rai_m else 0.0
+                        ngan = float(ngan_m.group(1)) if ngan_m else 0.0
+                        wah = float(wah_m.group(1)) if wah_m else 0.0
+                        total_w = (rai * 400.0) + (ngan * 100.0) + wah
+                        if total_w > 0:
+                            return total_w
+                            
+                    dash_m = re.search(r'^(\d+)-(\d+)-(\d+(?:\.\d+)?)$', txt)
+                    if dash_m:
+                        rai = float(dash_m.group(1))
+                        ngan = float(dash_m.group(2))
+                        wah = float(dash_m.group(3))
+                        total_w = (rai * 400.0) + (ngan * 100.0) + wah
+                        if total_w > 0:
+                            return total_w
+                            
+                    num_m = re.search(r'^(\d+(?:\.\d+)?)$', txt)
+                    if num_m:
+                        try:
+                            return float(num_m.group(1))
+                        except (ValueError, TypeError):
+                            pass
+                        
+# Helper to parse usable sqm for condos / apartments
+            def parse_condo_sqm(r):
+                if r is None:
+                    return np.nan
+                val = r.get('พื้นที่ใช้สอย (ตร.ม.)', r.get('พื้นที่ใช้สอย', np.nan))
+                if pd.notna(val):
+                    try:
+                        f_val = float(val)
+                        if f_val > 0:
+                            return f_val
+                    except (ValueError, TypeError):
+                        pass
+                txt = str(r.get('พื้นที่ใช้สอย (ตร.ม.)', r.get('พื้นที่ใช้สอย', ''))).strip()
+                if txt and txt not in ['nan', 'None', '-', '']:
+                    import re
+                    m = re.search(r'(\d+(?:\.\d+)?)', txt)
+                    if m:
+                        try:
+                            return float(m.group(1))
+                        except (ValueError, TypeError):
+                            pass
+                return np.nan
+
+            # Helper to calculate Median Price per Sq.Wah for a specific local area (Subdistrict/District/Province)
+            def get_location_median_sqwah(df, prov, dist, subdist=None):
+                if df is None or df.empty:
+                    return np.nan, "ไม่มีข้อมูล"
+                
+                loc_df = pd.DataFrame()
+                loc_label = ""
+                # 1. Try exact Subdistrict first
+                if subdist and pd.notna(subdist) and str(subdist).strip() not in ['', '-', 'nan']:
+                    loc_df = df[(df['จังหวัด'] == prov) & (df['ตำบล'] == subdist)].copy()
+                    loc_label = f"ย่าน ต.{subdist} อ.{dist}"
+                
+                # 2. Fallback to District if < 3 properties
+                if loc_df.empty or len(loc_df) < 3:
+                    if dist and pd.notna(dist) and str(dist).strip() not in ['', '-', 'nan']:
+                        loc_df = df[(df['จังหวัด'] == prov) & (df['อำเภอ'] == dist)].copy()
+                        loc_label = f"ย่าน อ.{dist} จ.{prov}"
+                
+                # 3. Fallback to Province
+                if loc_df.empty or len(loc_df) < 3:
+                    if prov and pd.notna(prov) and str(prov).strip() not in ['', '-', 'nan']:
+                        loc_df = df[df['จังหวัด'] == prov].copy()
+                        loc_label = f"ย่าน จ.{prov}"
+                        
+                if loc_df.empty:
+                    return np.nan, "ไม่มีข้อมูล"
+                    
+                loc_df['sqwah'] = loc_df.apply(parse_land_sqwah, axis=1)
+                loc_df['u_sqwah'] = np.where(
+                    (loc_df['sqwah'].notna()) & (loc_df['sqwah'] > 0) & (loc_df['ราคา'] > 0),
+                    loc_df['ราคา'] / loc_df['sqwah'],
+                    np.nan
+                )
+                valid_u = loc_df['u_sqwah'].dropna()
+                if valid_u.empty:
+                    return np.nan, loc_label
+                    
+                return float(valid_u.median()), f"{loc_label} ({len(valid_u):,} รายการ)"
+
             # Initialize variables
             inp_name = ""
             inp_lat = 0.0
@@ -2052,9 +2182,8 @@ with tab4:
                         key="comp_sel_company"
                     )
                 with col_sel2:
-                    ref_comp_df = df_raw[df_raw['บริษัท'] == sel_ref_company] if df_raw is not None else pd.DataFrame()
-                    ref_comp_types = sorted([str(t) for t in ref_comp_df['ประเภททรัพย์'].dropna().unique()]) if not ref_comp_df.empty else []
-                    valid_ref_types = ["ทั้งหมด"] + ref_comp_types
+                    all_raw_types = sorted([str(t) for t in df_raw['ประเภททรัพย์'].dropna().unique()]) if df_raw is not None else []
+                    valid_ref_types = ["ทั้งหมด"] + all_raw_types
                     sanitize_session_state("comp_sel_type", valid_ref_types, "ทั้งหมด")
                     sel_ref_type = st.selectbox(
                         "ประเภททรัพย์ (เลือกจุดอ้างอิง)",
@@ -2062,6 +2191,7 @@ with tab4:
                         index=0,
                         key="comp_sel_type"
                     )
+                    ref_comp_df = df_raw[df_raw['บริษัท'] == sel_ref_company] if df_raw is not None else pd.DataFrame()
 
                 # Filter assets
                 ref_assets_df = ref_comp_df.copy()
@@ -2134,7 +2264,27 @@ with tab4:
                                 inp_lat = float(selected_asset['ละติจูด'])
                                 inp_lng = float(selected_asset['ลองจิจูด'])
                                 inp_price = float(selected_asset['ราคา'])
-                                inp_type = selected_asset['ประเภททรัพย์']
+                                default_type_val = str(selected_asset['ประเภททรัพย์'])
+                                all_types_list = sorted([str(t) for t in df_raw['ประเภททรัพย์'].dropna().unique()]) if df_raw is not None else [default_type_val]
+                                if default_type_val not in all_types_list:
+                                    all_types_list.insert(0, default_type_val)
+                                sanitize_session_state("comp_override_type", all_types_list, default_type_val)
+                                inp_type = st.selectbox(
+                                    "ประเภททรัพย์อ้างอิงในการเปรียบเทียบ",
+                                    options=all_types_list,
+                                    index=all_types_list.index(default_type_val) if default_type_val in all_types_list else 0,
+                                    key="comp_override_type"
+                                )
+
+                                is_condo_ref = any(kw in inp_type.lower() for kw in ['คอนโด', 'ห้องชุด'])
+                                if is_condo_ref:
+                                    inp_use_area = parse_condo_sqm(selected_asset)
+                                    inp_land_area = np.nan
+                                    area_info_str = f"- **พื้นที่ใช้สอย:** {inp_use_area:,.1f} ตารางเมตร" if pd.notna(inp_use_area) and inp_use_area > 0 else "- **พื้นที่ใช้สอย:** ไม่ระบุ"
+                                else:
+                                    inp_land_area = parse_land_sqwah(selected_asset)
+                                    inp_use_area = np.nan
+                                    area_info_str = f"- **พื้นที่ดิน:** {inp_land_area:,.1f} ตารางวา" if pd.notna(inp_land_area) and inp_land_area > 0 else "- **พื้นที่ดิน:** ไม่ระบุ"
 
                                 st.info(f"""
                                 🏠 **รายละเอียดทรัพย์อ้างอิงที่เลือก**:
@@ -2143,6 +2293,7 @@ with tab4:
                                 - **พิกัด:** {inp_lat:.6f}, {inp_lng:.6f}
                                 - **ราคาขาย:** ฿{inp_price:,.0f} บาท
                                 - **ประเภท:** {inp_type}
+                                {area_info_str}
                                 """)
                             else:
                                 st.warning("⚠️ เกิดข้อผิดพลาดในการดึงข้อมูลรายการที่เลือก")
@@ -2167,6 +2318,14 @@ with tab4:
                     index=0,
                     key="comp_manual_type"
                 )
+
+                is_condo_ref = any(kw in str(inp_type).lower() for kw in ['คอนโด', 'ห้องชุด'])
+                if is_condo_ref:
+                    inp_use_area = st.number_input("พื้นที่ใช้สอยของจุดอ้างอิง (ตารางเมตร)", min_value=0.0, value=35.0, step=5.0, format="%.1f", key="comp_manual_use_area", help="ระบุพื้นที่ใช้สอยเป็นตารางเมตร สำหรับคำนวณราคาต่อตารางเมตร (บาท/ตร.ม.)")
+                    inp_land_area = np.nan
+                else:
+                    inp_land_area = st.number_input("พื้นที่ดินของจุดอ้างอิง (ตารางวา)", min_value=0.0, value=50.0, step=5.0, format="%.1f", key="comp_manual_land_area", help="ระบุพื้นที่ดินเป็นตารางวา สำหรับคำนวณราคาต่อตารางวา (บาท/วา)")
+                    inp_use_area = np.nan
 
         with inp_col2:
             st.markdown("##### ⚙️ ส่วนที่ 2: เงื่อนไขการค้นหา")
@@ -2201,9 +2360,11 @@ with tab4:
         st.markdown("<br/>", unsafe_allow_html=True)
         run_comp_btn = st.button("🚀 เริ่มเปรียบเทียบทำเล", type="primary", use_container_width=True, key="btn_run_comp_radius")
 
-        # Run radius analysis when button clicked or by default when coordinates exist
-        if run_comp_btn or st.session_state.setdefault("has_run_comp", True):
+        if run_comp_btn:
             st.session_state["has_run_comp"] = True
+
+        # Only display comparison results if the user has clicked the button
+        if st.session_state.get("has_run_comp", False):
             if inp_lat != 0.0 and inp_lng != 0.0:
                 m_type = inp_type if filter_by_type else None
                 nearby_df = find_nearby_properties(inp_lat, inp_lng, df_raw, search_radius, match_type=m_type)
@@ -2231,181 +2392,252 @@ with tab4:
                         is_condo = any(kw in p_type for kw in ['คอนโด', 'ห้องชุด'])
                         price = r.get('ราคา')
                         if pd.isna(price) or float(price) <= 0:
-                            return np.nan, "-", "-"
+                            return np.nan, "-", "-", "-"
                             
                         if is_condo:
                             sqm = r.get('พื้นที่ใช้สอย (ตร.ม.)')
                             if pd.notna(sqm) and float(sqm) > 0:
                                 u_price = float(price) / float(sqm)
-                                return u_price, "บาท/ตร.ม.", f"{float(sqm):,.1f} ตร.ม."
+                                return u_price, "บาท/ตร.ม.", f"{float(sqm):,.1f} ตร.ม.", "พื้นที่ใช้สอย"
                         else:
-                            sqwah = r.get('พื้นที่_ตารางวา')
+                            sqwah = parse_land_sqwah(r)
                             if pd.notna(sqwah) and float(sqwah) > 0:
                                 u_price = float(price) / float(sqwah)
-                                return u_price, "บาท/วา", f"{float(sqwah):,.1f} วา"
-                        return np.nan, "-", "-"
+                                return u_price, "บาท/วา", f"{float(sqwah):,.1f} วา", "พื้นที่ดิน"
+                        return np.nan, "-", "-", "-"
 
                     unit_results = nearby_df.apply(get_unit_info, axis=1)
                     nearby_df['ราคาต่อหน่วย'] = [res[0] for res in unit_results]
                     nearby_df['หน่วยวัด'] = [res[1] for res in unit_results]
                     nearby_df['ขนาดพื้นที่'] = [res[2] for res in unit_results]
+                    nearby_df['ฐานพื้นที่คำนวณ'] = [res[3] for res in unit_results]
+
                     nearby_df['ราคาต่อหน่วย (แสดงผล)'] = nearby_df.apply(
-                        lambda r: f"฿{r['ราคาต่อหน่วย']:,.0f} /{r['หน่วยวัด']}" if pd.notna(r['ราคาต่อหน่วย']) else "-", axis=1
+                        lambda r: f"฿{r['ราคาต่อหน่วย']:,.0f} /{r['หน่วยวัด']} ({r['ฐานพื้นที่คำนวณ']})" if pd.notna(r['ราคาต่อหน่วย']) else "-", axis=1
                     )
 
-                    # ----------------- PRICE COMPARISON ANALYSIS -----------------
+                    # ----------------- PRICE & UNIT COMPARISON ANALYSIS -----------------
                     prices = nearby_df['ราคา'].dropna()
-                    unit_prices = nearby_df['ราคาต่อหน่วย'].dropna()
                     
                     if not prices.empty:
-                        min_price = float(prices.min())
-                        max_price = float(prices.max())
-                        median_price = float(prices.median())
-                        range_diff = max_price - min_price
+                        # 1. Selected Property Type Stats (เฉพาะประเภททรัพย์ที่เลือก)
+                        sel_type_df = nearby_df[nearby_df['ประเภททรัพย์'] == inp_type]
+                        has_sel_type = not sel_type_df.empty and sel_type_df['ราคา'].dropna().count() > 0
 
-                        # Unit price stats
-                        has_unit_stats = not unit_prices.empty
-                        if has_unit_stats:
-                            median_unit_p = float(unit_prices.median())
-                            min_unit_p = float(unit_prices.min())
-                            max_unit_p = float(unit_prices.max())
-                            valid_units = nearby_df[nearby_df['หน่วยวัด'] != '-']['หน่วยวัด']
-                            primary_unit_label = valid_units.mode()[0] if not valid_units.empty else "บาท/หน่วย"
+                        if has_sel_type:
+                            st_prices = sel_type_df['ราคา'].dropna()
+                            median_sel_type = float(st_prices.median())
+                            count_sel_type = len(st_prices)
+                            diff_st = median_sel_type - inp_price
+                            pct_st = (diff_st / inp_price * 100) if inp_price > 0 else 0
+                            if diff_st < 0:
+                                sel_sub_html = f"<span style='color: #10b981; font-weight: 600;'><i class='fa fa-arrow-down'></i> ถูกกว่า {abs(pct_st):.1f}%</span> (ต่าง ฿{abs(diff_st):,.0f}) ({count_sel_type:,} รายการ)"
+                            elif diff_st > 0:
+                                sel_sub_html = f"<span style='color: #ef4444; font-weight: 600;'><i class='fa fa-arrow-up'></i> แพงกว่า {pct_st:.1f}%</span> (ต่าง ฿{abs(diff_st):,.0f}) ({count_sel_type:,} รายการ)"
+                            else:
+                                sel_sub_html = f"<span style='color: #64748b; font-weight: 600;'>ราคาเท่ากัน</span> ({count_sel_type:,} รายการ)"
+                        else:
+                            median_sel_type = 0.0
+                            count_sel_type = 0
+                            sel_sub_html = f"ไม่พบรายการประเภท {inp_type} ในพื้นที่"
 
-                        st.markdown("#### 📊 ผลการวิเคราะห์ราคาและมูลค่าทรัพย์สินเปรียบเทียบทำเล")
+                        # 2. Selected Property Type Unit Price Stats (ราคาต่อหน่วยของประเภททรัพย์ที่เลือก)
+                        if has_sel_type and 'ราคาต่อหน่วย' in sel_type_df.columns:
+                            u_sel = sel_type_df['ราคาต่อหน่วย'].dropna()
+                            if not u_sel.empty:
+                                median_u_sel = float(u_sel.median())
+                                min_u_sel = float(u_sel.min())
+                                max_u_sel = float(u_sel.max())
+                                unit_lbl_sel = sel_type_df['หน่วยวัด'].mode()[0] if 'หน่วยวัด' in sel_type_df.columns else "บาท/หน่วย"
+                                count_u_sel = len(u_sel)
+                                has_sel_u_stats = True
+                            else:
+                                has_sel_u_stats = False
+                        else:
+                            has_sel_u_stats = False
 
-                        # Columns for metrics
-                        m_col1, m_col2, m_col3, m_col4 = st.columns(4)
+                        # Fallback for unit price if not enough specific property type unit stats
+                        if not has_sel_u_stats:
+                            all_u = nearby_df['ราคาต่อหน่วย'].dropna()
+                            if not all_u.empty:
+                                median_u_sel = float(all_u.median())
+                                min_u_sel = float(all_u.min())
+                                max_u_sel = float(all_u.max())
+                                unit_lbl_sel = nearby_df[nearby_df['หน่วยวัด'] != '-']['หน่วยวัด'].mode()[0] if not nearby_df[nearby_df['หน่วยวัด'] != '-'].empty else "บาท/หน่วย"
+                                count_u_sel = len(all_u)
+                                has_sel_u_stats = True
+                            else:
+                                median_u_sel = min_u_sel = max_u_sel = 0.0
+                                unit_lbl_sel = "บาท/หน่วย"
+                                count_u_sel = 0
 
-                        # Col 1: Reference Point
+                        # 3. Raw Land Price per Sq.Wah Stats (ราคากลางที่ดินเปล่า บาท/วา - ดึงข้อมูลที่ดินเปล่าในรัศมีจากฐานข้อมูลทั้งหมด)
+                        all_radius_df = find_nearby_properties(inp_lat, inp_lng, df_raw, search_radius, match_type=None)
+                        raw_land_df = all_radius_df[
+                            all_radius_df['ประเภททรัพย์'].astype(str).str.contains('ที่ดินเปล่า|ที่ดิน', regex=True, na=False) &
+                            (all_radius_df['ราคา'] > 0)
+                        ].copy()
+
+                        if not raw_land_df.empty:
+                            raw_land_df['sqwah'] = raw_land_df.apply(parse_land_sqwah, axis=1)
+                            raw_land_df['u_price'] = np.where(
+                                (raw_land_df['sqwah'].notna()) & (raw_land_df['sqwah'] > 0),
+                                raw_land_df['ราคา'] / raw_land_df['sqwah'],
+                                np.nan
+                            )
+                            rl_prices = raw_land_df['u_price'].dropna()
+                            has_raw_land = not rl_prices.empty and len(rl_prices) > 0
+                        else:
+                            has_raw_land = False
+
+                        if has_raw_land:
+                            median_raw_land = float(rl_prices.median())
+                            min_raw_land = float(rl_prices.min())
+                            max_raw_land = float(rl_prices.max())
+                            count_raw_land = len(rl_prices)
+                        else:
+                            median_raw_land = min_raw_land = max_raw_land = 0.0
+                            count_raw_land = 0
+
+                        st.markdown(f"#### 📊 ผลการวิเคราะห์ราคากลางต่อหน่วย (Median Analysis) เฉพาะประเภททรัพย์: **{inp_type}**")
+
+                        # 3 Main Columns for metrics (Pure Unit Prices)
+                        m_col1, m_col2, m_col3 = st.columns(3)
+
+                        # Col 1: Reference Point Unit Price
+                        is_condo_ref = any(kw in str(inp_type).lower() for kw in ['คอนโด', 'ห้องชุด'])
+                        if is_condo_ref and 'inp_use_area' in locals() and pd.notna(inp_use_area) and float(inp_use_area) > 0:
+                            ref_u_p = inp_price / float(inp_use_area)
+                            ref_val_html = f"฿{ref_u_p:,.0f} <span style='font-size:0.85rem; font-weight:normal; color:#475569;'>/ตร.ม.</span>"
+                            ref_sub_html = f"ราคารวม ฿{inp_price:,.0f} | {inp_type} ({float(inp_use_area):,.1f} ตร.ม.)<br/><span style='color:#64748b; font-size:0.78rem;'>คำนวณจากพื้นที่ใช้สอย (ตารางเมตร)</span>"
+                        elif not is_condo_ref and 'inp_land_area' in locals() and pd.notna(inp_land_area) and float(inp_land_area) > 0:
+                            ref_u_p = inp_price / float(inp_land_area)
+                            ref_val_html = f"฿{ref_u_p:,.0f} <span style='font-size:0.85rem; font-weight:normal; color:#475569;'>/วา</span>"
+                            ref_sub_html = f"ราคารวม ฿{inp_price:,.0f} | {inp_type} ({float(inp_land_area):,.1f} วา)<br/><span style='color:#64748b; font-size:0.78rem;'>คำนวณจากพื้นที่ดิน (ตารางวา)</span>"
+                        else:
+                            ref_val_html = f"฿{inp_price:,.0f}"
+                            ref_sub_html = f"{inp_type} (ไม่ระบุขนาดพื้นที่)"
+
                         ref_html = f"""
                         <div class="metric-card">
                             <div class="metric-title"><i class="fa fa-map-marker" style="color: #ef4444;"></i> พิกัดอ้างอิงของคุณ</div>
-                            <div class="metric-value">฿{inp_price:,.0f}</div>
-                            <div class="metric-sub">{inp_type}</div>
+                            <div class="metric-value">{ref_val_html}</div>
+                            <div class="metric-sub">{ref_sub_html}</div>
                         </div>
                         """
                         m_col1.markdown(ref_html, unsafe_allow_html=True)
 
-                        # Helper function to generate sub text for diff
-                        def get_diff_sub_html(val, ref_val):
-                            if ref_val <= 0:
-                                return '<div class="metric-sub">ไม่ได้กำหนดราคาอ้างอิง</div>'
-                            diff = val - ref_val
-                            pct = (diff / ref_val) * 100
-                            if diff < 0:
-                                return f'<div class="metric-sub"><span style="color: #10b981; font-weight: 600;"><i class="fa fa-arrow-down"></i> ถูกกว่า {pct:+.1f}%</span> (ต่าง ฿{abs(diff):,.0f})</div>'
-                            elif diff > 0:
-                                return f'<div class="metric-sub"><span style="color: #ef4444; font-weight: 600;"><i class="fa fa-arrow-up"></i> แพงกว่า {pct:+.1f}%</span> (ต่าง ฿{abs(diff):,.0f})</div>'
-                            else:
-                                return '<div class="metric-sub"><span style="color: #64748b; font-weight: 600;">ราคาเท่ากัน</span></div>'
+                        # Col 2: Selected Property Type Unit Price (Median)
+                        if has_sel_u_stats:
+                            area_source_label = "คำนวณจากพื้นที่ใช้สอย (ตารางเมตร)" if unit_lbl_sel == "บาท/ตร.ม." else "คำนวณจากพื้นที่ดิน (ตารางวา)"
+                            unit_val_html = f"฿{median_u_sel:,.0f} <span style='font-size:0.85rem; font-weight:normal; color:#475569;'>/{unit_lbl_sel}</span>"
+                            unit_sub_html = f"ช่วง ฿{min_u_sel:,.0f} - ฿{max_u_sel:,.0f} /{unit_lbl_sel} ({count_u_sel:,} รายการในรัศมี {search_radius:.1f} กม.)<br/><span style='color:#64748b; font-size:0.78rem;'>{area_source_label}</span>"
+                        else:
+                            unit_val_html = "ไม่มีข้อมูล"
+                            unit_sub_html = f"ไม่พบข้อมูลพื้นที่ของ {inp_type} ในรัศมี {search_radius:.1f} กม."
 
-                        # Col 2: Min Price
-                        min_sub = get_diff_sub_html(min_price, inp_price)
-                        min_html = f"""
-                        <div class="metric-card">
-                            <div class="metric-title"><i class="fa fa-arrow-down" style="color: #10b981;"></i> ราคาต่ำสุดในพื้นที่</div>
-                            <div class="metric-value">฿{min_price:,.0f}</div>
-                            {min_sub}
+                        unit_html = f"""
+                        <div class="metric-card" style="background: rgba(59, 130, 246, 0.04); border: 1px solid rgba(59, 130, 246, 0.2);">
+                            <div class="metric-title"><i class="fa fa-tag" style="color: #3b82f6;"></i> ราคากลางต่อหน่วย (Median ในรัศมี {search_radius:.1f} กม.) - {inp_type}</div>
+                            <div class="metric-value" style="color: #2563eb;">{unit_val_html}</div>
+                            <div class="metric-sub">{unit_sub_html}</div>
                         </div>
                         """
-                        m_col2.markdown(min_html, unsafe_allow_html=True)
+                        m_col2.markdown(unit_html, unsafe_allow_html=True)
 
-                        # Col 3: Max Price
-                        max_sub = get_diff_sub_html(max_price, inp_price)
-                        max_html = f"""
-                        <div class="metric-card">
-                            <div class="metric-title"><i class="fa fa-arrow-up" style="color: #ef4444;"></i> ราคาสูงสุดในพื้นที่</div>
-                            <div class="metric-value">฿{max_price:,.0f}</div>
-                            {max_sub}
+                        # Col 3: Raw Land Price per Sq.Wah (Median)
+                        if has_raw_land:
+                            rl_val_html = f"฿{median_raw_land:,.0f} <span style='font-size:0.85rem; font-weight:normal; color:#475569;'>/วา</span>"
+                            rl_sub_html = f"ช่วง ฿{min_raw_land:,.0f} - ฿{max_raw_land:,.0f} /วา ({count_raw_land:,} รายการในรัศมี {search_radius:.1f} กม.)<br/><span style='color:#64748b; font-size:0.78rem;'>คำนวณจากพื้นที่ดิน (ตารางวา)</span>"
+                        else:
+                            rl_val_html = "ไม่มีข้อมูล"
+                            rl_sub_html = f"ไม่พบรายการที่ดินเปล่าในรัศมี {search_radius:.1f} กม."
+
+                        rl_html = f"""
+                        <div class="metric-card" style="background: rgba(16, 185, 129, 0.04); border: 1px solid rgba(16, 185, 129, 0.2);">
+                            <div class="metric-title"><i class="fa fa-tree" style="color: #10b981;"></i> ราคากลางที่ดินเปล่า (Median ในรัศมี {search_radius:.1f} กม.)</div>
+                            <div class="metric-value" style="color: #059669;">{rl_val_html}</div>
+                            <div class="metric-sub">{rl_sub_html}</div>
                         </div>
                         """
-                        m_col3.markdown(max_html, unsafe_allow_html=True)
-
-                        # Col 4: Median Price
-                        median_sub = get_diff_sub_html(median_price, inp_price)
-                        median_html = f"""
-                        <div class="metric-card">
-                            <div class="metric-title"><i class="fa fa-calculator" style="color: #3b82f6;"></i> ราคากลาง (Median) ในพื้นที่</div>
-                            <div class="metric-value">฿{median_price:,.0f}</div>
-                            {median_sub}
-                        </div>
-                        """
-                        m_col4.markdown(median_html, unsafe_allow_html=True)
-
-                        # Second row of metrics if unit price stats exist
-                        if has_unit_stats:
-                            u_col1, u_col2, u_col3, u_col4 = st.columns(4)
-                            u_col1.markdown(f"""
-                            <div class="metric-card" style="background: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.2);">
-                                <div class="metric-title"><i class="fa fa-ruler-combined" style="color: #3b82f6;"></i> มาตรวัดทำเลหลัก</div>
-                                <div class="metric-value" style="font-size: 1.1rem; color: #3b82f6;">{primary_unit_label}</div>
-                                <div class="metric-sub">ที่ดิน: บาท/วา | คอนโด: บาท/ตร.ม.</div>
-                            </div>
-                            """, unsafe_allow_html=True)
-
-                            u_col2.markdown(f"""
-                            <div class="metric-card" style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2);">
-                                <div class="metric-title"><i class="fa fa-tag" style="color: #10b981;"></i> ราคากลางต่อหน่วย (Median)</div>
-                                <div class="metric-value" style="color: #10b981;">฿{median_unit_p:,.0f}</div>
-                                <div class="metric-sub">{primary_unit_label}</div>
-                            </div>
-                            """, unsafe_allow_html=True)
-
-                            u_col3.markdown(f"""
-                            <div class="metric-card">
-                                <div class="metric-title"><i class="fa fa-arrow-down" style="color: #10b981;"></i> ราคาต่ำสุดต่อหน่วย</div>
-                                <div class="metric-value">฿{min_unit_p:,.0f}</div>
-                                <div class="metric-sub">{primary_unit_label}</div>
-                            </div>
-                            """, unsafe_allow_html=True)
-
-                            u_col4.markdown(f"""
-                            <div class="metric-card">
-                                <div class="metric-title"><i class="fa fa-arrow-up" style="color: #ef4444;"></i> ราคาสูงสุดต่อหน่วย</div>
-                                <div class="metric-value">฿{max_unit_p:,.0f}</div>
-                                <div class="metric-sub">{primary_unit_label}</div>
-                            </div>
-                            """, unsafe_allow_html=True)
+                        m_col3.markdown(rl_html, unsafe_allow_html=True)
 
                         st.markdown("<br/>", unsafe_allow_html=True)
 
-                        # Summary info box
-                        comp_word = "ถูกกว่า" if median_price < inp_price else ("แพงกว่า" if median_price > inp_price else "เท่ากับ")
-                        diff_median = abs(median_price - inp_price)
-                        diff_median_pct = (diff_median / inp_price * 100) if inp_price > 0 else 0
+                        # Summary info box focused on selected type vs raw land price (Median)
+                        summary_bullets = []
+                        if has_sel_u_stats:
+                            area_src = "พื้นที่ใช้สอย (ตร.ม.)" if unit_lbl_sel == "บาท/ตร.ม." else "พื้นที่ดิน (ตารางวา)"
+                            summary_bullets.append(f"- **ราคากลางต่อหน่วย (Median) เฉพาะ [{inp_type}]:** อยู่ที่ **฿{median_u_sel:,.0f} {unit_lbl_sel}** (คำนวณจาก{area_src} | ช่วงราคาตลาดระหว่าง ฿{min_u_sel:,.0f} ถึง ฿{max_u_sel:,.0f} {unit_lbl_sel})")
 
-                        unit_summary_str = f"\n- **ราคากลางต่อหน่วยของทำเล ({primary_unit_label}):** **฿{median_unit_p:,.0f}** {primary_unit_label} (ช่วงระหว่าง ฿{min_unit_p:,.0f} - ฿{max_unit_p:,.0f} {primary_unit_label})" if has_unit_stats else ""
+                        if has_raw_land:
+                            summary_bullets.append(f"- **ราคากลางต่อตารางวา (Median) ที่ดินเปล่าในทำเล:** อยู่ที่ **฿{median_raw_land:,.0f} บาท/ตารางวา** (คำนวณจากพื้นที่ดิน | ช่วงราคาที่ดินเปล่าในทำเล ฿{min_raw_land:,.0f} ถึง ฿{max_raw_land:,.0f} บาท/วา จาก {count_raw_land:,} รายการ)")
+
+                        # Local area median sqwah calculation for reference point location
+                        ref_prov = nearby_df['จังหวัด'].iloc[0] if 'จังหวัด' in nearby_df.columns and not nearby_df['จังหวัด'].empty else None
+                        ref_dist = nearby_df['อำเภอ'].iloc[0] if 'อำเภอ' in nearby_df.columns and not nearby_df['อำเภอ'].empty else None
+                        ref_subdist = nearby_df['ตำบล'].iloc[0] if 'ตำบล' in nearby_df.columns and not nearby_df['ตำบล'].empty else None
+
+                        loc_u_med, loc_u_lbl = get_location_median_sqwah(df_raw, ref_prov, ref_dist, ref_subdist)
+                        if pd.notna(loc_u_med) and loc_u_med > 0:
+                            summary_bullets.append(f"- **ราคากลางต่อตารางวา (Median ย่านทำเลของแถบนั้น):** อยู่ที่ **฿{loc_u_med:,.0f} บาท/ตารางวา** (อ้างอิง {loc_u_lbl})")
+
+                        unit_text_str = "\n".join(summary_bullets) if summary_bullets else "- ไม่พบข้อมูลสำหรับการวิเคราะห์เปรียบเทียบในเงื่อนไขนี้"
 
                         st.info(f"""
-                        💡 **บทวิเคราะห์ด้านราคาและมูลค่าทรัพย์สินเทียบตลาด**:
-                        - ทรัพย์สิน NPA ในทำเลนี้มีราคาระหว่าง **฿{min_price:,.0f}** ถึง **฿{max_price:,.0f}** บาท
-                        - **ส่วนต่างของช่วงราคา (ราคาสูงสุด - ต่ำสุด)** อยู่ที่ **฿{range_diff:,.0f}** บาท
-                        - **ราคากลาง (Median) รวม**: **฿{median_price:,.0f}** บาท ซึ่ง **{comp_word}** จุดอ้างอิงของคุณอยู่ **฿{diff_median:,.0f}** บาท (คิดเป็น {diff_median_pct:.1f}%){unit_summary_str}
+                        💡 **บทวิเคราะห์ราคากลางต่อหน่วย (Median Analysis) เทียบกับฐานราคาที่ดินเปล่าในทำเล**:
+                        {unit_text_str}
                         """)
 
-                    st.markdown("##### 📋 รายการทรัพย์สิน NPA ที่พบในรัศมีค้นหา (พร้อมราคาต่อตารางวา / ตารางเมตร)")
+                    st.markdown(f"##### 📋 รายการทรัพย์สิน NPA ที่พบในรัศมีค้นหาทั้งหมด {len(nearby_df):,} รายการ (พร้อมราคาต่อตารางวา / ตารางเมตร)")
 
                     # Show Table
-                    nearby_show = nearby_df[[
-                        "บริษัท", "รหัสทรัพย์", "ชื่อประกาศ", "ประเภททรัพย์", "ราคา", 
-                        "ขนาดพื้นที่", "ราคาต่อหน่วย (แสดงผล)",
+                    nearby_show = nearby_df.sort_values("ระยะทาง (กม.)").copy()
+                    nearby_show['ราคาขาย (บาท)'] = pd.to_numeric(nearby_show['ราคา'], errors='coerce')
+                    if 'พื้นที่ใช้สอย (ตร.ม.)' in nearby_show.columns:
+                        nearby_show['พื้นที่ใช้สอย (ตร.ม.)'] = pd.to_numeric(nearby_show['พื้นที่ใช้สอย (ตร.ม.)'], errors='coerce')
+                    else:
+                        nearby_show['พื้นที่ใช้สอย (ตร.ม.)'] = np.nan
+
+                    cols_nearby = [
+                        "บริษัท", "รหัสทรัพย์", "ชื่อประกาศ", "ประเภททรัพย์", "ราคาขาย (บาท)", 
+                        "ขนาดพื้นที่", "พื้นที่ใช้สอย (ตร.ม.)", "ราคาต่อหน่วย (แสดงผล)",
                         "จังหวัด", "อำเภอ", "ตำบล", "ระยะทาง (กม.)", "ลิงก์"
-                    ]].sort_values("ระยะทาง (กม.)").copy()
-                    nearby_show['ราคา'] = pd.to_numeric(nearby_show['ราคา'], errors='coerce')
+                    ]
+                    nearby_show = nearby_show[cols_nearby]
 
                     st.dataframe(
                         nearby_show,
                         width="stretch",
                         column_config={
-                            "ราคา": st.column_config.NumberColumn("ราคาขาย (บาท)", format="฿%.0f"),
-                            "ระยะทาง (กม.)": st.column_config.NumberColumn("ระยะทาง (กม.)", format="%.2f"),
+                            "ราคาขาย (บาท)": st.column_config.NumberColumn("ราคาขาย (บาท)", format="%,d"),
+                            "พื้นที่ใช้สอย (ตร.ม.)": st.column_config.NumberColumn("พื้นที่ใช้สอย (ตร.ม.)", format="%.1f ตร.ม."),
+                            "ระยะทาง (กม.)": st.column_config.NumberColumn("ระยะทาง (กม.)", format="%.2f กม."),
                             "ราคาต่อหน่วย (แสดงผล)": st.column_config.TextColumn("ราคาต่อหน่วย (บาท/วา หรือ บาท/ตร.ม.)")
                         }
                     )
 
                     # Show map
+                    total_found = len(nearby_df)
+                    map_nearby_df = nearby_df[
+                        nearby_df['ละติจูด'].notna() & 
+                        nearby_df['ลองจิจูด'].notna() & 
+                        (nearby_df['ละติจูด'] != 0) & 
+                        (nearby_df['ลองจิจูด'] != 0)
+                    ].sort_values("ระยะทาง (กม.)")
+
+                    valid_geo_count = len(map_nearby_df)
+                    missing_geo_count = total_found - valid_geo_count
+                    pct_geo = (valid_geo_count / total_found * 100) if total_found > 0 else 0.0
+                    pct_missing = 100.0 - pct_geo
+
                     st.markdown("##### 🗺️ แผนที่ตำแหน่งจุดอ้างอิงเทียบกับตำแหน่งทรัพย์ NPA ที่พบ")
+                    
+                    geo_info_msg = f"📍 **มีพิกัดปักหมุดบนแผนที่ได้:** **{valid_geo_count:,}** รายการ (คิดเป็น **{pct_geo:.1f}%**)"
+                    if missing_geo_count > 0:
+                        geo_info_msg += f" | ⚠️ **ไม่มีข้อมูลพิกัดในระบบ:** **{missing_geo_count:,}** รายการ ({pct_missing:.1f}% - แสดงเฉพาะในตารางข้อมูล)"
+                    
+                    st.caption(f"{geo_info_msg} จากทรัพย์ NPA ทั้งหมด {total_found:,} รายการที่พบในทำเล")
 
                     map_points = []
                     # Reference point
@@ -2420,7 +2652,6 @@ with tab4:
                     })
 
                     # Found points (display all properties found within radius)
-                    map_nearby_df = nearby_df.sort_values("ระยะทาง (กม.)")
                     for _, r in map_nearby_df.iterrows():
                         formatted_price = f"฿{r['ราคา']:,.0f}" if pd.notna(r['ราคา']) else "ไม่ระบุ"
                         map_points.append({
@@ -2483,146 +2714,304 @@ with tab4:
 
     with comp_sub_tab2:
         st.markdown("### ⚔️ เปรียบเทียบแบบ 1 ต่อ 1 (1-on-1 Asset Comparison)")
-        st.write("เลือกทรัพย์สิน 2 รายการที่คุณสนใจเพื่อเปรียบเทียบรายละเอียดและราคาขายแบบเคียงข้างกัน")
-        
-
+        st.write("เลือกทรัพย์สิน 2 รายการที่คุณสนใจเพื่อเปรียบเทียบรายละเอียดและราคาขายแบบเคียงข้างกัน (สามารถเลือกผ่านแผนที่ทำเล หรือเลือกลิสต์รายชื่อได้)")
         
         if df_raw is None or df_raw.empty:
             st.warning("⚠️ ไม่มีข้อมูลทรัพย์สินให้ทำการเปรียบเทียบ")
+            asset_a = None
+            asset_b = None
         else:
-            col_comp_1, col_comp_2 = st.columns(2)
-            
-            # --- ASSET A SELECTOR ---
-            with col_comp_1:
-                st.markdown("<h5 style='color: #3b82f6;'><i class='fa fa-home'></i> ทรัพย์สินรายการที่ 1 (Asset A)</h5>", unsafe_allow_html=True)
-                comp_a_co = st.selectbox(
-                    "เลือกบริษัท (รายการที่ 1)",
-                    options=sorted([str(c) for c in df_raw['บริษัท'].dropna().unique()]),
-                    index=0,
-                    key="oneone_co_a"
-                )
-                df_a_filtered = df_raw[df_raw['บริษัท'] == comp_a_co].copy()
-                types_a = sorted([str(t) for t in df_a_filtered['ประเภททรัพย์'].dropna().unique()]) if not df_a_filtered.empty else []
-                valid_types_a = ["ทั้งหมด"] + types_a
-                sanitize_session_state("oneone_type_a", valid_types_a, "ทั้งหมด")
-                comp_a_type = st.selectbox(
-                    "เลือกประเภททรัพย์ (รายการที่ 1)",
-                    options=valid_types_a,
-                    index=0,
-                    key="oneone_type_a"
-                )
+            # Mode selection
+            comp_mode = st.radio(
+                "🎯 เลือกรูปแบบการค้นหาทรัพย์สินเปรียบเทียบ:",
+                options=["🗺️ เลือกผ่านแผนที่ / รัศมีทำเล (Map & Radius Search)", "📋 เลือกจากรายการดร็อปดาวน์ (Dropdown Lists)"],
+                horizontal=True,
+                key="oneone_comp_mode"
+            )
+            st.markdown("<br/>", unsafe_allow_html=True)
+
+            asset_a = st.session_state.get("oneone_asset_a_override", None)
+            asset_b = st.session_state.get("oneone_asset_b_override", None)
+
+            if comp_mode.startswith("🗺️"):
+                # --- MODE 1: MAP & RADIUS SEARCH TABLE WITH CLICK SELECTION ---
+                st.markdown("##### 📍 ขั้นตอนที่ 1: กำหนดรัศมีทำเล และคลิกเลือกหมุดบนแผนที่")
                 
-                df_a_subset = df_a_filtered.copy()
-                if comp_a_type != "ทั้งหมด":
-                    df_a_subset = df_a_subset[df_a_subset['ประเภททรัพย์'] == comp_a_type]
-                    
-                search_a = st.text_input(
-                    "🔍 ค้นหารายการที่ 1 (ชื่อโครงการ, รหัสทรัพย์, ทำเล)",
-                    value="",
-                    placeholder="พิมพ์ชื่อโครงการ, รหัสทรัพย์, ทำเล...",
-                    key="oneone_search_a"
-                )
+                m_col_left, m_col_right = st.columns([1, 2])
+                with m_col_left:
+                    map_prov = st.selectbox(
+                        "จังหวัด",
+                        options=["ทั้งหมด"] + sorted([str(p) for p in df_raw['จังหวัด'].dropna().unique()]),
+                        key="oneone_map_prov"
+                    )
+                    df_map_subset = df_raw if map_prov == "ทั้งหมด" else df_raw[df_raw['จังหวัด'] == map_prov]
+
+                    dist_opts = ["ทั้งหมด"] + sorted([str(d) for d in df_map_subset['อำเภอ'].dropna().unique()])
+                    map_dist = st.selectbox("อำเภอ/เขต", options=dist_opts, key="oneone_map_dist")
+                    if map_dist != "ทั้งหมด":
+                        df_map_subset = df_map_subset[df_map_subset['อำเภอ'] == map_dist]
+
+                    type_opts = ["ทั้งหมด"] + sorted([str(t) for t in df_map_subset['ประเภททรัพย์'].dropna().unique()])
+                    map_type = st.selectbox("ประเภททรัพย์", options=type_opts, key="oneone_map_type")
+                    if map_type != "ทั้งหมด":
+                        df_map_subset = df_map_subset[df_map_subset['ประเภททรัพย์'] == map_type]
+
+                    # Radius Slider
+                    map_radius = st.slider(
+                        "📏 รัศมีการค้นหาจากจุดอ้างอิงทำเล (กิโลเมตร)", 
+                        min_value=0.5, 
+                        max_value=30.0, 
+                        value=5.0, 
+                        step=0.5, 
+                        key="oneone_map_radius"
+                    )
+
+                    # Calculate distance if reference coordinates exist
+                    if 'inp_lat' in locals() and 'inp_lng' in locals() and pd.notna(inp_lat) and pd.notna(inp_lng):
+                        df_map_subset = find_nearby_properties(inp_lat, inp_lng, df_map_subset, map_radius, match_type=None)
+                        st.caption(f"📍 คำนวณระยะทางจากพิกัดอ้างอิงในรัศมี **{map_radius:.1f} กม.**")
+
+                    search_kw = st.text_input("🔍 พิมพ์ชื่อโครงการ/ทำเลค้นหาเพิ่มเติม", value="", placeholder="เช่น บางบัวทอง, ลาดพร้าว...", key="oneone_map_kw")
+                    if search_kw.strip():
+                        q = search_kw.strip().lower()
+                        df_map_subset = df_map_subset[
+                            df_map_subset['ชื่อประกาศ'].astype(str).str.lower().str.contains(q, na=False) |
+                            df_map_subset['รหัสทรัพย์'].astype(str).str.lower().str.contains(q, na=False) |
+                            df_map_subset['ชื่อโครงการ'].astype(str).str.lower().str.contains(q, na=False)
+                        ]
+
+                with m_col_right:
+                    # Show map of matching properties with click event enabled
+                    valid_geo_df = df_map_subset[
+                        df_map_subset['ละติจูด'].notna() & 
+                        df_map_subset['ลองจิจูด'].notna() & 
+                        (df_map_subset['ละติจูด'] != 0)
+                    ].copy().reset_index(drop=True)
+
+                    if not valid_geo_df.empty:
+                        valid_geo_df['formatted_price'] = valid_geo_df['ราคา'].apply(lambda p: f"฿{p:,.0f}" if pd.notna(p) else "ไม่ระบุ")
+                        fig_picker = px.scatter_map(
+                            valid_geo_df.head(500),
+                            lat="ละติจูด",
+                            lon="ลองจิจูด",
+                            color="บริษัท",
+                            hover_name="ชื่อประกาศ",
+                            hover_data={"formatted_price": True, "ประเภททรัพย์": True, "บริษัท": True},
+                            zoom=10,
+                            height=380,
+                            color_discrete_map={
+                                "Baania": "#f59e0b", "BAM": "#3b82f6", "SAM": "#10b981",
+                                "Livinginsider": "#84cc16", "DDproperty": "#a855f7",
+                                "Taladnudbaan": "#06b6d4", "ZmyHome": "#ec4899"
+                            },
+                            template=plotly_template
+                        )
+                        fig_picker.update_layout(
+                            map_style=mapbox_style,
+                            margin={"r":0,"t":0,"l":0,"b":0},
+                            paper_bgcolor="rgba(0,0,0,0)"
+                        )
+                        map_event = st.plotly_chart(
+                            style_plotly_fig(fig_picker), 
+                            width="stretch", 
+                            theme=None, 
+                            config={"scrollZoom": True},
+                            on_select="rerun",
+                            selection_mode="points",
+                            key="oneone_map_plotly_click"
+                        )
+                    else:
+                        map_event = None
+                        st.info("🗺️ ไม่พบจุดพิกัดละติจูดบนแผนที่ในเงื่อนไขนี้ (แต่สามารถเลือกลิสต์ในตารางด้านล่างได้)")
+
+                # Handle Click Event on Map Marker
+                selected_points = map_event.get("selection", {}).get("points", []) if map_event else []
                 
-                if search_a:
-                    q = search_a.strip().lower()
-                    df_a_subset = df_a_subset[
-                        df_a_subset['ชื่อประกาศ'].astype(str).str.lower().str.contains(q, na=False) |
-                        df_a_subset['รหัสทรัพย์'].astype(str).str.lower().str.contains(q, na=False) |
-                        df_a_subset['ชื่อโครงการ'].astype(str).str.lower().str.contains(q, na=False)
-                    ]
+                if selected_points and not valid_geo_df.empty:
+                    point_idx = selected_points[0].get("point_index", 0)
+                    clicked_row = valid_geo_df.iloc[point_idx] if point_idx < len(valid_geo_df) else None
+                    if clicked_row is not None:
+                        st.markdown("##### 🎯 รายการที่คุณคลิกเลือกบนแผนที่ (1 รายการ):")
+                        single_df = pd.DataFrame([clicked_row])
+                        single_df['ราคาเสนอขาย'] = single_df['ราคา'].apply(lambda p: f"฿{p:,.0f}" if pd.notna(p) else "-")
+                        t_cols = ['บริษัท', 'รหัสทรัพย์', 'ชื่อประกาศ', 'ประเภททรัพย์', 'ราคาเสนอขาย', 'ตำบล', 'อำเภอ', 'จังหวัด']
+                        if 'ระยะทาง (กม.)' in single_df.columns:
+                            t_cols.insert(5, 'ระยะทาง (กม.)')
+                            single_df['ระยะทาง (กม.)'] = single_df['ระยะทาง (กม.)'].map('{:.2f}'.format)
+                            
+                        st.dataframe(single_df[t_cols], use_container_width=True, height=95)
+                        
+                        btn_c1, btn_c2 = st.columns(2)
+                        with btn_c1:
+                            if st.button("🔵 ตั้งเป็น Asset A (จากหมุดที่คลิก)", key=f"btn_clk_a_{clicked_row['รหัสทรัพย์']}"):
+                                st.session_state["oneone_asset_a_override"] = clicked_row
+                                st.rerun()
+                        with btn_c2:
+                            if st.button("💖 ตั้งเป็น Asset B (จากหมุดที่คลิก)", key=f"btn_clk_b_{clicked_row['รหัสทรัพย์']}"):
+                                st.session_state["oneone_asset_b_override"] = clicked_row
+                                st.rerun()
+                        st.markdown("<hr/>", unsafe_allow_html=True)
+
+                st.markdown("##### 📋 ตารางรายการทรัพย์สิน NPA ทั้งหมดในทำเลที่เลือก (พร้อมปุ่มเลือกเปรียบเทียบ)")
+                st.caption(f"พบรายการทรัพย์สิน NPA รวม **{len(df_map_subset):,}** รายการในรัศมีทำเลที่เลือก:")
+
+                if not df_map_subset.empty:
+                    df_display_table = df_map_subset.copy()
+                    df_display_table['ราคาเสนอขาย'] = df_display_table['ราคา'].apply(lambda p: f"฿{p:,.0f}" if pd.notna(p) else "-")
                     
-                if not df_a_subset.empty:
-                    df_a_subset = df_a_subset.copy()
-                    df_a_subset['label'] = (
-                        df_a_subset['ชื่อประกาศ'].astype(str).str[:35] + " (" + 
-                        df_a_subset['รหัสทรัพย์'].astype(str) + ") - ฿" + 
-                        df_a_subset['ราคา'].map('{:,.0f}'.format)
-                    )
-                    df_a_subset = df_a_subset.drop_duplicates(subset=['label'])
-                    display_a = df_a_subset.head(100)
+                    # Columns to present in summary table
+                    table_cols = ['บริษัท', 'รหัสทรัพย์', 'ชื่อประกาศ', 'ประเภททรัพย์', 'ราคาเสนอขาย', 'ตำบล', 'อำเภอ', 'จังหวัด']
+                    if 'ระยะทาง (กม.)' in df_display_table.columns:
+                        table_cols.insert(5, 'ระยะทาง (กม.)')
+                        df_display_table['ระยะทาง (กม.)'] = df_display_table['ระยะทาง (กม.)'].map('{:.2f}'.format)
                     
-                    st.write(f"พบที่ตรงกัน {len(df_a_subset):,} รายการ แสดงผล 100 รายการแรก")
-                    valid_labels_a = display_a['label'].tolist()
-                    sanitize_session_state("oneone_sel_a", valid_labels_a)
-                    sel_label_a = st.selectbox(
-                        "ค้นหาและเลือกทรัพย์สินรายการที่ 1",
-                        options=valid_labels_a,
-                        index=0,
-                        key="oneone_sel_a"
+                    st.dataframe(
+                        df_display_table[table_cols].head(100),
+                        use_container_width=True,
+                        height=200
                     )
-                    match_a = display_a[display_a['label'] == sel_label_a] if sel_label_a else None
-                    asset_a = match_a.iloc[0] if match_a is not None and not match_a.empty else None
+
+                    # Quick Selector Dropdowns right under Table
+                    df_display_table['label'] = (
+                        df_display_table['บริษัท'].astype(str) + " | " +
+                        df_display_table['ชื่อประกาศ'].astype(str).str[:30] + " (" +
+                        df_display_table['รหัสทรัพย์'].astype(str) + ") - ฿" +
+                        df_display_table['ราคา'].map('{:,.0f}'.format)
+                    )
+                    valid_labels = ["-- เลือกรายการ --"] + df_display_table['label'].tolist()
+
+                    col_sel_a, col_sel_b = st.columns(2)
+                    with col_sel_a:
+                        sel_a_choice = st.selectbox("🔵 เลือกตั้งเป็นทรัพย์สินรายการที่ 1 (Asset A) จากตาราง", options=valid_labels, key="map_table_sel_a")
+                        if sel_a_choice != "-- เลือกรายการ --":
+                            match_row = df_display_table[df_display_table['label'] == sel_a_choice]
+                            if not match_row.empty:
+                                st.session_state["oneone_asset_a_override"] = match_row.iloc[0]
+
+                    with col_sel_b:
+                        sel_b_choice = st.selectbox("💖 เลือกตั้งเป็นทรัพย์สินรายการที่ 2 (Asset B) จากตาราง", options=valid_labels, key="map_table_sel_b")
+                        if sel_b_choice != "-- เลือกรายการ --":
+                            match_row = df_display_table[df_display_table['label'] == sel_b_choice]
+                            if not match_row.empty:
+                                st.session_state["oneone_asset_b_override"] = match_row.iloc[0]
                 else:
-                    st.warning("⚠️ ไม่พบทรัพย์สินตามเงื่อนไขค้นหา")
-                    asset_a = None
-                    
-            # --- ASSET B SELECTOR ---
-            with col_comp_2:
-                st.markdown("<h5 style='color: #ec4899;'><i class='fa fa-home'></i> ทรัพย์สินรายการที่ 2 (Asset B)</h5>", unsafe_allow_html=True)
-                companies_list = sorted([str(c) for c in df_raw['บริษัท'].dropna().unique()])
-                default_idx_b = 1 if len(companies_list) > 1 else 0
-                comp_b_co = st.selectbox(
-                    "เลือกบริษัท (รายการที่ 2)",
-                    options=companies_list,
-                    index=default_idx_b,
-                    key="oneone_co_b"
-                )
-                df_b_filtered = df_raw[df_raw['บริษัท'] == comp_b_co].copy()
-                types_b = sorted([str(t) for t in df_b_filtered['ประเภททรัพย์'].dropna().unique()]) if not df_b_filtered.empty else []
-                valid_types_b = ["ทั้งหมด"] + types_b
-                sanitize_session_state("oneone_type_b", valid_types_b, "ทั้งหมด")
-                comp_b_type = st.selectbox(
-                    "เลือกประเภททรัพย์ (รายการที่ 2)",
-                    options=valid_types_b,
-                    index=0,
-                    key="oneone_type_b"
-                )
+                    st.warning("⚠️ ไม่พบทรัพย์สินตามเงื่อนไขรัศมีและทำเลที่กำหนด")
+
+            else:
+                # --- MODE 2: DROPDOWN SELECTORS ---
+                col_comp_1, col_comp_2 = st.columns(2)
                 
-                df_b_subset = df_b_filtered.copy()
-                if comp_b_type != "ทั้งหมด":
-                    df_b_subset = df_b_subset[df_b_subset['ประเภททรัพย์'] == comp_b_type]
+                # --- ASSET A SELECTOR ---
+                with col_comp_1:
+                    st.markdown("<h5 style='color: #3b82f6;'><i class='fa fa-home'></i> เลือกทรัพย์สินรายการที่ 1 (Asset A)</h5>", unsafe_allow_html=True)
+                    comp_a_co = st.selectbox("เลือกบริษัท (รายการที่ 1)", options=sorted([str(c) for c in df_raw['บริษัท'].dropna().unique()]), index=0, key="oneone_co_a")
+                    df_a_filtered = df_raw[df_raw['บริษัท'] == comp_a_co].copy()
+                    types_a = sorted([str(t) for t in df_a_filtered['ประเภททรัพย์'].dropna().unique()]) if not df_a_filtered.empty else []
+                    valid_types_a = ["ทั้งหมด"] + types_a
+                    sanitize_session_state("oneone_type_a", valid_types_a, "ทั้งหมด")
+                    comp_a_type = st.selectbox("เลือกประเภททรัพย์ (รายการที่ 1)", options=valid_types_a, index=0, key="oneone_type_a")
                     
-                search_b = st.text_input(
-                    "🔍 ค้นหารายการที่ 2 (ชื่อโครงการ, รหัสทรัพย์, ทำเล)",
-                    value="",
-                    placeholder="พิมพ์ชื่อโครงการ, รหัสทรัพย์, ทำเล...",
-                    key="oneone_search_b"
-                )
-                
-                if search_b:
-                    q = search_b.strip().lower()
-                    df_b_subset = df_b_subset[
-                        df_b_subset['ชื่อประกาศ'].astype(str).str.lower().str.contains(q, na=False) |
-                        df_b_subset['รหัสทรัพย์'].astype(str).str.lower().str.contains(q, na=False) |
-                        df_b_subset['ชื่อโครงการ'].astype(str).str.lower().str.contains(q, na=False)
-                    ]
+                    df_a_subset = df_a_filtered.copy()
+                    if comp_a_type != "ทั้งหมด":
+                        df_a_subset = df_a_subset[df_a_subset['ประเภททรัพย์'] == comp_a_type]
+                        
+                    search_a = st.text_input("🔍 ค้นหารายการที่ 1", value="", placeholder="พิมพ์ชื่อโครงการ, รหัสทรัพย์...", key="oneone_search_a")
+                    if search_a:
+                        q = search_a.strip().lower()
+                        df_a_subset = df_a_subset[
+                            df_a_subset['ชื่อประกาศ'].astype(str).str.lower().str.contains(q, na=False) |
+                            df_a_subset['รหัสทรัพย์'].astype(str).str.lower().str.contains(q, na=False) |
+                            df_a_subset['ชื่อโครงการ'].astype(str).str.lower().str.contains(q, na=False)
+                        ]
+                        
+                    if not df_a_subset.empty:
+                        df_a_subset = df_a_subset.copy()
+                        df_a_subset['label'] = (
+                            df_a_subset['ชื่อประกาศ'].astype(str).str[:35] + " (" + 
+                            df_a_subset['รหัสทรัพย์'].astype(str) + ") - ฿" + 
+                            df_a_subset['ราคา'].map('{:,.0f}'.format)
+                        )
+                        df_a_subset = df_a_subset.drop_duplicates(subset=['label'])
+                        display_a = df_a_subset.head(100)
+                        valid_labels_a = display_a['label'].tolist()
+                        sanitize_session_state("oneone_sel_a", valid_labels_a)
+                        sel_label_a = st.selectbox("ค้นหาและเลือกทรัพย์สินรายการที่ 1", options=valid_labels_a, index=0, key="oneone_sel_a")
+                        match_a = display_a[display_a['label'] == sel_label_a] if sel_label_a else None
+                        if match_a is not None and not match_a.empty:
+                            asset_a = match_a.iloc[0]
+                            st.session_state["oneone_asset_a_override"] = asset_a
+
+                # --- ASSET B SELECTOR ---
+                with col_comp_2:
+                    st.markdown("<h5 style='color: #ec4899;'><i class='fa fa-home'></i> เลือกทรัพย์สินรายการที่ 2 (Asset B)</h5>", unsafe_allow_html=True)
+                    companies_list = sorted([str(c) for c in df_raw['บริษัท'].dropna().unique()])
+                    default_idx_b = 1 if len(companies_list) > 1 else 0
+                    comp_b_co = st.selectbox("เลือกบริษัท (รายการที่ 2)", options=companies_list, index=default_idx_b, key="oneone_co_b")
+                    df_b_filtered = df_raw[df_raw['บริษัท'] == comp_b_co].copy()
+                    types_b = sorted([str(t) for t in df_b_filtered['ประเภททรัพย์'].dropna().unique()]) if not df_b_filtered.empty else []
+                    valid_types_b = ["ทั้งหมด"] + types_b
+                    sanitize_session_state("oneone_type_b", valid_types_b, "ทั้งหมด")
+                    comp_b_type = st.selectbox("เลือกประเภททรัพย์ (รายการที่ 2)", options=valid_types_b, index=0, key="oneone_type_b")
                     
-                if not df_b_subset.empty:
-                    df_b_subset = df_b_subset.copy()
-                    df_b_subset['label'] = (
-                        df_b_subset['ชื่อประกาศ'].astype(str).str[:35] + " (" + 
-                        df_b_subset['รหัสทรัพย์'].astype(str) + ") - ฿" + 
-                        df_b_subset['ราคา'].map('{:,.0f}'.format)
-                    )
-                    df_b_subset = df_b_subset.drop_duplicates(subset=['label'])
-                    display_b = df_b_subset.head(100)
-                    
-                    st.write(f"พบที่ตรงกัน {len(df_b_subset):,} รายการ แสดงผล 100 รายการแรก")
-                    valid_labels_b = display_b['label'].tolist()
-                    sanitize_session_state("oneone_sel_b", valid_labels_b)
-                    sel_label_b = st.selectbox(
-                        "ค้นหาและเลือกทรัพย์สินรายการที่ 2",
-                        options=valid_labels_b,
-                        index=0,
-                        key="oneone_sel_b"
-                    )
-                    match_b = display_b[display_b['label'] == sel_label_b] if sel_label_b else None
-                    asset_b = match_b.iloc[0] if match_b is not None and not match_b.empty else None
+                    df_b_subset = df_b_filtered.copy()
+                    if comp_b_type != "ทั้งหมด":
+                        df_b_subset = df_b_subset[df_b_subset['ประเภททรัพย์'] == comp_b_type]
+                        
+                    search_b = st.text_input("🔍 ค้นหารายการที่ 2", value="", placeholder="พิมพ์ชื่อโครงการ, รหัสทรัพย์...", key="oneone_search_b")
+                    if search_b:
+                        q = search_b.strip().lower()
+                        df_b_subset = df_b_subset[
+                            df_b_subset['ชื่อประกาศ'].astype(str).str.lower().str.contains(q, na=False) |
+                            df_b_subset['รหัสทรัพย์'].astype(str).str.lower().str.contains(q, na=False) |
+                            df_b_subset['ชื่อโครงการ'].astype(str).str.lower().str.contains(q, na=False)
+                        ]
+                        
+                    if not df_b_subset.empty:
+                        df_b_subset = df_b_subset.copy()
+                        df_b_subset['label'] = (
+                            df_b_subset['ชื่อประกาศ'].astype(str).str[:35] + " (" + 
+                            df_b_subset['รหัสทรัพย์'].astype(str) + ") - ฿" + 
+                            df_b_subset['ราคา'].map('{:,.0f}'.format)
+                        )
+                        df_b_subset = df_b_subset.drop_duplicates(subset=['label'])
+                        display_b = df_b_subset.head(100)
+                        valid_labels_b = display_b['label'].tolist()
+                        sanitize_session_state("oneone_sel_b", valid_labels_b)
+                        sel_label_b = st.selectbox("ค้นหาและเลือกทรัพย์สินรายการที่ 2", options=valid_labels_b, index=0, key="oneone_sel_b")
+                        match_b = display_b[display_b['label'] == sel_label_b] if sel_label_b else None
+                        if match_b is not None and not match_b.empty:
+                            asset_b = match_b.iloc[0]
+                            st.session_state["oneone_asset_b_override"] = asset_b
+
+            # --- SLOT BANNER DISPLAY & SWAP CONTROL ---
+            st.markdown("<br/>", unsafe_allow_html=True)
+            slot_col1, slot_col2 = st.columns(2)
+            with slot_col1:
+                if asset_a is not None:
+                    p_a_str = f"฿{asset_a['ราคา']:,.0f}" if pd.notna(asset_a['ราคา']) else "-"
+                    st.success(f"🔵 **Asset A ที่เลือก:** {asset_a['ชื่อประกาศ'][:30]} ({asset_a['บริษัท']}) - **{p_a_str}**")
                 else:
-                    st.warning("⚠️ ไม่พบทรัพย์สินตามเงื่อนไขค้นหา")
-                    asset_b = None
-            
-            # --- COMPARISON OUTPUT ---
+                    st.warning("🔵 **Asset A:** ยังไม่ได้เลือกรายการ")
+
+            with slot_col2:
+                if asset_b is not None:
+                    p_b_str = f"฿{asset_b['ราคา']:,.0f}" if pd.notna(asset_b['ราคา']) else "-"
+                    st.success(f"💖 **Asset B ที่เลือก:** {asset_b['ชื่อประกาศ'][:30]} ({asset_b['บริษัท']}) - **{p_b_str}**")
+                else:
+                    st.warning("💖 **Asset B:** ยังไม่ได้เลือกรายการ")
+
+            ctrl_c1, ctrl_c2, ctrl_c3 = st.columns([1, 1, 2])
+            with ctrl_c1:
+                if st.button("🔄 สลับตำแหน่ง (A ↔ B)"):
+                    st.session_state["oneone_asset_a_override"], st.session_state["oneone_asset_b_override"] = asset_b, asset_a
+                    st.rerun()
+            with ctrl_c2:
+                if st.button("🗑️ ล้างรายการที่เลือก"):
+                    st.session_state["oneone_asset_a_override"] = None
+                    st.session_state["oneone_asset_b_override"] = None
+                    st.rerun()
+
+# --- COMPARISON OUTPUT ---
             if asset_a is not None and asset_b is not None:
                 st.markdown("<br/><h4>📊 ผลการเปรียบเทียบแบบเคียงข้าง (Side-by-Side Comparison)</h4>", unsafe_allow_html=True)
                 
@@ -2630,9 +3019,85 @@ with tab4:
                 price_b = float(asset_b['ราคา']) if pd.notna(asset_b['ราคา']) else 0.0
                 area_a = float(asset_a['พื้นที่ใช้สอย (ตร.ม.)']) if pd.notna(asset_a['พื้นที่ใช้สอย (ตร.ม.)']) else 0.0
                 area_b = float(asset_b['พื้นที่ใช้สอย (ตร.ม.)']) if pd.notna(asset_b['พื้นที่ใช้สอย (ตร.ม.)']) else 0.0
-                sqm_a = float(asset_a['ราคาต่อตารางเมตร']) if pd.notna(asset_a['ราคาต่อตารางเมตร']) else 0.0
-                sqm_b = float(asset_b['ราคาต่อตารางเมตร']) if pd.notna(asset_b['ราคาต่อตารางเมตร']) else 0.0
                 
+                # --- UNIT PRICE CALCULATIONS FOR ASSET A & B ---
+                is_condo_a = any(kw in str(asset_a.get('ประเภททรัพย์', '')).lower() for kw in ['คอนโด', 'ห้องชุด'])
+                sqwah_a = parse_land_sqwah(asset_a)
+                if is_condo_a:
+                    u_price_a = price_a / area_a if area_a > 0 else np.nan
+                    u_lbl_a = "บาท/ตร.ม."
+                    base_lbl_a = "พื้นที่ใช้สอย"
+                else:
+                    u_price_a = price_a / sqwah_a if (pd.notna(sqwah_a) and sqwah_a > 0) else np.nan
+                    u_lbl_a = "บาท/วา"
+                    base_lbl_a = "พื้นที่ดิน"
+
+                is_condo_b = any(kw in str(asset_b.get('ประเภททรัพย์', '')).lower() for kw in ['คอนโด', 'ห้องชุด'])
+                sqwah_b = parse_land_sqwah(asset_b)
+                if is_condo_b:
+                    u_price_b = price_b / area_b if area_b > 0 else np.nan
+                    u_lbl_b = "บาท/ตร.ม."
+                    base_lbl_b = "พื้นที่ใช้สอย"
+                else:
+                    u_price_b = price_b / sqwah_b if (pd.notna(sqwah_b) and sqwah_b > 0) else np.nan
+                    u_lbl_b = "บาท/วา"
+                    base_lbl_b = "พื้นที่ดิน"
+
+                sqm_a = float(u_price_a) if (pd.notna(u_price_a) and u_price_a > 0) else 0.0
+                sqm_b = float(u_price_b) if (pd.notna(u_price_b) and u_price_b > 0) else 0.0
+
+                # Local area median sqwah price calculation for Asset A & Asset B
+                loc_u_med_a, loc_lbl_a = get_location_median_sqwah(df_raw, asset_a.get('จังหวัด'), asset_a.get('อำเภอ'), asset_a.get('ตำบล'))
+                loc_u_med_b, loc_lbl_b = get_location_median_sqwah(df_raw, asset_b.get('จังหวัด'), asset_b.get('อำเภอ'), asset_b.get('ตำบล'))
+                str_loc_med_a = f"฿{loc_u_med_a:,.0f} /วา ({loc_lbl_a})" if pd.notna(loc_u_med_a) and loc_u_med_a > 0 else "ไม่มีข้อมูล"
+                str_loc_med_b = f"฿{loc_u_med_b:,.0f} /วา ({loc_lbl_b})" if pd.notna(loc_u_med_b) and loc_u_med_b > 0 else "ไม่มีข้อมูล"
+
+                # Sq.Wah Unit Prices for Raw Land comparison
+                u_sqwah_a = price_a / sqwah_a if (pd.notna(sqwah_a) and sqwah_a > 0) else np.nan
+                u_sqwah_b = price_b / sqwah_b if (pd.notna(sqwah_b) and sqwah_b > 0) else np.nan
+
+                # --- MARKET MEDIAN UNIT PRICES FROM DF_RAW ---
+                # 1. Raw Land Median Unit Price (บาท/วา)
+                raw_land_df_all = df_raw[
+                    df_raw['ประเภททรัพย์'].astype(str).str.contains('ที่ดินเปล่า|ที่ดิน', regex=True, na=False) &
+                    (df_raw['ราคา'] > 0)
+                ].copy() if df_raw is not None else pd.DataFrame()
+
+                if not raw_land_df_all.empty:
+                    raw_land_df_all['sqwah'] = raw_land_df_all.apply(parse_land_sqwah, axis=1)
+                    raw_land_df_all['u_price'] = np.where(
+                        (raw_land_df_all['sqwah'].notna()) & (raw_land_df_all['sqwah'] > 0),
+                        raw_land_df_all['ราคา'] / raw_land_df_all['sqwah'],
+                        np.nan
+                    )
+                    rl_u_median = float(raw_land_df_all['u_price'].dropna().median()) if not raw_land_df_all['u_price'].dropna().empty else 0.0
+                else:
+                    rl_u_median = 0.0
+
+                # 2. Median Unit Price for Property Type A
+                type_a_df = df_raw[df_raw['ประเภททรัพย์'] == asset_a['ประเภททรัพย์']].copy() if df_raw is not None else pd.DataFrame()
+                if not type_a_df.empty:
+                    def calc_u(r):
+                        p = r.get('ราคา')
+                        if pd.isna(p) or float(p) <= 0: return np.nan
+                        pt = str(r.get('ประเภททรัพย์', '')).lower()
+                        if any(kw in pt for kw in ['คอนโด', 'ห้องชุด']):
+                            s = r.get('พื้นที่ใช้สอย (ตร.ม.)')
+                            return float(p)/float(s) if (pd.notna(s) and float(s)>0) else np.nan
+                        else:
+                            w = parse_land_sqwah(r)
+                            return float(p)/float(w) if (pd.notna(w) and float(w)>0) else np.nan
+                    type_a_u_median = float(type_a_df.apply(calc_u, axis=1).dropna().median()) if not type_a_df.empty else 0.0
+                else:
+                    type_a_u_median = 0.0
+
+                # 3. Median Unit Price for Property Type B
+                type_b_df = df_raw[df_raw['ประเภททรัพย์'] == asset_b['ประเภททรัพย์']].copy() if df_raw is not None else pd.DataFrame()
+                if not type_b_df.empty:
+                    type_b_u_median = float(type_b_df.apply(calc_u, axis=1).dropna().median()) if not type_b_df.empty else 0.0
+                else:
+                    type_b_u_median = 0.0
+
                 lat_a = float(asset_a['ละติจูด']) if pd.notna(asset_a['ละติจูด']) else None
                 lat_b = float(asset_b['ละติจูด']) if pd.notna(asset_b['ละติจูด']) else None
                 lng_a = float(asset_a['ลองจิจูด']) if pd.notna(asset_a['ลองจิจูด']) else None
@@ -2640,43 +3105,58 @@ with tab4:
                 
                 dist_km = haversine_distance(lat_a, lng_a, lat_b, lng_b) if (lat_a and lng_a and lat_b and lng_b) else None
                 
-                k_col1, k_col2, k_col3 = st.columns(3)
+                # --- METRIC CARDS (4 COLUMNS) ---
+                k_col1, k_col2, k_col3, k_col4 = st.columns(4)
                 
-                # Metric 1: Price Deal
+                # Metric 1: Asset A Unit Price
                 with k_col1:
-                    if price_a > 0 and price_b > 0:
-                        if price_a < price_b:
-                            diff = price_b - price_a
-                            pct = (diff / price_b) * 100
-                            st.metric("ดีลราคาประหยัดกว่า", f"{asset_a['บริษัท']}", f"-฿{diff:,.0f} (-{pct:.1f}%)")
-                        elif price_b < price_a:
-                            diff = price_a - price_b
-                            pct = (diff / price_a) * 100
-                            st.metric("ดีลราคาประหยัดกว่า", f"{asset_b['บริษัท']}", f"-฿{diff:,.0f} (-{pct:.1f}%)")
+                    if pd.notna(u_price_a) and u_price_a > 0:
+                        val_str_a = f"฿{u_price_a:,.0f} /{u_lbl_a.replace('บาท/', '')}"
+                        if type_a_u_median > 0:
+                            diff_a = u_price_a - type_a_u_median
+                            pct_a = (diff_a / type_a_u_median) * 100
+                            sub_a = f"เทียบราคากลาง ({pct_a:+.1f}%)"
                         else:
-                            st.metric("ดีลราคาประหยัดกว่า", "ราคาเท่ากัน", "0%")
+                            sub_a = f"คำนวณจาก{base_lbl_a}"
+                        st.metric(f"🏷️ ราคา/หน่วย (Asset A - {asset_a['บริษัท']})", val_str_a, sub_a)
                     else:
-                        st.metric("ดีลราคาประหยัดกว่า", "N/A", "ไม่มีข้อมูลราคา")
-                        
-                # Metric 2: Price per Sq.M. Deal
+                        st.metric(f"🏷️ ราคา/หน่วย (Asset A)", "N/A", "ไม่มีข้อมูลขนาดพื้นที่")
+
+                # Metric 2: Asset B Unit Price
                 with k_col2:
-                    if sqm_a > 0 and sqm_b > 0:
-                        if sqm_a < sqm_b:
-                            diff = sqm_b - sqm_a
-                            pct = (diff / sqm_b) * 100
-                            st.metric("ราคา ตร.ม. ประหยัดกว่า", f"{asset_a['บริษัท']}", f"-฿{diff:,.0f}/ตร.ม. (-{pct:.1f}%)")
-                        elif sqm_b < sqm_a:
-                            diff = sqm_a - sqm_b
-                            pct = (diff / sqm_a) * 100
-                            st.metric("ราคา ตร.ม. ประหยัดกว่า", f"{asset_b['บริษัท']}", f"-฿{diff:,.0f}/ตร.ม. (-{pct:.1f}%)")
+                    if pd.notna(u_price_b) and u_price_b > 0:
+                        val_str_b = f"฿{u_price_b:,.0f} /{u_lbl_b.replace('บาท/', '')}"
+                        if type_b_u_median > 0:
+                            diff_b = u_price_b - type_b_u_median
+                            pct_b = (diff_b / type_b_u_median) * 100
+                            sub_b = f"เทียบราคากลาง ({pct_b:+.1f}%)"
                         else:
-                            st.metric("ราคา ตร.ม.", "เฉลี่ยเท่ากัน", "0%")
+                            sub_b = f"คำนวณจาก{base_lbl_b}"
+                        st.metric(f"🏷️ ราคา/หน่วย (Asset B - {asset_b['บริษัท']})", val_str_b, sub_b)
                     else:
-                        st.metric("ราคา ตร.ม.", "N/A", "ไม่มีข้อมูล")
-                        
-                # Metric 3: Distance
+                        st.metric(f"🏷️ ราคา/หน่วย (Asset B)", "N/A", "ไม่มีข้อมูลขนาดพื้นที่")
+
+                # Metric 3: Raw Land Median Comparison
                 with k_col3:
-                    if dist_km is not None:
+                    if rl_u_median > 0:
+                        st.metric("🌾 ราคากลางที่ดินเปล่า", f"฿{rl_u_median:,.0f} /วา", "ราคากลางในระบบ")
+                    else:
+                        st.metric("🌾 ราคากลางที่ดินเปล่า", "N/A", "ไม่มีข้อมูล")
+
+                # Metric 4: Distance / Unit Price Deal Winner
+                with k_col4:
+                    if pd.notna(u_price_a) and pd.notna(u_price_b) and u_lbl_a == u_lbl_b:
+                        if u_price_a < u_price_b:
+                            diff_u = u_price_b - u_price_a
+                            pct_u = (diff_u / u_price_b) * 100
+                            st.metric("ดีลราคา/หน่วยประหยัดกว่า", f"Asset A ({asset_a['บริษัท']})", f"-฿{diff_u:,.0f} (-{pct_u:.1f}%)")
+                        elif u_price_b < u_price_a:
+                            diff_u = u_price_a - u_price_b
+                            pct_u = (diff_u / u_price_a) * 100
+                            st.metric("ดีลราคา/หน่วยประหยัดกว่า", f"Asset B ({asset_b['บริษัท']})", f"-฿{diff_u:,.0f} (-{pct_u:.1f}%)")
+                        else:
+                            st.metric("ดีลราคา/หน่วย", "ราคา/หน่วยเท่ากัน", "0%")
+                    elif dist_km is not None:
                         st.metric("ระยะห่างระหว่างทรัพย์", f"{dist_km:.2f} กม.", "พิกัดแผนที่")
                     else:
                         st.metric("ระยะห่างระหว่างทรัพย์", "N/A", "ไม่มีพิกัด")
@@ -2704,15 +3184,29 @@ with tab4:
                             return f"<span style='color:{color}; font-weight:700;'>{formatted}</span>"
                     return f"<span style='color: var(--card-text);'>{formatted}</span>"
                 
+                # Format Unit Price Display strings
+                str_u_a = f"฿{u_price_a:,.0f} /{u_lbl_a} ({base_lbl_a})" if pd.notna(u_price_a) else "-"
+                str_u_b = f"฿{u_price_b:,.0f} /{u_lbl_b} ({base_lbl_b})" if pd.notna(u_price_b) else "-"
+
+                str_med_type_a = f"฿{type_a_u_median:,.0f} /{u_lbl_a}" if type_a_u_median > 0 else "-"
+                str_med_type_b = f"฿{type_b_u_median:,.0f} /{u_lbl_b}" if type_b_u_median > 0 else "-"
+
+                str_rl_a = f"฿{u_sqwah_a:,.0f} /วา" if pd.notna(u_sqwah_a) else "-"
+                str_rl_b = f"฿{u_sqwah_b:,.0f} /วา" if pd.notna(u_sqwah_b) else "-"
+                str_rl_med = f"฿{rl_u_median:,.0f} /วา" if rl_u_median > 0 else "-"
+
+                str_sqwah_a = f"{sqwah_a:,.1f} วา" if pd.notna(sqwah_a) and sqwah_a > 0 else (asset_a['พื้นที่ (ไร่-งาน-วา)'] if asset_a['พื้นที่ (ไร่-งาน-วา)'] else '-')
+                str_sqwah_b = f"{sqwah_b:,.1f} วา" if pd.notna(sqwah_b) and sqwah_b > 0 else (asset_b['พื้นที่ (ไร่-งาน-วา)'] if asset_b['พื้นที่ (ไร่-งาน-วา)'] else '-')
+
                 # Render the table (uses dynamic borders, backgrounds, and text colors)
                 comp_table_html = f"""
                 <div style="overflow-x: auto;">
                     <table style="width:100%; border-collapse: collapse; font-family: 'Sarabun', sans-serif; font-size: 0.9rem; margin-top: 15px; border: 1px solid var(--card-border); border-radius: 8px; color: var(--card-text);">
                         <thead>
                             <tr style="background-color: var(--sidebar-bg); border-bottom: 2px solid var(--card-border);">
-                                <th style="padding: 12px; text-align: left; color: var(--card-subtext); width: 20%; border-right: 1px solid var(--card-border);">รายละเอียด</th>
-                                <th style="padding: 12px; text-align: center; color: #3b82f6; width: 40%; font-weight: 700; border-right: 1px solid var(--card-border);">🏠 ทรัพย์สิน A ({asset_a['บริษัท']})</th>
-                                <th style="padding: 12px; text-align: center; color: #ec4899; width: 40%; font-weight: 700;">🏠 ทรัพย์สิน B ({asset_b['บริษัท']})</th>
+                                <th style="padding: 12px; text-align: left; color: var(--card-subtext); width: 22%; border-right: 1px solid var(--card-border);">รายละเอียด</th>
+                                <th style="padding: 12px; text-align: center; color: #3b82f6; width: 39%; font-weight: 700; border-right: 1px solid var(--card-border);">🏠 ทรัพย์สิน A ({asset_a['บริษัท']})</th>
+                                <th style="padding: 12px; text-align: center; color: #ec4899; width: 39%; font-weight: 700;">🏠 ทรัพย์สิน B ({asset_b['บริษัท']})</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -2742,9 +3236,9 @@ with tab4:
                                 <td style="padding: 10px; text-align: center; color: var(--card-subtext);">{asset_b['ตำบล']} &raquo; {asset_b['อำเภอ']} &raquo; {asset_b['จังหวัด']}</td>
                             </tr>
                             <tr style="border-bottom: 1px solid var(--card-border);">
-                                <td style="padding: 10px; font-weight: 600; color: var(--card-subtext); border-right: 1px solid var(--card-border);">พื้นที่ดิน (ไร่-งาน-วา)</td>
-                                <td style="padding: 10px; text-align: center; color: var(--card-subtext); border-right: 1px solid var(--card-border);">{asset_a['พื้นที่ (ไร่-งาน-วา)'] if asset_a['พื้นที่ (ไร่-งาน-วา)'] else '-'}</td>
-                                <td style="padding: 10px; text-align: center; color: var(--card-subtext);">{asset_b['พื้นที่ (ไร่-งาน-วา)'] if asset_b['พื้นที่ (ไร่-งาน-วา)'] else '-'}</td>
+                                <td style="padding: 10px; font-weight: 600; color: var(--card-subtext); border-right: 1px solid var(--card-border);">พื้นที่ดิน (ตารางวา / ไร่-งาน-วา)</td>
+                                <td style="padding: 10px; text-align: center; color: var(--card-text); border-right: 1px solid var(--card-border);">{str_sqwah_a}</td>
+                                <td style="padding: 10px; text-align: center; color: var(--card-text);">{str_sqwah_b}</td>
                             </tr>
                             <tr style="border-bottom: 1px solid var(--card-border);">
                                 <td style="padding: 10px; font-weight: 600; color: var(--card-subtext); border-right: 1px solid var(--card-border);">พื้นที่ใช้สอย (ตร.ม.)</td>
@@ -2752,9 +3246,24 @@ with tab4:
                                 <td style="padding: 10px; text-align: center;">{get_val_styled(area_b, area_a, is_area=True, reverse=True)}</td>
                             </tr>
                             <tr style="border-bottom: 1px solid var(--card-border); background-color: var(--hover-bg);">
-                                <td style="padding: 10px; font-weight: 600; color: var(--card-subtext); border-right: 1px solid var(--card-border);">ราคาเฉลี่ยต่อ ตร.ม.</td>
-                                <td style="padding: 10px; text-align: center; border-right: 1px solid var(--card-border);">{get_val_styled(sqm_a, sqm_b, is_price=True)}</td>
-                                <td style="padding: 10px; text-align: center;">{get_val_styled(sqm_b, sqm_a, is_price=True)}</td>
+                                <td style="padding: 10px; font-weight: 600; color: #3b82f6; border-right: 1px solid var(--card-border);">ราคาต่อหน่วย (คำนวณจากพื้นที่)</td>
+                                <td style="padding: 10px; text-align: center; font-weight: 700; border-right: 1px solid var(--card-border);">{str_u_a}</td>
+                                <td style="padding: 10px; text-align: center; font-weight: 700;">{str_u_b}</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid var(--card-border);">
+                                <td style="padding: 10px; font-weight: 600; color: var(--card-subtext); border-right: 1px solid var(--card-border);">ราคากลางประเภททรัพย์สินในตลาด (Median)</td>
+                                <td style="padding: 10px; text-align: center; color: var(--card-subtext); border-right: 1px solid var(--card-border);">{str_med_type_a}</td>
+                                <td style="padding: 10px; text-align: center; color: var(--card-subtext);">{str_med_type_b}</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid var(--card-border);">
+                                <td style="padding: 10px; font-weight: 600; color: #8b5cf6; border-right: 1px solid var(--card-border);">📍 ราคากลางต่อวาในทำเลย่านนั้น (Median ตามอำเภอ/ตำบล)</td>
+                                <td style="padding: 10px; text-align: center; color: var(--card-text); border-right: 1px solid var(--card-border);">{str_loc_med_a}</td>
+                                <td style="padding: 10px; text-align: center; color: var(--card-text);">{str_loc_med_b}</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid var(--card-border); background-color: var(--hover-bg);">
+                                <td style="padding: 10px; font-weight: 600; color: #10b981; border-right: 1px solid var(--card-border);">🌾 เทียบราคาต่อวา กับราคากลางที่ดินเปล่า</td>
+                                <td style="padding: 10px; text-align: center; color: var(--card-text); border-right: 1px solid var(--card-border);">{str_rl_a} (กลาง: {str_rl_med})</td>
+                                <td style="padding: 10px; text-align: center; color: var(--card-text);">{str_rl_b} (กลาง: {str_rl_med})</td>
                             </tr>
                             <tr style="border-bottom: 1px solid var(--card-border);">
                                 <td style="padding: 10px; font-weight: 600; color: var(--card-subtext); border-right: 1px solid var(--card-border);">รายละเอียดห้อง</td>
@@ -2776,6 +3285,8 @@ with tab4:
                 """
                 st.markdown(comp_table_html, unsafe_allow_html=True)
                 st.markdown("<br/>", unsafe_allow_html=True)
+                
+
                 
                 # --- MAP DISPLAY FOR 1-ON-1 COMPARISON ---
                 if (lat_a and lng_a) or (lat_b and lng_b):
@@ -3115,7 +3626,7 @@ with tab5:
                     y=unit_col,
                     color='บริษัท',
                     points="all",
-                    hover_data=['ชื่อประกาศ_สะอาด', 'รหัสทรัพย์', 'ราคา'],
+                    hover_data=['ชื่อประกาศ', 'รหัสทรัพย์', 'ราคา'] if 'ชื่อประกาศ' in analysis_df.columns else ['รหัสทรัพย์', 'ราคา'],
                     title=f'แผนภูมิการกระจายตัวราคาต่อ{unit_label} (Box Plot)',
                     color_discrete_map={"Baania": "#f59e0b", "BAM": "#3b82f6", "SAM": "#10b981", "Livinginsider": "#84cc16", "DDproperty": "#a855f7", "Taladnudbaan": "#06b6d4", "ZmyHome": "#ec4899"},
                     template=plotly_template
@@ -3149,18 +3660,26 @@ with tab5:
             bargain_df = analysis_df.sort_values(by=unit_col)
             
             # Format and show columns
-            bargain_display = bargain_df[[
-                'บริษัท', 'รหัสทรัพย์', 'ชื่อประกาศ_สะอาด', 'ราคา', unit_col, 'ส่วนต่างจากราคากลาง (%)', 
-                'จังหวัด', 'อำเภอ', 'ตำบล', 'พื้นที่ (ไร่-งาน-วา)', 'พื้นที่ใช้สอย (ตร.ม.)', 'ลิงก์_สะอาด'
-            ]].copy()
+            name_col = 'ชื่อประกาศ' if 'ชื่อประกาศ' in bargain_df.columns else 'ชื่อโครงการ'
+            link_col = 'ลิงก์' if 'ลิงก์' in bargain_df.columns else 'ลิงก์_สะอาด'
             
-            bargain_display['ราคา'] = pd.to_numeric(bargain_display['ราคา'], errors='coerce')
+            display_cols = [c for c in [
+                'บริษัท', 'รหัสทรัพย์', name_col, 'ราคา', unit_col, 'ส่วนต่างจากราคากลาง (%)', 
+                'จังหวัด', 'อำเภอ', 'ตำบล', 'พื้นที่ (ไร่-งาน-วา)', 'พื้นที่ใช้สอย (ตร.ม.)', link_col
+            ] if c in bargain_df.columns]
+            
+            bargain_display = bargain_df[display_cols].copy()
+            
+            bargain_display['ราคาเสนอขาย (บาท)'] = pd.to_numeric(bargain_display['ราคา'], errors='coerce')
+            if 'ราคา' in bargain_display.columns:
+                bargain_display = bargain_display.drop(columns=['ราคา'])
+
             st.dataframe(
                 bargain_display,
                 width="stretch",
                 column_config={
-                    "ราคา": st.column_config.NumberColumn("ราคาเสนอขาย (บาท)", format="฿%.0f"),
-                    unit_col: st.column_config.NumberColumn(f"ราคา/หน่วย (บาท/{unit_short})", format="฿%.0f"),
+                    "ราคาเสนอขาย (บาท)": st.column_config.NumberColumn("ราคาเสนอขาย (บาท)", format="%,d"),
+                    unit_col: st.column_config.NumberColumn(f"ราคา/หน่วย (บาท/{unit_short})", format="%,d"),
                     "ส่วนต่างจากราคากลาง (%)": st.column_config.NumberColumn("เทียบราคากลาง (%)", format="%+.1f%%"),
                     "พื้นที่ใช้สอย (ตร.ม.)": st.column_config.NumberColumn("พื้นที่ใช้สอย (ตร.ม.)", format="%.1f"),
                     "ลิงก์": st.column_config.LinkColumn("ลิงก์ประกาศ")

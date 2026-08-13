@@ -147,7 +147,7 @@ def main():
                 text=True,
                 encoding="utf-8",
                 errors="replace",
-                bufsize=0,
+                bufsize=1,
                 env=env
             )
             processes.append((name, p))

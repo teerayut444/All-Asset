@@ -241,6 +241,12 @@ def fetch_detail_worker(prop_item, total_count, results_list, saved_milestones):
         try:
             details = parse_property_detail(prop_item["ID"], html)
             prop_item.update(details)
+            # รอประกาศราคา = ยังไม่มีราคา → ล้างราคาที่ดึงมาจาก HTML (เป็นราคาเก่า/cached)
+            sale_type = str(prop_item.get("ประเภทการขาย") or "").strip()
+            if "รอประกาศราคา" in sale_type:
+                prop_item["ราคา"] = None
+            with print_lock:
+                results_list.append(prop_item)
         except Exception as e:
             with print_lock:
                 failed_items.append(prop_item["ID"])
@@ -251,7 +257,6 @@ def fetch_detail_worker(prop_item, total_count, results_list, saved_milestones):
     with print_lock:
         progress_counter += 1
         current = progress_counter
-        results_list.append(prop_item)
         pct = int((current / total_count) * 100)
         elapsed_sec = time.time() - start_time_global if start_time_global else 1.0
         eta_msg = format_eta(elapsed_sec, current, total_count)

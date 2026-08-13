@@ -12,6 +12,8 @@ from bs4 import BeautifulSoup
 import concurrent.futures
 import threading
 
+_nominatim_lock = threading.Lock()
+
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
 
@@ -123,65 +125,106 @@ def check_link_health(session):
             time.sleep(2 + attempt)
     return False, 0, 0, 0
 
+def reverse_geocode_location(session, lat, lng):
+    """Reverse geocode Lat/Lng into ตำบล, อำเภอ, จังหวัด using OpenStreetMap Nominatim."""
+    if not lat or not lng or str(lat) == "nan":
+        return "", "", ""
+    url = f"https://nominatim.openstreetmap.org/reverse?format=json&lat={lat}&lon={lng}&accept-language=th"
+    headers = {"User-Agent": "AllAssetDashboardApp/1.0 (contact@allassetdashboard.com)"}
+    try:
+        with _nominatim_lock:
+            r = session.get(url, headers=headers, timeout=5)
+            time.sleep(1.0)
+        if r.status_code == 200:
+            addr = r.json().get('address', {})
+            sd = clean_text(addr.get('quarter') or addr.get('suburb') or addr.get('neighbourhood') or addr.get('village'))
+            d = clean_text(addr.get('suburb') or addr.get('city_district') or addr.get('district') or addr.get('county') or addr.get('town'))
+            p = clean_text(addr.get('city') or addr.get('state') or addr.get('province'))
+            
+            if p:
+                p = re.sub(r'^จังหวัด\s*', '', p).strip()
+                if "กรุงเทพ" in p or "Bangkok" in p: p = "กรุงเทพมหานคร"
+            if d:
+                d = re.sub(r'^(?:อำเภอ|เขต|องค์การบริหารส่วนตำบล)\s*', '', d).strip()
+            if sd:
+                sd = re.sub(r'^(?:ตำบล|แขวง|บ้าน)\s*', '', sd).strip()
+                
+            return sd, d, p
+    except Exception:
+        pass
+    return "", "", ""
+
 def parse_living_address(soup, html):
     subdist, dist, prov = "", "", ""
     
-    # 1. Check Breadcrumbs List for Project Name and District/Zone
-    b_items = []
-    for sc in soup.find_all('script', type='application/ld+json'):
-        if not sc.string: continue
-        try:
-            data = json.loads(sc.string)
-            if isinstance(data, dict) and data.get('@type') == 'BreadcrumbList':
-                b_items = data.get('itemListElement', [])
+    # 1. Extract raw location string from 'ที่ตั้งและทำเล' container tags
+    loc_raw = ""
+    zone_el = soup.find(class_='detail-text-zone')
+    if zone_el and zone_el.get_text().strip():
+        loc_raw = zone_el.get_text().strip()
+    else:
+        ic_el = soup.find(class_=re.compile(r'ic-detail-zone|text_location', re.I))
+        if ic_el and ic_el.get_text().strip():
+            loc_raw = ic_el.get_text().strip()
+        else:
+            sel_el = soup.find(class_='box-zone-select2-sel')
+            if sel_el and sel_el.get_text().strip():
+                loc_raw = sel_el.get_text().strip()
+
+    # 2. Extract Province (จังหวัด)
+    ALL_PROVINCES = [
+        "กรุงเทพมหานคร", "กรุงเทพ", "กระบี่", "กาญจนบุรี", "กาฬสินธุ์", "กำแพงเพชร", "ขอนแก่น", "จันทบุรี",
+        "ฉะเชิงเทรา", "ชลบุรี", "ชัยนาท", "ชัยภูมิ", "ชุมพร", "เชียงราย", "เชียงใหม่", "ตรัง", "ตราด",
+        "ตาก", "นครนายก", "นครปฐม", "นครพนม", "นครราชสีมา", "นครศรีธรรมราช", "นครสวรรค์", "นนทบุรี",
+        "นราธิวาส", "น่าน", "บึงกาฬ", "บุรีรัมย์", "ปทุมธานี", "ประจวบคีรีขันธ์", "ปราจีนบุรี", "ปัตตานี",
+        "พระนครศรีอยุธยา", "อยุธยา", "พะเยา", "พังงา", "พัทลุง", "พิจิตร", "พิษณุโลก", "เพชรบุรี",
+        "เพชรบูรณ์", "แพร่", "ภูเก็ต", "มหาสารคาม", "มุกดาหาร", "แม่ฮ่องสอน", "ยโสธร", "ยะลา", "ร้อยเอ็ด",
+        "ระนอง", "ระยอง", "ราชบุรี", "ลพบุรี", "ลำปาง", "ลำพูน", "เลย", "ศรีสะเกษ", "สกลนคร", "สงขลา",
+        "สตูล", "สมุทรปราการ", "สมุทรสงคราม", "สมุทรสาคร", "สระแก้ว", "สระบุรี", "สิงห์บุรี", "สุโขทัย",
+        "สุพรรณบุรี", "สุราษฎร์ธานี", "สุรินทร์", "หนองคาย", "หนองบัวลำภู", "อ่างทอง", "อำนาจเจริญ",
+        "อุดรธานี", "อุตรดิตถ์", "อุทัยธานี", "อุบลราชธานี"
+    ]
+    
+    # Priority 1: Match from loc_raw
+    if loc_raw:
+        for p in ALL_PROVINCES:
+            if p in loc_raw:
+                prov = "กรุงเทพมหานคร" if p in ["กรุงเทพ", "กรุงเทพมหานคร"] else p
                 break
-        except Exception: pass
+                
+    # Priority 2: Match from whole HTML
+    if not prov:
+        for p in ALL_PROVINCES:
+            if p in html:
+                prov = "กรุงเทพมหานคร" if p in ["กรุงเทพ", "กรุงเทพมหานคร"] else p
+                break
 
-    zone_name = ""
-    for elem in b_items:
-        item_url = str(elem.get('item') or '')
-        name = str(elem.get('name') or '').strip()
-        if 'living_zone' in item_url and not zone_name:
-            if name and name not in ["หน้าแรก"]:
-                zone_name = name
-
-    # 2. Text clean up for strict address parsing
+    # 3. Extract District & Subdistrict from loc_raw or explicit text
     clean_html = re.sub(r'<script.*?</script>', '', html, flags=re.DOTALL)
     clean_html = re.sub(r'<style.*?</style>', '', clean_html, flags=re.DOTALL)
-    clean_html = re.sub(r'<header.*?</header>', '', clean_html, flags=re.DOTALL)
-    clean_html = re.sub(r'<footer.*?</footer>', '', clean_html, flags=re.DOTALL)
-    
-    soup_clean = BeautifulSoup(clean_html, 'html.parser')
-    text_only = soup_clean.get_text()
+    text_only = BeautifulSoup(clean_html, 'html.parser').get_text()
 
-    # 3. Subdistrict (ตำบล/แขวง) - ONLY match explicit ตำบล / แขวง / ต.
     m_sd = re.search(r'(?:ตำบล|ต\.|แขวง)\s*([^\s,\|<"\'\(\)\/\d\-\:\.]+)', text_only)
     if m_sd:
         cand_sd = m_sd.group(1).strip()
         if len(cand_sd) > 1 and cand_sd not in ["โซน", "ถนน", "ซอย", "โครงการ", "อื่นๆ", "ทำเล"]:
             subdist = cand_sd
-            
-    # 4. District (อำเภอ/เขต)
+
     m_d = re.search(r'(?:อำเภอ|อ\.|เขต)\s*([^\s,\|<"\'\(\)\/\d\-\:\.]+)', text_only)
     if m_d:
         cand_d = m_d.group(1).strip()
         if len(cand_d) > 1 and cand_d not in ["โซน", "ถนน", "ซอย", "โครงการ", "อื่นๆ", "ทำเล"]:
             dist = cand_d
-    if not dist and zone_name:
-        dist = zone_name
-        
-    # 5. Province (จังหวัด)
-    m_p = re.search(r'(?:จังหวัด|จ\.)\s*([^\s,\|<"\'\(\)\/\d\-\:\.]+)', text_only)
-    if m_p:
-        cand_p = m_p.group(1).strip()
-        if cand_p not in ["อื่นๆ"]: prov = cand_p
-    if not prov:
-        for p in ["กรุงเทพมหานคร", "กรุงเทพ", "สมุทรปราการ", "นนทบุรี", "ปทุมธานี", "ชลบุรี", "เชียงใหม่", "ภูเก็ต", "ระยอง", "ฉะเชิงเทรา"]:
-            pattern = r'(?<![\u0E00-\u0E7F])' + re.escape(p) + r'(?![\u0E00-\u0E7F])'
-            if re.search(pattern, text_only):
-                prov = "กรุงเทพมหานคร" if p in ["กรุงเทพ", "กรุงเทพมหานคร"] else p
-                break
-    if not prov and ("กรุงเทพ" in text_only or "กรุงเทพมหานคร" in text_only):
+
+    # Fallback District & Subdistrict from loc_raw zone tokens if missing
+    if loc_raw:
+        tokens = [x.strip() for x in re.split(r'[\s,\(\)]+', loc_raw) if x.strip() and len(x.strip()) > 1]
+        tokens_filtered = [x for x in tokens if x not in ALL_PROVINCES and not re.search(r'[A-Za-z]', x)]
+        if tokens_filtered:
+            if not dist: dist = tokens_filtered[0]
+            if not subdist and len(tokens_filtered) > 1: subdist = tokens_filtered[1]
+
+    if not prov or prov in ["อื่นๆ"]:
         prov = "กรุงเทพมหานคร"
         
     return subdist, dist, prov
@@ -261,97 +304,6 @@ def detect_living_property_type(html_or_text, title="", link=""):
         
     return "คอนโด"
 
-def fetch_living_detail(session, item):
-    link = item.get("ลิงก์")
-    if not link:
-        return item
-        
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
-    for attempt in range(3):
-        try:
-            r = session.get(link, headers=headers, timeout=12)
-            if r.status_code == 200:
-                html = r.text
-                soup = BeautifulSoup(html, 'html.parser')
-                main_box = soup.find('div', id='detail-post') or soup.find(class_=re.compile(r'detail-container|post-detail|main-info', re.I)) or soup
-                main_text = main_box.get_text()
-                
-                # Extract Real Listing Title from H1 or og:title
-                h1_elem = soup.find('h1')
-                real_title = clean_text(h1_elem.get_text()) if h1_elem else ""
-                if not real_title:
-                    og_meta = soup.find('meta', property='og:title') or soup.find('meta', attrs={'name': 'title'})
-                    if og_meta:
-                        real_title = clean_text(og_meta.get('content', '')).split('|')[0].strip()
-                        
-                if real_title:
-                    item["ชื่อประกาศ"] = real_title
-                    
-                # Extract Project Name (Leave blank if none)
-                item["ชื่อโครงการ"] = extract_living_project_name(soup, item.get("ชื่อประกาศ", ""))
-                
-                # Property Type Detection
-                item["ประเภททรัพย์"] = detect_living_property_type(html, item.get("ชื่อประกาศ", ""), link)
-                
-                # 1. Lat/Lng
-                m_lat = re.search(r'data-lat=["\']([\d\.-]+)["\']', html) or re.search(r'lat\s*[:=]\s*["\']?([\d\.-]+)', html)
-                m_lng = re.search(r'data-lng=["\']([\d\.-]+)["\']', html) or re.search(r'lng\s*[:=]\s*["\']?([\d\.-]+)', html)
-                if m_lat and m_lng:
-                    try:
-                        item["ละติจูด"] = float(m_lat.group(1))
-                        item["ลองจิจูด"] = float(m_lng.group(1))
-                    except Exception:
-                        pass
-                else:
-                    m_map = re.search(r'query=([\d\.-]+),([\d\.-]+)', html) or re.search(r'q=([\d\.-]+),([\d\.-]+)', html)
-                    if m_map:
-                        try:
-                            item["ละติจูด"] = float(m_map.group(1))
-                            item["ลองจิจูด"] = float(m_map.group(2))
-                        except Exception:
-                            pass
-                            
-                # 2. Location (subdistrict, district, province)
-                sd, d, p = parse_living_address(soup, html)
-                if sd and not item.get("ตำบล"): item["ตำบล"] = sd
-                if d and not item.get("อำเภอ"): item["อำเภอ"] = d
-                if p and not item.get("จังหวัด"): item["จังหวัด"] = p
-                    
-                # 3. Usable Area & Land Area
-                m_u = re.search(r'พื้นที่ใช้สอย\s*[:\s]*([\d\.,]+)\s*(?:ตร\.ม\.|ตารางเมตร)', main_text) or re.search(r'([\d\.,]+)\s*ตร\.ม\.', main_text)
-                if m_u and not item.get("พื้นที่ใช้สอย (ตร.ม.)"):
-                    item["พื้นที่ใช้สอย (ตร.ม.)"] = m_u.group(1).replace(',', '').strip()
-                    
-                rai_m = re.search(r'(\d+)\s*ไร่', main_text)
-                ngan_m = re.search(r'(\d+)\s*งาน', main_text)
-                wa_m = re.search(r'ขนาดที่ดิน\s*[:\s]*([\d\.,]+)\s*(?:ตร\.วา|ตารางวา|ตร\.ว\.|วา)', main_text) or re.search(r'([\d\.,]+)\s*(?:ตร\.วา|ตารางวา|ตร\.ว\.|วา)', main_text)
-                
-                parts = []
-                if rai_m: parts.append(f"{rai_m.group(1)} ไร่")
-                if ngan_m: parts.append(f"{ngan_m.group(1)} งาน")
-                if wa_m: parts.append(f"{wa_m.group(1)} วา")
-                
-                if parts and not item.get("พื้นที่ (ไร่-งาน-วา)"):
-                    item["พื้นที่ (ไร่-งาน-วา)"] = " ".join(parts)
-                    
-                # 4. Posted / Completed Date (วันประกาศ)
-                m_post = re.search(r'(?:สร้างเมื่อ|สร้างเสร็จปี|โพสต์เมื่อ)\s*[:\s]*([^\n\r<"]+)', main_text)
-                if m_post:
-                    item["วันประกาศ"] = clean_text(m_post.group(1))
-                    
-                # 5. Bedrooms, Bathrooms, Parking
-                m_bed = re.search(r'(\d+)\s*ห้องนอน', main_text)
-                if m_bed: item["ห้องนอน"] = int(m_bed.group(1))
-                m_bath = re.search(r'(\d+)\s*ห้องน้ำ', main_text)
-                if m_bath: item["ห้องน้ำ"] = int(m_bath.group(1))
-                m_park = re.search(r'(\d+)\s*ที่จอดรถ', main_text)
-                if m_park: item["ที่จอดรถ"] = int(m_park.group(1))
-                
-                break
-        except Exception:
-            time.sleep(0.5)
-    return item
-
 def parse_living_card(card):
     try:
         a_tag = card.find('a', href=re.compile(r'living_detail|/detail/'))
@@ -417,7 +369,7 @@ def parse_living_card(card):
         return None
 
 def enrich_living_detail_location(session, item):
-    """Lightweight detail page fetcher: extracts only ตำบล/อำเภอ/จังหวัด/พิกัด."""
+    """Detail page enrichment: extracts ตำบล/อำเภอ/จังหวัด/พิกัด/ห้องนอน/ห้องน้ำ/ที่จอดรถ/วันประกาศ/พื้นที่."""
     link = item.get("ลิงก์")
     if not link:
         return item
@@ -448,30 +400,76 @@ def enrich_living_detail_location(session, item):
                 except Exception:
                     pass
 
-            # --- ตำบล / อำเภอ / จังหวัด from text patterns ---
-            m_loc = re.search(
-                r'(?:ตำบล|แขวง)\s*([^\s\n\r<>"]+)\s*(?:อำเภอ|เขต)\s*([^\s\n\r<>"]+)\s*(?:จังหวัด)?\s*([^\s\n\r<>"]+)',
-                main_text
-            )
-            if m_loc:
-                item["ตำบล"] = m_loc.group(1).strip()
-                item["อำเภอ"] = m_loc.group(2).strip()
-                prov = m_loc.group(3).strip()
-                if prov and prov not in ["รหัสไปรษณีย์"]:
-                    item["จังหวัด"] = prov
-            else:
-                m_sd = re.search(r'(?:แขวง\s*/\s*ตำบล|ตำบล|แขวง)\s*[:\s]*([^\n\r<"]+)', main_text)
-                if m_sd:
-                    item["ตำบล"] = m_sd.group(1).split()[0].strip()
-                m_d = re.search(r'(?:เขต\s*/\s*อำเภอ|อำเภอ|เขต)\s*[:\s]*([^\n\r<"]+)', main_text)
-                if m_d:
-                    item["อำเภอ"] = m_d.group(1).split()[0].strip()
-                m_p = re.search(r'จังหวัด\s*[:\s]*([^\n\r<"]+)', main_text)
-                if m_p:
-                    item["จังหวัด"] = m_p.group(1).split()[0].strip()
+            # --- Reverse Geocode from Lat/Lng if available ---
+            if item.get("ละติจูด") and item.get("ลองจิจูด"):
+                sd_geo, d_geo, p_geo = reverse_geocode_location(session, item["ละติจูด"], item["ลองจิจูด"])
+                if sd_geo: item["ตำบล"] = sd_geo
+                if d_geo: item["อำเภอ"] = d_geo
+                if p_geo: item["จังหวัด"] = p_geo
+
+            # --- ตำบล / อำเภอ / จังหวัด Fallback from parse_living_address ---
+            sd, d, p = parse_living_address(soup, html)
+            if sd and not item.get("ตำบล"): item["ตำบล"] = sd
+            if d and not item.get("อำเภอ"): item["อำเภอ"] = d
+            if p and (not item.get("จังหวัด") or item.get("จังหวัด") in ["อื่นๆ", ""]): item["จังหวัด"] = p
 
             # --- ชื่อโครงการ from detail ---
             item["ชื่อโครงการ"] = extract_living_project_name(soup, item.get("ชื่อประกาศ", ""))
+
+            # --- ห้องนอน / ห้องน้ำ / ที่จอดรถ from DOM detail-property-list ---
+            for container in soup.find_all(class_=re.compile(r'detail-property-list', re.I)):
+                title_el = container.find(class_=re.compile(r'title', re.I))
+                text_el = container.find(class_=re.compile(r'text', re.I))
+                if title_el and text_el:
+                    t = title_el.get_text().strip()
+                    val = text_el.get_text().strip()
+                    if "ห้องนอน" in t and not item.get("ห้องนอน"): item["ห้องนอน"] = val
+                    elif "ห้องน้ำ" in t and not item.get("ห้องน้ำ"): item["ห้องน้ำ"] = val
+                    elif "ที่จอดรถ" in t and not item.get("ที่จอดรถ"): item["ที่จอดรถ"] = val
+
+            # Fallback regex text for beds/baths/parking
+            if not item.get("ห้องนอน"):
+                m_bed = re.search(r'(\d+)\s*ห้องนอน', main_text)
+                if m_bed: item["ห้องนอน"] = m_bed.group(1)
+            if not item.get("ห้องน้ำ"):
+                m_bath = re.search(r'(\d+)\s*ห้องน้ำ', main_text)
+                if m_bath: item["ห้องน้ำ"] = m_bath.group(1)
+            if not item.get("ที่จอดรถ"):
+                m_park = re.search(r'(\d+)\s*ที่จอดรถ', main_text)
+                if m_park: item["ที่จอดรถ"] = m_park.group(1)
+
+            # --- วันประกาศ (เอาเฉพาะ สร้างเมื่อ อย่างเดียว) ---
+            m_created = re.search(r'สร้างเมื่อ\s*[:\s]*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4})', html) or re.search(r'สร้างเมื่อ\s*[:\s]*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4})', main_text)
+            if m_created:
+                item["วันประกาศ"] = m_created.group(1).strip()
+            else:
+                date_el = soup.find(class_=re.compile(r'font_10_date|mr_time', re.I)) or soup.find(string=re.compile(r'สร้างเมื่อ', re.I))
+                if date_el:
+                    p_text = date_el.parent.get_text().strip() if hasattr(date_el, 'parent') else str(date_el).strip()
+                    p_text = re.sub(r'\s+', ' ', p_text).strip()
+                    m_date = re.search(r'สร้างเมื่อ\s*[:\s]*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4})', p_text)
+                    if m_date:
+                        item["วันประกาศ"] = m_date.group(1).strip()
+                    else:
+                        m_simple_date = re.search(r'(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4})', p_text)
+                        if m_simple_date:
+                            item["วันประกาศ"] = m_simple_date.group(1).strip()
+
+            # --- พื้นที่ใช้สอย (ตร.ม.) ---
+            m_u = re.search(r'พื้นที่ใช้สอย\s*[:\s]*([\d\.,]+)\s*(?:ตร\.ม\.|ตารางเมตร)', main_text) or re.search(r'([\d\.,]+)\s*ตร\.ม\.', main_text)
+            if m_u and not item.get("พื้นที่ใช้สอย (ตร.ม.)"):
+                item["พื้นที่ใช้สอย (ตร.ม.)"] = m_u.group(1).replace(',', '').strip()
+
+            # --- พื้นที่ (ไร่-งาน-วา) ---
+            rai_m = re.search(r'(\d+)\s*ไร่', main_text)
+            ngan_m = re.search(r'(\d+)\s*งาน', main_text)
+            wa_m = re.search(r'([\d\.,]+)\s*(?:ตร\.วา|ตารางวา|ตร\.ว\.|วา)', main_text)
+            parts = []
+            if rai_m: parts.append(f"{rai_m.group(1)} ไร่")
+            if ngan_m: parts.append(f"{ngan_m.group(1)} งาน")
+            if wa_m: parts.append(f"{wa_m.group(1)} วา")
+            if parts and not item.get("พื้นที่ (ไร่-งาน-วา)"):
+                item["พื้นที่ (ไร่-งาน-วา)"] = " ".join(parts)
     except Exception:
         pass
     return item
@@ -549,6 +547,9 @@ def main():
     print(f"==================================================", flush=True)
     
     session = requests.Session()
+    adapter = requests.adapters.HTTPAdapter(pool_connections=40, pool_maxsize=40)
+    session.mount('https://', adapter)
+    session.mount('http://', adapter)
     session.headers.update(HEADERS)
     
     all_records, seen_ids = load_existing_csv(OUTPUT_CSV)

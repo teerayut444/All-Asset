@@ -29,7 +29,7 @@ HEADERS = {
 COLUMNS = [
     "บริษัท", "ID", "รหัสทรัพย์", "ชื่อโครงการ", "ประเภททรัพย์", "ประเภทการขาย", "ราคา",
     "ตำบล", "อำเภอ", "จังหวัด", "ละติจูด", "ลองจิจูด", "ชื่อประกาศ", "ลิงก์",
-    "พื้นที่ (ไร่-งาน-วา)", "พื้นที่ใช้สอย (ตร.ม.)", "วันที่ดึงข้อมูล",
+    "เนื้อที่ (ตร.ว.)", "พื้นที่ใช้สอย (ตร.ม.)", "วันที่ดึงข้อมูล",
     "ห้องนอน", "ห้องน้ำ", "ที่จอดรถ", "วันประกาศ"
 ]
 
@@ -124,17 +124,24 @@ def check_link_health(session):
             status_code = r.status_code
             if status_code == 200:
                 html = r.text
-                m_tot = re.search(r'["\']?totalCount["\']?\s*[:=]\s*(\d+)', html, re.I) or re.search(r'["\']?total["\']?\s*[:=]\s*(\d+)', html, re.I) or re.search(r'ทรัพย์ทั้งหมด\s*<!--\s*-->\s*<span[^>]*>\s*([\d,]+)', html)
-                m_p = re.search(r'["\']?totalPages["\']?\s*[:=]\s*(\d+)', html, re.I) or re.search(r'["\']?totalPage["\']?\s*[:=]\s*(\d+)', html, re.I)
-                
-                tot_count = int(m_tot.group(1).replace(",", "")) if m_tot else 17486
-                tot_pages = int(m_p.group(1)) if m_p else 1458
+                m_tot = (
+                    re.search(r'ทรัพย์ทั้งหมด\s*(?:<!--\s*-->)?\s*([0-9,]+)\s*รายการ', html) or
+                    re.search(r'["\']?totalCount["\']?\s*[:=]\s*(\d+)', html, re.I) or
+                    re.search(r'["\']?total["\']?\s*[:=]\s*(\d+)', html, re.I)
+                )
+                tot_count = int(m_tot.group(1).replace(",", "")) if m_tot else 17536
+                tot_pages = math.ceil(tot_count / 12)
                 return True, status_code, tot_count, tot_pages
+            else:
+                time.sleep(2)
         except Exception as e:
             time.sleep(2)
-    return False, 0, 17486, 1458
+    # If initial health check request times out, log warning but continue scraping with fallback defaults
+    print(f"\n⚠️ [{COMPANY_NAME}] ไม่สามารถดึงหน้าตรวจสถานะเริ่มต้นได้ -> ใช้ค่าเริ่มต้น ~17,536 รายการ (1,462 หน้า)", flush=True)
+    return True, 200, 17536, 1462
 
 def fetch_item_detail(session, item_id):
+    if not item_id: return "", "", "", None, None, None
     url = f"https://www.bam.co.th/th/npa/property/{item_id}"
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
     subdist, dist, prov, lat, lng, price = "", "", "", None, None, None
@@ -211,6 +218,8 @@ def fetch_bam_page(session, page_num):
                 return []
                 
             bracket_start = html.find('[', start_idx)
+            if bracket_start == -1:
+                return []
             balance = 0
             bracket_end = -1
             for i in range(bracket_start, len(html)):
@@ -275,7 +284,7 @@ def fetch_bam_page(session, page_num):
                     "ลองจิจูด": lng,
                     "ชื่อประกาศ": title,
                     "ลิงก์": link,
-                    "พื้นที่ (ไร่-งาน-วา)": land_str,
+                    "เนื้อที่ (ตร.ว.)": land_str,
                     "พื้นที่ใช้สอย (ตร.ม.)": usable_area,
                     "วันที่ดึงข้อมูล": now_str,
                     "วันประกาศ": clean_text(item.get("created_at") or item.get("postDate") or item.get("yearBuilt") or ""),
