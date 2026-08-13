@@ -27,9 +27,9 @@ OUTPUT_CSV = os.path.join(OUTPUT_DIR, f"Livinginsider_NPA_New_{MONTH_STR}.csv")
 URL_TEMPLATE = "https://www.livinginsider.com/searchword/all/Buysell/{page_num}/%E0%B8%A3%E0%B8%A7%E0%B8%A1%E0%B8%9B%E0%B8%A3%E0%B8%B0%E0%B8%81%E0%B8%B2%E0%B8%A8%E0%B8%82%E0%B8%B2%E0%B8%A2-%E0%B8%84%E0%B8%AD%E0%B8%99%E0%B9%82%E0%B8%94-%E0%B8%9A%E0%B9%89%E0%B8%B2%E0%B8%99-%E0%B8%97%E0%B8%B5%E0%B9%88%E0%B8%94%E0%B8%B4%E0%B8%99.html"
 
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-    "Accept-Language": "th,en-US;q=0.9,en;q=0.8",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+    "Accept-Language": "th-TH,th;q=0.9,en-US;q=0.8,en;q=0.7",
     "Referer": "https://www.livinginsider.com/",
     "Connection": "keep-alive"
 }
@@ -37,7 +37,7 @@ HEADERS = {
 COLUMNS = [
     "บริษัท", "ID", "รหัสทรัพย์", "ชื่อโครงการ", "ประเภททรัพย์", "ประเภทการขาย", "ราคา",
     "ตำบล", "อำเภอ", "จังหวัด", "ละติจูด", "ลองจิจูด", "ชื่อประกาศ", "ลิงก์",
-    "พื้นที่ (ไร่-งาน-วา)", "พื้นที่ใช้สอย (ตร.ม.)", "วันที่ดึงข้อมูล",
+    "เนื้อที่ (ตร.ว.)", "พื้นที่ใช้สอย (ตร.ม.)", "วันที่ดึงข้อมูล",
     "ห้องนอน", "ห้องน้ำ", "ที่จอดรถ", "วันประกาศ"
 ]
 
@@ -357,7 +357,7 @@ def parse_living_card(card):
             "ลองจิจูด": None,
             "ชื่อประกาศ": title,
             "ลิงก์": link,
-            "พื้นที่ (ไร่-งาน-วา)": "",
+            "เนื้อที่ (ตร.ว.)": "",
             "พื้นที่ใช้สอย (ตร.ม.)": "",
             "วันที่ดึงข้อมูล": now_str,
             "วันประกาศ": "",
@@ -382,13 +382,17 @@ def enrich_living_detail_location(session, item):
 
             # --- Lat/Lng ---
             m_gmap = (
-                re.search(r'(?:q|center|ll|location|place)=([\d\.-]+)%2C([\d\.-]+)', html, re.I)
-                or re.search(r'(?:q|center|ll|location|place)=([\d\.-]+),([\d\.-]+)', html, re.I)
+                re.search(r'(?:query|center|ll|location|place|dir|destination|origin)=([\d\.-]+)%2C([\d\.-]+)', html, re.I)
+                or re.search(r'(?:query|center|ll|location|place|dir|destination|origin)=([\d\.-]+),([\d\.-]+)', html, re.I)
                 or re.search(r'@([\d\.-]+),([\d\.-]+)', html)
+                or re.search(r'maps/search/\?api=1&query=([\d\.-]+),([\d\.-]+)', html, re.I)
+                or re.search(r'latitude["\']?\s*:\s*["\']?([\d\.-]+)["\']?\s*,\s*["\']?longitude["\']?\s*:\s*["\']?([\d\.-]+)', html, re.I)
+                or re.search(r'["\']?lat["\']?\s*:\s*["\']?([\d\.-]+)["\']?\s*,\s*["\']?lng["\']?\s*:\s*["\']?([\d\.-]+)', html, re.I)
+                or re.search(r'(?:originalMapCenter|destination|map_center|center_lat_lng|location_lat)\s*=\s*[\'"]?([\d\.-]+)\s*,\s*([\d\.-]+)', html, re.I)
             )
             if not m_gmap:
-                m_lat = re.search(r'data-lat=["\']?([\d\.-]+)', html) or re.search(r'lat\s*[:=]\s*["\']?([\d\.-]+)', html)
-                m_lng = re.search(r'data-lng=["\']?([\d\.-]+)', html) or re.search(r'lng\s*[:=]\s*["\']?([\d\.-]+)', html)
+                m_lat = re.search(r'data-lat=["\']?([\d\.-]+)', html) or re.search(r'data-latitude=["\']?([\d\.-]+)', html) or re.search(r'lat\s*[:=]\s*["\']?([\d\.-]+)', html)
+                m_lng = re.search(r'data-lng=["\']?([\d\.-]+)', html) or re.search(r'data-longitude=["\']?([\d\.-]+)', html) or re.search(r'lng\s*[:=]\s*["\']?([\d\.-]+)', html)
                 if m_lat and m_lng:
                     m_gmap = type('M', (), {'group': lambda s, i: [None, m_lat.group(1), m_lng.group(1)][i]})()
             if m_gmap:
@@ -412,6 +416,30 @@ def enrich_living_detail_location(session, item):
             if sd and not item.get("ตำบล"): item["ตำบล"] = sd
             if d and not item.get("อำเภอ"): item["อำเภอ"] = d
             if p and (not item.get("จังหวัด") or item.get("จังหวัด") in ["อื่นๆ", ""]): item["จังหวัด"] = p
+
+            # --- Fallback Geocode Lat/Lng from ตำบล / อำเภอ / จังหวัด if missing ---
+            if not item.get("ละติจูด") or not item.get("ลองจิจูด"):
+                q_sd = item.get("ตำบล") or ""
+                q_d = item.get("อำเภอ") or ""
+                q_p = item.get("จังหวัด") or "กรุงเทพมหานคร"
+                parts = [x for x in [q_sd, q_d, q_p, "ประเทศไทย"] if x and x not in ["อื่นๆ", "nan", "None"]]
+                if len(parts) >= 2:
+                    q_str = " ".join(parts)
+                    try:
+                        url_g = f"https://nominatim.openstreetmap.org/search?q={urllib.parse.quote(q_str)}&format=json&limit=1"
+                        headers_g = {"User-Agent": "AllAssetDashboardApp/1.0 (contact@allassetdashboard.com)"}
+                        with _nominatim_lock:
+                            rg = session.get(url_g, headers=headers_g, timeout=4)
+                            time.sleep(0.5)
+                        if rg.status_code == 200:
+                            res_g = rg.json()
+                            if res_g:
+                                lat_f, lng_f = float(res_g[0]['lat']), float(res_g[0]['lon'])
+                                if 5.0 <= lat_f <= 21.0 and 97.0 <= lng_f <= 106.0:
+                                    item["ละติจูด"] = lat_f
+                                    item["ลองจิจูด"] = lng_f
+                    except Exception:
+                        pass
 
             # --- ชื่อโครงการ from detail ---
             item["ชื่อโครงการ"] = extract_living_project_name(soup, item.get("ชื่อประกาศ", ""))
@@ -460,7 +488,7 @@ def enrich_living_detail_location(session, item):
             if m_u and not item.get("พื้นที่ใช้สอย (ตร.ม.)"):
                 item["พื้นที่ใช้สอย (ตร.ม.)"] = m_u.group(1).replace(',', '').strip()
 
-            # --- พื้นที่ (ไร่-งาน-วา) ---
+            # --- เนื้อที่ (ตร.ว.) ---
             rai_m = re.search(r'(\d+)\s*ไร่', main_text)
             ngan_m = re.search(r'(\d+)\s*งาน', main_text)
             wa_m = re.search(r'([\d\.,]+)\s*(?:ตร\.วา|ตารางวา|ตร\.ว\.|วา)', main_text)
@@ -468,8 +496,8 @@ def enrich_living_detail_location(session, item):
             if rai_m: parts.append(f"{rai_m.group(1)} ไร่")
             if ngan_m: parts.append(f"{ngan_m.group(1)} งาน")
             if wa_m: parts.append(f"{wa_m.group(1)} วา")
-            if parts and not item.get("พื้นที่ (ไร่-งาน-วา)"):
-                item["พื้นที่ (ไร่-งาน-วา)"] = " ".join(parts)
+            if parts and not item.get("เนื้อที่ (ตร.ว.)"):
+                item["เนื้อที่ (ตร.ว.)"] = " ".join(parts)
     except Exception:
         pass
     return item

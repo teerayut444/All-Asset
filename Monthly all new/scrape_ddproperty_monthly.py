@@ -347,6 +347,39 @@ def fetch_ddproperty_page(session, base_url, target_type, page_num):
                     elif area_raw:
                         area_str = clean_text(area_raw)
                         
+                    land_area = ""
+                    usable_area = ""
+                    
+                    # 1. Check direct land area fields from listing JSON (unitDetails / dimensions / landAreaText)
+                    land_raw = ld.get("landAreaText") or ld.get("landArea")
+                    if not land_raw and isinstance(listing.get("unitDetails"), dict):
+                        dims = listing["unitDetails"].get("dimensions", {}).get("land", {}).get("size", [])
+                        for dim in dims:
+                            if isinstance(dim, dict) and "วา" in str(dim.get("formatted")):
+                                land_raw = dim.get("formatted")
+                                break
+                    if land_raw:
+                        m_l = re.search(r'([\d\.,]+)\s*(?:ตร\.ว\.|ตารางวา|วา)', str(land_raw))
+                        if m_l: land_area = m_l.group(1).replace(',', '').strip()
+
+                    # 2. Check floor area (usable area)
+                    floor_raw = ld.get("floorAreaText") or ld.get("floorArea") or ld.get("usableAreaText")
+                    if floor_raw:
+                        m_f = re.search(r'([\d\.,]+)', str(floor_raw))
+                        if m_f: usable_area = m_f.group(1).replace(',', '').strip()
+
+                    # 3. Fallback parse from area_str or listing card_text for ตร.ว. / ตารางวา
+                    if not land_area:
+                        full_search_text = area_str + " " + card_text
+                        m_num = re.search(r'([\d\.,]+)\s*(?:ตร\.ว\.|ตารางวา)', full_search_text, re.I)
+                        if m_num:
+                            land_area = m_num.group(1).replace(',', '').strip()
+
+                    if not usable_area and area_str:
+                        if re.search(r'ตร\.ม\.|ตารางเมตร', area_str):
+                            m_num = re.search(r'([\d\.,]+)', area_str)
+                            if m_num: usable_area = m_num.group(1).replace(',', '').strip()
+                        
                     post_date = clean_text(ld.get("listingDate") or ld.get("createdDate") or ld.get("postDate") or ld.get("completionYear") or ld.get("builtYear") or "")
                     if not post_date and card_parent:
                         m_year = re.search(r'(?:สร้างเสร็จ|โพสต์เมื่อ|อัปเดตเมื่อ|สร้างเสร็จ:)\s*[:\s]*(\d{4})', card_text)
@@ -367,8 +400,8 @@ def fetch_ddproperty_page(session, base_url, target_type, page_num):
                         "ลองจิจูด": lng,
                         "ชื่อประกาศ": title,
                         "ลิงก์": link,
-                        "พื้นที่ (ไร่-งาน-วา)": "",
-                        "พื้นที่ใช้สอย (ตร.ม.)": area_str,
+                        "เนื้อที่ (ตร.ว.)": land_area,
+                        "พื้นที่ใช้สอย (ตร.ม.)": usable_area,
                         "วันที่ดึงข้อมูล": now_str,
                         "วันประกาศ": post_date,
                         "ห้องนอน": ld.get("bedrooms"),
@@ -436,9 +469,14 @@ def fetch_ddproperty_page(session, base_url, target_type, page_num):
                     m_bath = re.search(r'(\d+)\s*ห้องน้ำ', text)
                     if m_bath: bath = int(m_bath.group(1))
                     
-                    area_str = ""
-                    m_u = re.search(r'([\d\.,]+)\s*(?:ตร\.ม\.|ตารางเมตร)', text)
-                    if m_u: area_str = m_u.group(1).replace(',', '').strip()
+                    land_area = ""
+                    usable_area = ""
+                    m_land = re.search(r'([\d\.,]+)\s*(?:ตร\.ว\.|ตารางวา)', text, re.I)
+                    if m_land:
+                        land_area = m_land.group(1).replace(',', '').strip()
+                    m_u = re.search(r'([\d\.,]+)\s*(?:ตร\.ม\.|ตารางเมตร)', text, re.I)
+                    if m_u:
+                        usable_area = m_u.group(1).replace(',', '').strip()
                     
                     records.append({
                         "บริษัท": COMPANY_NAME,
@@ -455,8 +493,8 @@ def fetch_ddproperty_page(session, base_url, target_type, page_num):
                         "ลองจิจูด": lng,
                         "ชื่อประกาศ": title,
                         "ลิงก์": link,
-                        "พื้นที่ (ไร่-งาน-วา)": "",
-                        "พื้นที่ใช้สอย (ตร.ม.)": area_str,
+                        "เนื้อที่ (ตร.ว.)": land_area,
+                        "พื้นที่ใช้สอย (ตร.ม.)": usable_area,
                         "วันที่ดึงข้อมูล": now_str,
                         "วันประกาศ": post_date,
                         "ห้องนอน": bed,

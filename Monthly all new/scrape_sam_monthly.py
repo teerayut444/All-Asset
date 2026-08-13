@@ -27,7 +27,7 @@ THREAD_POOL_SIZE = 12
 COLUMNS = [
     "บริษัท", "ID", "รหัสทรัพย์", "ชื่อโครงการ", "ประเภททรัพย์", "ประเภทการขาย", "ราคา",
     "ตำบล", "อำเภอ", "จังหวัด", "ละติจูด", "ลองจิจูด", "ชื่อประกาศ", "ลิงก์",
-    "พื้นที่ (ไร่-งาน-วา)", "พื้นที่ใช้สอย (ตร.ม.)", "วันที่ดึงข้อมูล",
+    "เนื้อที่ (ตร.ว.)", "พื้นที่ใช้สอย (ตร.ม.)", "วันที่ดึงข้อมูล",
     "ห้องนอน", "ห้องน้ำ", "ที่จอดรถ", "วันประกาศ"
 ]
 
@@ -178,18 +178,34 @@ def parse_property_detail(prop_id, html):
     title = re.sub(r'\s*-\s*SAM.*$', '', title, flags=re.IGNORECASE).strip()
     
     land_area = ""
-    rai_m = re.search(r'(\d+)\s*ไร่', container_text)
-    ngan_m = re.search(r'(\d+)\s*งาน', container_text)
-    wa_m = re.search(r'([\d\.]+)\s*(?:ตร\.วา|ตารางวา|วา)', container_text)
-    parts = []
-    if rai_m: parts.append(f"{rai_m.group(1)} ไร่")
-    if ngan_m: parts.append(f"{ngan_m.group(1)} งาน")
-    if wa_m: parts.append(f"{wa_m.group(1)} วา")
-    if parts: land_area = " ".join(parts)
-    
     usable_area = ""
-    m_usable = re.search(r'เนื้อที่\s*:\s*([\d\.]+\s*ตร\.ม\.|[\d\.]+\s*ตารางเมตร)', container_text) or re.search(r'พื้นที่ใช้สอย\s*:\s*([\d\.]+\s*ตร\.ม\.|[\d\.]+\s*ตารางเมตร)', container_text)
-    if m_usable: usable_area = m_usable.group(1).strip()
+    
+    m_area = re.search(r'(?:เนื้อที่|พื้นที่|ขนาดพื้นที่)\s*:\s*([^:]+?)(?=\s*(?:ห้องนอน|ห้องน้ำ|ที่ตั้ง|เขตพื้นที่|หน้ากว้าง|ราคา|$))', container_text)
+    area_str = m_area.group(1).strip() if m_area else ""
+    
+    if re.search(r'ตร\.ม\.|ตารางเมตร', area_str):
+        m_num = re.search(r'([\d\.,]+)\s*(?:ตร\.ม\.|ตารางเมตร)', area_str)
+        if m_num:
+            usable_area = m_num.group(1).replace(',', '').strip()
+        else:
+            usable_area = area_str
+    else:
+        rai_m = re.search(r'(\d+)\s*ไร่', area_str)
+        ngan_m = re.search(r'(\d+)\s*งาน', area_str)
+        wa_m = re.search(r'([\d\.,]+)\s*(?:ตร\.ว\.|ตร\.วา|ตารางวา|วา)', area_str)
+        parts = []
+        if rai_m: parts.append(f"{rai_m.group(1)} ไร่")
+        if ngan_m: parts.append(f"{ngan_m.group(1)} งาน")
+        if wa_m: parts.append(f"{wa_m.group(1)} วา")
+        if parts:
+            land_area = " ".join(parts)
+        elif area_str:
+            land_area = area_str
+            
+    if not usable_area:
+        m_u = re.search(r'พื้นที่ใช้สอย\s*:\s*([\d\.,]+)\s*(?:ตร\.ม\.|ตารางเมตร)?', container_text) or re.search(r'([\d\.,]+)\s*(?:ตร\.ม\.|ตารางเมตร)', container_text)
+        if m_u:
+            usable_area = m_u.group(1).replace(',', '').strip()
     
     beds, baths, parking = None, None, None
     bed_match = re.search(r'(\d+)\s*ห้องนอน', container_text)
@@ -214,7 +230,7 @@ def parse_property_detail(prop_id, html):
         "ละติจูด": lat,
         "ลองจิจูด": lng,
         "ชื่อประกาศ": title or project_name or code,
-        "พื้นที่ (ไร่-งาน-วา)": land_area,
+        "เนื้อที่ (ตร.ว.)": land_area,
         "พื้นที่ใช้สอย (ตร.ม.)": usable_area,
         "วันประกาศ": post_date,
         "ห้องนอน": beds,
@@ -354,7 +370,7 @@ def main():
             "ลองจิจูด": None,
             "ชื่อประกาศ": "",
             "ลิงก์": detail_link,
-            "พื้นที่ (ไร่-งาน-วา)": "",
+            "เนื้อที่ (ตร.ว.)": "",
             "พื้นที่ใช้สอย (ตร.ม.)": "",
             "วันที่ดึงข้อมูล": scrape_date,
             "ห้องนอน": None,

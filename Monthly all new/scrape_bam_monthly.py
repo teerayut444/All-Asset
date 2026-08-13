@@ -87,15 +87,38 @@ def clean_num(val):
     except ValueError:
         return None
 
-def format_land_area(rai, ngan, wa):
+def _clean_val(val):
+    if val is None or str(val).strip().startswith('$undefined') or str(val).strip() == "":
+        return None
+    return str(val).strip()
+
+def format_land_area(item):
+    land_obj = item.get("landArea")
     parts = []
-    r_val = clean_text(rai)
-    n_val = clean_text(ngan)
-    w_val = clean_text(wa)
-    if r_val and r_val != "0": parts.append(f"{r_val} ไร่")
-    if n_val and n_val != "0": parts.append(f"{n_val} งาน")
-    if w_val and w_val != "0": parts.append(f"{w_val} วา")
+    if isinstance(land_obj, dict):
+        rai = _clean_val(land_obj.get("rai"))
+        ngan = _clean_val(land_obj.get("ngan"))
+        wa = _clean_val(land_obj.get("sqWa") or land_obj.get("wa"))
+        if rai and rai != "0": parts.append(f"{rai} ไร่")
+        if ngan and ngan != "0": parts.append(f"{ngan} งาน")
+        if wa and wa != "0": parts.append(f"{wa} วา")
+    
+    if not parts:
+        rai = _clean_val(item.get("landRai") or item.get("rai"))
+        ngan = _clean_val(item.get("landNgan") or item.get("ngan"))
+        wa = _clean_val(item.get("landWa") or item.get("wa"))
+        if rai and rai != "0": parts.append(f"{rai} ไร่")
+        if ngan and ngan != "0": parts.append(f"{ngan} งาน")
+        if wa and wa != "0": parts.append(f"{wa} วา")
+        
     return " ".join(parts)
+
+def format_usable_area(item):
+    b_area = item.get("buildingArea") or item.get("usableArea")
+    val = _clean_val(b_area)
+    if val and val != "0":
+        return val
+    return ""
 
 def load_existing_csv(filename):
     records = []
@@ -260,12 +283,8 @@ def fetch_bam_page(session, page_num):
                 final_prov = prov_det or prov_list
                 final_price = price_list if price_list is not None else price_det
                 
-                rai = item.get("landRai") or item.get("rai")
-                ngan = item.get("landNgan") or item.get("ngan")
-                wa = item.get("landWa") or item.get("wa")
-                land_str = format_land_area(rai, ngan, wa)
-                
-                usable_area = clean_text(item.get("buildingArea") or item.get("usableArea"))
+                land_str = format_land_area(item)
+                usable_area = format_usable_area(item)
                 
                 link = f"https://www.bam.co.th/th/npa/property/{pid}" if pid else ""
                 
