@@ -33,7 +33,7 @@ COLUMNS = [
     "บริษัท", "ID", "รหัสทรัพย์", "ชื่อโครงการ", "ประเภททรัพย์", "ประเภทการขาย", "ราคา",
     "ตำบล", "อำเภอ", "จังหวัด", "ละติจูด", "ลองจิจูด", "ชื่อประกาศ", "ลิงก์",
     "เนื้อที่ (ตร.ว.)", "พื้นที่ใช้สอย (ตร.ม.)", "วันที่ดึงข้อมูล",
-    "ห้องนอน", "ห้องน้ำ", "ที่จอดรถ", "วันประกาศ", "บริษัทเจ้าของทรัพย์"
+    "ห้องนอน", "ห้องน้ำ", "ที่จอดรถ", "วันประกาศ"
 ]
 
 ITEMS_PER_PAGE = 20
@@ -345,6 +345,7 @@ def parse_talad_card(card):
         item_id = m_id.group(1) if m_id else link.split('/')[-1]
         
         code, source_company = extract_talad_source_company(link)
+        company_val = source_company if source_company else COMPANY_NAME
         
         title_tag = card.find(class_=lambda c: c and ("title" in c.lower() or "name" in c.lower() or "card-title" in c.lower()))
         title = clean_text(title_tag.text) if title_tag else ""
@@ -359,7 +360,7 @@ def parse_talad_card(card):
         now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
         return {
-            "บริษัท": COMPANY_NAME,
+            "บริษัท": company_val,
             "ID": item_id,
             "รหัสทรัพย์": item_id,
             "ชื่อโครงการ": "",  # Leave blank if no project name
@@ -379,8 +380,7 @@ def parse_talad_card(card):
             "วันประกาศ": "",
             "ห้องนอน": None,
             "ห้องน้ำ": None,
-            "ที่จอดรถ": None,
-            "บริษัทเจ้าของทรัพย์": source_company
+            "ที่จอดรถ": None
         }
     except Exception:
         return None
