@@ -355,12 +355,11 @@ def fetch_ddproperty_page(session, base_url, target_type, page_num):
                     if not land_raw and isinstance(listing.get("unitDetails"), dict):
                         dims = listing["unitDetails"].get("dimensions", {}).get("land", {}).get("size", [])
                         for dim in dims:
-                            if isinstance(dim, dict) and "วา" in str(dim.get("formatted")):
+                            if isinstance(dim, dict) and any(w in str(dim.get("formatted")) for w in ["วา", "ตร.ว.", "ไร่", "งาน"]):
                                 land_raw = dim.get("formatted")
                                 break
-                    if land_raw:
-                        m_l = re.search(r'([\d\.,]+)\s*(?:ตร\.ว\.|ตารางวา|วา)', str(land_raw))
-                        if m_l: land_area = m_l.group(1).replace(',', '').strip()
+                    if land_raw and any(w in str(land_raw) for w in ["วา", "ตร.ว.", "ไร่", "งาน", "ตารางวา"]):
+                        land_area = str(land_raw).strip()
 
                     # 2. Check floor area (usable area)
                     floor_raw = ld.get("floorAreaText") or ld.get("floorArea") or ld.get("usableAreaText")
@@ -368,12 +367,12 @@ def fetch_ddproperty_page(session, base_url, target_type, page_num):
                         m_f = re.search(r'([\d\.,]+)', str(floor_raw))
                         if m_f: usable_area = m_f.group(1).replace(',', '').strip()
 
-                    # 3. Fallback parse from area_str or listing card_text for ตร.ว. / ตารางวา
+                    # 3. Fallback parse from area_str or listing card_text for ไร่/งาน/วา/ตร.ว./ตารางวา
                     if not land_area:
                         full_search_text = area_str + " " + card_text
-                        m_num = re.search(r'([\d\.,]+)\s*(?:ตร\.ว\.|ตารางวา)', full_search_text, re.I)
-                        if m_num:
-                            land_area = m_num.group(1).replace(',', '').strip()
+                        m_land_full = re.search(r'((?:\d+\s*ไร่\s*)?(?:\d+\s*งาน\s*)?[\d\.,]+\s*(?:ตร\.ว\.|ตร\.วา|ตารางวา|วา))', full_search_text, re.I)
+                        if m_land_full:
+                            land_area = m_land_full.group(1).strip()
 
                     if not usable_area and area_str:
                         if re.search(r'ตร\.ม\.|ตารางเมตร', area_str):

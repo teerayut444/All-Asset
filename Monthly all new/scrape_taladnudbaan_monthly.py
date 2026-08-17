@@ -227,18 +227,12 @@ def fetch_talad_detail(session, item):
                 if agency_code:
                     item["รหัสทรัพย์"] = agency_code
                 
-            # 3. Land Area (ไร่-งาน-วา)
-            m_land = re.search(r'ขนาดที่ดิน\s*:\s*([^\n\r<"]+)', main_text)
+            # 3. Land Area (ไร่-งาน-วา / ตร.ว.)
+            m_land = re.search(r'(?:ขนาดที่ดิน|เนื้อที่)\s*:\s*([^\n\r<"]+)', main_text)
             if m_land:
                 land_str = m_land.group(1).strip()
-                rai_m = re.search(r'(\d+)\s*ไร่', land_str)
-                ngan_m = re.search(r'(\d+)\s*งาน', land_str)
-                wa_m = re.search(r'([\d\.,]+)\s*(?:ตร\.ว\.|ตารางวา|วา)', land_str)
-                parts = []
-                if rai_m and rai_m.group(1) != "0": parts.append(f"{rai_m.group(1)} ไร่")
-                if ngan_m and ngan_m.group(1) != "0": parts.append(f"{ngan_m.group(1)} งาน")
-                if wa_m and wa_m.group(1) != "0": parts.append(f"{wa_m.group(1)} วา")
-                if parts: item["เนื้อที่ (ตร.ว.)"] = " ".join(parts)
+                if any(w in land_str for w in ["ไร่", "งาน", "วา", "ตร.ว.", "ตารางวา"]):
+                    item["เนื้อที่ (ตร.ว.)"] = land_str
                     
             # 4. Usable Area (ตร.ม.)
             m_u = re.search(r'ขนาดพื้นที่ใช้สอย\s*:\s*([^\n\r<"]+)', main_text) or re.search(r'พื้นที่ใช้สอย\s*:\s*([^\n\r<"]+)', main_text)

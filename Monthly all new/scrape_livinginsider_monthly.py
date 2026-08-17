@@ -444,7 +444,7 @@ def enrich_living_detail_location(session, item):
             # --- ชื่อโครงการ from detail ---
             item["ชื่อโครงการ"] = extract_living_project_name(soup, item.get("ชื่อประกาศ", ""))
 
-            # --- ห้องนอน / ห้องน้ำ / ที่จอดรถ from DOM detail-property-list ---
+            # --- ห้องนอน / ห้องน้ำ / ที่จอดรถ / เนื้อที่ / พื้นที่ใช้สอย from DOM detail-property-list ---
             for container in soup.find_all(class_=re.compile(r'detail-property-list', re.I)):
                 title_el = container.find(class_=re.compile(r'title', re.I))
                 text_el = container.find(class_=re.compile(r'text', re.I))
@@ -454,6 +454,13 @@ def enrich_living_detail_location(session, item):
                     if "ห้องนอน" in t and not item.get("ห้องนอน"): item["ห้องนอน"] = val
                     elif "ห้องน้ำ" in t and not item.get("ห้องน้ำ"): item["ห้องน้ำ"] = val
                     elif "ที่จอดรถ" in t and not item.get("ที่จอดรถ"): item["ที่จอดรถ"] = val
+                    elif any(k in t for k in ["เนื้อที่", "ขนาดที่ดิน", "ที่ดิน"]) and not item.get("เนื้อที่ (ตร.ว.)"):
+                        if "ตร.ม" not in val and not val.endswith("ตร.ม."):
+                            item["เนื้อที่ (ตร.ว.)"] = val
+                    elif any(k in t for k in ["พื้นที่ใช้สอย", "ขนาดพื้นที่"]) and not item.get("พื้นที่ใช้สอย (ตร.ม.)"):
+                        m_u_val = re.search(r'([\d\.,]+)', val)
+                        if m_u_val:
+                            item["พื้นที่ใช้สอย (ตร.ม.)"] = m_u_val.group(1).replace(',', '').strip()
 
             # Fallback regex text for beds/baths/parking
             if not item.get("ห้องนอน"):
@@ -489,15 +496,14 @@ def enrich_living_detail_location(session, item):
                 item["พื้นที่ใช้สอย (ตร.ม.)"] = m_u.group(1).replace(',', '').strip()
 
             # --- เนื้อที่ (ตร.ว.) ---
-            rai_m = re.search(r'(\d+)\s*ไร่', main_text)
-            ngan_m = re.search(r'(\d+)\s*งาน', main_text)
-            wa_m = re.search(r'([\d\.,]+)\s*(?:ตร\.วา|ตารางวา|ตร\.ว\.|วา)', main_text)
-            parts = []
-            if rai_m: parts.append(f"{rai_m.group(1)} ไร่")
-            if ngan_m: parts.append(f"{ngan_m.group(1)} งาน")
-            if wa_m: parts.append(f"{wa_m.group(1)} วา")
-            if parts and not item.get("เนื้อที่ (ตร.ว.)"):
-                item["เนื้อที่ (ตร.ว.)"] = " ".join(parts)
+            if not item.get("เนื้อที่ (ตร.ว.)"):
+                m_land_text = re.search(r'(?:เนื้อที่|ขนาดที่ดิน)\s*[:\s]*((?:\d+\s*ไร่\s*)?(?:\d+\s*งาน\s*)?[\d\.,]+\s*(?:ตร\.ว\.|ตร\.วา|ตารางวา|วา))', main_text)
+                if m_land_text:
+                    item["เนื้อที่ (ตร.ว.)"] = m_land_text.group(1).strip()
+                else:
+                    m_land_gen = re.search(r'((?:\d+\s*ไร่\s*)?(?:\d+\s*งาน\s*)?[\d\.,]+\s*(?:ตร\.ว\.|ตร\.วา|ตารางวา|วา))', main_text)
+                    if m_land_gen:
+                        item["เนื้อที่ (ตร.ว.)"] = m_land_gen.group(1).strip()
     except Exception:
         pass
     return item

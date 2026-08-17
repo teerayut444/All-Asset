@@ -366,9 +366,9 @@ def fetch_zmyhome_detail(session, item):
                 if m_u and not item.get("พื้นที่ใช้สอย (ตร.ม.)"):
                     item["พื้นที่ใช้สอย (ตร.ม.)"] = m_u.group(1).strip()
                     
-                m_l = re.search(r'([\d\.]+)\s*(?:ตร\.วา|ตารางวา|วา)', main_text)
+                m_l = re.search(r'((?:\d+\s*ไร่\s*)?(?:\d+\s*งาน\s*)?[\d\.,]+\s*(?:ตร\.ว\.|ตร\.วา|ตารางวา|วา))', main_text)
                 if m_l and not item.get("เนื้อที่ (ตร.ว.)"):
-                    item["เนื้อที่ (ตร.ว.)"] = f"{m_l.group(1)} วา"
+                    item["เนื้อที่ (ตร.ว.)"] = m_l.group(1).strip()
                     
                 # --- 6. Posted Date ---
                 m_post = re.search(r'(?:ลงประกาศเมื่อ|อัปเดตเมื่อ|สร้างเมื่อ|ประกาศเมื่อ)\s*[:\s]*([^\n\r<"]+)', main_text)
