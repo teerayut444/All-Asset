@@ -1,61 +1,50 @@
 @echo off
+setlocal enabledelayedexpansion
 title All Asset NPA Dashboard Launcher (6 Companies)
+
+:: Change directory to the folder where this batch file is located
+cd /d "%~dp0"
+
 echo ======================================================================
 echo   All Asset NPA Dashboard Launcher - 6 Companies
 echo   [ Baania / BAM / SAM / ZmyHome / DDproperty / Taladnudbaan ]
 echo ======================================================================
 echo.
-echo Checking virtual environments or global python...
-echo.
 
-set VENV_PATH_BAM=..\BAM NPA\.venv
-if exist "%VENV_PATH_BAM%\Scripts\activate.bat" (
-    echo [Info] Found virtual environment in BAM NPA folder. Activating...
-    call "%VENV_PATH_BAM%\Scripts\activate.bat"
-    goto run
+:: Check local virtual environment executable directly
+if exist ".venv\Scripts\python.exe" (
+    echo [Info] Found local virtual environment in .venv folder.
+    set "PYTHON_EXE=.venv\Scripts\python.exe"
+    goto launch
 )
 
-set VENV_PATH_ZMY=..\ZmyHome NPA\.venv
-if exist "%VENV_PATH_ZMY%\Scripts\activate.bat" (
-    echo [Info] Found virtual environment in ZmyHome NPA folder. Activating...
-    call "%VENV_PATH_ZMY%\Scripts\activate.bat"
-    goto run
+:: Check parent virtual environment
+if exist "..\.venv\Scripts\python.exe" (
+    echo [Info] Found parent virtual environment.
+    set "PYTHON_EXE=..\.venv\Scripts\python.exe"
+    goto launch
 )
 
-set VENV_PATH_BAANIA=..\Baania NPA new\.venv
-if exist "%VENV_PATH_BAANIA%\Scripts\activate.bat" (
-    echo [Info] Found virtual environment in Baania NPA new folder. Activating...
-    call "%VENV_PATH_BAANIA%\Scripts\activate.bat"
-    goto run
-)
+:: Fallback to system python
+set "PYTHON_EXE=python"
+echo [Info] Using system python: %PYTHON_EXE%
 
-set VENV_PATH_DD=..\DDproperty NPA\.venv
-if exist "%VENV_PATH_DD%\Scripts\activate.bat" (
-    echo [Info] Found virtual environment in DDproperty NPA folder. Activating...
-    call "%VENV_PATH_DD%\Scripts\activate.bat"
-    goto run
-)
-
-set VENV_PATH_TALAD=..\Taladnudbaan NPA\.venv
-if exist "%VENV_PATH_TALAD%\Scripts\activate.bat" (
-    echo [Info] Found virtual environment in Taladnudbaan NPA folder. Activating...
-    call "%VENV_PATH_TALAD%\Scripts\activate.bat"
-    goto run
-)
-
-echo [Info] No local virtual environment found. Using global python environment.
-
-:run
+:launch
 echo.
 echo [Launch] Starting Streamlit Dashboard for 6 Companies...
-python -m streamlit run app.py
+echo [Path] Using Python: %PYTHON_EXE%
+echo.
+
+"%PYTHON_EXE%" -m streamlit run app.py
+
 if %errorlevel% neq 0 (
     echo.
-    echo [Error] Failed to start Streamlit. Attempting to install dependencies...
-    python -m pip install streamlit pandas openpyxl plotly bs4 requests pyarrow
+    echo [Warning] Streamlit exited or encountered an error.
+    echo [Info] Attempting to install / verify required dependencies...
+    "%PYTHON_EXE%" -m pip install streamlit pandas openpyxl plotly bs4 requests pyarrow
     echo.
-    echo [Launch] Retrying starting Streamlit Dashboard...
-    python -m streamlit run app.py
+    echo [Launch] Retrying Streamlit Dashboard...
+    "%PYTHON_EXE%" -m streamlit run app.py
 )
 
 pause
