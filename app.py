@@ -11,6 +11,7 @@ import ast
 import io
 from pathlib import Path
 import base64
+import time
 
 from dashboard_metrics import build_kpi_summary_text
 
@@ -635,17 +636,9 @@ with st.sidebar:
         
     if st.button("🔄 รีโหลดฐานข้อมูล (Clear Cache)", use_container_width=True, help="กดเมื่อต้องการให้แอปอ่านไฟล์ข้อมูลใหม่ล่าสุดทันที"):
         st.cache_data.clear()
+        st.session_state.pop('data_loaded_once', None)
         st.rerun()
         
-    st.markdown("---")
-    
-    max_map_points = st.select_slider(
-        "📍 จุดพิกัดแผนที่ (Tab 1)",
-        options=[5000, 10000, 25000, 50000, 100000],
-        value=10000,
-        format_func=lambda x: f"{x:,} จุด ⚡ (ไวสุด)" if x <= 10000 else f"{x:,} จุด",
-        help="ปรับจำนวนจุดพิกัดที่จะเรนเดอร์ลงในแผนที่ใหญ่ (Tab 1) เพื่อความลื่นไหลของหน้าเว็บ"
-    )
     # Configure variables for forced styling
     bg_color = "rgba(243, 244, 246, 0.9)"
     border_color = "rgba(0, 0, 0, 0.08)"
@@ -1457,19 +1450,20 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
 # ----- TAB 1: MAP GRID -----
 with tab1:
     with st.container(key="tab_map"):
+        progress_bar = st.progress(0, text="กำลังเตรียมข้อมูลแผนที่...")
+        
+        # Step 1: Filter rows with coordinates (20%)
+        progress_bar.progress(20, text="กำลังกรองจุดพิกัดในประเทศไทย (20%)...")
         map_data = df_filtered[
             df_filtered['ละติจูด'].notna() & df_filtered['ลองจิจูด'].notna() &
             df_filtered['ละติจูด'].between(5, 21) & df_filtered['ลองจิจูด'].between(97, 106)
         ].copy()
         
-        MAP_MAX_POINTS = max_map_points
         map_data_full_len = len(map_data)
-        map_sampled = False
-        if map_data_full_len > MAP_MAX_POINTS:
-            map_sampled = True
-            map_data = map_data.sample(n=MAP_MAX_POINTS, random_state=42)
             
         if not map_data.empty:
+            # Step 2: Format prices (40%)
+            progress_bar.progress(40, text="กำลังจัดรูปแบบราคาและชื่อประกาศ (40%)...")
             prices = map_data['ราคา']
             map_data['ราคาขาย'] = np.where(
                 prices.notna() & (prices > 0),
@@ -1478,8 +1472,11 @@ with tab1:
             )
             
         if map_data.empty:
+            progress_bar.empty()
             st.warning("⚠️ ไม่พบพิกัดตำแหน่ง ละติจูด/ลองจิจูด ในรายการทรัพย์สินที่คุณเลือกค้นหา")
         else:
+            # Step 3: Color mapping (60%)
+            progress_bar.progress(60, text="กำลังจัดเตรียมสีตามบริษัทคู่แข่ง (60%)...")
             title_col = 'ชื่อประกาศ' if 'ชื่อประกาศ' in map_data.columns else ('ชื่อโครงการ' if 'ชื่อโครงการ' in map_data.columns else 'รหัสทรัพย์')
             titles = map_data[title_col].astype(object).fillna('ไม่มีชื่อ').astype(str).str[:30].values
             ids = map_data['รหัสทรัพย์'].astype(object).fillna('-').astype(str).str[:15].values
@@ -1497,6 +1494,8 @@ with tab1:
                 g_vals.append(color[1])
                 b_vals.append(color[2])
                 
+            # Step 4: CSV conversion & Base64 encoding (80%)
+            progress_bar.progress(80, text="กำลังแปลงข้อมูลเป็น Base64 Payload (80%)...")
             csv_df = pd.DataFrame({
                 'lon': map_data['ลองจิจูด'].values.astype('float32'),
                 'lat': map_data['ละติจูด'].values.astype('float32'),
@@ -1514,6 +1513,8 @@ with tab1:
             csv_str = csv_df.to_csv(index=False)
             csv_base64 = base64.b64encode(csv_str.encode('utf-8')).decode('utf-8')
             
+            # Step 5: Render map template (90%)
+            progress_bar.progress(90, text="กำลังสร้างแผนที่ความละเอียดสูง Deck.gl (90%)...")
             base_tmpl = get_base_map_html()
             html_content = base_tmpl.replace("CSV_BASE64_PLACEHOLDER", csv_base64)
             
@@ -1533,6 +1534,11 @@ with tab1:
             html_content = html_content.replace("DDPROPERTY_COUNT", f"{map_ddproperty_count:,}")
             html_content = html_content.replace("TALADNUDBAAN_COUNT", f"{map_taladnudbaan_count:,}")
             html_content = html_content.replace("ZMYHOME_COUNT", f"{map_zmyhome_count:,}")
+            
+            # Step 6: Finish (100%)
+            progress_bar.progress(100, text="เรนเดอร์แผนที่สำเร็จแล้ว (100%)")
+            time.sleep(0.1)
+            progress_bar.empty()
             
             map_rendered = False
             try:

@@ -118,7 +118,22 @@ def optimize_and_clean_dataframe(df, exclude_livinginsider=True):
         if c in df.columns:
             df[c] = pd.to_numeric(df[c], errors='coerce').astype('Int16')
 
-    # 8. Convert repetitive text columns to category to save 80% RAM
+    # 8. Derived Unit Prices (ราคาต่อตารางวา, ราคาต่อตารางเมตร)
+    if 'ราคาต่อตารางวา' not in df.columns:
+        df['ราคาต่อตารางวา'] = np.where((df['พื้นที่_ตารางวา'] > 0) & (df['ราคา'] > 0), df['ราคา'] / df['พื้นที่_ตารางวา'], np.nan).astype('float32')
+    else:
+        df['ราคาต่อตารางวา'] = pd.to_numeric(df['ราคาต่อตารางวา'], errors='coerce').astype('float32')
+        
+    if 'ราคาต่อตารางเมตร' not in df.columns:
+        df['ราคาต่อตารางเมตร'] = np.where((df['พื้นที่ใช้สอย (ตร.ม.)'] > 0) & (df['ราคา'] > 0), df['ราคา'] / df['พื้นที่ใช้สอย (ตร.ม.)'], np.nan).astype('float32')
+    else:
+        df['ราคาต่อตารางเมตร'] = pd.to_numeric(df['ราคาต่อตารางเมตร'], errors='coerce').astype('float32')
+
+    # Clean anomalous extreme unit prices
+    df.loc[df['ราคาต่อตารางวา'] > 50_000_000, 'ราคาต่อตารางวา'] = np.nan
+    df.loc[df['ราคาต่อตารางเมตร'] > 20_000_000, 'ราคาต่อตารางเมตร'] = np.nan
+
+    # 9. Convert repetitive text columns to category to save 80% RAM
     cat_cols = ['บริษัท', 'ประเภททรัพย์', 'ประเภทการขาย', 'จังหวัด', 'อำเภอ', 'ตำบล']
     for c in cat_cols:
         if c in df.columns:
@@ -126,7 +141,7 @@ def optimize_and_clean_dataframe(df, exclude_livinginsider=True):
             df[c] = df[c].fillna('ไม่มีข้อมูล').astype(str).str.strip()
             df[c] = df[c].astype('category')
 
-    # 9. Clean Title and Link
+    # 10. Clean Title and Link
     if 'ชื่อประกาศ' not in df.columns and 'ชื่อโครงการ' in df.columns:
         df['ชื่อประกาศ'] = df['ชื่อโครงการ']
     if 'ชื่อประกาศ' in df.columns:
@@ -135,7 +150,7 @@ def optimize_and_clean_dataframe(df, exclude_livinginsider=True):
     if 'ลิงก์' in df.columns:
         df['ลิงก์'] = df['ลิงก์'].fillna('').astype(str).str.strip()
 
-    # 10. Drop complete duplicates
+    # 11. Drop complete duplicates
     initial_cnt = len(df)
     df = df.drop_duplicates(subset=['บริษัท', 'รหัสทรัพย์'] if ('บริษัท' in df.columns and 'รหัสทรัพย์' in df.columns) else None)
     dup_removed = initial_cnt - len(df)
@@ -173,11 +188,40 @@ def convert_csv_to_parquet(input_path, output_path=None, exclude_livinginsider=T
             target_file = matches[0]
 
     if not target_file or not os.path.exists(target_file):
-        print(f"❌ ไม่พบไฟล์ต้นทางที่ต้องการแปลง: {input_path}")
+        print("=" * 70)
+        print(f"❌ ไม่พบไฟล์ CSV ที่พร้อมแปลงในเส้นทาง: '{input_path}'")
+        print("=" * 70)
+        print("🔍 รายละเอียดการตรวจสอบ:")
+        print("   1. ระบบพยายามค้นหาไฟล์รวม:")
+        print("      - all_assets_monthly_*.csv")
+        print("      - all_assets_monthly.csv")
+        print("      - all_assets.csv")
+        
+        if os.path.isdir(input_path):
+            existing_files = sorted(glob.glob(os.path.join(input_path, "*")))
+            if existing_files:
+                print(f"\n📂 ไฟล์ที่พบในโฟลเดอร์ '{input_path}':")
+                for f in existing_files:
+                    sz_mb = os.path.getsize(f) / (1024 * 1024)
+                    print(f"   - {os.path.basename(f):<40s} ({sz_mb:.2f} MB)")
+                
+                scraped_csvs = [f for f in existing_files if f.endswith('.csv') and not os.path.basename(f).startswith('all_assets')]
+                if scraped_csvs:
+                    print("\n💡 คำแนะนำ:")
+                    print(f"   พบไฟล์ข้อมูลของแต่ละบริษัท ({len(scraped_csvs)} ไฟล์) แต่ยังไม่ได้รวมไฟล์")
+                    print(f"   กรุณารันคำสั่งรวมไฟล์ก่อน โดยพิมพ์:")
+                    print(f"   👉 python \"Monthly all new/merge_csv_monthly.py\"")
+                    print(f"   จากนั้นค่อยรัน convert_csv_to_parquet.py อีกครั้ง")
+            else:
+                print(f"\n⚠️ โฟลเดอร์ '{input_path}' ว่างเปล่า ไม่มีไฟล์ใดๆ")
+        else:
+            print(f"\n⚠️ ไม่พบไฟล์หรือโฟลเดอร์ '{input_path}' ในระบบ")
+            
+        print("=" * 70)
         return False
 
     sz = os.path.getsize(target_file)
-    print(f"📂 ไฟล์ CSV ที่จะแปลง (แปลงเฉพาะไฟล์นี้): {target_file}")
+    print(f"📂 ไฟล์ CSV ที่จะแปลง: {target_file}")
     print(f"  [+] อ่าน {os.path.basename(target_file):<35s} | ขนาด: {sz/(1024*1024):.2f} MB")
 
     # 2. Read single CSV file
@@ -196,8 +240,8 @@ def convert_csv_to_parquet(input_path, output_path=None, exclude_livinginsider=T
 
     # 4. Determine output path
     if output_path is None:
-        if len(csv_files) == 1 and not os.path.isdir(input_path):
-            output_path = os.path.splitext(csv_files[0])[0] + ".parquet"
+        if not os.path.isdir(input_path):
+            output_path = os.path.splitext(input_path)[0] + ".parquet"
         else:
             output_path = "all_assets.parquet"
 

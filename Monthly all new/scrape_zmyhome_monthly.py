@@ -215,8 +215,8 @@ def fetch_zmyhome_detail(session, item):
                 html = r.text
                 soup = BeautifulSoup(html, 'html.parser')
 
-                # --- 1. Lat/Lng from Google Maps link / static map ---
-                map_link = soup.find('a', href=re.compile(r'google.*map|maps\.google', re.I))
+                # --- 1. Lat/Lng from Google Maps link / static map / shortlink ---
+                map_link = soup.find('a', href=re.compile(r'google.*map|maps\.google|maps\.app\.goo\.gl', re.I))
                 if map_link:
                     href = map_link.get('href', '')
                     m_ll = re.search(r'q=([\d\.-]+),([\d\.-]+)', href) or re.search(r'@([\d\.-]+),([\d\.-]+)', href) or re.search(r'center=([\d\.-]+),([\d\.-]+)', href)
@@ -238,6 +238,19 @@ def fetch_zmyhome_detail(session, item):
                                 item["ลองจิจูด"] = lng_v
                         except Exception: pass
 
+                if not item.get("ละติจูด"):
+                    m_short = re.search(r'https?://(?:maps\.app\.goo\.gl|goo\.gl/maps)/[a-zA-Z0-9_-]+', html)
+                    if m_short:
+                        try:
+                            r_m = session.get(m_short.group(0), allow_redirects=True, timeout=5)
+                            m_ll_short = re.search(r'3d([\d\.-]+)!4d([\d\.-]+)', r_m.url) or re.search(r'@([\d\.-]+),([\d\.-]+)', r_m.url) or re.search(r'q=([\d\.-]+),([\d\.-]+)', r_m.url)
+                            if m_ll_short:
+                                lat_v, lng_v = float(m_ll_short.group(1)), float(m_ll_short.group(2))
+                                if 5.0 <= lat_v <= 21.0 and 97.0 <= lng_v <= 106.0:
+                                    item["ละติจูด"] = lat_v
+                                    item["ลองจิจูด"] = lng_v
+                        except Exception: pass
+
                 # --- 2. Location (Primary: Reverse Geocode from Lat/Lng) ---
                 if item.get("ละติจูด") and item.get("ลองจิจูด"):
                     sd, d, p = reverse_geocode_location(session, item["ละติจูด"], item["ลองจิจูด"])
@@ -246,34 +259,46 @@ def fetch_zmyhome_detail(session, item):
                     if p: item["จังหวัด"] = p
 
                 # --- 2.5 Location Fallbacks (JSON-LD & Breadcrumb) if missing ---
-                if not item.get("ตำบล") or not item.get("อำเภอ") or not item.get("จังหวัด"):
-                    m_jsonld = re.search(r'<script type="application/ld\+json">(.*?)</script>', html, re.DOTALL)
-                    if m_jsonld:
-                        try:
-                            j_data = json.loads(m_jsonld.group(1))
-                            if isinstance(j_data, list):
-                                for j_obj in j_data:
-                                    if j_obj.get("@type") == "Offer":
-                                        item_off = j_obj.get("itemOffered", {})
-                                        addr_obj = item_off.get("address", {})
-                                        if addr_obj:
-                                            loc_district = clean_text(addr_obj.get("addressLocality"))
-                                            loc_region = clean_text(addr_obj.get("addressRegion"))
-                                            desc_text = clean_text(item_off.get("description", ""))
-                                            
-                                            if loc_district and not item.get("อำเภอ"): item["อำเภอ"] = loc_district
-                                            if loc_region and not item.get("จังหวัด"):
-                                                if "กรุงเทพ" in loc_region: item["จังหวัด"] = "กรุงเทพมหานคร"
-                                                else: item["จังหวัด"] = loc_region
+                m_jsonld = re.search(r'<script type="application/ld\+json">(.*?)</script>', html, re.DOTALL)
+                if m_jsonld:
+                    try:
+                        j_data = json.loads(m_jsonld.group(1))
+                        if isinstance(j_data, list):
+                            for j_obj in j_data:
+                                if j_obj.get("@type") == "Offer":
+                                    p_spec = j_obj.get("priceSpecification", {})
+                                    price_val = p_spec.get("price") if isinstance(p_spec, dict) else j_obj.get("price")
+                                    if price_val:
+                                        try:
+                                            p_f = float(price_val)
+                                            if not item.get("ราคา") or item["ราคา"] < 10000 or p_f != item["ราคา"]:
+                                                item["ราคา"] = p_f
+                                        except Exception: pass
+                                        
+                                    item_off = j_obj.get("itemOffered", {})
+                                    addr_obj = item_off.get("address", {})
+                                    if addr_obj:
+                                        loc_district = clean_text(addr_obj.get("addressLocality"))
+                                        loc_region = clean_text(addr_obj.get("addressRegion"))
+                                        desc_text = clean_text(item_off.get("description", ""))
+                                        
+                                        if loc_district and not item.get("อำเภอ"): item["อำเภอ"] = loc_district
+                                        if loc_region and not item.get("จังหวัด"):
+                                            if "กรุงเทพ" in loc_region: item["จังหวัด"] = "กรุงเทพมหานคร"
+                                            else: item["จังหวัด"] = loc_region
 
-                                            if not item.get("ตำบล"):
-                                                m_sd = re.search(r'(?:ตำบล|แขวง)\s*([^\s,]+)', desc_text)
-                                                if m_sd:
-                                                    sd_candidate = m_sd.group(1).strip()
-                                                    if not any(k in sd_candidate for k in ["ถนน", "ซอย", "ถ.", "ซ."]):
-                                                        item["ตำบล"] = sd_candidate
-                                            break
-                        except Exception: pass
+                                        if not item.get("ตำบล"):
+                                            m_sd = re.search(r'(?:ตำบล|แขวง)\s*([^\s,]+)', desc_text)
+                                            if m_sd:
+                                                sd_candidate = m_sd.group(1).strip()
+                                                if not any(k in sd_candidate for k in ["ถนน", "ซอย", "ถ.", "ซ."]):
+                                                    item["ตำบล"] = sd_candidate
+                                elif j_obj.get("@type") == "BreadcrumbList":
+                                    items_list = j_obj.get("itemListElement", [])
+                                    for bc_i in items_list:
+                                        if bc_i.get("position") == 2 and bc_i.get("name"):
+                                            item["ประเภททรัพย์"] = bc_i.get("name").strip()
+                    except Exception: pass
 
                 # Fallback location from breadcrumbs if subdistrict/district still missing
                 bc = soup.find(class_=re.compile(r'breadcrumb', re.I))
@@ -360,7 +385,17 @@ def fetch_zmyhome_detail(session, item):
                 if proj_name:
                     item["ชื่อโครงการ"] = proj_name
 
+                # --- 4.5 Decompose recommendation, carousel, & nearby blocks to avoid false field extraction ---
+                for bad_tag in soup.find_all(['section', 'div', 'article'], class_=re.compile(r'announce-project|carousel|card-property|recommend|nearby|similar|relate|footer|banner', re.I)):
+                    bad_tag.decompose()
+
                 # --- 5. Usable Area & Land Area ---
+                og_desc = soup.find('meta', property='og:description')
+                if og_desc and not item.get("เนื้อที่ (ตร.ว.)"):
+                    m_meta_land = re.search(r'เนื้อที่\s*([\d\.,]+)\s*(?:ตารางวา|ตร\.ว\.|วา)', og_desc.get("content", ""))
+                    if m_meta_land:
+                        item["เนื้อที่ (ตร.ว.)"] = f"{m_meta_land.group(1).replace(',', '')} ตร.ว."
+
                 main_text = soup.get_text()
                 m_u = re.search(r'([\d\.]+)\s*(?:ตร\.ม\.|ตารางเมตร)', main_text)
                 if m_u and not item.get("พื้นที่ใช้สอย (ตร.ม.)"):
@@ -378,12 +413,17 @@ def fetch_zmyhome_detail(session, item):
                     item["วันประกาศ"] = clean_text(m_post.group(1))
                     
                 # --- 7. Bedrooms, Bathrooms, Parking ---
-                m_bed = re.search(r'(\d+)\s*ห้องนอน', main_text)
-                if m_bed: item["ห้องนอน"] = int(m_bed.group(1))
-                m_bath = re.search(r'(\d+)\s*ห้องน้ำ', main_text)
-                if m_bath: item["ห้องน้ำ"] = int(m_bath.group(1))
-                m_park = re.search(r'(\d+)\s*ที่จอดรถ', main_text)
-                if m_park: item["ที่จอดรถ"] = int(m_park.group(1))
+                if item.get("ประเภททรัพย์") == "ที่ดิน":
+                    item["ห้องนอน"] = None
+                    item["ห้องน้ำ"] = None
+                    item["ที่จอดรถ"] = None
+                else:
+                    m_bed = re.search(r'(\d+)\s*ห้องนอน', main_text)
+                    if m_bed: item["ห้องนอน"] = int(m_bed.group(1))
+                    m_bath = re.search(r'(\d+)\s*ห้องน้ำ', main_text)
+                    if m_bath: item["ห้องน้ำ"] = int(m_bath.group(1))
+                    m_park = re.search(r'(\d+)\s*ที่จอดรถ', main_text)
+                    if m_park: item["ที่จอดรถ"] = int(m_park.group(1))
                 
                 break
         except Exception:
@@ -423,8 +463,20 @@ def parse_zmyhome_card(card):
         if not price_tag:
             price_tag = card.find(class_=lambda c: c and "price" in c.lower())
         price_str = clean_text(price_tag.text) if price_tag else ""
-        price_clean = re.sub(r"[^\d\.]", "", price_str.replace(",", ""))
-        price = float(price_clean) if price_clean else None
+        price = None
+        if price_str:
+            is_million = any(w in price_str for w in ["ล้าน", "ลบ", "MB", "mb", "Mb", "M"])
+            price_clean = re.sub(r"[^\d\.]", "", price_str.replace(",", ""))
+            if price_clean:
+                try:
+                    p_val = float(price_clean)
+                    if is_million and p_val < 10000:
+                        p_val = p_val * 1000000.0
+                    elif p_val < 500:  # anomalous low price e.g. 100.0 -> 100M
+                        p_val = p_val * 1000000.0
+                    price = p_val
+                except ValueError:
+                    price = None
         
         loc_li = card.find("li", class_="location")
         loc_text = clean_text(loc_li.text) if loc_li else ""
