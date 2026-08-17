@@ -17,7 +17,6 @@ SCRAPERS = [
     {"name": "BAM", "script": "scrape_bam_monthly.py"},
     {"name": "ZmyHome", "script": "scrape_zmyhome_monthly.py"},
     {"name": "SAM", "script": "scrape_sam_monthly.py"},
-    {"name": "Livinginsider", "script": "scrape_livinginsider_monthly.py"},
     {"name": "DDproperty", "script": "scrape_ddproperty_monthly.py"},
     {"name": "Taladnudbaan", "script": "scrape_taladnudbaan_monthly.py"}
 ]
@@ -40,7 +39,7 @@ def draw_fixed_dashboard():
         # Move cursor to top-left home position
         sys.stdout.write("\033[H")
         sys.stdout.write(f"{BORDER_LINE}\n")
-        sys.stdout.write("🚀 Live Dashboard: Scraper Monthly ขนาน 7 บริษัท (Fixed Screen Aligned Mode)\n")
+        sys.stdout.write("🚀 Live Dashboard: Scraper Monthly ขนาน 6 บริษัท (Fixed Screen Aligned Mode)\n")
         sys.stdout.write(f"{BORDER_LINE}\n")
         for s in SCRAPERS:
             name = s["name"]
@@ -116,7 +115,7 @@ def main():
     os.system('cls' if os.name == 'nt' else 'clear')
     
     with lock:
-        add_log("เริ่มต้นระบบ Scraper Monthly แบบขนาน 7 บริษัท")
+        add_log("เริ่มต้นระบบ Scraper Monthly แบบขนาน 6 บริษัท")
     
     ui_thread = threading.Thread(target=ui_refresh_loop)
     ui_thread.daemon = True
@@ -177,7 +176,7 @@ def main():
     time.sleep(0.4)
     
     with lock:
-        add_log("ทั้ง 7 บริษัท สแครปเสร็จสมบูรณ์แล้ว!")
+        add_log("ทั้ง 6 บริษัท สแครปเสร็จสมบูรณ์แล้ว!")
         
     draw_fixed_dashboard()
     
@@ -185,7 +184,7 @@ def main():
 
     print("\n" + BORDER_LINE, flush=True)
     print("🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔", flush=True)
-    print("🎉🎉🎉 [FINISHED] ทั้ง 7 บริษัท สแครปและรวมไฟล์เสร็จสมบูรณ์ 100% เรียบร้อยแล้ว! 🎉🎉🎉", flush=True)
+    print("🎉🎉🎉 [FINISHED] ทั้ง 6 บริษัท สแครปและรวมไฟล์เสร็จสมบูรณ์ 100% เรียบร้อยแล้ว! 🎉🎉🎉", flush=True)
     print("🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔", flush=True)
     print(f"⏱️ รวมเวลาที่ใช้ในการรันขนานทั้งหมด: {elapsed/60:.2f} นาที", flush=True)
     print(BORDER_LINE, flush=True)
@@ -193,9 +192,9 @@ def main():
     try:
         import merge_csv_monthly
         merge_csv_monthly.merge_monthly_csv()
-        print("\n✅ [SUCCESS] อัปเดตไฟล์ Master CSV & Parquet เรียบร้อย พร้อมใช้งานบน Dashboard!", flush=True)
+        print("\n✅ [SUCCESS] รวมไฟล์และอัปเดต all_assets.parquet เรียบร้อย พร้อมใช้งานบน Dashboard!", flush=True)
     except Exception as e:
-        print(f"⚠️ เกิดข้อผิดพลาดในการรวมไฟล์ CSV: {e}", flush=True)
+        print(f"⚠️ เกิดข้อผิดพลาดในการรวมไฟล์: {e}", flush=True)
 
 if __name__ == "__main__":
     main()

@@ -2,7 +2,7 @@
 chcp 65001 > nul
 title Monthly Parallel All Asset NPA Scrapers Launcher
 echo ==========================================================================
-echo Starting Monthly Parallel Scrapers (7 Companies)...
+echo Starting Monthly Parallel Scrapers (6 Companies)...
 echo Folder: Monthly all new
 echo ==========================================================================
 echo.

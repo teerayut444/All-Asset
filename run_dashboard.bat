@@ -1,19 +1,12 @@
 @echo off
-title All Asset NPA Dashboard Launcher (7 Companies)
+title All Asset NPA Dashboard Launcher (6 Companies)
 echo ======================================================================
-echo   All Asset NPA Dashboard Launcher - 7 Companies
-echo   [ Baania / BAM / SAM / ZmyHome / Livinginsider / DDproperty / Taladnudbaan ]
+echo   All Asset NPA Dashboard Launcher - 6 Companies
+echo   [ Baania / BAM / SAM / ZmyHome / DDproperty / Taladnudbaan ]
 echo ======================================================================
 echo.
 echo Checking virtual environments or global python...
 echo.
-
-set VENV_PATH_LIVING=..\Livinginsider NPA\.venv
-if exist "%VENV_PATH_LIVING%\Scripts\activate.bat" (
-    echo [Info] Found virtual environment in Livinginsider NPA folder. Activating...
-    call "%VENV_PATH_LIVING%\Scripts\activate.bat"
-    goto run
-)
 
 set VENV_PATH_BAM=..\BAM NPA\.venv
 if exist "%VENV_PATH_BAM%\Scripts\activate.bat" (
@@ -54,7 +47,7 @@ echo [Info] No local virtual environment found. Using global python environment.
 
 :run
 echo.
-echo [Launch] Starting Streamlit Dashboard for 7 Companies...
+echo [Launch] Starting Streamlit Dashboard for 6 Companies...
 python -m streamlit run app.py
 if %errorlevel% neq 0 (
     echo.

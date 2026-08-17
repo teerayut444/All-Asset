@@ -18,10 +18,18 @@ TARGET_URLS = {
     "BAM": "https://www.bam.co.th/th/npa/property/search",
     "ZmyHome": "https://zmyhome.com/buy",
     "SAM": "https://sam.or.th/site/npa/page_list.php",
-    "Livinginsider": "https://www.livinginsider.com/",
     "DDproperty": "https://www.ddproperty.com/",
     "Taladnudbaan": "https://www.taladnudbaan.com/properties"
 }
+
+SCRAPERS = [
+    {"name": "Baania", "script": "scrape_baania_monthly.py"},
+    {"name": "BAM", "script": "scrape_bam_monthly.py"},
+    {"name": "ZmyHome", "script": "scrape_zmyhome_monthly.py"},
+    {"name": "SAM", "script": "scrape_sam_monthly.py"},
+    {"name": "DDproperty", "script": "scrape_ddproperty_monthly.py"},
+    {"name": "Taladnudbaan", "script": "scrape_taladnudbaan_monthly.py"}
+]
 
 def check_website_accessibility(name: str, url: str) -> bool:
     """ตรวจสอบว่าเว็บปลายทางสามารถเชื่อมต่อและตอบสนองได้ตามปกติหรือไม่"""
@@ -63,7 +71,6 @@ def run_scraper(name: str, script_name: str, cwd: Path, args_list: list, target_
     cmd = [python_exe, script_name] + args_list
     
     try:
-        # รัน subprocess และดึง output แสดงผลแบบ Real-time
         process = subprocess.Popen(
             cmd,
             cwd=cwd,
@@ -79,7 +86,6 @@ def run_scraper(name: str, script_name: str, cwd: Path, args_list: list, target_
             if output == '' and process.poll() is not None:
                 break
             if output:
-                # พิมพ์ออกหน้าจอของแอปพลิเคชันหลัก
                 sys.stdout.write(output)
                 sys.stdout.flush()
                 
@@ -96,98 +102,43 @@ def run_scraper(name: str, script_name: str, cwd: Path, args_list: list, target_
         return False
 
 def main():
-    parser = argparse.ArgumentParser(description="Run all asset scrapers combined.")
-    parser.add_argument(
-        "--pages",
-        type=str,
-        default="5",
-        help="จำนวนหน้าที่ต้องการดึงข้อมูลสำหรับ BAM, ZmyHome, Livinginsider (ใส่ตัวเลข หรือ 'all')"
-    )
-    parser.add_argument(
-        "--start-page",
-        type=str,
-        default="1",
-        help="หน้าเริ่มต้นสำหรับดึงข้อมูล (ค่าเริ่มต้น: 1, BAM รองรับ 'auto')"
-    )
+    parser = argparse.ArgumentParser(description="Run all asset scrapers from Monthly all new.")
+    parser.add_argument("--parallel", action="store_true", help="รันแบบขนานพร้อมกันทุกบริษัท (Fast Mode)")
     args = parser.parse_args()
     
-    base_dir = Path(r"c:\Users\Teerayut.N\.vscode\extensions")
+    root_dir = Path(__file__).parent.resolve()
+    monthly_dir = root_dir / "Monthly all new"
     
+    if args.parallel:
+        print("🚀 รันระบบดึงข้อมูลแบบขนานผ่าน run_parallel_monthly.py...")
+        p_script = monthly_dir / "run_parallel_monthly.py"
+        subprocess.run([sys.executable, str(p_script)], cwd=monthly_dir)
+        return
+
     print("\n==========================================================================")
     print(" 🔍 ตรวจสอบความพร้อมการเชื่อมต่อเว็บไซต์ปลายทาง (Website Health Check)")
+    print(" 📂 อ้างอิงโฟลเดอร์หลัก: Monthly all new")
     print("==========================================================================")
     
-    # 1. รัน Baania Scraper
-    run_scraper(
-        name="Baania",
-        script_name="baania_scraper.py",
-        cwd=base_dir / "Baania NPA new",
-        args_list=[]
-    )
+    for s in SCRAPERS:
+        run_scraper(
+            name=s["name"],
+            script_name=s["script"],
+            cwd=monthly_dir,
+            args_list=[]
+        )
     
-    # 2. รัน BAM Scraper
-    run_scraper(
-        name="BAM",
-        script_name="bam_scraper.py",
-        cwd=base_dir / "BAM NPA",
-        args_list=["--pages", args.pages, "--start-page", "auto"]
-    )
-    
-    # 3. รัน ZmyHome Scraper
-    run_scraper(
-        name="ZmyHome",
-        script_name="zmyhome_scraper.py",
-        cwd=base_dir / "ZmyHome NPA",
-        args_list=["--pages", args.pages, "--start-page", args.start_page]
-    )
-    
-    # 4. รัน SAM Scraper
-    run_scraper(
-        name="SAM",
-        script_name="sam_scraper.py",
-        cwd=base_dir / "SAM NPA",
-        args_list=[]
-    )
-    
-    # 5. รัน Livinginsider Scraper
-    run_scraper(
-        name="Livinginsider",
-        script_name="livinginsider_scraper.py",
-        cwd=base_dir / "Livinginsider NPA",
-        args_list=["--pages", args.pages]
-    )
-    
-    # 6. รัน DDproperty Scraper
-    run_scraper(
-        name="DDproperty",
-        script_name="ddproperty_all_scraper.py",
-        cwd=base_dir / "DDproperty NPA",
-        args_list=[]
-    )
-    
-    # 7. รัน Taladnudbaan Scraper
-    run_scraper(
-        name="Taladnudbaan",
-        script_name="scraper.py",
-        cwd=base_dir / "Taladnudbaan NPA",
-        args_list=[]
-    )
-    
-    # 8. รวมข้อมูลลง Excel
+    # รวมข้อมูลเป็น all_assets_monthly_YYYY_MM.csv และแปลงเฉพาะไฟล์นี้เป็น all_assets.parquet
     print("\n==========================================")
-    print("กำลังเริ่มรวมข้อมูลของทุกบริษัทลง Excel...")
+    print("กำลังเริ่มรวมข้อมูล CSV และแปลงเป็น all_assets.parquet...")
     print("==========================================\n")
     
     try:
-        # เรียกใช้ merge_excel.py
-        import merge_excel
-        success = merge_excel.merge_all_excel()
-        if success:
-            print("\n[Success] การรวมข้อมูลเสร็จสมบูรณ์เรียบร้อยแล้ว!")
-        else:
-            print("\n[Error] เกิดข้อผิดพลาดในการรวมข้อมูล")
+        sys.path.insert(0, str(monthly_dir))
+        import merge_csv_monthly
+        merge_csv_monthly.merge_monthly_csv()
     except Exception as e:
-        print(f"\n[Error] ไม่สามารถรันโค้ดรวมข้อมูลได้: {e}")
+        print(f"\n[Error] เกิดข้อผิดพลาดในการรวมและแปลงข้อมูล: {e}")
 
 if __name__ == "__main__":
     main()
