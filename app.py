@@ -170,30 +170,25 @@ def sanitize_session_state(key, valid_options, default_val=None):
 
 @st.cache_data
 def get_thailand_clean_grid(ref_lat, ref_lng):
-    """Cached multi-scale Thailand grid generator for instant clean map rendering."""
-    # 1. Ultra-fine grid around reference pin (±0.03 deg ~3.3km, 35x35)
+    """Cached lightweight Thailand grid generator for fast, low-memory map interaction."""
+    # 1. Fine grid around reference pin (±0.04 deg ~4.4km, 12x12 = 144 pts)
     u_lat, u_lng = np.meshgrid(
-        np.linspace(ref_lat - 0.03, ref_lat + 0.03, 35),
-        np.linspace(ref_lng - 0.03, ref_lng + 0.03, 35)
+        np.linspace(ref_lat - 0.04, ref_lat + 0.04, 12),
+        np.linspace(ref_lng - 0.04, ref_lng + 0.04, 12)
     )
-    # 2. Fine grid around reference pin (±0.15 deg ~16.5km, 25x25)
-    f_lat, f_lng = np.meshgrid(
-        np.linspace(ref_lat - 0.15, ref_lat + 0.15, 25),
-        np.linspace(ref_lng - 0.15, ref_lng + 0.15, 25)
-    )
-    # 3. Medium grid around reference pin (±0.8 deg ~88km, 20x20)
+    # 2. Medium grid around reference pin (±0.4 deg ~44km, 8x8 = 64 pts)
     m_lat, m_lng = np.meshgrid(
-        np.linspace(ref_lat - 0.8, ref_lat + 0.8, 20),
-        np.linspace(ref_lng - 0.8, ref_lng + 0.8, 20)
+        np.linspace(ref_lat - 0.4, ref_lat + 0.4, 8),
+        np.linspace(ref_lng - 0.4, ref_lng + 0.4, 8)
     )
-    # 4. Country-wide Thailand grid (35x35)
+    # 3. Country-wide Thailand macro grid (14x14 = 196 pts)
     c_lat, c_lng = np.meshgrid(
-        np.linspace(5.5, 20.5, 35),
-        np.linspace(97.5, 105.5, 35)
+        np.linspace(5.8, 20.2, 14),
+        np.linspace(97.8, 105.2, 14)
     )
 
-    all_lats = np.concatenate([u_lat.flatten(), f_lat.flatten(), m_lat.flatten(), c_lat.flatten()])
-    all_lngs = np.concatenate([u_lng.flatten(), f_lng.flatten(), m_lng.flatten(), c_lng.flatten()])
+    all_lats = np.concatenate([u_lat.flatten(), m_lat.flatten(), c_lat.flatten()])
+    all_lngs = np.concatenate([u_lng.flatten(), m_lng.flatten(), c_lng.flatten()])
 
     r1 = (all_lats >= 5.6) & (all_lats < 7.2) & (all_lngs >= 99.8) & (all_lngs <= 102.2)
     r2 = (all_lats >= 7.2) & (all_lats < 9.0) & (all_lngs >= 98.2) & (all_lngs <= 100.5)
@@ -2194,18 +2189,11 @@ with tab4:
                     ]
 
                 if not ref_assets_df.empty:
-                    # Force a copy to avoid SettingWithCopyWarning or copy-on-write errors in pandas 2.0+
-                    ref_assets_df = ref_assets_df.copy()
-
-                    # Create clean, non-redundant labels for selectbox
-                    ref_assets_df['label'] = ref_assets_df.apply(make_clean_dropdown_label, axis=1)
-
-                    # Drop duplicate labels to avoid DuplicateOption errors in Streamlit selectbox
-                    ref_assets_df = ref_assets_df.drop_duplicates(subset=['label'])
-
-                    # Limit options to top 100 to prevent WebSocket message limit crashes!
+                    # Limit options to top 100 first before creating labels to save massive memory & CPU!
                     total_matches = len(ref_assets_df)
-                    display_df = ref_assets_df.head(100)
+                    display_df = ref_assets_df.head(100).copy()
+                    display_df['label'] = display_df.apply(make_clean_dropdown_label, axis=1)
+                    display_df = display_df.drop_duplicates(subset=['label'])
 
                     st.write(f"แสดงผล {len(display_df)} รายการแรก จากที่ค้นพบทั้งหมด {total_matches:,} รายการ (ใช้กล่องค้นหาในตัวเลือกเพื่อค้นเพิ่มได้)")
 
@@ -2765,8 +2753,9 @@ with tab4:
                         "บริษัท": "จุดอ้างอิง"
                     })
 
-                    # Found points (display all properties found within radius)
-                    for _, r in map_nearby_df.iterrows():
+                    # Found points (display up to top 400 nearest properties on interactive map to keep memory low)
+                    plot_nearby_df = map_nearby_df.head(400) if len(map_nearby_df) > 400 else map_nearby_df
+                    for _, r in plot_nearby_df.iterrows():
                         formatted_price = f"฿{r['ราคา']:,.0f}" if pd.notna(r['ราคา']) else "ไม่ระบุ"
                         asset_code = str(r.get('รหัสทรัพย์', '-'))
                         dist_km = f"{r['ระยะทาง (กม.)']:.2f}" if pd.notna(r.get('ระยะทาง (กม.)')) else "-"
@@ -3215,10 +3204,9 @@ with tab4:
                         ]
                         
                     if not df_a_subset.empty:
-                        df_a_subset = df_a_subset.copy()
-                        df_a_subset['label'] = df_a_subset.apply(make_clean_dropdown_label, axis=1)
-                        df_a_subset = df_a_subset.drop_duplicates(subset=['label'])
-                        display_a = df_a_subset.head(100)
+                        display_a = df_a_subset.head(100).copy()
+                        display_a['label'] = display_a.apply(make_clean_dropdown_label, axis=1)
+                        display_a = display_a.drop_duplicates(subset=['label'])
                         valid_labels_a = display_a['label'].tolist()
                         sanitize_session_state("oneone_sel_a", valid_labels_a)
                         sel_label_a = st.selectbox("ค้นหาและเลือกทรัพย์สินรายการที่ 1", options=valid_labels_a, index=0, key="oneone_sel_a")
@@ -3253,10 +3241,9 @@ with tab4:
                         ]
                         
                     if not df_b_subset.empty:
-                        df_b_subset = df_b_subset.copy()
-                        df_b_subset['label'] = df_b_subset.apply(make_clean_dropdown_label, axis=1)
-                        df_b_subset = df_b_subset.drop_duplicates(subset=['label'])
-                        display_b = df_b_subset.head(100)
+                        display_b = df_b_subset.head(100).copy()
+                        display_b['label'] = display_b.apply(make_clean_dropdown_label, axis=1)
+                        display_b = display_b.drop_duplicates(subset=['label'])
                         valid_labels_b = display_b['label'].tolist()
                         sanitize_session_state("oneone_sel_b", valid_labels_b)
                         sel_label_b = st.selectbox("ค้นหาและเลือกทรัพย์สินรายการที่ 2", options=valid_labels_b, index=0, key="oneone_sel_b")
