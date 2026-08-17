@@ -55,6 +55,11 @@ def merge_monthly_csv():
                     df[col] = ""
             df = df[COLUMNS]
             company_name = os.path.basename(f).split('_')[0]
+            # Ensure primary company name is set correctly for dashboard filters
+            if company_name in ['Baania', 'BAM', 'SAM', 'DDproperty', 'Taladnudbaan', 'ZmyHome']:
+                if 'บริษัทเจ้าของทรัพย์' in df.columns:
+                    df['บริษัทเจ้าของทรัพย์'] = df['บริษัท']
+                df['บริษัท'] = company_name
             print(f"  [+] โหลด {company_name:<13s}: {len(df):,d} รายการ ({os.path.basename(f)})", flush=True)
             dfs.append(df)
         except Exception as e:

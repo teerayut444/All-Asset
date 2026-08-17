@@ -86,7 +86,7 @@ def parse_land_area(area_total):
     parts = []
     if rai: parts.append(f"{rai} ไร่")
     if ngan: parts.append(f"{ngan} งาน")
-    if wa: parts.append(f"{wa} วา")
+    if wa: parts.append(f"{wa} ตร.ว.")
     return " ".join(parts)
 
 def parse_sell_state(vd):

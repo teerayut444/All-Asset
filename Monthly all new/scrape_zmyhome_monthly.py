@@ -368,7 +368,9 @@ def fetch_zmyhome_detail(session, item):
                     
                 m_l = re.search(r'((?:\d+\s*ไร่\s*)?(?:\d+\s*งาน\s*)?[\d\.,]+\s*(?:ตร\.ว\.|ตร\.วา|ตารางวา|วา))', main_text)
                 if m_l and not item.get("เนื้อที่ (ตร.ว.)"):
-                    item["เนื้อที่ (ตร.ว.)"] = m_l.group(1).strip()
+                    clean_l = m_l.group(1).strip()
+                    clean_l = re.sub(r'(?<=\d|\s)(?:ตร\.วา|ตารางวา|วา)\b', 'ตร.ว.', clean_l)
+                    item["เนื้อที่ (ตร.ว.)"] = clean_l
                     
                 # --- 6. Posted Date ---
                 m_post = re.search(r'(?:ลงประกาศเมื่อ|อัปเดตเมื่อ|สร้างเมื่อ|ประกาศเมื่อ)\s*[:\s]*([^\n\r<"]+)', main_text)

@@ -101,7 +101,7 @@ def format_land_area(item):
         wa = _clean_val(land_obj.get("sqWa") or land_obj.get("wa"))
         if rai and rai != "0": parts.append(f"{rai} ไร่")
         if ngan and ngan != "0": parts.append(f"{ngan} งาน")
-        if wa and wa != "0": parts.append(f"{wa} วา")
+        if wa and wa != "0": parts.append(f"{wa} ตร.ว.")
     
     if not parts:
         rai = _clean_val(item.get("landRai") or item.get("rai"))
@@ -109,7 +109,7 @@ def format_land_area(item):
         wa = _clean_val(item.get("landWa") or item.get("wa"))
         if rai and rai != "0": parts.append(f"{rai} ไร่")
         if ngan and ngan != "0": parts.append(f"{ngan} งาน")
-        if wa and wa != "0": parts.append(f"{wa} วา")
+        if wa and wa != "0": parts.append(f"{wa} ตร.ว.")
         
     return " ".join(parts)
 

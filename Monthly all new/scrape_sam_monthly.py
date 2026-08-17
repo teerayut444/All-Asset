@@ -191,7 +191,9 @@ def parse_property_detail(prop_id, html):
             usable_area = area_str
     elif area_str:
         # เก็บตามที่เว็บระบุโดยตรง เช่น "96.8 ตร.ว.", "1 งาน 12.0 ตร.ว.", "3 ไร่ 2 งาน 68.9 ตร.ว."
-        land_area = area_str.strip()
+        clean_a = area_str.strip()
+        clean_a = re.sub(r'(?<=\d|\s)(?:ตร\.วา|ตารางวา|วา)\b', 'ตร.ว.', clean_a)
+        land_area = clean_a
             
     if not usable_area:
         m_u = re.search(r'พื้นที่ใช้สอย\s*:\s*([\d\.,]+)\s*(?:ตร\.ม\.|ตารางเมตร)?', container_text) or re.search(r'([\d\.,]+)\s*(?:ตร\.ม\.|ตารางเมตร)', container_text)

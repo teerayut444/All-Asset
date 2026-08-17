@@ -359,7 +359,10 @@ def fetch_ddproperty_page(session, base_url, target_type, page_num):
                                 land_raw = dim.get("formatted")
                                 break
                     if land_raw and any(w in str(land_raw) for w in ["วา", "ตร.ว.", "ไร่", "งาน", "ตารางวา"]):
-                        land_area = str(land_raw).strip()
+                        l_clean = re.sub(r'(?<=\d|\s)(?:ตร\.วา|ตารางวา|วา)\b', 'ตร.ว.', str(land_raw).strip())
+                        if re.match(r'^\d+(?:\.\d+)?$', l_clean):
+                            l_clean = f"{l_clean} ตร.ว."
+                        land_area = l_clean
 
                     # 2. Check floor area (usable area)
                     floor_raw = ld.get("floorAreaText") or ld.get("floorArea") or ld.get("usableAreaText")
@@ -372,7 +375,8 @@ def fetch_ddproperty_page(session, base_url, target_type, page_num):
                         full_search_text = area_str + " " + card_text
                         m_land_full = re.search(r'((?:\d+\s*ไร่\s*)?(?:\d+\s*งาน\s*)?[\d\.,]+\s*(?:ตร\.ว\.|ตร\.วา|ตารางวา|วา))', full_search_text, re.I)
                         if m_land_full:
-                            land_area = m_land_full.group(1).strip()
+                            l_fallback = m_land_full.group(1).strip()
+                            land_area = re.sub(r'(?<=\d|\s)(?:ตร\.วา|ตารางวา|วา)\b', 'ตร.ว.', l_fallback)
 
                     if not usable_area and area_str:
                         if re.search(r'ตร\.ม\.|ตารางเมตร', area_str):

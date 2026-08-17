@@ -515,14 +515,19 @@ def get_clean_link(val):
             pass
     return val_str
 
-# Cached function to load data – prefer parquet for speed, fallback to excel
-@st.cache_data(ttl=3600)
-def load_properties_data():
-    excel_file = Path("all_assets.xlsx")
+def get_data_mtime():
+    p = Path("all_assets.parquet")
+    if p.exists():
+        return p.stat().st_mtime
+    return 0
+
+# Cached function to load data – strictly parquet only for maximum speed
+@st.cache_data(ttl=3600, show_spinner="กำลังโหลดฐานข้อมูลทรัพย์สิน (Parquet)...")
+def load_properties_data(data_version=0):
     parquet_file = Path("all_assets.parquet")
     
-    # If both files don't exist, return None
-    if not excel_file.exists() and not parquet_file.exists():
+    if not parquet_file.exists():
+        st.error("❌ ไม่พบไฟล์ข้อมูล 'all_assets.parquet' กรุณารันสคริปต์ convert_csv_to_parquet.py เพื่อสร้างไฟล์")
         return None
         
     def ensure_derived_cols(df):
@@ -545,7 +550,11 @@ def load_properties_data():
             df['ราคา'] = np.nan
 
         if 'พื้นที่_ตารางวา' not in df.columns:
-            if 'พื้นที่ (ไร่-งาน-วา)' in df.columns:
+            if 'เนื้อที่_ตารางวา' in df.columns:
+                df['พื้นที่_ตารางวา'] = pd.to_numeric(df['เนื้อที่_ตารางวา'], errors='coerce')
+            elif 'เนื้อที่ (ตร.ว.)' in df.columns:
+                df['พื้นที่_ตารางวา'] = df['เนื้อที่ (ตร.ว.)'].apply(parse_area_to_sqwah)
+            elif 'พื้นที่ (ไร่-งาน-วา)' in df.columns:
                 df['พื้นที่_ตารางวา'] = df['พื้นที่ (ไร่-งาน-วา)'].apply(parse_area_to_sqwah)
             else:
                 df['พื้นที่_ตารางวา'] = np.nan
@@ -556,7 +565,6 @@ def load_properties_data():
             df['พื้นที่ใช้สอย (ตร.ม.)'] = np.nan
         else:
             df['พื้นที่ใช้สอย (ตร.ม.)'] = pd.to_numeric(df['พื้นที่ใช้สอย (ตร.ม.)'], errors='coerce')
-            # Clean anomalous scraping cases where price was copied into usable area (e.g. Area = 10,000,000 sqm for condo)
             bad_area_mask = (df['ราคา'] > 10000) & (df['พื้นที่ใช้สอย (ตร.ม.)'] == df['ราคา'])
             if 'ประเภททรัพย์' in df.columns:
                 bad_area_mask |= (df['ประเภททรัพย์'].isin(['คอนโด', 'ห้องชุด', 'ทาวน์เฮ้าส์', 'ทาวน์โฮม']) & (df['พื้นที่ใช้สอย (ตร.ม.)'] > 5000))
@@ -574,180 +582,16 @@ def load_properties_data():
 
         return df
 
-    # Always prefer parquet when it exists (10-50x faster than Excel)
-    if parquet_file.exists():
-        try:
-            df = pd.read_parquet(parquet_file)
-            # Exclude Livinginsider
-            if 'บริษัท' in df.columns:
-                df = df[df['บริษัท'] != 'Livinginsider'].copy()
-            return ensure_derived_cols(df)
-        except Exception as e:
-            if not excel_file.exists():
-                st.error(f"เกิดข้อผิดพลาดในการโหลดไฟล์ Parquet และไม่พบไฟล์ Excel: {e}")
-                return None
-                
     try:
-        # Load excel file
-        df = pd.read_excel(excel_file)
-        
-        # Replace undefined values with NaN
-        df = df.replace(["$undefined", "undefined", "nan", "NaN", "NAN"], np.nan)
-        
-        # Clean coordinates
-        df['ละติจูด'] = pd.to_numeric(df['ละติจูด'], errors='coerce')
-        df['ลองจิจูด'] = pd.to_numeric(df['ลองจิจูด'], errors='coerce')
-        
-        # Clean coordinates outside Thailand boundary
-        invalid_coords = ~(df['ละติจูด'].between(5, 21) & df['ลองจิจูด'].between(97, 106))
-        df.loc[invalid_coords, 'ละติจูด'] = np.nan
-        df.loc[invalid_coords, 'ลองจิจูด'] = np.nan
-        
-        # Clean prices
-        df['ราคา'] = pd.to_numeric(df['ราคา'], errors='coerce')
+        df = pd.read_parquet(parquet_file)
         # Exclude Livinginsider
         if 'บริษัท' in df.columns:
             df = df[df['บริษัท'] != 'Livinginsider'].copy()
-        
-        # Fill NaN values in essential text columns (cast to object first to prevent Categorical fillna errors)
-        df['รหัสทรัพย์'] = df['รหัสทรัพย์'].astype(object).fillna("-").astype(str).str.strip()
-        df['ประเภททรัพย์'] = df['ประเภททรัพย์'].astype(object).fillna("อื่นๆ").astype(str).str.strip()
-        df['จังหวัด'] = df['จังหวัด'].astype(object).fillna("ไม่ระบุ").astype(str).str.strip()
-        df['ตำบล'] = df['ตำบล'].astype(object).fillna("").astype(str).str.strip()
-        df['อำเภอ'] = df['อำเภอ'].astype(object).fillna("").astype(str).str.strip()
-        df['ชื่อโครงการ'] = df['ชื่อโครงการ'].astype(object).fillna("").astype(str).str.strip()
-        df['ประเภทการขาย'] = df['ประเภทการขาย'].astype(object).fillna("").astype(str).str.strip()
-        df['พื้นที่ (ไร่-งาน-วา)'] = df['พื้นที่ (ไร่-งาน-วา)'].astype(object).fillna("").astype(str).str.strip()
-        df['วันที่ดึงข้อมูล'] = df['วันที่ดึงข้อมูล'].astype(object).fillna("").astype(str).str.strip()
-        
-        # ทำความสะอาดข้อมูลจังหวัด ป้องกันอำเภอ/ตำบลเบียดเข้ามาปะปน
-        THAI_PROVINCES = {
-            "กรุงเทพมหานคร", "กระบี่", "กาญจนบุรี", "กาฬสินธุ์", "กำแพงเพชร", "ขอนแก่น", "จันทบุรี", "ฉะเชิงเทรา", "ชลบุรี", "ชัยนาท", 
-            "ชัยภูมิ", "ชุมพร", "เชียงราย", "เชียงใหม่", "ตรัง", "ตราด", "ตาก", "นครนายก", "นครปฐม", "นครพนม", "นครราชสีมา", 
-            "นครศรีธรรมราช", "นครสวรรค์", "นนทบุรี", "นราธิวาส", "น่าน", "บึงกาฬ", "บุรีรัมย์", "ปทุมธานี", "ประจวบคีรีขันธ์", 
-            "ปราจีนบุรี", "ปัตตานี", "พระนครศรีอยุธยา", "พะเยา", "พังงา", "พัทลุง", "พิจิตร", "พิษณุโลก", "เพชรบุรี", "เพชรบูรณ์", 
-            "แพร่", "ภูเก็ต", "มหาสารคาม", "มุกดาหาร", "แม่ฮ่องสอน", "ยโสธร", "ยะลา", "ร้อยเอ็ด", "ระนอง", "ระยอง", 
-            "ราชบุรี", "ลพบุรี", "ลำปาง", "ลำพูน", "เลย", "ศรีสะเกษ", "สกลนคร", "สงขลา", "สตูล", "สมุทรปราการ", "สมุทรสงคราม", 
-            "สมุทรสาคร", "สระแก้ว", "สระบุรี", "สิงห์บุรี", "สุโขทัย", "สุพรรณบุรี", "สุราษฎร์ธานี", "สุรินทร์", "หนองคาย", 
-            "หนองบัวลำภู", "อ่างทอง", "อุดรธานี", "อุทัยธานี", "อุตรดิตถ์", "อุบลราชธานี", "อำนาจเจริญ"
-        }
-        
-        PROVINCE_MAPPING = {
-            "PATHUM THANI": "ปทุมธานี",
-            "NAKHON SAWAN": "นครสวรรค์",
-            "กรุงเทพ": "กรุงเทพมหานคร",
-            "กรุงเทพฯ": "กรุงเทพมหานคร",
-            "ปทุม": "ปทุมธานี",
-            "อยุธยา": "พระนครศรีอยุธยา",
-            "โคราช": "นครราชสีมา",
-        }
-        
-        DISTRICT_TO_PROVINCE = {
-            "บางบัวทอง": "นนทบุรี", "บางใหญ่": "นนทบุรี", "ปากเกร็ด": "นนทบุรี", "เมืองนนทบุรี": "นนทบุรี", 
-            "บางกรวย": "นนทบุรี", "บางศรีเมือง": "นนทบุรี", "ไทรม้า": "นนทบุรี", "บางรักพัฒนา": "นนทบุรี",
-            "บางรักน้อย": "นนทบุรี", "เสาธงหิน": "นนทบุรี", "ท่าอิฐ": "นนทบุรี", "คลองเกลือ": "นนทบุรี",
-            "ธัญบุรี": "ปทุมธานี", "คลองหลวง": "ปทุมธานี", "ลำลูกกา": "ปทุมธานี", "สามโคก": "ปทุมธานี", 
-            "ลาดหลุมแก้ว": "ปทุมธานี", "เมืองปทุมธานี": "ปทุมธานี", "คลองสอง": "ปทุมธานี", "คลองหนึ่ง": "ปทุมธานี",
-            "คลองสาม": "ปทุมธานี", "คลองสี่": "ปทุมธานี", "คลองห้า": "ปทุมธานี", "คลองหก": "ปทุมธานี",
-            "ประชาธิปัตย์": "ปทุมธานี", "คูคต": "ปทุมธานี", "ลาดสวาย": "ปทุมธานี", "บึงยี่โถ": "ปทุมธานี",
-            "บางพลี": "สมุทรปราการ", "พระประแดง": "สมุทรปราการ", "บางบ่อ": "สมุทรปราการ", "บางเสาธง": "สมุทรปราการ", 
-            "พระสมุทรเจดีย์": "สมุทรปราการ", "เมืองสมุทรปราการ": "สมุทรปราการ", "ราชาเทวะ": "สมุทรปราการ",
-            "บางพลีใหญ่": "สมุทรปราการ", "สำโรง": "สมุทรปราการ", "สำโรงเหนือ": "สมุทรปราการ", "บางเมือง": "สมุทรปราการ",
-            "ลาดพร้าว": "กรุงเทพมหานคร", "บางกะปิ": "กรุงเทพมหานคร", "มีนบุรี": "กรุงเทพมหานคร", "ประเวศ": "กรุงเทพมหานคร", 
-            "จอมทอง": "กรุงเทพมหานคร", "สายไหม": "กรุงเทพมหานคร", "ทวีวัฒนา": "กรุงเทพมหานคร", "สวนหลวง": "กรุงเทพมหานคร", 
-            "ห้วยขวาง": "กรุงเทพมหานคร", "คลองสามวา": "กรุงเทพมหานคร", "คันนายาว": "กรุงเทพมหานคร", "ตลิ่งชัน": "กรุงเทพมหานคร", 
-            "บางแค": "กรุงเทพมหานคร", "บางบอน": "กรุงเทพมหานคร", "บางนา": "กรุงเทพมหานคร", "ลาดกระบัง": "กรุงเทพมหานคร", 
-            "บึงกุ่ม": "กรุงเทพมหานคร", "สะพานสูง": "กรุงเทพมหานคร", "ดอนเมือง": "กรุงเทพมหานคร", "หลักสี่": "กรุงเทพมหานคร", 
-            "พญาไท": "กรุงเทพมหานคร", "ดินแดง": "กรุงเทพมหานคร", "ปทุมวัน": "กรุงเทพมหานคร", "คลองถนน": "กรุงเทพมหานคร",
-            "จรเข้บัว": "กรุงเทพมหานคร", "คลองเจ้าคุณสิงห์": "กรุงเทพมหานคร", "บางมด": "กรุงเทพมหานคร", "สีกัน": "กรุงเทพมหานคร",
-            "ทุ่งสองห้อง": "กรุงเทพมหานคร", "ทุ่งครุ": "กรุงเทพมหานคร", "บางนาเหนือ": "กรุงเทพมหานคร", "บางนาใต้": "กรุงเทพมหานคร",
-            "บางบอนเหนือ": "กรุงเทพมหานคร", "หัวหมาก": "กรุงเทพมหานคร", "แสมดำ": "กรุงเทพมหานคร", "คลองเตย": "กรุงเทพมหานคร",
-            "ศรีราชา": "ชลบุรี", "บางละมุง": "ชลบุรี", "เมืองชลบุรี": "ชลบุรี", "พานทอง": "ชลบุรี", 
-            "พนัสนิคม": "ชลบุรี", "บ้านบึง": "ชลบุรี", "สัตหีบ": "ชลบุรี", "พัทยา": "ชลบุรี",
-            "หนองปรือ": "ชลบุรี", "ตะเคียนเตี้ย": "ชลบุรี", "ทุ่งสุขลา": "ชลบุรี", "แสนสุข": "ชลบุรี",
-            "สามพราน": "นครปฐม", "นครชัยศรี": "นครปฐม", "พุทธมณฑล": "นครปฐม", "เมืองนครปฐม": "นครปฐม",
-            "ศาลายา": "นครปฐม", "กระทุ่มล้ม": "นครปฐม", "อ้อมใหญ่": "นครปฐม", "ยายชา": "นครปฐม",
-            "กระทุ่มแบน": "สมุทรสาคร", "เมืองสมุทรสาคร": "สมุทรสาคร", "บ้านแพ้ว": "สมุทรสาคร", "อ้อมน้อย": "สมุทรสาคร",
-            "มหาชัย": "สมุทรสาคร", "ท่าทราย": "สมุทรสาคร", "พันท้ายนรสิงห์": "สมุทรสาคร", "บางโทรัด": "สมุทรสาคร",
-            "ชะอำ": "เพชรบุรี", "หัวหิน": "ประจวบคีรีขันธ์", "ปราณบุรี": "ประจวบคีรีขันธ์", "ทับสะแก": "ประจวบคีรีขันธ์",
-        }
-        
-        def clean_prov_row(row):
-            p = str(row.get("จังหวัด", "")).strip()
-            d = str(row.get("อำเภอ", "")).strip()
-            s = str(row.get("ตำบล", "")).strip()
-            
-            if p in PROVINCE_MAPPING:
-                p = PROVINCE_MAPPING[p]
-            if p.startswith("จ."):
-                p = p[2:].strip()
-            elif p.startswith("จังหวัด"):
-                p = p[7:].strip()
-                
-            if p in DISTRICT_TO_PROVINCE:
-                p = DISTRICT_TO_PROVINCE[p]
-            elif d in DISTRICT_TO_PROVINCE:
-                p = DISTRICT_TO_PROVINCE[d]
-            elif s in DISTRICT_TO_PROVINCE:
-                p = DISTRICT_TO_PROVINCE[s]
-                
-            if p in THAI_PROVINCES:
-                return p
-            return "ไม่ระบุ"
-            
-        df['จังหวัด'] = df.apply(clean_prov_row, axis=1)
-        
-        def clean_sale_type_val(val):
-            v = str(val).strip()
-            v_lower = v.lower()
-            if not v or v_lower in ["nan", "none", "undefined", "$undefined", "-"]:
-                return "ไม่ระบุ"
-            if v_lower in ["for-sale", "for_sale", "sale", "ขาย", "ขายปกติ", "ซื้อตรง"]:
-                return "ขาย"
-            if v_lower in ["sale-rent", "sale/rent", "sale_rent", "ขายและเช่า", "ขาย/เช่า", "ขาย/ ให้เช่า", "ขาย / เช่า", "ขาย / ให้เช่า"]:
-                return "ขาย/เช่า"
-            if v_lower in ["rent", "for-rent", "for_rent", "เช่า", "ให้เช่า", "เซ้ง"]:
-                return "เช่า"
-            if v_lower in ["auction", "ประมูล", "ขายทอดตลาด"]:
-                return "ประมูล / ขายทอดตลาด"
-            if v_lower in ["down-payment", "ขายดาวน์", "รอประกาศราคา"]:
-                return "ขายดาวน์ / รอประกาศ"
-            return v
-
-        df['ประเภทการขาย'] = df['ประเภทการขาย'].apply(clean_sale_type_val)
-        
-        # Clean titles and links
-        df['ชื่อประกาศ'] = df['ชื่อประกาศ'].astype(object).fillna('ไม่มีชื่อ').astype(str)
-        df['ลิงก์'] = df['ลิงก์'].astype(object).fillna('').astype(str)
-        
-        # Derived fields
-        df['พื้นที่_ตารางวา'] = df['พื้นที่ (ไร่-งาน-วา)'].apply(parse_area_to_sqwah)
-        df['พื้นที่ใช้สอย (ตร.ม.)'] = pd.to_numeric(df['พื้นที่ใช้สอย (ตร.ม.)'], errors='coerce')
-        
-        # Unit price calculation
-        df['ราคาต่อตารางวา'] = np.where(df['พื้นที่_ตารางวา'] > 0, df['ราคา'] / df['พื้นที่_ตารางวา'], np.nan)
-        df['ราคาต่อตารางเมตร'] = np.where(df['พื้นที่ใช้สอย (ตร.ม.)'] > 0, df['ราคา'] / df['พื้นที่ใช้สอย (ตร.ม.)'], np.nan)
-        
-        # Drop unused raw columns to save 50%+ memory (250MB RAM savings)
-        df = df.drop(columns=['ID', 'ชื่อประกาศ', 'ลิงก์'], errors='ignore')
-        
-        # Optimize types for RAM conservation on Streamlit Cloud
-        cat_cols = ['บริษัท', 'ประเภททรัพย์', 'ประเภทการขาย', 'จังหวัด', 'อำเภอ', 'ห้องนอน', 'ห้องน้ำ', 'ที่จอดรถ']
-        for col in cat_cols:
-            if col in df.columns:
-                df[col] = df[col].astype('category')
-                
-        float_cols = ['ละติจูด', 'ลองจิจูด', 'พื้นที่ใช้สอย (ตร.ม.)', 'พื้นที่_ตารางวา', 'ราคาต่อตารางวา', 'ราคาต่อตารางเมตร']
-        for col in float_cols:
-            if col in df.columns:
-                df[col] = df[col].astype('float32')
-        
-        # Save to Parquet for caching (using ZSTD to compress under 100MB)
-        df.to_parquet(parquet_file, index=False, compression='zstd')
-        
+        df = ensure_derived_cols(df)
+        df.attrs['source'] = 'all_assets.parquet'
         return df
     except Exception as e:
-        st.error(f"เกิดข้อผิดพลาดในการโหลดไฟล์ Excel: {e}")
+        st.error(f"❌ เกิดข้อผิดพลาดในการโหลดไฟล์ Parquet: {e}")
         return None
 
 # Cache static HTML & JS libraries once in memory to save 300MB+ RAM per rerun
@@ -759,8 +603,8 @@ def get_base_map_html():
     except Exception as e:
         return ""
 
-# Load the properties data
-df_raw = load_properties_data()
+# Load the properties data (auto-invalidates cache whenever all_assets.parquet is modified)
+df_raw = load_properties_data(get_data_mtime())
 
 # Merge user uploaded data if available
 if "imported_custom_df" in st.session_state and st.session_state["imported_custom_df"] is not None:
@@ -779,9 +623,29 @@ with st.sidebar:
         st.markdown('<h3 style="color: #6366f1; margin: 0; padding-top: 4px;"><i class="fa fa-home"></i> All Asset</h3>', unsafe_allow_html=True)
     with col_side_theme:
         is_dark_mode = st.toggle("🌙 มืด", value=False, key="app_theme_mode", help="สลับระหว่างโหมดมืด (Dark Mode) และโหมดสว่าง (Light Mode)")
+    
+    if df_raw is not None and not df_raw.empty:
+        src_name = getattr(df_raw, 'attrs', {}).get('source', 'all_assets.parquet')
+        st.markdown(f"""
+        <div style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 8px; padding: 6px 10px; margin-top: 5px; margin-bottom: 8px; font-size: 0.8rem; color: #6366f1; font-weight: 600;">
+            <i class="fa fa-database"></i> แหล่งข้อมูล: <code>{src_name}</code><br/>
+            <span style="font-size: 0.75rem; color: #475569; font-weight: normal;">📊 ข้อมูลพร้อมใช้งาน: <b>{len(df_raw):,}</b> รายการ</span>
+        </div>
+        """, unsafe_allow_html=True)
+        
+    if st.button("🔄 รีโหลดฐานข้อมูล (Clear Cache)", use_container_width=True, help="กดเมื่อต้องการให้แอปอ่านไฟล์ข้อมูลใหม่ล่าสุดทันที"):
+        st.cache_data.clear()
+        st.rerun()
+        
     st.markdown("---")
     
-    max_map_points = 100000
+    max_map_points = st.select_slider(
+        "📍 จุดพิกัดแผนที่ (Tab 1)",
+        options=[5000, 10000, 25000, 50000, 100000],
+        value=10000,
+        format_func=lambda x: f"{x:,} จุด ⚡ (ไวสุด)" if x <= 10000 else f"{x:,} จุด",
+        help="ปรับจำนวนจุดพิกัดที่จะเรนเดอร์ลงในแผนที่ใหญ่ (Tab 1) เพื่อความลื่นไหลของหน้าเว็บ"
+    )
     # Configure variables for forced styling
     bg_color = "rgba(243, 244, 246, 0.9)"
     border_color = "rgba(0, 0, 0, 0.08)"
@@ -890,18 +754,18 @@ with st.sidebar:
         # District Filter (dynamically populate from selected provinces)
         if selected_provinces:
             filtered_provinces_df = df_by_company[df_by_company['จังหวัด'].isin(selected_provinces)]
+            dist_df = filtered_provinces_df[['อำเภอ', 'จังหวัด']].drop_duplicates().dropna()
+            dist_df = dist_df[dist_df['อำเภอ'].astype(str).str.strip() != ""]
+            unique_districts_formatted = (dist_df['อำเภอ'].astype(str) + " (" + dist_df['จังหวัด'].astype(str) + ")").tolist()
+            unique_districts_formatted.sort()
+            selected_districts_formatted = st.multiselect("อำเภอ / เขต", options=unique_districts_formatted, default=[])
         else:
             filtered_provinces_df = df_by_company
-            
-        # Get unique pairs of (อำเภอ, จังหวัด) to display parent province in parentheses
-        dist_df = filtered_provinces_df[['อำเภอ', 'จังหวัด']].drop_duplicates().dropna()
-        dist_df = dist_df[dist_df['อำเภอ'].str.strip() != ""]
-        unique_districts_formatted = [
-            f"{row['อำเภอ']} ({row['จังหวัด']})" 
-            for _, row in dist_df.iterrows()
-        ]
-        unique_districts_formatted.sort()
-        selected_districts_formatted = st.multiselect("อำเภอ / เขต", options=unique_districts_formatted, default=[])
+            dist_df = filtered_provinces_df[['อำเภอ', 'จังหวัด']].drop_duplicates().dropna()
+            dist_df = dist_df[dist_df['อำเภอ'].astype(str).str.strip() != ""]
+            unique_districts_formatted = (dist_df['อำเภอ'].astype(str) + " (" + dist_df['จังหวัด'].astype(str) + ")").tolist()
+            unique_districts_formatted.sort()
+            selected_districts_formatted = st.multiselect("อำเภอ / เขต", options=unique_districts_formatted, default=[], placeholder="เลือกอำเภอ / เขต...")
         
         # Parse selected districts into tuples for subdistrict option filtering
         selected_districts_tuples = []
@@ -912,91 +776,49 @@ with st.sidebar:
                 p_name = parts[1].replace(")", "").strip()
                 selected_districts_tuples.append((d_name, p_name))
         
-        # Subdistrict Filter (dynamically populate from selected districts)
+        # Subdistrict Filter (cascaded to prevent sending 17,000+ items to browser DOM)
         if selected_districts_tuples:
             filtered_districts_df = filtered_provinces_df[filtered_provinces_df.set_index(['อำเภอ', 'จังหวัด']).index.isin(selected_districts_tuples)]
+            sub_df = filtered_districts_df[['ตำบล', 'อำเภอ', 'จังหวัด']].drop_duplicates().dropna()
+            sub_df = sub_df[sub_df['ตำบล'].astype(str).str.strip() != ""]
+            unique_subdistricts_formatted = (sub_df['ตำบล'].astype(str) + " (" + sub_df['อำเภอ'].astype(str) + ", " + sub_df['จังหวัด'].astype(str) + ")").tolist()
+            unique_subdistricts_formatted.sort()
+            selected_subdistricts_formatted = st.multiselect("ตำบล / แขวง", options=unique_subdistricts_formatted, default=[])
+        elif selected_provinces:
+            sub_df = filtered_provinces_df[['ตำบล', 'อำเภอ', 'จังหวัด']].drop_duplicates().dropna()
+            sub_df = sub_df[sub_df['ตำบล'].astype(str).str.strip() != ""]
+            unique_subdistricts_formatted = (sub_df['ตำบล'].astype(str) + " (" + sub_df['อำเภอ'].astype(str) + ", " + sub_df['จังหวัด'].astype(str) + ")").tolist()
+            unique_subdistricts_formatted.sort()
+            selected_subdistricts_formatted = st.multiselect("ตำบล / แขวง", options=unique_subdistricts_formatted, default=[], placeholder="เลือกตำบลในจังหวัดที่เลือก...")
         else:
-            filtered_districts_df = filtered_provinces_df
-            
-        # Get unique trios of (ตำบล, อำเภอ, จังหวัด) to display parent district & province in parentheses
-        sub_df = filtered_districts_df[['ตำบล', 'อำเภอ', 'จังหวัด']].drop_duplicates().dropna()
-        sub_df = sub_df[sub_df['ตำบล'].str.strip() != ""]
-        unique_subdistricts_formatted = [
-            f"{row['ตำบล']} ({row['อำเภอ']}, {row['จังหวัด']})"
-            for _, row in sub_df.iterrows()
-        ]
-        unique_subdistricts_formatted.sort()
-        selected_subdistricts_formatted = st.multiselect("ตำบล / แขวง", options=unique_subdistricts_formatted, default=[])
+            selected_subdistricts_formatted = st.multiselect(
+                "ตำบล / แขวง", 
+                options=[], 
+                default=[], 
+                placeholder="💡 เลือกจังหวัดหรืออำเภอก่อนเพื่อค้นหาตำบล"
+            )
         
         # Price Filter
         valid_prices = df_by_company['ราคา'].dropna()
+        valid_prices = valid_prices[(valid_prices > 0) & (valid_prices <= 1000000000)]
         if not valid_prices.empty:
-            min_price_val = float(valid_prices.min())
-            max_price_val = float(valid_prices.max())
-            
-            # Generate dynamic options list for select_slider with commas
-            min_val = int(min_price_val)
-            max_val = int(max_price_val)
-            options = [min_val]
-            
-            if max_val - min_val > 10000000: # > 10M
-                # 1. 100k steps up to 10M
-                for v in range(max(100000, (min_val // 100000) * 100000), min(10000000, max_val), 100000):
-                    if v > min_val:
-                        options.append(v)
-                # 2. 1M steps up to 50M
-                for v in range(10000000, min(50000000, max_val), 1000000):
-                    if v > options[-1]:
-                        options.append(v)
-                # 3. 5M steps up to 200M
-                for v in range(50000000, min(200000000, max_val), 5000000):
-                    if v > options[-1]:
-                        options.append(v)
-                # 4. 20M steps up to max_val
-                for v in range(200000000, max_val, 20000000):
-                    if v > options[-1]:
-                        options.append(v)
-            else:
-                step = max(1, (max_val - min_val) // 100)
-                for v in range(min_val + step, max_val, step):
-                    options.append(v)
-                    
-            if max_val > options[-1]:
-                options.append(max_val)
-                
-            options = sorted(list(set(options)))
+            options = [
+                0, 500000, 1000000, 1500000, 2000000, 2500000, 3000000, 3500000, 4000000, 4500000, 5000000,
+                6000000, 7000000, 8000000, 9000000, 10000000, 12000000, 15000000, 20000000, 25000000, 30000000,
+                40000000, 50000000, 75000000, 100000000, 150000000, 200000000, 300000000, 500000000, 1000000000
+            ]
             
             price_range = st.select_slider(
                 "ช่วงราคาขาย (บาท)",
                 options=options,
                 value=(options[0], options[-1]),
-                format_func=lambda x: f"฿{x:,.0f}"
+                format_func=lambda x: f"฿{x:,.0f}" if x < 1000000 else (f"฿{x/1000000:,.1f} ล้าน" if x % 1000000 != 0 else f"฿{x/1000000:,.0f} ล้าน")
             )
-            
-            # Map points setting slider
-            st.markdown("#### ⚙️ ตั้งค่าการแสดงผลแผนที่")
-            mapbox_style = "open-street-map"
-            
-            max_limit = int(len(df_raw)) if df_raw is not None and len(df_raw) > 0 else 600329
-            slider_step = 50000 if max_limit >= 100000 else max(1, max_limit // 10)
-            max_map_points = st.slider(
-                "จำนวนจุดสูงสุดบนแผนที่",
-                min_value=1,
-                max_value=max(1, max_limit),
-                value=min(100000, max_limit),
-                step=slider_step,
-                help="หากจุดพิกัดจริงมีมากกว่าค่าที่เลือกไว้ ระบบจะสุ่มเลือกตัวอย่างมาวาดตามสัดส่วนเพื่อรักษาความลื่นไหลและป้องกันเบราว์เซอร์ค้าง"
-            )
-            st.markdown(f"📍 ขีดจำกัดบนแผนที่ขณะนี้: **{max_map_points:,}** จุด")
-            if max_map_points > 200000:
-                st.warning("⚠️ การแสดงผลจุดเกิน 200,000 จุด อาจส่งผลให้เบราว์เซอร์ทำงานหนักและหน่วงได้ในบางเครื่อง")
         else:
-            price_range = (0.0, 1000000000.0)
-            max_map_points = 100000
-            mapbox_style = "open-street-map"
-            map_is_dark = False
+            options = [0, 1000000000]
+            price_range = (0, 1000000000)
     else:
-        st.warning("ไม่มีตัวกรองข้อมูลเนื่องจากยังไม่มีไฟล์ข้อมูล all_assets.xlsx")
+        st.warning("ไม่มีตัวกรองข้อมูลเนื่องจากยังไม่มีไฟล์ข้อมูล all_assets.parquet")
 
 # Construct root CSS custom properties based on theme toggle selection (default is Light Theme)
 if is_dark_mode:
@@ -1415,7 +1237,7 @@ div[data-baseweb="tab-panel"], div[data-testid="stTabPanel"] {
 }
 
 .floating-kpi-container {
-    position: relative !important; /* Made KPI cards static instead of floating over map */
+    position: relative !important;
     margin: 15px 20px 5px 20px !important;
     z-index: 999;
     display: flex;
@@ -1465,8 +1287,6 @@ div[data-baseweb="tab-panel"], div[data-testid="stTabPanel"] {
     font-weight: 500;
 }
 
-/* Map chart height override removed to prevent Plotly mouse hover coordinate mismatch */
-
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
 </style>"""
@@ -1479,17 +1299,8 @@ if df_raw is None or df_raw.empty:
     st.markdown("""
     <div style="background-color: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 12px; padding: 40px; text-align: center; margin-top: 50px; max-width: 800px; margin-left: auto; margin-right: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.04);">
         <i class="fa-solid fa-triangle-exclamation" style="font-size: 4rem; color: #ef4444; margin-bottom: 20px;"></i>
-        <h2 style="color: #ef4444; margin-bottom: 15px; font-weight: 700;">ไม่พบไฟล์ข้อมูล 'all_assets.xlsx'</h2>
-        <p style="color: #0f172a; font-size: 1.1rem; line-height: 1.6; margin-bottom: 15px;">ระบบจำเป็นต้องใช้ไฟล์ข้อมูลรวมทรัพย์สินสำหรับการแสดงผลแผนที่และแดชบอร์ด</p>
-        <div style="text-align: left; background: #ffffff; padding: 25px; border-radius: 10px; border: 1px solid #e2e8f0; margin-top: 25px;">
-            <p style="font-weight: 700; color: #1e293b; margin-bottom: 10px; font-size: 1.05rem;"><i class="fa fa-terminal" style="color: #6366f1; margin-right: 6px;"></i> วิธีการสั่งรันตัวดึงข้อมูลภายนอก (Scraper):</p>
-            <ol style="color: #475569; font-size: 0.95rem; margin-left: 20px; line-height: 1.8; font-weight: 500;">
-                <li>เปิดหน้าต่าง Terminal (PowerShell หรือ Command Prompt) ในโฟลเดอร์ของแอปพลิเคชันนี้</li>
-                <li>พิมพ์คำสั่งรันระบบดึงข้อมูล: <code style="background-color: #f1f5f9; padding: 3px 8px; border-radius: 4px; font-family: monospace; color: #0f172a; font-weight: 700;">python run_all_scrapers.py</code></li>
-                <li>หรือดับเบิ้ลคลิกสคริปต์รันดึงข้อมูลเพื่อเริ่มต้นประมวลผล</li>
-                <li>เมื่อโปรแกรมเสร็จสิ้น ไฟล์ <code style="background-color: #f1f5f9; padding: 3px 6px; border-radius: 4px; font-family: monospace; color: #0f172a; font-weight: 700;">all_assets.xlsx</code> จะปรากฏขึ้นโดยอัตโนมัติ ให้ทำการกด Refresh หน้าแดชบอร์ดนี้ใหม่</li>
-            </ol>
-        </div>
+        <h2 style="color: #ef4444; margin-bottom: 15px; font-weight: 700;">ไม่พบไฟล์ข้อมูล 'all_assets.parquet'</h2>
+        <p style="color: #475569; font-size: 1rem;">กรุณารันคำสั่ง <code>python convert_csv_to_parquet.py</code> เพื่อแปลงไฟล์และเริ่มต้นใช้งานแดชบอร์ด</p>
     </div>
     """)
     st.stop()
@@ -1514,7 +1325,6 @@ if selected_companies:
 # 3. Property Types
 if selected_types:
     if "เพิ่มเติม" in selected_types:
-        # Get rare types dynamically based on selected companies
         if selected_companies:
             df_by_company = df_raw[df_raw['บริษัท'].isin(selected_companies)]
         else:
@@ -1522,20 +1332,14 @@ if selected_types:
         type_counts = df_by_company['ประเภททรัพย์'].value_counts()
         top_n = 7
         rare_types = type_counts.index[top_n:].tolist()
-        
-        # Check if the user selected specific rare types in the dynamically shown multiselect
         selected_rare = st.session_state.get("selected_rare_types", [])
         selected_rare_clean = [t.rsplit(" (", 1)[0] for t in selected_rare] if selected_rare else []
-        
         if selected_rare_clean:
-            # Only filter for selected rare types + selected main types
             actual_selected_types = [t for t in selected_types if t != "เพิ่มเติม"] + selected_rare_clean
         else:
-            # If no specific rare type is chosen, include all rare types as fallback
             actual_selected_types = [t for t in selected_types if t != "เพิ่มเติม"] + rare_types
     else:
         actual_selected_types = selected_types
-        
     df_filtered = df_filtered[df_filtered['ประเภททรัพย์'].isin(actual_selected_types)]
 
 # 3.5. Sale Types
@@ -1576,13 +1380,11 @@ if selected_subdistricts_formatted:
 if not valid_prices.empty:
     is_default_price_range = (price_range[0] == options[0] and price_range[1] == options[-1])
     if is_default_price_range:
-        # Include all items when full default range is selected (including unstated prices)
         df_filtered = df_filtered[
             (df_filtered['ราคา'].isna()) | 
             ((df_filtered['ราคา'] >= price_range[0]) & (df_filtered['ราคา'] <= price_range[1]))
         ]
     else:
-        # Strictly filter properties within user-selected price range
         df_filtered = df_filtered[
             (df_filtered['ราคา'].notna()) & 
             (df_filtered['ราคา'] >= price_range[0]) & 
@@ -1595,9 +1397,9 @@ filtered_count = len(df_filtered)
 valid_prices_filtered = df_filtered['ราคา'].dropna()
 
 if not valid_prices_filtered.empty:
-    total_value = valid_prices_filtered.sum() / 1e6  # Convert to Million Baht
-    median_price = valid_prices_filtered.median() / 1e6 # Million Baht (Median)
-    max_price = valid_prices_filtered.max() / 1e6    # Million Baht
+    total_value = valid_prices_filtered.sum() / 1e6
+    median_price = valid_prices_filtered.median() / 1e6
+    max_price = valid_prices_filtered.max() / 1e6
 else:
     total_value = 0.0
     median_price = 0.0
@@ -1609,7 +1411,6 @@ total_value_str = f"฿{total_value:,.2f}M"
 median_price_str = f"฿{median_price:,.2f}M"
 max_price_str = f"฿{max_price:,.2f}M"
 
-# Dynamic breakdown of company counts strictly matching df_filtered
 active_co_counts = df_filtered['บริษัท'].value_counts()
 active_companies = selected_companies if selected_companies else ["Baania", "BAM", "SAM", "DDproperty", "Taladnudbaan", "ZmyHome"]
 co_breakdown_items = [f"{co}: {active_co_counts.get(co, 0):,}" for co in active_companies if active_co_counts.get(co, 0) > 0]
@@ -1642,7 +1443,6 @@ floating_kpi_html = f"""
 </div>
 """
 
-# Render KPI Cards globally right before tabs
 st.markdown(floating_kpi_html, unsafe_allow_html=True)
 
 # ----------------- TABS CREATION -----------------
@@ -1657,18 +1457,11 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
 # ----- TAB 1: MAP GRID -----
 with tab1:
     with st.container(key="tab_map"):
-        # Setup progress bar for map rendering process
-        progress_bar = st.progress(0, text="กำลังเตรียมข้อมูลแผนที่...")
-        
-        # Step 1: Filter rows with coordinates (20%)
-        progress_bar.progress(20, text="กำลังกรองจุดพิกัดในประเทศไทย (20%)...")
         map_data = df_filtered[
             df_filtered['ละติจูด'].notna() & df_filtered['ลองจิจูด'].notna() &
             df_filtered['ละติจูด'].between(5, 21) & df_filtered['ลองจิจูด'].between(97, 106)
         ].copy()
         
-        # Step 2: Cap map points at safe limit (40%)
-        progress_bar.progress(40, text="กำลังจัดการข้อมูลพิกัดความหนาแน่นสูง (40%)...")
         MAP_MAX_POINTS = max_map_points
         map_data_full_len = len(map_data)
         map_sampled = False
@@ -1676,8 +1469,6 @@ with tab1:
             map_sampled = True
             map_data = map_data.sample(n=MAP_MAX_POINTS, random_state=42)
             
-        # Step 3: Pre-format price column (60%)
-        progress_bar.progress(60, text="กำลังจัดรูปแบบราคาทรัพย์สิน (60%)...")
         if not map_data.empty:
             prices = map_data['ราคา']
             map_data['ราคาขาย'] = np.where(
@@ -1687,18 +1478,8 @@ with tab1:
             )
             
         if map_data.empty:
-            progress_bar.empty()
             st.warning("⚠️ ไม่พบพิกัดตำแหน่ง ละติจูด/ลองจิจูด ในรายการทรัพย์สินที่คุณเลือกค้นหา")
         else:
-            # Step 4: Pre-compile hover tooltips (80%)
-            progress_bar.progress(80, text="กำลังทำดัชนีและป้ายข้อมูลพิกัด (80%)...")
-            
-
-            
-            # Direct standalone HTML rendering with base64 embedded CSV data
-            # This runs 100% locally and remotely, bypassing relative paths, CORS, and sandboxing 404 issues!
-            
-            # Build dataset for embedding
             title_col = 'ชื่อประกาศ' if 'ชื่อประกาศ' in map_data.columns else ('ชื่อโครงการ' if 'ชื่อโครงการ' in map_data.columns else 'รหัสทรัพย์')
             titles = map_data[title_col].astype(object).fillna('ไม่มีชื่อ').astype(str).str[:30].values
             ids = map_data['รหัสทรัพย์'].astype(object).fillna('-').astype(str).str[:15].values
@@ -1707,7 +1488,6 @@ with tab1:
             companies = map_data['บริษัท'].astype(object).fillna('-').astype(str).values
             prices = map_data['ราคาขาย'].astype(str).values
             
-            # Colors
             COMPANY_COLORS = {"Baania": [245, 158, 11], "BAM": [59, 130, 246], "SAM": [16, 185, 129], "DDproperty": [168, 85, 247], "Taladnudbaan": [6, 182, 212], "ZmyHome": [236, 72, 153]}
             DEFAULT_COLOR = [148, 163, 184]
             r_vals, g_vals, b_vals = [], [], []
@@ -1717,7 +1497,6 @@ with tab1:
                 g_vals.append(color[1])
                 b_vals.append(color[2])
                 
-            # Create a very compact pandas dataframe
             csv_df = pd.DataFrame({
                 'lon': map_data['ลองจิจูด'].values.astype('float32'),
                 'lat': map_data['ละติจูด'].values.astype('float32'),
@@ -1732,22 +1511,15 @@ with tab1:
                 '_price_str': prices,
             })
             
-            # Step 5: Preparing map layer (90%)
-            progress_bar.progress(90, text="กำลังเตรียมการเข้ารหัสข้อมูลพิกัด (90%)...")
-            
-            # Convert CSV to base64
             csv_str = csv_df.to_csv(index=False)
             csv_base64 = base64.b64encode(csv_str.encode('utf-8')).decode('utf-8')
             
-            # Use pre-cached base HTML template (prevents duplicate reading of 3MB JS libraries)
             base_tmpl = get_base_map_html()
             html_content = base_tmpl.replace("CSV_BASE64_PLACEHOLDER", csv_base64)
             
-            # Inject body theme class for map legend overlay styling
             body_theme_class = "dark-theme" if is_dark_mode else ""
             html_content = html_content.replace("BODY_CLASS_PLACEHOLDER", body_theme_class)
 
-            # Calculate counts for map legend from the actual map_data (reflects coordinate filters and sampling)
             map_baania_count = len(map_data[map_data['บริษัท'] == 'Baania'])
             map_bam_count = len(map_data[map_data['บริษัท'] == 'BAM'])
             map_sam_count = len(map_data[map_data['บริษัท'] == 'SAM'])
@@ -1762,25 +1534,14 @@ with tab1:
             html_content = html_content.replace("TALADNUDBAAN_COUNT", f"{map_taladnudbaan_count:,}")
             html_content = html_content.replace("ZMYHOME_COUNT", f"{map_zmyhome_count:,}")
             
-            # Finished (100%)
-            progress_bar.progress(100, text="โหลดเสร็จสมบูรณ์! (100%)")
-            
-
-            
-            # Render the interactive map (deck.gl requires JavaScript + iframe isolation)
-            # Try multiple methods in priority order for Streamlit version compatibility
             map_rendered = False
+            try:
+                import streamlit.components.v1 as stc
+                stc.html(html_content, height=680)
+                map_rendered = True
+            except Exception:
+                pass
             
-            # Method 1: st.components.v1.html (deprecated but still functional)
-            if not map_rendered:
-                try:
-                    import streamlit.components.v1 as stc
-                    stc.html(html_content, height=680)
-                    map_rendered = True
-                except Exception:
-                    pass
-            
-            # Method 2: st.html with unsafe_allow_javascript (newer Streamlit)
             if not map_rendered:
                 try:
                     st.html(html_content, unsafe_allow_javascript=True)
@@ -1790,10 +1551,7 @@ with tab1:
             
             if not map_rendered:
                 st.error("❌ ไม่สามารถแสดงแผนที่ได้ กรุณาลองรีเฟรชหน้าเว็บ")
-            
-            # Clear progress bar
-            progress_bar.empty()
-        st.markdown("<div style='margin-bottom: 20px;'></div>", unsafe_allow_html=True)
+
 # ----- TAB 2: ANALYTICS -----
 with tab2:
     st.markdown("### 📈 วิเคราะห์เชิงลึกและเปรียบเทียบสถิติของคู่แข่ง")

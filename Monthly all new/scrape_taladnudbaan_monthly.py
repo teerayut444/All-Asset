@@ -232,7 +232,8 @@ def fetch_talad_detail(session, item):
             if m_land:
                 land_str = m_land.group(1).strip()
                 if any(w in land_str for w in ["ไร่", "งาน", "วา", "ตร.ว.", "ตารางวา"]):
-                    item["เนื้อที่ (ตร.ว.)"] = land_str
+                    clean_l = re.sub(r'(?<=\d|\s)(?:ตร\.วา|ตารางวา|วา)\b', 'ตร.ว.', land_str)
+                    item["เนื้อที่ (ตร.ว.)"] = clean_l
                     
             # 4. Usable Area (ตร.ม.)
             m_u = re.search(r'ขนาดพื้นที่ใช้สอย\s*:\s*([^\n\r<"]+)', main_text) or re.search(r'พื้นที่ใช้สอย\s*:\s*([^\n\r<"]+)', main_text)
