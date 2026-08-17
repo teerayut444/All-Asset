@@ -171,25 +171,30 @@ def sanitize_session_state(key, valid_options, default_val=None):
 
 @st.cache_data
 def get_thailand_clean_grid(ref_lat, ref_lng):
-    """Cached lightweight Thailand grid generator for fast, low-memory map interaction."""
-    # 1. Fine grid around reference pin (±0.04 deg ~4.4km, 12x12 = 144 pts)
+    """Cached multi-scale Thailand grid generator for instant clean map rendering."""
+    # 1. Ultra-fine grid around reference pin (±0.03 deg ~3.3km, 35x35)
     u_lat, u_lng = np.meshgrid(
-        np.linspace(ref_lat - 0.04, ref_lat + 0.04, 12),
-        np.linspace(ref_lng - 0.04, ref_lng + 0.04, 12)
+        np.linspace(ref_lat - 0.03, ref_lat + 0.03, 35),
+        np.linspace(ref_lng - 0.03, ref_lng + 0.03, 35)
     )
-    # 2. Medium grid around reference pin (±0.4 deg ~44km, 8x8 = 64 pts)
+    # 2. Fine grid around reference pin (±0.15 deg ~16.5km, 25x25)
+    f_lat, f_lng = np.meshgrid(
+        np.linspace(ref_lat - 0.15, ref_lat + 0.15, 25),
+        np.linspace(ref_lng - 0.15, ref_lng + 0.15, 25)
+    )
+    # 3. Medium grid around reference pin (±0.8 deg ~88km, 20x20)
     m_lat, m_lng = np.meshgrid(
-        np.linspace(ref_lat - 0.4, ref_lat + 0.4, 8),
-        np.linspace(ref_lng - 0.4, ref_lng + 0.4, 8)
+        np.linspace(ref_lat - 0.8, ref_lat + 0.8, 20),
+        np.linspace(ref_lng - 0.8, ref_lng + 0.8, 20)
     )
-    # 3. Country-wide Thailand macro grid (14x14 = 196 pts)
+    # 4. Country-wide Thailand grid (35x35)
     c_lat, c_lng = np.meshgrid(
-        np.linspace(5.8, 20.2, 14),
-        np.linspace(97.8, 105.2, 14)
+        np.linspace(5.5, 20.5, 35),
+        np.linspace(97.5, 105.5, 35)
     )
 
-    all_lats = np.concatenate([u_lat.flatten(), m_lat.flatten(), c_lat.flatten()])
-    all_lngs = np.concatenate([u_lng.flatten(), m_lng.flatten(), c_lng.flatten()])
+    all_lats = np.concatenate([u_lat.flatten(), f_lat.flatten(), m_lat.flatten(), c_lat.flatten()])
+    all_lngs = np.concatenate([u_lng.flatten(), f_lng.flatten(), m_lng.flatten(), c_lng.flatten()])
 
     r1 = (all_lats >= 5.6) & (all_lats < 7.2) & (all_lngs >= 99.8) & (all_lngs <= 102.2)
     r2 = (all_lats >= 7.2) & (all_lats < 9.0) & (all_lngs >= 98.2) & (all_lngs <= 100.5)
@@ -1481,7 +1486,11 @@ with tab1:
                 st.html(bubble_html, unsafe_allow_javascript=True)
                 
         else:
-            # Map Rendering
+            # Map Rendering (Original Deck.gl OpenStreetMap Scatterplot Map with progress bar)
+            progress_bar = st.progress(0, text="กำลังเตรียมข้อมูลแผนที่...")
+            
+            # Step 1: Filter rows with coordinates (20%)
+            progress_bar.progress(20, text="กำลังกรองจุดพิกัดในประเทศไทย (20%)...")
             map_data = df_filtered[
                 df_filtered['ละติจูด'].notna() & df_filtered['ลองจิจูด'].notna() &
                 df_filtered['ละติจูด'].between(5, 21) & df_filtered['ลองจิจูด'].between(97, 106)
@@ -1490,6 +1499,8 @@ with tab1:
             map_data_full_len = len(map_data)
                 
             if not map_data.empty:
+                # Step 2: Format prices (40%)
+                progress_bar.progress(40, text="กำลังจัดรูปแบบราคาและชื่อประกาศ (40%)...")
                 prices = map_data['ราคา']
                 map_data['ราคาขาย'] = np.where(
                     prices.notna() & (prices > 0),
@@ -1498,8 +1509,11 @@ with tab1:
                 )
                 
             if map_data.empty:
+                progress_bar.empty()
                 st.warning("⚠️ ไม่พบพิกัดตำแหน่ง ละติจูด/ลองจิจูด ในรายการทรัพย์สินที่คุณเลือกค้นหา")
             else:
+                # Step 3: Color mapping (60%)
+                progress_bar.progress(60, text="กำลังจัดเตรียมสีตามบริษัทคู่แข่ง (60%)...")
                 title_col = 'ชื่อประกาศ' if 'ชื่อประกาศ' in map_data.columns else ('ชื่อโครงการ' if 'ชื่อโครงการ' in map_data.columns else 'รหัสทรัพย์')
                 titles = map_data[title_col].astype(object).fillna('ไม่มีชื่อ').astype(str).str[:30].values
                 ids = map_data['รหัสทรัพย์'].astype(object).fillna('-').astype(str).str[:15].values
@@ -1517,6 +1531,8 @@ with tab1:
                     g_vals.append(color[1])
                     b_vals.append(color[2])
                     
+                # Step 4: CSV conversion & Base64 encoding (80%)
+                progress_bar.progress(80, text="กำลังแปลงข้อมูลเป็น Base64 Payload (80%)...")
                 csv_df = pd.DataFrame({
                     'lon': map_data['ลองจิจูด'].values.astype('float32'),
                     'lat': map_data['ละติจูด'].values.astype('float32'),
@@ -1534,6 +1550,8 @@ with tab1:
                 csv_str = csv_df.to_csv(index=False)
                 csv_base64 = base64.b64encode(csv_str.encode('utf-8')).decode('utf-8')
                 
+                # Step 5: Render map template (90%)
+                progress_bar.progress(90, text="กำลังสร้างแผนที่ความละเอียดสูง Deck.gl (90%)...")
                 base_tmpl = get_base_map_html()
                 html_content = base_tmpl.replace("CSV_BASE64_PLACEHOLDER", csv_base64)
                 
@@ -1553,6 +1571,11 @@ with tab1:
                 html_content = html_content.replace("DDPROPERTY_COUNT", f"{map_ddproperty_count:,}")
                 html_content = html_content.replace("TALADNUDBAAN_COUNT", f"{map_taladnudbaan_count:,}")
                 html_content = html_content.replace("ZMYHOME_COUNT", f"{map_zmyhome_count:,}")
+                
+                # Step 6: Finish (100%)
+                progress_bar.progress(100, text="เรนเดอร์แผนที่สำเร็จแล้ว (100%)")
+                time.sleep(0.1)
+                progress_bar.empty()
                 
                 map_rendered = False
                 try:
@@ -2772,8 +2795,8 @@ with tab4:
                         "บริษัท": "จุดอ้างอิง"
                     })
 
-                    # Found points (display up to top 400 nearest properties on interactive map to keep memory low)
-                    plot_nearby_df = map_nearby_df.head(400) if len(map_nearby_df) > 400 else map_nearby_df
+                    # Found points
+                    plot_nearby_df = map_nearby_df
                     for _, r in plot_nearby_df.iterrows():
                         formatted_price = f"฿{r['ราคา']:,.0f}" if pd.notna(r['ราคา']) else "ไม่ระบุ"
                         asset_code = str(r.get('รหัสทรัพย์', '-'))

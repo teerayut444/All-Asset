@@ -10,20 +10,19 @@
       .tooltip {
         position: absolute;
         pointer-events: none;
-        background: rgba(15, 23, 42, 0.96);
-        backdrop-filter: blur(8px);
+        background: rgba(15, 23, 42, 0.95);
+        backdrop-filter: blur(6px);
         color: white;
-        font-family: 'Sarabun', 'Outfit', sans-serif;
+        font-family: 'Sarabun', sans-serif;
         font-size: 12px;
-        padding: 12px 15px;
-        border-radius: 10px;
-        border: 1px solid rgba(255, 255, 255, 0.15);
+        padding: 10px 14px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
         display: none;
         z-index: 999;
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
-        max-width: 300px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        max-width: 280px;
         line-height: 1.5;
-        transition: opacity 0.1s ease;
       }
 
       #loader {
@@ -35,90 +34,41 @@
         font-size: 14px;
         color: #1e293b;
         background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(12px);
+        backdrop-filter: blur(8px);
         padding: 16px 28px;
         border-radius: 9999px;
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
         z-index: 1000;
         display: flex;
         align-items: center;
         gap: 12px;
-        border: 1px solid rgba(0, 0, 0, 0.08);
+        border: 1px solid rgba(0, 0, 0, 0.05);
       }
       .spinner {
         border: 3px solid #e2e8f0;
-        border-top: 3px solid #6366f1;
+        border-top: 3px solid #3b82f6;
         border-radius: 50%;
-        width: 22px;
-        height: 22px;
+        width: 20px;
+        height: 20px;
         animation: spin 0.8s linear infinite;
       }
 
-      /* Control Toolbar (Floating Top-Left) */
-      .map-controls-panel {
-        position: absolute;
-        top: 16px;
-        left: 16px;
-        z-index: 100;
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-      }
-
-      .control-pill-group {
-        background: rgba(255, 255, 255, 0.92);
-        backdrop-filter: blur(10px);
-        padding: 4px 6px;
-        border-radius: 12px;
-        box-shadow: 0 4px 15px -2px rgba(0, 0, 0, 0.08);
-        border: 1px solid rgba(0, 0, 0, 0.08);
-        display: flex;
-        gap: 4px;
-      }
-
-      .ctrl-btn {
-        background: transparent;
-        border: none;
-        padding: 7px 12px;
-        border-radius: 8px;
-        font-family: 'Sarabun', sans-serif;
-        font-size: 12px;
-        font-weight: 600;
-        color: #475569;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        outline: none;
-      }
-      .ctrl-btn:hover {
-        background: rgba(99, 102, 241, 0.1);
-        color: #4f46e5;
-      }
-      .ctrl-btn.active {
-        background: #6366f1;
-        color: #ffffff;
-        box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);
-      }
-
-      /* Legend Overlay (Floating Top-Right) */
       #map-legend {
         position: absolute;
         top: 16px;
         right: 16px;
         background: rgba(255, 255, 255, 0.92);
-        backdrop-filter: blur(10px);
+        backdrop-filter: blur(8px);
         padding: 12px 16px;
-        border-radius: 12px;
-        box-shadow: 0 4px 15px -2px rgba(0, 0, 0, 0.08);
+        border-radius: 10px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
         font-family: 'Sarabun', sans-serif;
         font-size: 12px;
         z-index: 99;
         display: flex;
         flex-direction: column;
         gap: 6px;
-        border: 1px solid rgba(0, 0, 0, 0.08);
+        border: 1px solid rgba(0, 0, 0, 0.05);
       }
       .legend-item {
         display: flex;
@@ -148,22 +98,10 @@
         color: #f8fafc !important;
         border-color: rgba(255, 255, 255, 0.1) !important;
       }
-      body.dark-theme .control-pill-group,
       body.dark-theme #map-legend {
         background: rgba(15, 23, 42, 0.92) !important;
         border-color: rgba(255, 255, 255, 0.1) !important;
-        box-shadow: 0 4px 15px -2px rgba(0, 0, 0, 0.5) !important;
-      }
-      body.dark-theme .ctrl-btn {
-        color: #94a3b8 !important;
-      }
-      body.dark-theme .ctrl-btn:hover {
-        background: rgba(99, 102, 241, 0.2) !important;
-        color: #a5b4fc !important;
-      }
-      body.dark-theme .ctrl-btn.active {
-        background: #6366f1 !important;
-        color: #ffffff !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
       }
       body.dark-theme #map-legend > div:first-child {
         color: #94a3b8 !important;
@@ -179,39 +117,6 @@
   </head>
   <body class="BODY_CLASS_PLACEHOLDER">
     <div id="loader"><div class="spinner"></div> <span id="loader-text">กำลังโหลดและจัดเตรียมข้อมูลแผนที่...</span></div>
-    
-    <!-- Floating Toolbar Controls -->
-    <div class="map-controls-panel">
-      <!-- Layer Mode Switcher -->
-      <div class="control-pill-group" id="layer-switcher">
-        <button class="ctrl-btn active" data-mode="bubble" onclick="switchLayerMode('bubble')">
-          <span>🫧</span> บับเบิ้ลกลุ่มทรัพย์สิน
-        </button>
-        <button class="ctrl-btn" data-mode="scatter" onclick="switchLayerMode('scatter')">
-          <span>📍</span> จุดพิกัดรายทรัพย์
-        </button>
-        <button class="ctrl-btn" data-mode="heatmap" onclick="switchLayerMode('heatmap')">
-          <span>🔥</span> แผนที่ความร้อน
-        </button>
-      </div>
-
-      <!-- Basemap Switcher -->
-      <div class="control-pill-group" id="basemap-switcher">
-        <button class="ctrl-btn active" data-basemap="carto_light" onclick="switchBasemap('carto_light')">
-          <span>☀️</span> สว่าง
-        </button>
-        <button class="ctrl-btn" data-basemap="carto_dark" onclick="switchBasemap('carto_dark')">
-          <span>🌙</span> มืด
-        </button>
-        <button class="ctrl-btn" data-basemap="osm" onclick="switchBasemap('osm')">
-          <span>🗺️</span> ปกติ
-        </button>
-        <button class="ctrl-btn" data-basemap="satellite" onclick="switchBasemap('satellite')">
-          <span>🛰️</span> ดาวเทียม
-        </button>
-      </div>
-    </div>
-
     <div id="map"></div>
     <div id="tooltip" class="tooltip"></div>
     
@@ -237,186 +142,7 @@
       const loaderText = document.getElementById('loader-text');
       
       const csvBase64 = "CSV_BASE64_PLACEHOLDER";
-      let parsedData = [];
-      let deckInstance = null;
-      let currentMode = 'bubble'; // Default mode is Bubble
-      let currentBasemap = document.body.classList.contains('dark-theme') ? 'carto_dark' : 'carto_light';
       
-      // Update initial basemap active button state
-      document.querySelectorAll('#basemap-switcher .ctrl-btn').forEach(btn => {
-        if (btn.dataset.basemap === currentBasemap) {
-          btn.classList.add('active');
-        } else {
-          btn.classList.remove('active');
-        }
-      });
-
-      const BASEMAP_URLS = {
-        osm: [
-          'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png',
-          'https://b.tile.openstreetmap.org/{z}/{x}/{y}.png',
-          'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png'
-        ],
-        carto_light: [
-          'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
-          'https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
-          'https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png'
-        ],
-        carto_dark: [
-          'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
-          'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
-          'https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'
-        ],
-        satellite: [
-          'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
-        ]
-      };
-
-      function handlePointHover(info) {
-        if (info && info.object) {
-          tooltip.style.left = (info.x + 15) + 'px';
-          tooltip.style.top = (info.y + 15) + 'px';
-          tooltip.style.display = 'block';
-          tooltip.innerHTML = `
-            <div style="font-weight: 700; font-size: 13px; margin-bottom: 4px; color: #f8fafc;">${info.object._title || 'ไม่มีชื่อ'}</div>
-            <div><span style="color: #94a3b8;">🏢 บริษัท:</span> <b>${info.object._company || '-'}</b></div>
-            <div><span style="color: #94a3b8;">🔑 รหัสทรัพย์:</span> ${info.object._id || '-'}</div>
-            <div><span style="color: #38bdf8; font-weight: 600;">💰 ราคา:</span> ${info.object._price_str || 'ไม่ระบุ'}</div>
-            <div><span style="color: #94a3b8;">📍 จังหวัด:</span> ${info.object._prov || '-'}</div>
-            <div><span style="color: #94a3b8;">🏠 ประเภท:</span> ${info.object._type || '-'}</div>
-          `;
-        } else {
-          tooltip.style.display = 'none';
-        }
-      }
-
-      function buildLayers() {
-        const tileUrls = BASEMAP_URLS[currentBasemap] || BASEMAP_URLS.carto_light;
-        
-        const baseLayer = new deck.TileLayer({
-          id: `basemap-${currentBasemap}`,
-          data: tileUrls,
-          minZoom: 0,
-          maxZoom: 19,
-          tileSize: 256,
-          renderSubLayers: props => {
-            const { bbox: {west, south, east, north} } = props.tile;
-            return new deck.BitmapLayer(props, {
-              data: null,
-              image: props.tile.data,
-              bounds: [west, south, east, north]
-            });
-          }
-        });
-
-        const layers = [baseLayer];
-
-        if (currentMode === 'bubble') {
-          // 🫧 Bubble Cluster Density Layer
-          layers.push(new deck.HexagonLayer({
-            id: 'bubble-hex-layer',
-            data: parsedData,
-            getPosition: d => [d.lon, d.lat],
-            radius: 3500,
-            coverage: 0.88,
-            extruded: false,
-            colorRange: [
-              [99, 102, 241, 140],  // Indigo
-              [59, 130, 246, 175],  // Blue
-              [16, 185, 129, 200],  // Emerald
-              [245, 158, 11, 220],  // Amber
-              [239, 68, 68, 240]    // Red (Dense)
-            ],
-            pickable: true,
-            autoHighlight: true,
-            highlightColor: [255, 255, 255, 100],
-            onHover: info => {
-              if (info && info.object) {
-                tooltip.style.left = (info.x + 15) + 'px';
-                tooltip.style.top = (info.y + 15) + 'px';
-                tooltip.style.display = 'block';
-                tooltip.innerHTML = `
-                  <div style="font-weight: 700; font-size: 13px; color: #38bdf8; margin-bottom: 4px;">🫧 กลุ่มความหนาแน่นทรัพย์สิน</div>
-                  <div><span style="color: #94a3b8;">จำนวนทรัพย์สินในโซนนี้:</span> <b style="font-size: 14px; color: #f8fafc;">${info.object.count.toLocaleString()}</b> รายการ</div>
-                  <div style="font-size: 11px; color: #cbd5e1; margin-top: 6px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 4px;">💡 ซูมขยายเพื่อดูจุดหมุดรายทรัพย์สิน</div>
-                `;
-              } else {
-                tooltip.style.display = 'none';
-              }
-            }
-          }));
-
-          // Lightweight micro dots overlay
-          layers.push(new deck.ScatterplotLayer({
-            id: 'bubble-micro-points',
-            data: parsedData,
-            getPosition: d => [d.lon, d.lat],
-            getColor: d => [d.r, d.g, d.b, 110],
-            getRadius: 200,
-            radiusMinPixels: 1.5,
-            radiusMaxPixels: 6,
-            pickable: true,
-            onHover: handlePointHover
-          }));
-        } else if (currentMode === 'scatter') {
-          // 📍 High-Resolution Scatter Points Layer
-          layers.push(new deck.ScatterplotLayer({
-            id: 'scatter-full-layer',
-            data: parsedData,
-            getPosition: d => [d.lon, d.lat],
-            getColor: d => [d.r, d.g, d.b, 180],
-            getRadius: 300,
-            radiusMinPixels: 2.5,
-            radiusMaxPixels: 12,
-            pickable: true,
-            autoHighlight: true,
-            highlightColor: [239, 68, 68, 220],
-            onHover: handlePointHover
-          }));
-        } else if (currentMode === 'heatmap') {
-          // 🔥 Heatmap Density Layer
-          layers.push(new deck.HeatmapLayer({
-            id: 'heatmap-density-layer',
-            data: parsedData,
-            getPosition: d => [d.lon, d.lat],
-            getWeight: 1,
-            radiusPixels: 35,
-            intensity: 1.2,
-            threshold: 0.05
-          }));
-        }
-
-        return layers;
-      }
-
-      function switchLayerMode(mode) {
-        currentMode = mode;
-        document.querySelectorAll('#layer-switcher .ctrl-btn').forEach(btn => {
-          if (btn.dataset.mode === mode) {
-            btn.classList.add('active');
-          } else {
-            btn.classList.remove('active');
-          }
-        });
-        if (deckInstance) {
-          deckInstance.setProps({ layers: buildLayers() });
-        }
-      }
-
-      function switchBasemap(basemapKey) {
-        currentBasemap = basemapKey;
-        document.querySelectorAll('#basemap-switcher .ctrl-btn').forEach(btn => {
-          if (btn.dataset.basemap === basemapKey) {
-            btn.classList.add('active');
-          } else {
-            btn.classList.remove('active');
-          }
-        });
-        if (deckInstance) {
-          deckInstance.setProps({ layers: buildLayers() });
-        }
-      }
-
       async function initMap() {
         try {
           loaderText.innerText = "กำลังแปลงรหัสข้อมูลพิกัด (Base64)...";
@@ -432,11 +158,13 @@
           await new Promise(r => setTimeout(r, 10));
           const csvText = new TextDecoder("utf-8").decode(bytes);
           
-          loaderText.innerText = "กำลังประมวลผลตารางพิกัด...";
+          loaderText.innerText = "กำลังประมวลผลตารางพิกัด (Parsing CSV)...";
           await new Promise(r => setTimeout(r, 10));
-          parsedData = d3.csvParse(csvText);
+          const data = d3.csvParse(csvText);
           
-          parsedData.forEach(d => {
+          loaderText.innerText = "กำลังจัดเตรียมจุดแสดงผลพิกัด...";
+          await new Promise(r => setTimeout(r, 10));
+          data.forEach(d => {
             d.lon = +d.lon;
             d.lat = +d.lat;
             d.r = +d.r;
@@ -444,22 +172,78 @@
             d.b = +d.b;
           });
 
-          loaderText.innerText = "กำลังเรนเดอร์แผนที่บับเบิ้ล (Bubble WebGL)...";
+          loaderText.innerText = "กำลังเรนเดอร์จุดแผนที่ (WebGL)...";
           await new Promise(r => setTimeout(r, 10));
           
-          document.getElementById('points-count').innerText = `📍 ข้อมูลทั้งหมด ${parsedData.length.toLocaleString()} รายการ`;
+          // Update points count in legend overlay dynamically
+          document.getElementById('points-count').innerText = `📍 แสดงจุดพิกัดทั้งหมด ${data.length.toLocaleString()} จุด`;
 
-          deckInstance = new deck.DeckGL({
+          // Render Basemap using standard OpenStreetMap raster tile layer
+          const basemapLayer = new deck.TileLayer({
+            id: 'basemap-tile-layer',
+            data: [
+              'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png',
+              'https://b.tile.openstreetmap.org/{z}/{x}/{y}.png',
+              'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png'
+            ],
+            minZoom: 0,
+            maxZoom: 19,
+            tileSize: 256,
+            renderSubLayers: props => {
+              const {
+                bbox: {west, south, east, north}
+              } = props.tile;
+
+              return new deck.BitmapLayer(props, {
+                data: null,
+                image: props.tile.data,
+                bounds: [west, south, east, north]
+              });
+            }
+          });
+
+          new deck.DeckGL({
             container: 'map',
             initialViewState: {
               longitude: 101.0,
-              latitude: 13.2,
-              zoom: 5.9,
+              latitude: 13.0,
+              zoom: 5.8,
               minZoom: 4,
               maxZoom: 18
             },
             controller: true,
-            layers: buildLayers()
+            layers: [
+              basemapLayer,
+              new deck.ScatterplotLayer({
+                id: 'scatterplot-layer',
+                data: data,
+                getPosition: d => [d.lon, d.lat],
+                getColor: d => [d.r, d.g, d.b, 175],
+                getRadius: 300,
+                radiusMinPixels: 2.5,
+                radiusMaxPixels: 12,
+                pickable: true,
+                autoHighlight: true,
+                highlightColor: [239, 68, 68, 220],
+                onHover: info => {
+                  if (info.object) {
+                    tooltip.style.left = (info.x + 15) + 'px';
+                    tooltip.style.top = (info.y + 15) + 'px';
+                    tooltip.style.display = 'block';
+                    tooltip.innerHTML = `
+                      <div style="font-weight: 700; font-size: 13px; margin-bottom: 4px; color: #f8fafc;">${info.object._title || 'ไม่มีชื่อ'}</div>
+                      <div><span style="color: #94a3b8;">🏢 บริษัท:</span> <b>${info.object._company || '-'}</b></div>
+                      <div><span style="color: #94a3b8;">🔑 รหัสทรัพย์:</span> ${info.object._id || '-'}</div>
+                      <div><span style="color: #38bdf8; font-weight: 600;">💰 ราคา:</span> ${info.object._price_str || 'ไม่ระบุ'}</div>
+                      <div><span style="color: #94a3b8;">📍 จังหวัด:</span> ${info.object._prov || '-'}</div>
+                      <div><span style="color: #94a3b8;">🏠 ประเภท:</span> ${info.object._type || '-'}</div>
+                    `;
+                  } else {
+                    tooltip.style.display = 'none';
+                  }
+                }
+              })
+            ]
           });
           
           loader.style.display = 'none';
