@@ -14,6 +14,7 @@ import base64
 import time
 
 from dashboard_metrics import build_kpi_summary_text
+from bubble_chart import generate_3d_glossy_bubble_chart_html
 
 def make_clean_dropdown_label(row, show_company=False):
     """Creates clean, non-redundant dropdown labels without truncated text or duplicate codes."""
@@ -1435,123 +1436,141 @@ st.markdown(floating_kpi_html, unsafe_allow_html=True)
 
 # ----------------- TABS CREATION -----------------
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    "🗺️ แผนที่พิกัดทรัพย์ (Map Grid)", 
+    "🔮 ภาพรวม & แผนที่ (Bubble & Map)", 
     "📈 สถิติ & วิเคราะห์ (Analytics)", 
     "📋 รายการทรัพย์สิน (Property Listing)", 
     "🔍 เปรียบเทียบตำแหน่ง (Comparison)",
     "💎 ค้นหาของดีราคาถูก (Bargain Hunter)"
 ])
 
-# ----- TAB 1: MAP GRID -----
+# ----- TAB 1: BUBBLE & MAP -----
 with tab1:
     with st.container(key="tab_map"):
-        progress_bar = st.progress(0, text="กำลังเตรียมข้อมูลแผนที่...")
-        
-        # Step 1: Filter rows with coordinates (20%)
-        progress_bar.progress(20, text="กำลังกรองจุดพิกัดในประเทศไทย (20%)...")
-        map_data = df_filtered[
-            df_filtered['ละติจูด'].notna() & df_filtered['ลองจิจูด'].notna() &
-            df_filtered['ละติจูด'].between(5, 21) & df_filtered['ลองจิจูด'].between(97, 106)
-        ].copy()
-        
-        map_data_full_len = len(map_data)
+        c_mode1, c_mode2 = st.columns([0.62, 0.38])
+        with c_mode1:
+            t1_view = st.segmented_control(
+                "รูปแบบมุมมองการแสดงผล:",
+                options=["🔮 แผนภาพวงกลมบับเบิ้ล (Bubble View)", "🗺️ แผนที่พิกัดทรัพย์สิน (Interactive Map)"],
+                default="🔮 แผนภาพวงกลมบับเบิ้ล (Bubble View)",
+                key="tab1_main_view_mode"
+            )
+            if not t1_view:
+                t1_view = "🔮 แผนภาพวงกลมบับเบิ้ล (Bubble View)"
+                
+        if "บับเบิ้ล" in t1_view:
+            with c_mode2:
+                bubble_metric = st.radio(
+                    "เกณฑ์เปรียบเทียบขนาดวงกลม:",
+                    ["สัดส่วนตามจำนวนทรัพย์สิน (Asset Count)", "สัดส่วนตามมูลค่ารวมของทรัพย์สิน (Total Value)"],
+                    index=0,
+                    horizontal=True,
+                    key="tab1_bubble_metric_radio"
+                )
             
-        if not map_data.empty:
-            # Step 2: Format prices (40%)
-            progress_bar.progress(40, text="กำลังจัดรูปแบบราคาและชื่อประกาศ (40%)...")
-            prices = map_data['ราคา']
-            map_data['ราคาขาย'] = np.where(
-                prices.notna() & (prices > 0),
-                '฿' + prices.map('{:,.0f}'.format) + ' บาท',
-                'ไม่ระบุ'
+            # Render 3D Glossy Bubble Chart matching AMC NPA Monitor style
+            bubble_html = generate_3d_glossy_bubble_chart_html(
+                df_filtered, 
+                bubble_metric=bubble_metric, 
+                is_dark_mode=is_dark_mode
             )
             
-        if map_data.empty:
-            progress_bar.empty()
-            st.warning("⚠️ ไม่พบพิกัดตำแหน่ง ละติจูด/ลองจิจูด ในรายการทรัพย์สินที่คุณเลือกค้นหา")
-        else:
-            # Step 3: Color mapping (60%)
-            progress_bar.progress(60, text="กำลังจัดเตรียมสีตามบริษัทคู่แข่ง (60%)...")
-            title_col = 'ชื่อประกาศ' if 'ชื่อประกาศ' in map_data.columns else ('ชื่อโครงการ' if 'ชื่อโครงการ' in map_data.columns else 'รหัสทรัพย์')
-            titles = map_data[title_col].astype(object).fillna('ไม่มีชื่อ').astype(str).str[:30].values
-            ids = map_data['รหัสทรัพย์'].astype(object).fillna('-').astype(str).str[:15].values
-            provs = map_data['จังหวัด'].astype(object).fillna('-').astype(str).values
-            types = map_data['ประเภททรัพย์'].astype(object).fillna('-').astype(str).values
-            companies = map_data['บริษัท'].astype(object).fillna('-').astype(str).values
-            prices = map_data['ราคาขาย'].astype(str).values
-            
-            COMPANY_COLORS = {"Baania": [245, 158, 11], "BAM": [59, 130, 246], "SAM": [16, 185, 129], "DDproperty": [168, 85, 247], "Taladnudbaan": [6, 182, 212], "ZmyHome": [236, 72, 153]}
-            DEFAULT_COLOR = [148, 163, 184]
-            r_vals, g_vals, b_vals = [], [], []
-            for company in map_data['บริษัท']:
-                color = COMPANY_COLORS.get(company, DEFAULT_COLOR)
-                r_vals.append(color[0])
-                g_vals.append(color[1])
-                b_vals.append(color[2])
-                
-            # Step 4: CSV conversion & Base64 encoding (80%)
-            progress_bar.progress(80, text="กำลังแปลงข้อมูลเป็น Base64 Payload (80%)...")
-            csv_df = pd.DataFrame({
-                'lon': map_data['ลองจิจูด'].values.astype('float32'),
-                'lat': map_data['ละติจูด'].values.astype('float32'),
-                'r': np.array(r_vals, dtype='uint8'),
-                'g': np.array(g_vals, dtype='uint8'),
-                'b': np.array(b_vals, dtype='uint8'),
-                '_title': titles,
-                '_id': ids,
-                '_prov': provs,
-                '_type': types,
-                '_company': companies,
-                '_price_str': prices,
-            })
-            
-            csv_str = csv_df.to_csv(index=False)
-            csv_base64 = base64.b64encode(csv_str.encode('utf-8')).decode('utf-8')
-            
-            # Step 5: Render map template (90%)
-            progress_bar.progress(90, text="กำลังสร้างแผนที่ความละเอียดสูง Deck.gl (90%)...")
-            base_tmpl = get_base_map_html()
-            html_content = base_tmpl.replace("CSV_BASE64_PLACEHOLDER", csv_base64)
-            
-            body_theme_class = "dark-theme" if is_dark_mode else ""
-            html_content = html_content.replace("BODY_CLASS_PLACEHOLDER", body_theme_class)
-
-            map_baania_count = len(map_data[map_data['บริษัท'] == 'Baania'])
-            map_bam_count = len(map_data[map_data['บริษัท'] == 'BAM'])
-            map_sam_count = len(map_data[map_data['บริษัท'] == 'SAM'])
-            map_ddproperty_count = len(map_data[map_data['บริษัท'] == 'DDproperty'])
-            map_taladnudbaan_count = len(map_data[map_data['บริษัท'] == 'Taladnudbaan'])
-            map_zmyhome_count = len(map_data[map_data['บริษัท'] == 'ZmyHome'])
-
-            html_content = html_content.replace("BAANIA_COUNT", f"{map_baania_count:,}")
-            html_content = html_content.replace("BAM_COUNT", f"{map_bam_count:,}")
-            html_content = html_content.replace("SAM_COUNT", f"{map_sam_count:,}")
-            html_content = html_content.replace("DDPROPERTY_COUNT", f"{map_ddproperty_count:,}")
-            html_content = html_content.replace("TALADNUDBAAN_COUNT", f"{map_taladnudbaan_count:,}")
-            html_content = html_content.replace("ZMYHOME_COUNT", f"{map_zmyhome_count:,}")
-            
-            # Step 6: Finish (100%)
-            progress_bar.progress(100, text="เรนเดอร์แผนที่สำเร็จแล้ว (100%)")
-            time.sleep(0.1)
-            progress_bar.empty()
-            
-            map_rendered = False
             try:
                 import streamlit.components.v1 as stc
-                stc.html(html_content, height=680)
-                map_rendered = True
+                stc.html(bubble_html, height=640)
             except Exception:
-                pass
+                st.html(bubble_html, unsafe_allow_javascript=True)
+                
+        else:
+            # Map Rendering
+            map_data = df_filtered[
+                df_filtered['ละติจูด'].notna() & df_filtered['ลองจิจูด'].notna() &
+                df_filtered['ละติจูด'].between(5, 21) & df_filtered['ลองจิจูด'].between(97, 106)
+            ].copy()
             
-            if not map_rendered:
+            map_data_full_len = len(map_data)
+                
+            if not map_data.empty:
+                prices = map_data['ราคา']
+                map_data['ราคาขาย'] = np.where(
+                    prices.notna() & (prices > 0),
+                    '฿' + prices.map('{:,.0f}'.format) + ' บาท',
+                    'ไม่ระบุ'
+                )
+                
+            if map_data.empty:
+                st.warning("⚠️ ไม่พบพิกัดตำแหน่ง ละติจูด/ลองจิจูด ในรายการทรัพย์สินที่คุณเลือกค้นหา")
+            else:
+                title_col = 'ชื่อประกาศ' if 'ชื่อประกาศ' in map_data.columns else ('ชื่อโครงการ' if 'ชื่อโครงการ' in map_data.columns else 'รหัสทรัพย์')
+                titles = map_data[title_col].astype(object).fillna('ไม่มีชื่อ').astype(str).str[:30].values
+                ids = map_data['รหัสทรัพย์'].astype(object).fillna('-').astype(str).str[:15].values
+                provs = map_data['จังหวัด'].astype(object).fillna('-').astype(str).values
+                types = map_data['ประเภททรัพย์'].astype(object).fillna('-').astype(str).values
+                companies = map_data['บริษัท'].astype(object).fillna('-').astype(str).values
+                prices = map_data['ราคาขาย'].astype(str).values
+                
+                COMPANY_COLORS = {"Baania": [245, 158, 11], "BAM": [59, 130, 246], "SAM": [16, 185, 129], "DDproperty": [168, 85, 247], "Taladnudbaan": [6, 182, 212], "ZmyHome": [236, 72, 153]}
+                DEFAULT_COLOR = [148, 163, 184]
+                r_vals, g_vals, b_vals = [], [], []
+                for company in map_data['บริษัท']:
+                    color = COMPANY_COLORS.get(company, DEFAULT_COLOR)
+                    r_vals.append(color[0])
+                    g_vals.append(color[1])
+                    b_vals.append(color[2])
+                    
+                csv_df = pd.DataFrame({
+                    'lon': map_data['ลองจิจูด'].values.astype('float32'),
+                    'lat': map_data['ละติจูด'].values.astype('float32'),
+                    'r': np.array(r_vals, dtype='uint8'),
+                    'g': np.array(g_vals, dtype='uint8'),
+                    'b': np.array(b_vals, dtype='uint8'),
+                    '_title': titles,
+                    '_id': ids,
+                    '_prov': provs,
+                    '_type': types,
+                    '_company': companies,
+                    '_price_str': prices,
+                })
+                
+                csv_str = csv_df.to_csv(index=False)
+                csv_base64 = base64.b64encode(csv_str.encode('utf-8')).decode('utf-8')
+                
+                base_tmpl = get_base_map_html()
+                html_content = base_tmpl.replace("CSV_BASE64_PLACEHOLDER", csv_base64)
+                
+                body_theme_class = "dark-theme" if is_dark_mode else ""
+                html_content = html_content.replace("BODY_CLASS_PLACEHOLDER", body_theme_class)
+
+                map_baania_count = len(map_data[map_data['บริษัท'] == 'Baania'])
+                map_bam_count = len(map_data[map_data['บริษัท'] == 'BAM'])
+                map_sam_count = len(map_data[map_data['บริษัท'] == 'SAM'])
+                map_ddproperty_count = len(map_data[map_data['บริษัท'] == 'DDproperty'])
+                map_taladnudbaan_count = len(map_data[map_data['บริษัท'] == 'Taladnudbaan'])
+                map_zmyhome_count = len(map_data[map_data['บริษัท'] == 'ZmyHome'])
+
+                html_content = html_content.replace("BAANIA_COUNT", f"{map_baania_count:,}")
+                html_content = html_content.replace("BAM_COUNT", f"{map_bam_count:,}")
+                html_content = html_content.replace("SAM_COUNT", f"{map_sam_count:,}")
+                html_content = html_content.replace("DDPROPERTY_COUNT", f"{map_ddproperty_count:,}")
+                html_content = html_content.replace("TALADNUDBAAN_COUNT", f"{map_taladnudbaan_count:,}")
+                html_content = html_content.replace("ZMYHOME_COUNT", f"{map_zmyhome_count:,}")
+                
+                map_rendered = False
                 try:
-                    st.html(html_content, unsafe_allow_javascript=True)
+                    import streamlit.components.v1 as stc
+                    stc.html(html_content, height=680)
                     map_rendered = True
                 except Exception:
                     pass
-            
-            if not map_rendered:
-                st.error("❌ ไม่สามารถแสดงแผนที่ได้ กรุณาลองรีเฟรชหน้าเว็บ")
+                
+                if not map_rendered:
+                    try:
+                        st.html(html_content, unsafe_allow_javascript=True)
+                        map_rendered = True
+                    except Exception:
+                        pass
+                
+                if not map_rendered:
+                    st.error("❌ ไม่สามารถแสดงแผนที่ได้ กรุณาลองรีเฟรชหน้าเว็บ")
 
 # ----- TAB 2: ANALYTICS -----
 with tab2:

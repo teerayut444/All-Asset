@@ -4,24 +4,28 @@
     <title>All Asset NPA Map</title>
     <meta charset="utf-8" />
     <style>
-      body { margin: 0; padding: 0; overflow: hidden; background-color: #f8fafc; }
-      #map { width: 100vw; height: 100vh; }
+      body { margin: 0; padding: 0; overflow: hidden; background-color: #f8fafc; font-family: 'Sarabun', 'Outfit', sans-serif; }
+      #map { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; }
+      
       .tooltip {
         position: absolute;
         pointer-events: none;
-        background: rgba(15, 23, 42, 0.95);
+        background: rgba(15, 23, 42, 0.96);
+        backdrop-filter: blur(8px);
         color: white;
-        font-family: 'Sarabun', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-family: 'Sarabun', 'Outfit', sans-serif;
         font-size: 12px;
-        padding: 10px 14px;
-        border-radius: 8px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 12px 15px;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
         display: none;
-        z-index: 99;
-        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-        max-width: 280px;
+        z-index: 999;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+        max-width: 300px;
         line-height: 1.5;
+        transition: opacity 0.1s ease;
       }
+
       #loader {
         position: absolute;
         top: 50%;
@@ -29,39 +33,92 @@
         transform: translate(-50%, -50%);
         font-family: 'Sarabun', sans-serif;
         font-size: 14px;
-        color: #475569;
-        background: white;
+        color: #1e293b;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(12px);
         padding: 16px 28px;
         border-radius: 9999px;
-        box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
-        z-index: 100;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15);
+        z-index: 1000;
         display: flex;
         align-items: center;
         gap: 12px;
+        border: 1px solid rgba(0, 0, 0, 0.08);
       }
       .spinner {
         border: 3px solid #e2e8f0;
-        border-top: 3px solid #3b82f6;
+        border-top: 3px solid #6366f1;
         border-radius: 50%;
-        width: 20px;
-        height: 20px;
-        animation: spin 1s linear infinite;
+        width: 22px;
+        height: 22px;
+        animation: spin 0.8s linear infinite;
       }
+
+      /* Control Toolbar (Floating Top-Left) */
+      .map-controls-panel {
+        position: absolute;
+        top: 16px;
+        left: 16px;
+        z-index: 100;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .control-pill-group {
+        background: rgba(255, 255, 255, 0.92);
+        backdrop-filter: blur(10px);
+        padding: 4px 6px;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px -2px rgba(0, 0, 0, 0.08);
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        display: flex;
+        gap: 4px;
+      }
+
+      .ctrl-btn {
+        background: transparent;
+        border: none;
+        padding: 7px 12px;
+        border-radius: 8px;
+        font-family: 'Sarabun', sans-serif;
+        font-size: 12px;
+        font-weight: 600;
+        color: #475569;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        outline: none;
+      }
+      .ctrl-btn:hover {
+        background: rgba(99, 102, 241, 0.1);
+        color: #4f46e5;
+      }
+      .ctrl-btn.active {
+        background: #6366f1;
+        color: #ffffff;
+        box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);
+      }
+
+      /* Legend Overlay (Floating Top-Right) */
       #map-legend {
         position: absolute;
-        top: 20px;
-        right: 20px;
-        background: rgba(255, 255, 255, 0.95);
+        top: 16px;
+        right: 16px;
+        background: rgba(255, 255, 255, 0.92);
+        backdrop-filter: blur(10px);
         padding: 12px 16px;
-        border-radius: 8px;
-        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-        font-family: 'Sarabun', 'Segoe UI', sans-serif;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px -2px rgba(0, 0, 0, 0.08);
+        font-family: 'Sarabun', sans-serif;
         font-size: 12px;
         z-index: 99;
         display: flex;
         flex-direction: column;
         gap: 6px;
-        border: 1px solid rgba(0, 0, 0, 0.05);
+        border: 1px solid rgba(0, 0, 0, 0.08);
       }
       .legend-item {
         display: flex;
@@ -76,23 +133,37 @@
         border-radius: 50%;
         display: inline-block;
       }
+
       @keyframes spin {
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
       }
-      /* Dark Theme overrides for the sandboxed map template */
+
+      /* Dark Theme overrides */
       body.dark-theme {
         background-color: #0f172a !important;
       }
       body.dark-theme #loader {
-        background: rgba(15, 23, 42, 0.9) !important;
+        background: rgba(15, 23, 42, 0.92) !important;
         color: #f8fafc !important;
-        border-color: #334155 !important;
+        border-color: rgba(255, 255, 255, 0.1) !important;
       }
+      body.dark-theme .control-pill-group,
       body.dark-theme #map-legend {
-        background: rgba(15, 23, 42, 0.95) !important;
-        border-color: #334155 !important;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+        background: rgba(15, 23, 42, 0.92) !important;
+        border-color: rgba(255, 255, 255, 0.1) !important;
+        box-shadow: 0 4px 15px -2px rgba(0, 0, 0, 0.5) !important;
+      }
+      body.dark-theme .ctrl-btn {
+        color: #94a3b8 !important;
+      }
+      body.dark-theme .ctrl-btn:hover {
+        background: rgba(99, 102, 241, 0.2) !important;
+        color: #a5b4fc !important;
+      }
+      body.dark-theme .ctrl-btn.active {
+        background: #6366f1 !important;
+        color: #ffffff !important;
       }
       body.dark-theme #map-legend > div:first-child {
         color: #94a3b8 !important;
@@ -101,13 +172,46 @@
         color: #e2e8f0 !important;
       }
       body.dark-theme #points-count {
-        border-top-color: #334155 !important;
+        border-top-color: rgba(255, 255, 255, 0.1) !important;
         color: #94a3b8 !important;
       }
     </style>
   </head>
   <body class="BODY_CLASS_PLACEHOLDER">
     <div id="loader"><div class="spinner"></div> <span id="loader-text">กำลังโหลดและจัดเตรียมข้อมูลแผนที่...</span></div>
+    
+    <!-- Floating Toolbar Controls -->
+    <div class="map-controls-panel">
+      <!-- Layer Mode Switcher -->
+      <div class="control-pill-group" id="layer-switcher">
+        <button class="ctrl-btn active" data-mode="bubble" onclick="switchLayerMode('bubble')">
+          <span>🫧</span> บับเบิ้ลกลุ่มทรัพย์สิน
+        </button>
+        <button class="ctrl-btn" data-mode="scatter" onclick="switchLayerMode('scatter')">
+          <span>📍</span> จุดพิกัดรายทรัพย์
+        </button>
+        <button class="ctrl-btn" data-mode="heatmap" onclick="switchLayerMode('heatmap')">
+          <span>🔥</span> แผนที่ความร้อน
+        </button>
+      </div>
+
+      <!-- Basemap Switcher -->
+      <div class="control-pill-group" id="basemap-switcher">
+        <button class="ctrl-btn active" data-basemap="carto_light" onclick="switchBasemap('carto_light')">
+          <span>☀️</span> สว่าง
+        </button>
+        <button class="ctrl-btn" data-basemap="carto_dark" onclick="switchBasemap('carto_dark')">
+          <span>🌙</span> มืด
+        </button>
+        <button class="ctrl-btn" data-basemap="osm" onclick="switchBasemap('osm')">
+          <span>🗺️</span> ปกติ
+        </button>
+        <button class="ctrl-btn" data-basemap="satellite" onclick="switchBasemap('satellite')">
+          <span>🛰️</span> ดาวเทียม
+        </button>
+      </div>
+    </div>
+
     <div id="map"></div>
     <div id="tooltip" class="tooltip"></div>
     
@@ -123,7 +227,7 @@
       <div style="border-top: 1px solid #e2e8f0; margin-top: 6px; padding-top: 6px; font-size: 10px; color: #94a3b8;" id="points-count">📍 กำลังโหลด...</div>
     </div>
 
-    <!-- Load JS libraries from CDN (much faster than inline embedding) -->
+    <!-- Load JS libraries from CDN -->
     <script src="https://cdn.jsdelivr.net/npm/d3-dsv@3/dist/d3-dsv.min.js"></script>
     <script src="https://unpkg.com/deck.gl@9.0.16/dist.min.js"></script>
 
@@ -133,7 +237,186 @@
       const loaderText = document.getElementById('loader-text');
       
       const csvBase64 = "CSV_BASE64_PLACEHOLDER";
+      let parsedData = [];
+      let deckInstance = null;
+      let currentMode = 'bubble'; // Default mode is Bubble
+      let currentBasemap = document.body.classList.contains('dark-theme') ? 'carto_dark' : 'carto_light';
       
+      // Update initial basemap active button state
+      document.querySelectorAll('#basemap-switcher .ctrl-btn').forEach(btn => {
+        if (btn.dataset.basemap === currentBasemap) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      });
+
+      const BASEMAP_URLS = {
+        osm: [
+          'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png',
+          'https://b.tile.openstreetmap.org/{z}/{x}/{y}.png',
+          'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png'
+        ],
+        carto_light: [
+          'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+          'https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+          'https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png'
+        ],
+        carto_dark: [
+          'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+          'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+          'https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'
+        ],
+        satellite: [
+          'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+        ]
+      };
+
+      function handlePointHover(info) {
+        if (info && info.object) {
+          tooltip.style.left = (info.x + 15) + 'px';
+          tooltip.style.top = (info.y + 15) + 'px';
+          tooltip.style.display = 'block';
+          tooltip.innerHTML = `
+            <div style="font-weight: 700; font-size: 13px; margin-bottom: 4px; color: #f8fafc;">${info.object._title || 'ไม่มีชื่อ'}</div>
+            <div><span style="color: #94a3b8;">🏢 บริษัท:</span> <b>${info.object._company || '-'}</b></div>
+            <div><span style="color: #94a3b8;">🔑 รหัสทรัพย์:</span> ${info.object._id || '-'}</div>
+            <div><span style="color: #38bdf8; font-weight: 600;">💰 ราคา:</span> ${info.object._price_str || 'ไม่ระบุ'}</div>
+            <div><span style="color: #94a3b8;">📍 จังหวัด:</span> ${info.object._prov || '-'}</div>
+            <div><span style="color: #94a3b8;">🏠 ประเภท:</span> ${info.object._type || '-'}</div>
+          `;
+        } else {
+          tooltip.style.display = 'none';
+        }
+      }
+
+      function buildLayers() {
+        const tileUrls = BASEMAP_URLS[currentBasemap] || BASEMAP_URLS.carto_light;
+        
+        const baseLayer = new deck.TileLayer({
+          id: `basemap-${currentBasemap}`,
+          data: tileUrls,
+          minZoom: 0,
+          maxZoom: 19,
+          tileSize: 256,
+          renderSubLayers: props => {
+            const { bbox: {west, south, east, north} } = props.tile;
+            return new deck.BitmapLayer(props, {
+              data: null,
+              image: props.tile.data,
+              bounds: [west, south, east, north]
+            });
+          }
+        });
+
+        const layers = [baseLayer];
+
+        if (currentMode === 'bubble') {
+          // 🫧 Bubble Cluster Density Layer
+          layers.push(new deck.HexagonLayer({
+            id: 'bubble-hex-layer',
+            data: parsedData,
+            getPosition: d => [d.lon, d.lat],
+            radius: 3500,
+            coverage: 0.88,
+            extruded: false,
+            colorRange: [
+              [99, 102, 241, 140],  // Indigo
+              [59, 130, 246, 175],  // Blue
+              [16, 185, 129, 200],  // Emerald
+              [245, 158, 11, 220],  // Amber
+              [239, 68, 68, 240]    // Red (Dense)
+            ],
+            pickable: true,
+            autoHighlight: true,
+            highlightColor: [255, 255, 255, 100],
+            onHover: info => {
+              if (info && info.object) {
+                tooltip.style.left = (info.x + 15) + 'px';
+                tooltip.style.top = (info.y + 15) + 'px';
+                tooltip.style.display = 'block';
+                tooltip.innerHTML = `
+                  <div style="font-weight: 700; font-size: 13px; color: #38bdf8; margin-bottom: 4px;">🫧 กลุ่มความหนาแน่นทรัพย์สิน</div>
+                  <div><span style="color: #94a3b8;">จำนวนทรัพย์สินในโซนนี้:</span> <b style="font-size: 14px; color: #f8fafc;">${info.object.count.toLocaleString()}</b> รายการ</div>
+                  <div style="font-size: 11px; color: #cbd5e1; margin-top: 6px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 4px;">💡 ซูมขยายเพื่อดูจุดหมุดรายทรัพย์สิน</div>
+                `;
+              } else {
+                tooltip.style.display = 'none';
+              }
+            }
+          }));
+
+          // Lightweight micro dots overlay
+          layers.push(new deck.ScatterplotLayer({
+            id: 'bubble-micro-points',
+            data: parsedData,
+            getPosition: d => [d.lon, d.lat],
+            getColor: d => [d.r, d.g, d.b, 110],
+            getRadius: 200,
+            radiusMinPixels: 1.5,
+            radiusMaxPixels: 6,
+            pickable: true,
+            onHover: handlePointHover
+          }));
+        } else if (currentMode === 'scatter') {
+          // 📍 High-Resolution Scatter Points Layer
+          layers.push(new deck.ScatterplotLayer({
+            id: 'scatter-full-layer',
+            data: parsedData,
+            getPosition: d => [d.lon, d.lat],
+            getColor: d => [d.r, d.g, d.b, 180],
+            getRadius: 300,
+            radiusMinPixels: 2.5,
+            radiusMaxPixels: 12,
+            pickable: true,
+            autoHighlight: true,
+            highlightColor: [239, 68, 68, 220],
+            onHover: handlePointHover
+          }));
+        } else if (currentMode === 'heatmap') {
+          // 🔥 Heatmap Density Layer
+          layers.push(new deck.HeatmapLayer({
+            id: 'heatmap-density-layer',
+            data: parsedData,
+            getPosition: d => [d.lon, d.lat],
+            getWeight: 1,
+            radiusPixels: 35,
+            intensity: 1.2,
+            threshold: 0.05
+          }));
+        }
+
+        return layers;
+      }
+
+      function switchLayerMode(mode) {
+        currentMode = mode;
+        document.querySelectorAll('#layer-switcher .ctrl-btn').forEach(btn => {
+          if (btn.dataset.mode === mode) {
+            btn.classList.add('active');
+          } else {
+            btn.classList.remove('active');
+          }
+        });
+        if (deckInstance) {
+          deckInstance.setProps({ layers: buildLayers() });
+        }
+      }
+
+      function switchBasemap(basemapKey) {
+        currentBasemap = basemapKey;
+        document.querySelectorAll('#basemap-switcher .ctrl-btn').forEach(btn => {
+          if (btn.dataset.basemap === basemapKey) {
+            btn.classList.add('active');
+          } else {
+            btn.classList.remove('active');
+          }
+        });
+        if (deckInstance) {
+          deckInstance.setProps({ layers: buildLayers() });
+        }
+      }
+
       async function initMap() {
         try {
           loaderText.innerText = "กำลังแปลงรหัสข้อมูลพิกัด (Base64)...";
@@ -149,13 +432,11 @@
           await new Promise(r => setTimeout(r, 10));
           const csvText = new TextDecoder("utf-8").decode(bytes);
           
-          loaderText.innerText = "กำลังประมวลผลตารางพิกัด (Parsing CSV)...";
+          loaderText.innerText = "กำลังประมวลผลตารางพิกัด...";
           await new Promise(r => setTimeout(r, 10));
-          const data = d3.csvParse(csvText);
+          parsedData = d3.csvParse(csvText);
           
-          loaderText.innerText = "กำลังจัดเตรียมจุดแสดงผลพิกัด...";
-          await new Promise(r => setTimeout(r, 10));
-          data.forEach(d => {
+          parsedData.forEach(d => {
             d.lon = +d.lon;
             d.lat = +d.lat;
             d.r = +d.r;
@@ -163,78 +444,22 @@
             d.b = +d.b;
           });
 
-          loaderText.innerText = "กำลังเรนเดอร์จุดแผนที่ (WebGL)...";
+          loaderText.innerText = "กำลังเรนเดอร์แผนที่บับเบิ้ล (Bubble WebGL)...";
           await new Promise(r => setTimeout(r, 10));
           
-          // Update points count in legend overlay dynamically
-          document.getElementById('points-count').innerText = `📍 แสดงจุดพิกัด ${data.length.toLocaleString()} จุด`;
+          document.getElementById('points-count').innerText = `📍 ข้อมูลทั้งหมด ${parsedData.length.toLocaleString()} รายการ`;
 
-          // Render Basemap using OpenStreetMap tile layers
-          const basemapLayer = new deck.TileLayer({
-            id: 'basemap-tile-layer',
-            data: [
-              'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png',
-              'https://b.tile.openstreetmap.org/{z}/{x}/{y}.png',
-              'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png'
-            ],
-            minZoom: 0,
-            maxZoom: 19,
-            tileSize: 256,
-            renderSubLayers: props => {
-              const {
-                bbox: {west, south, east, north}
-              } = props.tile;
-
-              return new deck.BitmapLayer(props, {
-                data: null,
-                image: props.tile.data,
-                bounds: [west, south, east, north]
-              });
-            }
-          });
-
-          new deck.DeckGL({
+          deckInstance = new deck.DeckGL({
             container: 'map',
             initialViewState: {
               longitude: 101.0,
-              latitude: 13.0,
-              zoom: 5.8,
+              latitude: 13.2,
+              zoom: 5.9,
               minZoom: 4,
-              maxZoom: 17
+              maxZoom: 18
             },
             controller: true,
-            layers: [
-              basemapLayer,
-              new deck.ScatterplotLayer({
-                id: 'scatterplot-layer',
-                data: data,
-                getPosition: d => [d.lon, d.lat],
-                getColor: d => [d.r, d.g, d.b, 160],
-                getRadius: 300,
-                radiusMinPixels: 2.5,
-                radiusMaxPixels: 12,
-                pickable: true,
-                autoHighlight: true,
-                highlightColor: [239, 68, 68, 200],
-                onHover: info => {
-                  if (info.object) {
-                    tooltip.style.left = (info.x + 15) + 'px';
-                    tooltip.style.top = (info.y + 15) + 'px';
-                    tooltip.style.display = 'block';
-                    tooltip.innerHTML = `
-                      <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px; color: #f8fafc;">${info.object._title}</div>
-                      <div><span style="color: #94a3b8;">บริษัท:</span> ${info.object._company}</div>
-                      <div><span style="color: #94a3b8;">รหัสทรัพย์:</span> ${info.object._id}</div>
-                      <div><span style="color: #38bdf8; font-weight: 500;">ราคา:</span> ${info.object._price_str}</div>
-                      <div><span style="color: #94a3b8;">จังหวัด:</span> ${info.object._prov}</div>
-                      <div><span style="color: #94a3b8;">ประเภท:</span> ${info.object._type}</div>
-                    `;
-                  } else {
-                    tooltip.style.display = 'none';
-                  }
-                }
-              })
-            ]
+            layers: buildLayers()
           });
           
           loader.style.display = 'none';
