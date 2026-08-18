@@ -16,11 +16,15 @@ import time
 from dashboard_metrics import build_kpi_summary_text
 from bubble_chart import generate_3d_glossy_bubble_chart_html
 
-def make_clean_dropdown_label(row, show_company=False):
-    """Creates clean, non-redundant dropdown labels without truncated text or duplicate codes."""
+def make_clean_dropdown_label(row, show_company=True):
+    """Creates clean, highly informative dropdown labels with company, property type, name/project, code, location, and price."""
     co = str(row.get('บริษัท', '')).strip()
     title = str(row.get('ชื่อประกาศ', '')).strip()
+    proj = str(row.get('ชื่อโครงการ', '')).strip()
     code = str(row.get('รหัสทรัพย์', '')).strip()
+    ptype = str(row.get('ประเภททรัพย์', '')).strip()
+    prov = str(row.get('จังหวัด', '')).strip()
+    dist = str(row.get('อำเภอ', '')).strip()
     price = row.get('ราคา', 0)
     
     try:
@@ -29,21 +33,29 @@ def make_clean_dropdown_label(row, show_company=False):
     except (ValueError, TypeError):
         price_str = "ไม่ระบุราคา"
         
-    has_code = code and code not in ['nan', 'None', '-']
-    has_code_in_title = has_code and (code in title)
+    # Pick the best descriptive name
+    name = title
+    if (not name or name in ['SAM', 'BAM', 'ไม่มีชื่อ', 'ทรัพย์สิน NPA', '-', 'nan']) and proj and proj not in ['nan', 'None', '-']:
+        name = proj
+    elif proj and proj not in ['nan', 'None', '-', ''] and proj.lower() not in title.lower() and len(name) < 25:
+        name = f"{name} ({proj})"
+        
+    if len(name) > 40:
+        name = name[:38] + "..."
+        
+    loc_parts = []
+    if dist and dist not in ['nan', 'None', '-']:
+        loc_parts.append(dist)
+    if prov and prov not in ['nan', 'None', '-']:
+        loc_parts.append(prov)
+    loc_joined = ', '.join(loc_parts)
+    loc_str = f" [{loc_joined}]" if loc_parts else ""
     
-    clean_title = title
-    if len(clean_title) > 60:
-        sp_idx = clean_title.rfind(' ', 0, 60)
-        if sp_idx > 35:
-            clean_title = clean_title[:sp_idx] + "..."
-        else:
-            clean_title = clean_title[:60] + "..."
-
+    code_str = f" ({code})" if code and code not in ['nan', 'None', '-'] else ""
+    ptype_str = f"{ptype}: " if ptype and ptype not in ['nan', 'None', '-'] else ""
     prefix = f"[{co}] " if show_company and co and co not in ['nan', 'None', '-'] else ""
-    code_suffix = "" if (has_code_in_title or not has_code) else f" ({code})"
     
-    return f"{prefix}{clean_title}{code_suffix} - {price_str}"
+    return f"{prefix}{ptype_str}{name}{code_str}{loc_str} - {price_str}"
 
 @st.cache_data
 def convert_df_to_csv(df):
@@ -2296,28 +2308,87 @@ with tab4:
                             inp_use_area = parse_condo_sqm(selected_asset)
                             inp_land_area = parse_land_sqwah(selected_asset)
 
-                            area_lines = []
+                            # Location string
+                            loc_parts = []
+                            if pd.notna(selected_asset.get('ตำบล')) and str(selected_asset.get('ตำบล')).strip() not in ['', 'nan', '-']:
+                                loc_parts.append(f"ต.{selected_asset['ตำบล']}")
+                            if pd.notna(selected_asset.get('อำเภอ')) and str(selected_asset.get('อำเภอ')).strip() not in ['', 'nan', '-']:
+                                loc_parts.append(f"อ.{selected_asset['อำเภอ']}")
+                            if pd.notna(selected_asset.get('จังหวัด')) and str(selected_asset.get('จังหวัด')).strip() not in ['', 'nan', '-']:
+                                loc_parts.append(f"จ.{selected_asset['จังหวัด']}")
+                            loc_str = " ".join(loc_parts) if loc_parts else "ไม่ระบุ"
+
+                            # Project / Title info
+                            proj_name = str(selected_asset.get('ชื่อโครงการ', '')).strip()
+                            has_proj = proj_name and proj_name not in ['nan', 'None', '-', '', selected_asset['ชื่อประกาศ']]
+                            
+                            # Price & Unit prices
+                            price_str = f"฿{inp_price:,.0f} บาท" if inp_price > 0 else "ไม่ระบุราคา"
+                            
+                            # Area details
+                            area_items = []
                             if pd.notna(inp_land_area) and inp_land_area > 0:
-                                area_lines.append(f"- **เนื้อที่:** {inp_land_area:,.1f} ตารางวา")
+                                u_land_str = f" <span style='color:#64748b; font-size:0.8rem;'>(฿{inp_price/inp_land_area:,.0f}/ตร.ว.)</span>" if inp_price > 0 else ""
+                                area_items.append(f"🌾 <b>เนื้อที่ดิน:</b> {inp_land_area:,.1f} ตร.ว.{u_land_str}")
                             if pd.notna(inp_use_area) and inp_use_area > 0:
-                                area_lines.append(f"- **พื้นที่ใช้สอย:** {inp_use_area:,.1f} ตารางเมตร")
-                            if not area_lines:
-                                area_lines.append("- **เนื้อที่ / พื้นที่ใช้สอย:** ไม่ระบุ")
-                            area_info_str = "\n".join(area_lines)
+                                u_sqm_str = f" <span style='color:#64748b; font-size:0.8rem;'>(฿{inp_price/inp_use_area:,.0f}/ตร.ม.)</span>" if inp_price > 0 else ""
+                                area_items.append(f"🏢 <b>พื้นที่ใช้สอย:</b> {inp_use_area:,.1f} ตร.ม.{u_sqm_str}")
+                            if not area_items:
+                                area_items.append("📐 <b>ขนาดพื้นที่:</b> ไม่ระบุ")
+                            area_html = "</div><div>".join(area_items)
 
+                            # Specs
+                            specs = []
+                            bed = selected_asset.get('ห้องนอน')
+                            bath = selected_asset.get('ห้องน้ำ')
+                            park = selected_asset.get('ที่จอดรถ')
+                            if pd.notna(bed) and str(bed).strip() not in ['', 'nan', '-']:
+                                specs.append(f"🛏️ {int(float(bed)) if str(bed).replace('.','',1).isdigit() else bed} ห้องนอน")
+                            if pd.notna(bath) and str(bath).strip() not in ['', 'nan', '-']:
+                                specs.append(f"🚿 {int(float(bath)) if str(bath).replace('.','',1).isdigit() else bath} ห้องน้ำ")
+                            if pd.notna(park) and str(park).strip() not in ['', 'nan', '-']:
+                                specs.append(f"🚗 {int(float(park)) if str(park).replace('.','',1).isdigit() else park} ที่จอดรถ")
+                            spec_div = f"<div>🚪 <b>ฟังก์ชันอาคาร:</b> {' | '.join(specs)}</div>" if specs else ""
+
+                            # Sale type & date
+                            sale_type_val = str(selected_asset.get('ประเภทการขาย', 'ขาย')).strip()
+                            sale_div = f"<div>🏷️ <b>ประเภทการขาย:</b> {sale_type_val}</div>" if sale_type_val not in ['', 'nan', 'None'] else ""
+                            date_val = str(selected_asset.get('วันประกาศ', selected_asset.get('วันที่ดึงข้อมูล', ''))).strip()
+                            date_div = f"<div>📅 <b>ข้อมูล ณ วันที่:</b> {date_val}</div>" if date_val not in ['', 'nan', 'None'] else ""
+                            proj_div = f"<div>🏗️ <b>ชื่อโครงการ:</b> {proj_name}</div>" if has_proj else ""
+
+                            # Link info
                             asset_url = str(selected_asset.get('ลิงก์', '')).strip()
-                            link_str = f"- **ลิงก์ประกาศ:** [{asset_url}]({asset_url})" if asset_url.startswith('http') else "- **ลิงก์ประกาศ:** ไม่พบลิงก์"
+                            if asset_url.startswith('http'):
+                                link_html = f"<a href='{asset_url}' target='_blank' style='color:#2563eb; text-decoration:underline; font-weight:600;'>คลิกดูรายละเอียดบนเว็บต้นทาง ↗</a>"
+                            else:
+                                link_html = "<span style='color:#94a3b8;'>ไม่มีลิงก์ต้นทาง</span>"
 
-                            st.info(f"""
-                            🏠 **รายละเอียดทรัพย์อ้างอิงที่เลือก**:
-                            - **ชื่อประกาศ:** {selected_asset['ชื่อประกาศ']}
-                            - **รหัสทรัพย์:** {selected_asset['รหัสทรัพย์']} ({selected_asset['บริษัท']})
-                            - **พิกัด:** {inp_lat:.6f}, {inp_lng:.6f}
-                            - **ราคาขาย:** ฿{inp_price:,.0f} บาท
-                            - **ประเภท:** {inp_type}
-                            {area_info_str}
-                            {link_str}
-                            """)
+                            card_html = f"""<div style="background: rgba(59, 130, 246, 0.04); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 12px; padding: 16px 20px; margin: 12px 0 16px 0; font-family: 'Sarabun', sans-serif;">
+<div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(59, 130, 246, 0.15); padding-bottom: 8px; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+<div style="font-size: 1.02rem; font-weight: 700; color: #1e3a8a;">🏠 รายละเอียดทรัพย์อ้างอิงที่เลือก</div>
+<div>
+<span style="background: #3b82f6; color: #ffffff; font-size: 0.8rem; font-weight: 600; padding: 3px 10px; border-radius: 12px;">{selected_asset['บริษัท']}</span>
+<span style="background: rgba(59, 130, 246, 0.12); color: #1d4ed8; font-size: 0.8rem; font-weight: 600; padding: 3px 8px; border-radius: 6px; margin-left: 4px;">{selected_asset['รหัสทรัพย์']}</span>
+</div>
+</div>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 8px 20px; font-size: 0.88rem; line-height: 1.6; color: var(--card-text, #334155);">
+<div>🏷️ <b>ชื่อประกาศ:</b> {selected_asset['ชื่อประกาศ']}</div>
+{proj_div}
+<div>🏘️ <b>ประเภททรัพย์:</b> <span style="font-weight: 600; color: #2563eb;">{inp_type}</span></div>
+<div>💰 <b>ราคาขาย:</b> <span style="font-size: 1.05rem; font-weight: 800; color: #059669;">{price_str}</span></div>
+{sale_div}
+<div>📍 <b>ทำเล:</b> {loc_str}</div>
+<div>🗺️ <b>พิกัด:</b> <code>{inp_lat:.6f}, {inp_lng:.6f}</code></div>
+<div>{area_html}</div>
+{spec_div}
+{date_div}
+</div>
+<div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed rgba(59, 130, 246, 0.2); font-size: 0.85rem;">
+🔗 <b>ลิงก์ประกาศ:</b> {link_html}
+</div>
+</div>"""
+                            st.html(card_html)
                         else:
                             st.warning("⚠️ เกิดข้อผิดพลาดในการดึงข้อมูลรายการที่เลือก")
                     else:
