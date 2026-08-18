@@ -2620,7 +2620,9 @@ with tab4:
                                     median_u_sel = float(u_sel.median())
                                     min_u_sel = float(u_sel.min())
                                     max_u_sel = float(u_sel.max())
-                                    unit_lbl_sel = sel_type_df[sel_type_df['หน่วยวัด'] != '-']['หน่วยวัด'].mode()[0] if not sel_type_df[sel_type_df['หน่วยวัด'] != '-'].empty else "วา"
+                                    unit_lbl_sel = sel_type_df[sel_type_df['หน่วยวัด'] != '-']['หน่วยวัด'].mode()[0] if not sel_type_df[sel_type_df['หน่วยวัด'] != '-'].empty else "ตร.ว."
+                                    if unit_lbl_sel == "วา":
+                                        unit_lbl_sel = "ตร.ว."
                                     count_u_sel = len(u_sel)
                                     has_sel_u_stats = True
                                 else:
@@ -2636,6 +2638,8 @@ with tab4:
                                 min_u_sel = float(all_u.min())
                                 max_u_sel = float(all_u.max())
                                 unit_lbl_sel = nearby_df[nearby_df['หน่วยวัด'] != '-']['หน่วยวัด'].mode()[0] if not nearby_df[nearby_df['หน่วยวัด'] != '-'].empty else "หน่วย"
+                                if unit_lbl_sel == "วา":
+                                    unit_lbl_sel = "ตร.ว."
                                 count_u_sel = len(all_u)
                                 has_sel_u_stats = True
                             else:
@@ -2704,12 +2708,12 @@ with tab4:
                             """
                         elif not is_condo_ref and has_land:
                             ref_u_p = inp_price / float(inp_land_area)
-                            ref_val_html = f"฿{ref_u_p:,.0f} <span style='font-size:0.85rem; font-weight:normal; color:#475569;'>/วา</span>"
+                            ref_val_html = f"฿{ref_u_p:,.0f} <span style='font-size:0.85rem; font-weight:normal; color:#475569;'>/ตร.ว.</span>"
                             sqm_sub = f" | ใช้สอย {float(inp_use_area):,.1f} ตร.ม." if has_sqm else ""
                             ref_sub_html = f"""
                             <div style='margin-top: 6px; line-height: 1.55; font-size: 0.82rem; color: #475569;'>
                                 <div>💰 <b>ราคารวม:</b> ฿{inp_price:,.0f}</div>
-                                <div>🏠 <b>ทรัพย์สิน:</b> {inp_type} ({float(inp_land_area):,.1f} วา{sqm_sub})</div>
+                                <div>🏠 <b>ทรัพย์สิน:</b> {inp_type} ({float(inp_land_area):,.1f} ตร.ว{sqm_sub})</div>
                                 <div style='color: #64748b; font-size: 0.76rem; margin-top: 2px;'>📐 คำนวณจากเนื้อที่ (ตารางวา)</div>
                             </div>
                             """
@@ -2767,10 +2771,10 @@ with tab4:
 
                         # Col 3: Raw Land Price per Sq.Wah (Median)
                         if has_raw_land:
-                            rl_val_html = f"฿{median_raw_land:,.0f} <span style='font-size:0.85rem; font-weight:normal; color:#475569;'>/วา</span>"
+                            rl_val_html = f"฿{median_raw_land:,.0f} <span style='font-size:0.85rem; font-weight:normal; color:#475569;'>/ตร.ว</span>"
                             rl_sub_html = f"""
                             <div style='margin-top: 6px; line-height: 1.55; font-size: 0.82rem; color: #334155;'>
-                                <div>📊 <b>ช่วงราคา:</b> ฿{min_raw_land:,.0f} - ฿{max_raw_land:,.0f} /วา</div>
+                                <div>📊 <b>ช่วงราคา:</b> ฿{min_raw_land:,.0f} - ฿{max_raw_land:,.0f} /ตร.ว</div>
                                 <div>📦 <b>จำนวน:</b> {count_raw_land:,} รายการในรัศมี {search_radius:.1f} กม.</div>
                                 <div style='color: #64748b; font-size: 0.76rem; margin-top: 2px;'>📐 คำนวณจากเนื้อที่ (ตารางวา)</div>
                             </div>
@@ -3010,7 +3014,7 @@ with tab4:
                             "ละติจูด": st.column_config.NumberColumn("ละติจูด (Lat)", format="%.6f"),
                             "ลองจิจูด": st.column_config.NumberColumn("ลองจิจูด (Lng)", format="%.6f"),
                             "ระยะทาง (กม.)": st.column_config.NumberColumn("ระยะทาง (กม.)", format="%.2f กม."),
-                            "ราคาต่อหน่วย (แสดงผล)": st.column_config.TextColumn("ราคาต่อหน่วย (บาท/วา หรือ บาท/ตร.ม.)")
+                            "ราคาต่อหน่วย (แสดงผล)": st.column_config.TextColumn("ราคาต่อหน่วย (บาท/ตร.ว. หรือ บาท/ตร.ม.)")
                         }
                     )
 
@@ -3064,7 +3068,7 @@ with tab4:
                                     "ละติจูด": st.column_config.NumberColumn("ละติจูด", format="%.6f"),
                                     "ลองจิจูด": st.column_config.NumberColumn("ลองจิจูด", format="%.6f"),
                                     "ระยะทาง (กม.)": st.column_config.NumberColumn("ระยะทาง (กม.)", format="%.2f กม."),
-                                    "ราคาต่อหน่วย (แสดงผล)": st.column_config.TextColumn("ราคาต่อหน่วย (บาท/วา หรือ บาท/ตร.ม.)")
+                                    "ราคาต่อหน่วย (แสดงผล)": st.column_config.TextColumn("ราคาต่อหน่วย (บาท/ตร.ว. หรือ บาท/ตร.ม.)")
                                 }
                             )
 
@@ -3405,7 +3409,7 @@ with tab4:
                     base_lbl_a = "พื้นที่ใช้สอย"
                 else:
                     u_price_a = price_a / sqwah_a if (pd.notna(sqwah_a) and sqwah_a > 0) else np.nan
-                    u_lbl_a = "บาท/วา"
+                    u_lbl_a = "บาท/ตร.ว."
                     base_lbl_a = "พื้นที่ดิน"
 
                 is_condo_b = any(kw in str(asset_b.get('ประเภททรัพย์', '')).lower() for kw in ['คอนโด', 'ห้องชุด'])
@@ -3416,7 +3420,7 @@ with tab4:
                     base_lbl_b = "พื้นที่ใช้สอย"
                 else:
                     u_price_b = price_b / sqwah_b if (pd.notna(sqwah_b) and sqwah_b > 0) else np.nan
-                    u_lbl_b = "บาท/วา"
+                    u_lbl_b = "บาท/ตร.ว."
                     base_lbl_b = "พื้นที่ดิน"
 
                 sqm_a = float(u_price_a) if (pd.notna(u_price_a) and u_price_a > 0) else 0.0
@@ -3425,8 +3429,8 @@ with tab4:
                 # Local area median sqwah price calculation for Asset A & Asset B
                 loc_u_med_a, loc_lbl_a = get_location_median_sqwah(df_raw, asset_a.get('จังหวัด'), asset_a.get('อำเภอ'), asset_a.get('ตำบล'))
                 loc_u_med_b, loc_lbl_b = get_location_median_sqwah(df_raw, asset_b.get('จังหวัด'), asset_b.get('อำเภอ'), asset_b.get('ตำบล'))
-                str_loc_med_a = f"฿{loc_u_med_a:,.0f} /วา ({loc_lbl_a})" if pd.notna(loc_u_med_a) and loc_u_med_a > 0 else "ไม่มีข้อมูล"
-                str_loc_med_b = f"฿{loc_u_med_b:,.0f} /วา ({loc_lbl_b})" if pd.notna(loc_u_med_b) and loc_u_med_b > 0 else "ไม่มีข้อมูล"
+                str_loc_med_a = f"฿{loc_u_med_a:,.0f} /ตร.ว ({loc_lbl_a})" if pd.notna(loc_u_med_a) and loc_u_med_a > 0 else "ไม่มีข้อมูล"
+                str_loc_med_b = f"฿{loc_u_med_b:,.0f} /ตร.ว ({loc_lbl_b})" if pd.notna(loc_u_med_b) and loc_u_med_b > 0 else "ไม่มีข้อมูล"
 
                 # Sq.Wah Unit Prices for Raw Land comparison
                 u_sqwah_a = price_a / sqwah_a if (pd.notna(sqwah_a) and sqwah_a > 0) else np.nan
@@ -3515,7 +3519,7 @@ with tab4:
                 # Metric 3: Raw Land Median Comparison
                 with k_col3:
                     if rl_u_median > 0:
-                        st.metric("🌾 ราคากลางที่ดินเปล่า", f"฿{rl_u_median:,.0f} /วา", "ราคากลางในระบบ")
+                        st.metric("🌾 ราคากลางที่ดินเปล่า", f"฿{rl_u_median:,.0f} /ตร.ว", "ราคากลางในระบบ")
                     else:
                         st.metric("🌾 ราคากลางที่ดินเปล่า", "N/A", "ไม่มีข้อมูล")
 
@@ -3567,12 +3571,12 @@ with tab4:
                 str_med_type_a = f"฿{type_a_u_median:,.0f} /{u_lbl_a}" if type_a_u_median > 0 else "-"
                 str_med_type_b = f"฿{type_b_u_median:,.0f} /{u_lbl_b}" if type_b_u_median > 0 else "-"
 
-                str_rl_a = f"฿{u_sqwah_a:,.0f} /วา" if pd.notna(u_sqwah_a) else "-"
-                str_rl_b = f"฿{u_sqwah_b:,.0f} /วา" if pd.notna(u_sqwah_b) else "-"
-                str_rl_med = f"฿{rl_u_median:,.0f} /วา" if rl_u_median > 0 else "-"
+                str_rl_a = f"฿{u_sqwah_a:,.0f} /ตร.ว" if pd.notna(u_sqwah_a) else "-"
+                str_rl_b = f"฿{u_sqwah_b:,.0f} /ตร.ว" if pd.notna(u_sqwah_b) else "-"
+                str_rl_med = f"฿{rl_u_median:,.0f} /ตร.ว" if rl_u_median > 0 else "-"
 
-                str_sqwah_a = f"{sqwah_a:,.1f} วา" if pd.notna(sqwah_a) and sqwah_a > 0 else (asset_a['พื้นที่ (ไร่-งาน-วา)'] if asset_a['พื้นที่ (ไร่-งาน-วา)'] else '-')
-                str_sqwah_b = f"{sqwah_b:,.1f} วา" if pd.notna(sqwah_b) and sqwah_b > 0 else (asset_b['พื้นที่ (ไร่-งาน-วา)'] if asset_b['พื้นที่ (ไร่-งาน-วา)'] else '-')
+                str_sqwah_a = f"{sqwah_a:,.1f} ตร.ว" if pd.notna(sqwah_a) and sqwah_a > 0 else (asset_a['พื้นที่ (ไร่-งาน-ตร.ว)'] if asset_a['พื้นที่ (ไร่-งาน-ตร.ว)'] else '-')
+                str_sqwah_b = f"{sqwah_b:,.1f} ตร.ว" if pd.notna(sqwah_b) and sqwah_b > 0 else (asset_b['พื้นที่ (ไร่-งาน-ตร.ว)'] if asset_b['พื้นที่ (ไร่-งาน-ตร.ว)'] else '-')
 
                 # Render the table (uses dynamic borders, backgrounds, and text colors)
                 comp_table_html = f"""
