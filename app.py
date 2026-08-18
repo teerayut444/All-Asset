@@ -2345,20 +2345,52 @@ with tab4:
             )
 
             # Price Range Filter for Comparison
-            valid_prices = df_raw['ราคา'].dropna() if df_raw is not None else pd.Series()
-            min_price_val = float(valid_prices.min()) if not valid_prices.empty else 0.0
-            max_price_val = float(valid_prices.max()) if not valid_prices.empty else 100000000.0
+            filter_by_type = st.checkbox("กรองเฉพาะประเภททรัพย์สินที่เหมือนกับจุดอ้างอิง (ประเภทเดียวกัน)", value=True)
+
+            # Use global min and max prices across all property groups as the absolute bounds and default
+            if df_raw is not None and not df_raw.empty:
+                all_prices = df_raw['ราคา'].dropna()
+                all_prices = all_prices[all_prices > 0]
+                min_price_val = float(all_prices.min()) if not all_prices.empty else 0.0
+                max_price_val = float(all_prices.max()) if not all_prices.empty else 100000000.0
+            else:
+                min_price_val = 0.0
+                max_price_val = 100000000.0
+
+            if min_price_val >= max_price_val:
+                max_price_val = min_price_val + 1000000.0
+
+            # Step calculation based on price magnitude
+            price_span = max_price_val - min_price_val
+            if price_span > 1000000000:
+                step_val = 10000000.0
+            elif price_span > 100000000:
+                step_val = 1000000.0
+            elif price_span > 10000000:
+                step_val = 100000.0
+            elif price_span > 1000000:
+                step_val = 50000.0
+            else:
+                step_val = 10000.0
+
+            # Pre-validate session_state to prevent slider out-of-bound errors
+            if "comp_price_slider" in st.session_state:
+                curr_val = st.session_state["comp_price_slider"]
+                if isinstance(curr_val, (list, tuple)) and len(curr_val) == 2:
+                    c_low, c_high = curr_val
+                    if c_low < min_price_val or c_high > max_price_val or c_low > c_high:
+                        st.session_state["comp_price_slider"] = (min_price_val, max_price_val)
 
             compare_price_range = st.slider(
                 "ช่วงราคาขาย (บาท) (เปรียบเทียบ)",
                 min_value=min_price_val,
                 max_value=max_price_val,
                 value=(min_price_val, max_price_val),
+                step=step_val,
                 format="%d",
                 key="comp_price_slider"
             )
-
-            filter_by_type = st.checkbox("กรองเฉพาะประเภททรัพย์สินที่เหมือนกับจุดอ้างอิง (ประเภทเดียวกัน)", value=True)
+            st.caption(f"💰 ราคาต่ำสุด: **฿{min_price_val:,.0f}** | สูงสุด: **฿{max_price_val:,.0f}** (ครอบคลุมทุกกลุ่มเป็นค่า Default)")
 
         # Clean Empty Map Picker rendered FULL-WIDTH spanning both columns
         if "ระบุพิกัดด้วยตัวเอง" in ref_method:

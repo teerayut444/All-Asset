@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 NaYoo (น่าอยู่) Monthly Scraper
-Scrapes both Secondhand properties and Project listings from https://api.nayoo.co
+Scrapes all Secondhand properties (~10,711) and Project listings (~3,528) from https://api.nayoo.co
 Adheres strictly to the 16 standard dashboard columns, GIS reverse geocoding, and monthly export structure.
 """
 
@@ -85,9 +85,9 @@ def _get_gis_features():
     if _GIS_SUBDISTRICTS is not None:
         return _GIS_SUBDISTRICTS
     
-    geojson_path = os.path.join(CURRENT_DIR, "subdistricts.geojson")
+    geojson_path = os.path.join(_BASE_DIR, "subdistricts.geojson")
     if not os.path.exists(geojson_path):
-        geojson_path = os.path.join(os.path.dirname(CURRENT_DIR), "Monthly all new", "subdistricts.geojson")
+        geojson_path = os.path.join(os.path.dirname(_BASE_DIR), "Monthly all new", "subdistricts.geojson")
     
     if os.path.exists(geojson_path):
         try:
@@ -179,61 +179,43 @@ def parse_nayoo_areas(raw_land, raw_usable, title="", prop_type=""):
     usable_area = ""
 
     # 1. Parse Land Area
-    m_dash = re.search(r'(\d+)\s*-\s*(\d+)\s*-\s*([\d\.]+)\s*(?:ไร่)?', combined)
-    m_full_land = re.search(r'((?:\d+\s*ไร่\s*)?(?:\d+\s*งาน\s*)?[\d\.,]+\s*(?:ตร\.วา|ตารางวา|ตร\.ว\.|วา))\b', combined)
-    m_rai = re.search(r'(\d+(?:\.\d+)?)\s*ไร่\b', combined)
-    m_sqw = re.search(r'([\d\.,]+)\s*(?:ตร\.วา|ตารางวา|ตร\.ว\.|วา)\b', combined)
+    if raw_land and str(raw_land).strip() not in ["", "nan", "None", "0"]:
+        clean_l = str(raw_land).strip()
+        m_dash = re.search(r'(?<!\d)([0-9]{1,3})\s*-\s*([0-3])\s*-\s*([0-9]{1,2}(?:\.[0-9]+)?)\s*(?:ไร่)?', clean_l)
+        m_sqw = re.search(r'([\d\.,]+)\s*(?:ตร\.วา|ตารางวา|ตร\.ว\.|วา)', clean_l)
+        if m_dash:
+            land_area = f"{m_dash.group(1)} ไร่ {m_dash.group(2)} งาน {m_dash.group(3)} ตร.ว."
+        elif m_sqw:
+            land_area = f"{m_sqw.group(1).replace(',', '')} ตร.ว."
+        elif re.match(r'^\d+(?:\.\d+)?$', clean_l):
+            land_area = f"{clean_l} ตร.ว."
+        else:
+            land_area = clean_l
 
-    if m_dash and any(w in combined for w in ["ไร่", "ขนาด", "เนื้อที่", "ที่ดิน"]):
-        r_r, r_n, r_w = m_dash.group(1), m_dash.group(2), m_dash.group(3)
-        land_area = f"{r_r} ไร่ {r_n} งาน {r_w} ตร.ว."
-    elif m_full_land:
-        l_val = m_full_land.group(1).strip()
-        land_area = re.sub(r'(?<=\d|\s)(?:ตร\.วา|ตารางวา|วา)\b', 'ตร.ว.', l_val)
-        land_area = re.sub(r'\s+', ' ', land_area).strip()
-    elif m_rai and any(w in combined for w in ["ที่ดิน", "เนื้อที่", "ขนาด", "ไร่"]):
-        r_num = m_rai.group(1).strip()
-        land_area = f"{r_num} ไร่"
-    elif m_sqw:
-        w_num = m_sqw.group(1).replace(',', '').strip()
-        land_area = f"{w_num} ตร.ว."
-    elif raw_land:
-        l_c = re.sub(r'(?<=\d|\s)(?:ตร\.วา|ตารางวา|วา)\b', 'ตร.ว.', str(raw_land).strip())
-        if re.match(r'^\d+(?:\.\d+)?$', l_c):
-            l_c = f"{l_c} ตร.ว."
-        land_area = l_c
+    if not land_area and title:
+        m_dash = re.search(r'(?:ขนาดที่ดิน|เนื้อที่)?\s*([0-9]{1,3})\s*-\s*([0-3])\s*-\s*([0-9]{1,2}(?:\.[0-9]+)?)\s*(?:ไร่)?', title)
+        m_txt_land = re.search(r'((?:\d+\s*ไร่\s*)?(?:\d+\s*งาน\s*)?[\d\.,]+\s*(?:ตร\.วา|ตารางวา|ตร\.ว\.|วา))', title)
+        if m_dash and any(w in title for w in ["ไร่", "เนื้อที่", "ที่ดิน"]):
+            land_area = f"{m_dash.group(1)} ไร่ {m_dash.group(2)} งาน {m_dash.group(3)} ตร.ว."
+        elif m_txt_land:
+            land_area = m_txt_land.group(1).strip()
+            land_area = re.sub(r'(?<=\d|\s)(?:ตร\.วา|ตารางวา|วา)\b', 'ตร.ว.', land_area)
 
     # 2. Parse Usable Area
-    m_sqm = re.search(r'([\d\.,]+)\s*(?:ตร\.ม\.|ตารางเมตร|sq\.?m|sqm)\b', combined, re.I)
-    if m_sqm:
-        usable_area = m_sqm.group(1).replace(',', '').strip()
-    elif raw_usable and str(raw_usable).replace('.', '').isdigit():
-        usable_area = str(raw_usable).strip()
+    if raw_usable and str(raw_usable).strip() not in ["", "nan", "None", "0"]:
+        m_u = re.search(r'([\d\.,]+)', str(raw_usable))
+        if m_u:
+            usable_area = m_u.group(1).replace(',', '').strip()
 
-    # 3. Apply Property Type Rules
+    if not usable_area and title:
+        m_txt_usable = re.search(r'([\d\.,]+)\s*(?:ตร\.ม\.|ตารางเมตร|sqm)\b', title, re.I)
+        if m_txt_usable:
+            usable_area = m_txt_usable.group(1).replace(',', '').strip()
+
+    # Apply property type constraints
     if prop_type == "คอนโด":
         land_area = ""
-
     if prop_type == "ที่ดิน":
-        if not land_area and usable_area:
-            try:
-                sqm_val = float(usable_area)
-                sqw_val = sqm_val / 4.0
-                if sqw_val >= 400:
-                    rai = int(sqw_val // 400)
-                    rem = sqw_val % 400
-                    ngan = int(rem // 100)
-                    wah = rem % 100
-                    if wah == 0 and ngan == 0:
-                        land_area = f"{rai} ไร่"
-                    elif wah == 0:
-                        land_area = f"{rai} ไร่ {ngan} งาน"
-                    else:
-                        land_area = f"{rai} ไร่ {ngan} งาน {wah:.1f} ตร.ว.".replace('.0 ตร.ว.', ' ตร.ว.')
-                else:
-                    land_area = f"{sqw_val:.1f} ตร.ว.".replace('.0 ตร.ว.', ' ตร.ว.')
-            except Exception:
-                pass
         if not any(w in combined for w in ["ตึก", "อาคาร", "โรงงาน", "โกดัง", "บ้าน", "รีสอร์ท"]):
             usable_area = ""
 
@@ -246,12 +228,9 @@ def parse_nayoo_areas(raw_land, raw_usable, title="", prop_type=""):
 
     return land_area, usable_area
 
-def fetch_nayoo_page(session, endpoint, page, per_page=50, province=""):
-    params = {"page": page, "per_page": per_page}
-    if province:
-        params["province"] = province
-
+def fetch_nayoo_page(session, endpoint, page, per_page=36):
     url = f"{API_BASE}{endpoint}"
+    params = {"page": page, "per_page": per_page}
     try:
         r = session.get(url, headers=HEADERS, params=params, timeout=25)
         if r.status_code == 200:
@@ -259,16 +238,18 @@ def fetch_nayoo_page(session, endpoint, page, per_page=50, province=""):
         elif r.status_code == 401:
             logger.error("NaYoo API 401 Unauthorized - Check API Key!")
     except Exception as e:
-        logger.warning(f"Error fetching NaYoo {endpoint} p{page} ({province}): {e}")
+        logger.warning(f"Error fetching NaYoo {endpoint} p{page}: {e}")
     return None
 
-def process_nayoo_item(session, item, province_name=""):
-    pid = item.get("id") or item.get("uuid")
-    uuid = item.get("uuid") or pid
+def process_nayoo_item(session, item):
+    pid = str(item.get("id") or item.get("uuid") or "").strip()
+    uuid = str(item.get("uuid") or pid).strip()
     
     # Title
     p_name = item.get("project_name", {})
     title = p_name.get("th") if isinstance(p_name, dict) else (item.get("title") or "")
+    if isinstance(title, dict):
+        title = title.get("th") or title.get("en") or ""
     if not title:
         title = item.get("slug", "").replace("-", " ")
 
@@ -281,6 +262,12 @@ def process_nayoo_item(session, item, province_name=""):
             first_pt = p_types[0]
             if isinstance(first_pt, dict):
                 raw_type = first_pt.get("name", {}).get("th", "") or first_pt.get("slug", "")
+    if not raw_type and item.get("property_type"):
+        pt_val = item.get("property_type")
+        if isinstance(pt_val, dict):
+            raw_type = pt_val.get("name", {}).get("th") or pt_val.get("slug", "")
+        elif isinstance(pt_val, str):
+            raw_type = pt_val
     prop_type = normalize_prop_type(raw_type, title)
 
     # Price
@@ -305,9 +292,15 @@ def process_nayoo_item(session, item, province_name=""):
     land_area, usable_area = parse_nayoo_areas(raw_land, raw_usable, title=title, prop_type=prop_type)
 
     # Location & Coordinates
-    prov = province_name or item.get("province", {}).get("slug", "") or ""
+    p_obj = item.get("province", {})
+    prov = ""
+    if isinstance(p_obj, dict):
+        prov = p_obj.get("name", {}).get("th", "") or p_obj.get("slug", "")
+    elif isinstance(p_obj, str):
+        prov = p_obj
+
     zone = item.get("zone", "") or ""
-    subdist = zone if zone else ""
+    subdist = str(zone).strip() if zone else ""
     dist = ""
 
     coords = item.get("coordinates")
@@ -341,12 +334,12 @@ def process_nayoo_item(session, item, province_name=""):
     dt_str = item.get("created_at") or item.get("updated_at") or ""
     if dt_str:
         try:
-            post_date = dt_str[:10]
+            post_date = str(dt_str)[:10]
         except Exception:
             pass
 
     # URL Link
-    p_slug = item.get("province", {}).get("slug", "") or "khonkaen"
+    p_slug = item.get("province", {}).get("slug", "") if isinstance(p_obj, dict) else "khonkaen"
     item_slug = item.get("slug", "")
     if item_slug:
         link = f"https://nayoo.co/property-for-sale/properties/{p_slug}/{item_slug}"
@@ -381,82 +374,69 @@ def scrape_nayoo(progress_callback=None):
     logger.info("=" * 65)
 
     session = requests.Session()
-
-    # 1. Fetch Supported Provinces
-    provinces = []
-    try:
-        r_prov = session.get(f"{API_BASE}/api/support-provinces", headers=HEADERS, timeout=15)
-        if r_prov.status_code == 200:
-            prov_items = r_prov.json().get("data", {}).get("items", [])
-            for pi in prov_items:
-                slug = pi.get("slug")
-                name_th = pi.get("province", {}).get("name", {}).get("th", "")
-                if slug:
-                    provinces.append((slug, name_th))
-    except Exception as e:
-        logger.warning(f"Failed to fetch support-provinces: {e}")
-
-    if not provinces:
-        provinces = [
-            ("khonkaen", "ขอนแก่น"), ("rayong", "ระยอง"), ("udon", "อุดรธานี"),
-            ("ubon", "อุบลราชธานี"), ("chonburi", "ชลบุรี"), ("chiangrai", "เชียงราย"),
-            ("phitsanulok", "พิษณุโลก"), ("surin", "สุรินทร์"), ("buriram", "บุรีรัมย์"),
-            ("huahin", "ประจวบคีรีขันธ์")
-        ]
-
-    logger.info(f"📍 Supported provincial hubs: {len(provinces)} ({[p[0] for p in provinces]})")
-
     all_records = []
+
     endpoints = [
         ("/api/listing/search/secondhands", "Secondhands"),
         ("/api/listing/search/projects", "Projects")
     ]
 
-    total_provinces = len(provinces)
-    for prov_idx, (prov_slug, prov_name) in enumerate(provinces):
-        logger.info(f"\n--- Scraping Hub: {prov_name} ({prov_slug}) [{prov_idx+1}/{total_provinces}] ---")
+    total_tasks = 0
+    ep_configs = []
+
+    # Determine pagination for both endpoints
+    for ep, ep_label in endpoints:
+        res1 = fetch_nayoo_page(session, ep, page=1, per_page=36)
+        if not res1 or not res1.get("success"):
+            logger.warning(f"Failed to fetch initial page for {ep_label}")
+            continue
+
+        pag = res1.get("data", {}).get("pagination", {})
+        total_items = pag.get("total_items") or pag.get("total") or 0
+        items_per_page = pag.get("items_per_page") or 36
+        total_pages = (total_items + items_per_page - 1) // items_per_page
         
-        for ep, ep_label in endpoints:
-            # First page to determine total items
-            res = fetch_nayoo_page(session, ep, page=1, per_page=50, province=prov_slug)
-            if not res or not res.get("success"):
-                continue
+        logger.info(f"📊 [{ep_label}] Total items: {total_items:,} -> {total_pages:,} pages")
+        
+        # Process page 1 items
+        posts1 = res1.get("data", {}).get("posts", []) or res1.get("data", {}).get("projects", []) or []
+        for p in posts1:
+            rec = process_nayoo_item(session, p)
+            if rec: all_records.append(rec)
 
-            pag = res.get("data", {}).get("pagination", {})
-            total_items = pag.get("total_items", 0)
-            total_pages = pag.get("total_pages", 1)
-            
-            logger.info(f"  [{ep_label}] Found {total_items:,} items across {total_pages} pages.")
-            
-            posts = res.get("data", {}).get("posts", []) or res.get("data", {}).get("projects", []) or []
-            for p in posts:
-                rec = process_nayoo_item(session, p, province_name=prov_name)
-                if rec:
-                    all_records.append(rec)
+        ep_configs.append((ep, ep_label, total_pages))
+        total_tasks += total_pages
 
-            # Concurrent fetch for remaining pages
-            if total_pages > 1:
-                with ThreadPoolExecutor(max_workers=8) as executor:
-                    futures = {
-                        executor.submit(fetch_nayoo_page, session, ep, page=p_num, per_page=50, province=prov_slug): p_num
-                        for p_num in range(2, total_pages + 1)
-                    }
-                    for fut in as_completed(futures):
-                        try:
-                            p_res = fut.result()
-                            if p_res and p_res.get("success"):
-                                p_posts = p_res.get("data", {}).get("posts", []) or p_res.get("data", {}).get("projects", []) or []
-                                for item in p_posts:
-                                    rec = process_nayoo_item(session, item, province_name=prov_name)
-                                    if rec:
-                                        all_records.append(rec)
-                        except Exception as e:
-                            logger.warning(f"Error fetching page: {e}")
+    # Concurrently fetch all remaining pages
+    completed_pages = len(ep_configs)
+    logger.info(f"⚡ Concurrently fetching remaining pages across all endpoints...")
 
-        logger.info(f"  Cumulative items collected: {len(all_records):,}")
-        if progress_callback:
-            pct = int(((prov_idx + 1) / total_provinces) * 100)
-            progress_callback(pct, f"Scraped {prov_name} ({len(all_records):,} items)")
+    with ThreadPoolExecutor(max_workers=15) as executor:
+        future_to_page = {}
+        for ep, ep_label, total_pages in ep_configs:
+            for p_num in range(2, total_pages + 1):
+                f = executor.submit(fetch_nayoo_page, session, ep, page=p_num, per_page=36)
+                future_to_page[f] = (ep_label, p_num)
+
+        for fut in as_completed(future_to_page):
+            ep_label, p_num = future_to_page[fut]
+            try:
+                p_res = fut.result()
+                if p_res and p_res.get("success"):
+                    p_posts = p_res.get("data", {}).get("posts", []) or p_res.get("data", {}).get("projects", []) or []
+                    for item in p_posts:
+                        rec = process_nayoo_item(session, item)
+                        if rec:
+                            all_records.append(rec)
+            except Exception as e:
+                logger.warning(f"Error on {ep_label} p{p_num}: {e}")
+
+            completed_pages += 1
+            if completed_pages % 25 == 0 or completed_pages == total_tasks:
+                pct = int((completed_pages / max(1, total_tasks)) * 100)
+                logger.info(f"  Processed {completed_pages}/{total_tasks} pages ({pct}%) - Total records: {len(all_records):,}")
+                if progress_callback:
+                    progress_callback(pct, f"Scraped {len(all_records):,} items")
 
     # Convert to DataFrame
     df = pd.DataFrame(all_records)
@@ -465,9 +445,10 @@ def scrape_nayoo(progress_callback=None):
             df[col] = ""
     df = df[COLUMNS]
 
+    # Clean & Deduplicate
     df.drop_duplicates(subset=["รหัสทรัพย์", "ชื่อโครงการ"], inplace=True)
     df.to_csv(OUTPUT_CSV, index=False, encoding="utf-8-sig")
-    
+
     logger.info("=" * 65)
     logger.info(f"🎉 NaYoo scraping complete! Saved {len(df):,} records to:")
     logger.info(f"📁 {OUTPUT_CSV}")

@@ -173,76 +173,59 @@ def normalize_prop_type(raw_type, title=""):
         return "โรงแรม/รีสอร์ท"
     return "บ้านเดี่ยว" if raw_type else "อื่นๆ"
 
-def parse_chayo_areas(card_text, spec_land="", spec_usable="", prop_type=""):
-    combined = f"{spec_land} {spec_usable} {card_text}"
+def parse_chayo_areas(full_text, spec_land="", spec_usable="", prop_type=""):
     land_area = ""
     usable_area = ""
 
-    # 1. Parse Land Area: ตร.วา / ตารางวา / วา / ไร่ / งาน / ตร.ว.
-    m_dash = re.search(r'(\d+)\s*-\s*(\d+)\s*-\s*([\d\.]+)\s*(?:ไร่)?', combined)
-    m_full_land = re.search(r'((?:\d+\s*ไร่\s*)?(?:\d+\s*งาน\s*)?[\d\.,]+\s*(?:ตร\.วา|ตารางวา|ตร\.ว\.|วา))\b', combined)
-    m_rai = re.search(r'(\d+(?:\.\d+)?)\s*ไร่\b', combined)
-    m_sqw = re.search(r'([\d\.,]+)\s*(?:ตร\.วา|ตารางวา|ตร\.ว\.|วา)\b', combined)
+    # 1. Prefer spec_land / spec_usable directly from sidebar if present
+    if spec_land and str(spec_land).strip() not in ["", "nan", "None"]:
+        clean_l = str(spec_land).strip()
+        m_dash = re.search(r'(?<!\d)([0-9]{1,3})\s*-\s*([0-3])\s*-\s*([0-9]{1,2}(?:\.[0-9]+)?)\s*(?:ไร่)?', clean_l)
+        m_sqw = re.search(r'([\d\.,]+)\s*(?:ตร\.วา|ตารางวา|ตร\.ว\.|วา)', clean_l)
+        if m_dash:
+            land_area = f"{m_dash.group(1)} ไร่ {m_dash.group(2)} งาน {m_dash.group(3)} ตร.ว."
+        elif m_sqw:
+            land_area = f"{m_sqw.group(1).replace(',', '')} ตร.ว."
+        elif re.match(r'^\d+(?:\.\d+)?$', clean_l):
+            land_area = f"{clean_l} ตร.ว."
+        else:
+            land_area = clean_l
 
-    if m_dash and any(w in combined for w in ["ไร่", "ขนาด", "เนื้อที่", "ที่ดิน"]):
-        r_r, r_n, r_w = m_dash.group(1), m_dash.group(2), m_dash.group(3)
-        land_area = f"{r_r} ไร่ {r_n} งาน {r_w} ตร.ว."
-    elif m_full_land:
-        l_val = m_full_land.group(1).strip()
-        land_area = re.sub(r'(?<=\d|\s)(?:ตร\.วา|ตารางวา|วา)\b', 'ตร.ว.', l_val)
-        land_area = re.sub(r'\s+', ' ', land_area).strip()
-    elif m_rai and any(w in combined for w in ["ที่ดิน", "เนื้อที่", "ขนาด", "ไร่"]):
-        r_num = m_rai.group(1).strip()
-        land_area = f"{r_num} ไร่"
-    elif m_sqw:
-        w_num = m_sqw.group(1).replace(',', '').strip()
-        land_area = f"{w_num} ตร.ว."
-    elif spec_land and spec_land != "nan":
-        l_c = re.sub(r'(?<=\d|\s)(?:ตร\.วา|ตารางวา|วา)\b', 'ตร.ว.', spec_land.strip())
-        if re.match(r'^\d+(?:\.\d+)?$', l_c):
-            l_c = f"{l_c} ตร.ว."
-        land_area = l_c
+    if not land_area:
+        m_dash = re.search(r'(?:ขนาดที่ดิน|เนื้อที่)\s*[:\s]*([0-9]{1,3})\s*-\s*([0-3])\s*-\s*([0-9]{1,2}(?:\.[0-9]+)?)\s*(?:ไร่)?', full_text)
+        m_txt_land = re.search(r'(?:ขนาดที่ดิน|เนื้อที่)\s*[:\s]*((?:\d+\s*ไร่\s*)?(?:\d+\s*งาน\s*)?[\d\.,]+\s*(?:ตร\.วา|ตารางวา|ตร\.ว\.|วา))', full_text)
+        if m_dash:
+            land_area = f"{m_dash.group(1)} ไร่ {m_dash.group(2)} งาน {m_dash.group(3)} ตร.ว."
+        elif m_txt_land:
+            land_area = m_txt_land.group(1).strip()
+            land_area = re.sub(r'(?<=\d|\s)(?:ตร\.วา|ตารางวา|วา)\b', 'ตร.ว.', land_area)
 
-    # 2. Parse Usable Area: ตร.ม. / ตารางเมตร
-    m_sqm = re.search(r'([\d\.,]+)\s*(?:ตร\.ม\.|ตารางเมตร|sq\.?m|sqm)\b', combined, re.I)
-    if m_sqm:
-        usable_area = m_sqm.group(1).replace(',', '').strip()
-    elif spec_usable and spec_usable != "nan":
-        m_num = re.search(r'([\d\.,]+)', spec_usable)
-        if m_num:
-            usable_area = m_num.group(1).replace(',', '').strip()
+    # 2. Usable Area
+    if spec_usable and str(spec_usable).strip() not in ["", "nan", "None"]:
+        m_u = re.search(r'([\d\.,]+)', str(spec_usable))
+        if m_u:
+            usable_area = m_u.group(1).replace(',', '').strip()
 
-    # 3. Apply Property Type Rules
+    if not usable_area:
+        m_txt_usable = re.search(r'พื้นที่ใช้สอย\s*[:\s]*([\d\.,]+)\s*(?:ตร\.ม\.|ตารางเมตร|sqm)?', full_text)
+        if m_txt_usable:
+            usable_area = m_txt_usable.group(1).replace(',', '').strip()
+
+    # Apply property type constraints
     if prop_type == "คอนโด":
         land_area = ""
-
     if prop_type == "ที่ดิน":
-        if not land_area and usable_area:
-            try:
-                sqm_val = float(usable_area)
-                sqw_val = sqm_val / 4.0
-                if sqw_val >= 400:
-                    rai = int(sqw_val // 400)
-                    rem = sqw_val % 400
-                    ngan = int(rem // 100)
-                    wah = rem % 100
-                    if wah == 0 and ngan == 0:
-                        land_area = f"{rai} ไร่"
-                    elif wah == 0:
-                        land_area = f"{rai} ไร่ {ngan} งาน"
-                    else:
-                        land_area = f"{rai} ไร่ {ngan} งาน {wah:.1f} ตร.ว.".replace('.0 ตร.ว.', ' ตร.ว.')
-                else:
-                    land_area = f"{sqw_val:.1f} ตร.ว.".replace('.0 ตร.ว.', ' ตร.ว.')
-            except Exception:
-                pass
-        if not any(w in combined for w in ["ตึก", "อาคาร", "โรงงาน", "โกดัง", "บ้าน", "รีสอร์ท"]):
+        if not any(w in full_text for w in ["ตึก", "อาคาร", "โรงงาน", "โกดัง", "บ้าน", "รีสอร์ท"]):
             usable_area = ""
 
     if land_area:
         land_area = re.sub(r'\s*วา$', ' ตร.ว.', land_area)
         land_area = re.sub(r'\s*ตารางวา$', ' ตร.ว.', land_area)
         land_area = re.sub(r'\s*ตร\.วา$', ' ตร.ว.', land_area)
+        if re.match(r'^\d+(?:\.\d+)?$', land_area):
+            land_area = f"{land_area} ตร.ว."
+
+    return land_area, usable_area
         if re.match(r'^\d+(?:\.\d+)?$', land_area):
             land_area = f"{land_area} ตร.ว."
 
