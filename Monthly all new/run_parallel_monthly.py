@@ -18,7 +18,9 @@ SCRAPERS = [
     {"name": "ZmyHome", "script": "scrape_zmyhome_monthly.py"},
     {"name": "SAM", "script": "scrape_sam_monthly.py"},
     {"name": "DDproperty", "script": "scrape_ddproperty_monthly.py"},
-    {"name": "Taladnudbaan", "script": "scrape_taladnudbaan_monthly.py"}
+    {"name": "Taladnudbaan", "script": "scrape_taladnudbaan_monthly.py"},
+    {"name": "Chayo555", "script": "scrape_chayo555_monthly.py"},
+    {"name": "NaYoo", "script": "scrape_nayoo_monthly.py"}
 ]
 
 status_dict = {s["name"]: f"[{s['name']:<13s}] [░░░░░░░░░░░░░░░░░░░░]   0% | (    0/    0 หน้า) | สะสม:       0 รายการ | กำลังเริ่มต้น..." for s in SCRAPERS}
@@ -39,7 +41,7 @@ def draw_fixed_dashboard():
         # Move cursor to top-left home position
         sys.stdout.write("\033[H")
         sys.stdout.write(f"{BORDER_LINE}\n")
-        sys.stdout.write("🚀 Live Dashboard: Scraper Monthly ขนาน 6 บริษัท (Fixed Screen Aligned Mode)\n")
+        sys.stdout.write("🚀 Live Dashboard: Scraper Monthly ขนาน 8 บริษัท (Fixed Screen Aligned Mode)\n")
         sys.stdout.write(f"{BORDER_LINE}\n")
         for s in SCRAPERS:
             name = s["name"]
@@ -180,7 +182,7 @@ def main():
     time.sleep(0.4)
     
     with lock:
-        add_log("ทั้ง 6 บริษัท สแครปเสร็จสมบูรณ์แล้ว!")
+        add_log("ทั้ง 8 บริษัท สแครปเสร็จสมบูรณ์แล้ว!")
         
     draw_fixed_dashboard()
     
@@ -188,7 +190,7 @@ def main():
 
     print("\n" + BORDER_LINE, flush=True)
     print("🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔", flush=True)
-    print("🎉🎉🎉 [FINISHED] ทั้ง 6 บริษัท สแครปและรวมไฟล์เสร็จสมบูรณ์ 100% เรียบร้อยแล้ว! 🎉🎉🎉", flush=True)
+    print("🎉🎉🎉 [FINISHED] ทั้ง 8 บริษัท สแครปและรวมไฟล์เสร็จสมบูรณ์ 100% เรียบร้อยแล้ว! 🎉🎉🎉", flush=True)
     print("🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔", flush=True)
     print(f"⏱️ รวมเวลาที่ใช้ในการรันขนานทั้งหมด: {elapsed/60:.2f} นาที", flush=True)
     print(BORDER_LINE, flush=True)
@@ -215,6 +217,10 @@ if __name__ == "__main__":
             import scrape_ddproperty_monthly; scrape_ddproperty_monthly.main()
         elif worker == "Taladnudbaan":
             import scrape_taladnudbaan_monthly; scrape_taladnudbaan_monthly.main()
+        elif worker == "Chayo555":
+            import scrape_chayo555_monthly; scrape_chayo555_monthly.main()
+        elif worker == "NaYoo":
+            import scrape_nayoo_monthly; scrape_nayoo_monthly.main()
         sys.exit(0)
     else:
         main()

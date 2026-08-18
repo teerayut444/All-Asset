@@ -2,7 +2,7 @@
 """
 NaYoo (น่าอยู่) Monthly Scraper
 Scrapes all Secondhand properties (~10,711) and Project listings (~3,528) from https://api.nayoo.co
-Adheres strictly to the 16 standard dashboard columns, GIS reverse geocoding, and monthly export structure.
+Adheres strictly to the 16 standard dashboard columns, GIS reverse geocoding, gazetteer lookup, and monthly export structure.
 """
 
 import os
@@ -63,7 +63,21 @@ COLUMNS = [
     "พื้นที่ใช้สอย (ตร.ม.)", "ห้องนอน", "ห้องน้ำ", "วันที่ลงประกาศ", "ลิงก์"
 ]
 
-# Thailand Provinces
+# Thailand Province Slug Mapping
+PROVINCE_SLUG_MAP = {
+    'rayong': 'ระยอง',
+    'chonburi': 'ชลบุรี',
+    'khonkaen': 'ขอนแก่น',
+    'udon': 'อุดรธานี',
+    'huahin': 'ประจวบคีรีขันธ์',
+    'buriram': 'บุรีรัมย์',
+    'phitsanulok': 'พิษณุโลก',
+    'ubon': 'อุบลราชธานี',
+    'chiangrai': 'เชียงราย',
+    'surin': 'สุรินทร์',
+    'bangkok': 'กรุงเทพมหานคร'
+}
+
 PROVINCES = [
     "กรุงเทพมหานคร", "กรุงเทพ", "กระบี่", "กาญจนบุรี", "กาฬสินธุ์", "กำแพงเพชร", "ขอนแก่น",
     "จันทบุรี", "ฉะเชิงเทรา", "ชลบุรี", "ชัยนาท", "ชัยภูมิ", "ชุมพร", "เชียงราย", "เชียงใหม่",
@@ -77,29 +91,42 @@ PROVINCES = [
     "อ่างทอง", "อำนาจเจริญ", "อุดรธานี", "อุตรดิตถ์", "อุทัยธานี", "อุบลราชธานี"
 ]
 
-# GIS Boundary Engine Cache
+# GIS Boundary & Gazetteer Cache
 _GIS_SUBDISTRICTS = None
+_DISTRICTS_BY_PROV = None
+_SUBDIST_TO_DIST = None
 
-def _get_gis_features():
-    global _GIS_SUBDISTRICTS
+def _load_gis():
+    global _GIS_SUBDISTRICTS, _DISTRICTS_BY_PROV, _SUBDIST_TO_DIST
     if _GIS_SUBDISTRICTS is not None:
-        return _GIS_SUBDISTRICTS
-    
+        return _GIS_SUBDISTRICTS, _DISTRICTS_BY_PROV, _SUBDIST_TO_DIST
+
     geojson_path = os.path.join(_BASE_DIR, "subdistricts.geojson")
     if not os.path.exists(geojson_path):
         geojson_path = os.path.join(os.path.dirname(_BASE_DIR), "Monthly all new", "subdistricts.geojson")
-    
+
+    _GIS_SUBDISTRICTS = []
+    _DISTRICTS_BY_PROV = {}
+    _SUBDIST_TO_DIST = {}
+
     if os.path.exists(geojson_path):
         try:
             with open(geojson_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 _GIS_SUBDISTRICTS = data.get("features", [])
-                logger.info(f"Loaded {len(_GIS_SUBDISTRICTS):,} GIS subdistrict boundaries.")
-                return _GIS_SUBDISTRICTS
+                for feat in _GIS_SUBDISTRICTS:
+                    props = feat.get("properties", {})
+                    p = props.get("pro_th") or props.get("province_th") or props.get("province") or ""
+                    d = props.get("amp_th") or props.get("district_th") or props.get("district") or ""
+                    sd = props.get("tam_th") or props.get("subdistrict_th") or props.get("subdistrict") or ""
+                    if p not in _DISTRICTS_BY_PROV: _DISTRICTS_BY_PROV[p] = set()
+                    if d: _DISTRICTS_BY_PROV[p].add(d.replace("อำเภอ", "").replace("เขต", "").strip())
+                    if sd and d: _SUBDIST_TO_DIST[(p, sd.replace("ตำบล", "").replace("แขวง", "").strip())] = d.replace("อำเภอ", "").replace("เขต", "").strip()
+                logger.info(f"Loaded {len(_GIS_SUBDISTRICTS):,} GIS subdistrict boundaries & gazetteer.")
         except Exception as e:
             logger.warning(f"Failed to load subdistricts.geojson: {e}")
-    _GIS_SUBDISTRICTS = []
-    return _GIS_SUBDISTRICTS
+
+    return _GIS_SUBDISTRICTS, _DISTRICTS_BY_PROV, _SUBDIST_TO_DIST
 
 def _point_in_poly(x, y, poly):
     n = len(poly)
@@ -138,20 +165,83 @@ def reverse_geocode_location(session, lat, lng):
     except Exception:
         return "", "", ""
 
-    features = _get_gis_features()
+    features, _, _ = _load_gis()
     for feat in features:
         props = feat.get("properties", {})
         geom = feat.get("geometry", {})
         if _check_geom(lng_f, lat_f, geom):
-            sd = props.get("subdistrict_th") or props.get("name_th") or props.get("subdistrict") or ""
-            d = props.get("district_th") or props.get("district") or ""
-            p = props.get("province_th") or props.get("province") or ""
+            sd = props.get("tam_th") or props.get("subdistrict_th") or props.get("subdistrict") or ""
+            d = props.get("amp_th") or props.get("district_th") or props.get("district") or ""
+            p = props.get("pro_th") or props.get("province_th") or props.get("province") or ""
             if p == "กรุงเทพมหานคร":
                 sd = sd.replace("ตำบล", "แขวง")
                 d = d.replace("อำเภอ", "เขต")
             return sd, d, p
 
     return "", "", ""
+
+def resolve_nayoo_location(title, zone, p_slug):
+    _, districts_by_prov, subdist_to_dist = _load_gis()
+    prov = PROVINCE_SLUG_MAP.get(str(p_slug).lower(), "")
+    subdist = str(zone).strip() if zone and zone != "None" else ""
+    dist = ""
+
+    if str(p_slug).lower() == "huahin":
+        prov = "ประจวบคีรีขันธ์"
+        dist = "หัวหิน"
+
+    combined = f"{title} {subdist}".replace("อำเภอ", " ").replace("เขต", " ")
+
+    # 1. Check direct regex in title
+    m_d = re.search(r'(?:ใน)?(?:อำเภอ|เขต)\s*([^\s,]+)', f"{title} {zone}")
+    if m_d:
+        d_cand = m_d.group(1).strip()
+        if prov and prov in districts_by_prov:
+            for real_d in districts_by_prov[prov]:
+                if real_d in d_cand or d_cand in real_d:
+                    dist = real_d
+                    break
+        if not dist:
+            dist = d_cand
+
+    m_sd = re.search(r'(?:ใน)?(?:ตำบล|แขวง)\s*([^\s,]+)', f"{title} {zone}")
+    if m_sd:
+        sd_cand = m_sd.group(1).strip()
+        subdist = sd_cand
+
+    # 2. Check if zone or title matches a known district in province
+    if prov and prov in districts_by_prov:
+        if not dist:
+            for real_d in sorted(districts_by_prov[prov], key=len, reverse=True):
+                if real_d in f"{title} {zone}":
+                    dist = real_d
+                    break
+
+        # 3. Check if zone or title matches a known subdistrict in province
+        for (p_k, sd_k), d_v in subdist_to_dist.items():
+            if p_k == prov and sd_k in f"{title} {zone}":
+                if not subdist or subdist == zone:
+                    subdist = sd_k
+                if not dist:
+                    dist = d_v
+                break
+
+    # 4. Fallback for "ในเมือง" or "ตัวเมือง"
+    if not dist and ("ในเมือง" in subdist or "ตัวเมือง" in subdist or "เซ็นทรัล" in subdist):
+        if prov:
+            dist = f"เมือง{prov}"
+
+    # Normalize Province
+    if not prov:
+        for p in PROVINCES:
+            if p in combined:
+                prov = "กรุงเทพมหานคร" if p == "กรุงเทพ" else p
+                break
+
+    if prov == "กรุงเทพ":
+        prov = "กรุงเทพมหานคร"
+
+    return subdist, dist, prov
 
 def normalize_prop_type(raw_type, title=""):
     combined = f"{raw_type} {title}".lower()
@@ -201,16 +291,24 @@ def parse_nayoo_areas(raw_land, raw_usable, title="", prop_type=""):
             land_area = m_txt_land.group(1).strip()
             land_area = re.sub(r'(?<=\d|\s)(?:ตร\.วา|ตารางวา|วา)\b', 'ตร.ว.', land_area)
 
-    # 2. Parse Usable Area
+    # 2. Parse Usable Area (Filter out dummy 1.0 placeholder)
     if raw_usable and str(raw_usable).strip() not in ["", "nan", "None", "0"]:
-        m_u = re.search(r'([\d\.,]+)', str(raw_usable))
-        if m_u:
-            usable_area = m_u.group(1).replace(',', '').strip()
+        try:
+            u_val = float(str(raw_usable).replace(',', '').strip())
+            if u_val > 1.0:
+                usable_area = f"{u_val:g}"
+        except Exception:
+            pass
 
     if not usable_area and title:
         m_txt_usable = re.search(r'([\d\.,]+)\s*(?:ตร\.ม\.|ตารางเมตร|sqm)\b', title, re.I)
         if m_txt_usable:
-            usable_area = m_txt_usable.group(1).replace(',', '').strip()
+            try:
+                u_val = float(m_txt_usable.group(1).replace(',', '').strip())
+                if u_val > 1.0:
+                    usable_area = f"{u_val:g}"
+            except Exception:
+                pass
 
     # Apply property type constraints
     if prop_type == "คอนโด":
@@ -243,8 +341,9 @@ def fetch_nayoo_page(session, endpoint, page, per_page=36):
 
 def process_nayoo_item(session, item):
     pid = str(item.get("id") or item.get("uuid") or "").strip()
-    uuid = str(item.get("uuid") or pid).strip()
-    
+    if not pid or pid == "None":
+        return None
+
     # Title
     p_name = item.get("project_name", {})
     title = p_name.get("th") if isinstance(p_name, dict) else (item.get("title") or "")
@@ -252,6 +351,8 @@ def process_nayoo_item(session, item):
         title = title.get("th") or title.get("en") or ""
     if not title:
         title = item.get("slug", "").replace("-", " ")
+    if not title:
+        return None
 
     # Property Type
     raw_type = ""
@@ -293,15 +394,10 @@ def process_nayoo_item(session, item):
 
     # Location & Coordinates
     p_obj = item.get("province", {})
-    prov = ""
-    if isinstance(p_obj, dict):
-        prov = p_obj.get("name", {}).get("th", "") or p_obj.get("slug", "")
-    elif isinstance(p_obj, str):
-        prov = p_obj
-
+    p_slug = p_obj.get("slug", "") if isinstance(p_obj, dict) else str(p_obj)
     zone = item.get("zone", "") or ""
-    subdist = str(zone).strip() if zone else ""
-    dist = ""
+
+    subdist, dist, prov = resolve_nayoo_location(title, zone, p_slug)
 
     coords = item.get("coordinates")
     lat, lng = None, None
@@ -312,22 +408,12 @@ def process_nayoo_item(session, item):
         except Exception:
             pass
 
-    # Reverse Geocode with GIS
+    # Reverse Geocode with GIS if coordinates present
     if lat and lng:
         sd_geo, d_geo, p_geo = reverse_geocode_location(session, lat, lng)
         if sd_geo: subdist = sd_geo
         if d_geo: dist = d_geo
         if p_geo: prov = p_geo
-
-    # Province Normalization
-    if not prov:
-        for p in PROVINCES:
-            if p in title or p in str(zone):
-                prov = "กรุงเทพมหานคร" if p == "กรุงเทพ" else p
-                break
-
-    if prov == "กรุงเทพ":
-        prov = "กรุงเทพมหานคร"
 
     # Dates
     post_date = ""
@@ -339,10 +425,9 @@ def process_nayoo_item(session, item):
             pass
 
     # URL Link
-    p_slug = item.get("province", {}).get("slug", "") if isinstance(p_obj, dict) else "khonkaen"
     item_slug = item.get("slug", "")
     if item_slug:
-        link = f"https://nayoo.co/property-for-sale/properties/{p_slug}/{item_slug}"
+        link = f"https://nayoo.co/property-for-sale/properties/{p_slug or 'khonkaen'}/{item_slug}"
     else:
         link = f"https://nayoo.co/posts/{pid}"
 
@@ -374,8 +459,10 @@ def scrape_nayoo(progress_callback=None):
     logger.info("=" * 65)
 
     session = requests.Session()
-    all_records = []
+    # Ensure GIS is pre-loaded
+    _load_gis()
 
+    all_records = []
     endpoints = [
         ("/api/listing/search/secondhands", "Secondhands"),
         ("/api/listing/search/projects", "Projects")
@@ -398,7 +485,6 @@ def scrape_nayoo(progress_callback=None):
         
         logger.info(f"📊 [{ep_label}] Total items: {total_items:,} -> {total_pages:,} pages")
         
-        # Process page 1 items
         posts1 = res1.get("data", {}).get("posts", []) or res1.get("data", {}).get("projects", []) or []
         for p in posts1:
             rec = process_nayoo_item(session, p)
@@ -407,9 +493,8 @@ def scrape_nayoo(progress_callback=None):
         ep_configs.append((ep, ep_label, total_pages))
         total_tasks += total_pages
 
-    # Concurrently fetch all remaining pages
     completed_pages = len(ep_configs)
-    logger.info(f"⚡ Concurrently fetching remaining pages across all endpoints...")
+    logger.info(f"⚡ Concurrently fetching {total_tasks:,} pages across all endpoints...")
 
     with ThreadPoolExecutor(max_workers=15) as executor:
         future_to_page = {}
@@ -434,7 +519,7 @@ def scrape_nayoo(progress_callback=None):
             completed_pages += 1
             if completed_pages % 25 == 0 or completed_pages == total_tasks:
                 pct = int((completed_pages / max(1, total_tasks)) * 100)
-                logger.info(f"  Processed {completed_pages}/{total_tasks} pages ({pct}%) - Total records: {len(all_records):,}")
+                logger.info(f"  Processed {completed_pages}/{total_tasks} pages ({pct}%) - Records: {len(all_records):,}")
                 if progress_callback:
                     progress_callback(pct, f"Scraped {len(all_records):,} items")
 
@@ -446,7 +531,8 @@ def scrape_nayoo(progress_callback=None):
     df = df[COLUMNS]
 
     # Clean & Deduplicate
-    df.drop_duplicates(subset=["รหัสทรัพย์", "ชื่อโครงการ"], inplace=True)
+    df.dropna(subset=["ID", "ชื่อโครงการ"], inplace=True)
+    df.drop_duplicates(subset=["ID"], inplace=True)
     df.to_csv(OUTPUT_CSV, index=False, encoding="utf-8-sig")
 
     logger.info("=" * 65)
@@ -456,5 +542,7 @@ def scrape_nayoo(progress_callback=None):
 
     return df
 
+main = scrape_nayoo
+
 if __name__ == "__main__":
-    scrape_nayoo()
+    main()

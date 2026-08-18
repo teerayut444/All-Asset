@@ -41,6 +41,8 @@ args = [
     "--hidden-import=scrape_sam_monthly",
     "--hidden-import=scrape_taladnudbaan_monthly",
     "--hidden-import=scrape_zmyhome_monthly",
+    "--hidden-import=scrape_chayo555_monthly",
+    "--hidden-import=scrape_nayoo_monthly",
     "--hidden-import=merge_csv_monthly"
 ]
 
@@ -49,6 +51,11 @@ try:
     print("\n" + "=" * 75)
     print("🎉 สร้างไฟล์ EXE สำเร็จเรียบร้อยแล้ว!")
     dist_exe = os.path.join(base_dir, "dist", "Scraper_Monthly_Parallel.exe")
+    target_exe = os.path.join(base_dir, "Scraper_Monthly_Parallel.exe")
+    if os.path.exists(dist_exe):
+        import shutil
+        shutil.copy2(dist_exe, target_exe)
+        print(f"📁 คัดลอกไฟล์ EXE มาที่: {target_exe}")
     print(f"📁 ไฟล์ EXE อยู่ที่: {dist_exe}")
     print("=" * 75)
 except Exception as e:

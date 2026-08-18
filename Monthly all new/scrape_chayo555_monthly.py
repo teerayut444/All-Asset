@@ -226,10 +226,6 @@ def parse_chayo_areas(full_text, spec_land="", spec_usable="", prop_type=""):
             land_area = f"{land_area} ตร.ว."
 
     return land_area, usable_area
-        if re.match(r'^\d+(?:\.\d+)?$', land_area):
-            land_area = f"{land_area} ตร.ว."
-
-    return land_area, usable_area
 
 def fetch_chayo_detail(session, item_url, preview_data):
     try:
@@ -481,5 +477,7 @@ def scrape_chayo555(progress_callback=None):
 
     return df
 
+main = scrape_chayo555
+
 if __name__ == "__main__":
-    scrape_chayo555()
+    main()

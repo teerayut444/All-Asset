@@ -321,89 +321,82 @@ def parse_dd_location(title, link, text):
     return subdist, dist, prov
 
 # --- Offline GIS Engine Data Loader ---
-_GIS_FEATURES = None
+_GIS_TREE = None
+_GIS_PROPS = None
 
-def _get_gis_features():
-    global _GIS_FEATURES
-    if _GIS_FEATURES is None:
+SPECIAL_TAM_CLEAN = {
+    'เทศบาลนครสมุทรปร': 'ปากน้ำ',
+    'เทศบาลบางปู': 'บางปูใหม่',
+    'เทศบาลบางเมือง': 'บางเมือง',
+    'เทศบาลเมืองพระปร': 'ตลาด',
+    'เทศบาลสำโรงใต้': 'สำโรงใต้',
+    'เขตการปกคองพิเศษ': 'เมืองพัทยา',
+    'ท่าเรือ (เทศบาลเมื': 'ท่าเรือ',
+    'เทศบาลเมืองทุ่งส': 'ปากแพรก'
+}
+
+def _init_gis():
+    global _GIS_TREE, _GIS_PROPS
+    if _GIS_TREE is not None:
+        return
+    try:
+        from shapely.geometry import shape, Point
+        from shapely.strtree import STRtree
+        
         base_d = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__))
         geojson_path = os.path.join(base_d, "subdistricts.geojson")
         if not os.path.exists(geojson_path):
             geojson_path = os.path.join(os.path.dirname(base_d), "subdistricts.geojson")
+            
         if os.path.exists(geojson_path):
-            try:
-                with open(geojson_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                features = []
-                for feat in data.get("features", []):
-                    geom = feat.get("geometry", {})
-                    props = feat.get("properties", {})
-                    features.append((geom, props.get("tam_th", ""), props.get("amp_th", ""), props.get("pro_th", "")))
-                _GIS_FEATURES = features
-            except Exception:
-                _GIS_FEATURES = []
-        else:
-            _GIS_FEATURES = []
-    return _GIS_FEATURES
-
-def _point_in_poly(x, y, poly_coords):
-    n = len(poly_coords)
-    inside = False
-    p1x, p1y = poly_coords[0]
-    for i in range(n + 1):
-        p2x, p2y = poly_coords[i % n]
-        if y > min(p1y, p2y):
-            if y <= max(p1y, p2y):
-                if x <= max(p1x, p2x):
-                    if p1y != p2y:
-                        xinters = (y - p1y) * (p2x - p1x) / (p2y - p1y) + p1x
-                    if p1x == p2x or x <= xinters:
-                        inside = not inside
-        p1x, p1y = p2x, p2y
-    return inside
-
-def _check_geom(lng, lat, geometry):
-    gtype = geometry.get("type")
-    coords = geometry.get("coordinates", [])
-    if gtype == "Polygon":
-        for ring in coords:
-            if _point_in_poly(lng, lat, ring): return True
-    elif gtype == "MultiPolygon":
-        for poly in coords:
-            for ring in poly:
-                if _point_in_poly(lng, lat, ring): return True
-    return False
+            with open(geojson_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            geoms = []
+            props = []
+            for feat in data.get("features", []):
+                geom = shape(feat["geometry"])
+                geoms.append(geom)
+                p = feat.get("properties", {})
+                tam = p.get("tam_th", "").strip()
+                amp = p.get("amp_th", "").strip()
+                pro = p.get("pro_th", "").strip()
+                if tam in SPECIAL_TAM_CLEAN:
+                    tam = SPECIAL_TAM_CLEAN[tam]
+                if "กรุงเทพ" in pro:
+                    pro = "กรุงเทพมหานคร"
+                props.append((tam, amp, pro))
+            _GIS_PROPS = props
+            _GIS_TREE = STRtree(geoms)
+    except Exception as e:
+        pass
 
 def reverse_geocode_location(session, lat, lng):
-    """Reverse geocode Lat/Lng into ตำบล, อำเภอ, จังหวัด using Offline Thailand GeoJSON Engine + Nominatim Fallback."""
+    """Reverse geocode Lat/Lng into ตำบล, อำเภอ, จังหวัด using Offline Thailand GeoJSON Engine + Shapely STRtree."""
     if not lat or not lng or str(lat) == "nan":
         return "", "", ""
     try:
         lat_v, lng_v = float(lat), float(lng)
-        features = _get_gis_features()
-        for geom, tam_th, amp_th, pro_th in features:
-            if _check_geom(lng_v, lat_v, geom):
-                p = pro_th
-                if "กรุงเทพ" in p: p = "กรุงเทพมหานคร"
-                return tam_th, amp_th, p
+        if not (5.0 < lat_v < 21.0 and 97.0 < lng_v < 106.0):
+            return "", "", ""
+        _init_gis()
+        if _GIS_TREE is not None and _GIS_PROPS is not None:
+            from shapely.geometry import Point
+            pt = Point(lng_v, lat_v)
+            res = _GIS_TREE.query(pt, predicate='intersects')
+            if len(res) > 0:
+                g_idx = res[0]
+                tam, amp, pro = _GIS_PROPS[g_idx]
+                return tam, amp, pro
+            else:
+                # Nearest fallback
+                nearest = _GIS_TREE.query_nearest(pt)
+                if len(nearest) > 0:
+                    g_idx = nearest[0] if not isinstance(nearest[0], (list, tuple, np.ndarray)) else nearest[1][0]
+                    tam, amp, pro = _GIS_PROPS[g_idx]
+                    return tam, amp, pro
     except Exception:
         pass
         
-    # Nominatim Fallback if offline GIS misses
-    url = f"https://nominatim.openstreetmap.org/reverse?format=json&lat={lat}&lon={lng}&accept-language=th"
-    headers = {"User-Agent": "AllAssetDashboardApp/1.0"}
-    try:
-        if session:
-            r = session.get(url, headers=headers, timeout=5)
-            if r.status_code == 200:
-                addr = r.json().get('address', {})
-                sd = clean_text(addr.get('quarter') or addr.get('suburb') or addr.get('neighbourhood') or addr.get('village'))
-                d = clean_text(addr.get('city_district') or addr.get('district') or addr.get('county') or addr.get('town'))
-                p = clean_text(addr.get('city') or addr.get('state') or addr.get('province'))
-                if p and "กรุงเทพ" in p: p = "กรุงเทพมหานคร"
-                return sd, d, p
-    except Exception:
-        pass
     return "", "", ""
 
 def load_existing_csv(filename, session=None):

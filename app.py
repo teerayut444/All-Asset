@@ -727,10 +727,13 @@ with st.sidebar:
     if df_raw is not None and not df_raw.empty:
         search_query = ""
         
-        # Company Filter (Pills) with stable keys and format_func
+        # Company Filter (Pills) with dynamic list from data
         co_counts = df_raw['บริษัท'].value_counts()
-        companies_list = ["Baania", "BAM", "SAM", "DDproperty", "Taladnudbaan", "ZmyHome"]
+        companies_list = sorted([str(c) for c in df_raw['บริษัท'].dropna().unique() if str(c).strip() not in ['', 'nan', 'None']])
+        if not companies_list:
+            companies_list = ["Baania", "BAM", "SAM", "DDproperty", "Taladnudbaan", "ZmyHome"]
         
+        sanitize_session_state("filter_companies", companies_list)
         selected_companies = st.pills(
             "บริษัททรัพย์สิน", 
             options=companies_list, 
@@ -862,25 +865,45 @@ with st.sidebar:
                 placeholder="💡 เลือกจังหวัดหรืออำเภอก่อนเพื่อค้นหาตำบล"
             )
         
-        # Price Filter
+        # Price Filter - อิงราคาจริงที่มีในฐานข้อมูล
         valid_prices = df_by_company['ราคา'].dropna()
-        valid_prices = valid_prices[(valid_prices > 0) & (valid_prices <= 1000000000)]
+        valid_prices = valid_prices[valid_prices > 0]
         if not valid_prices.empty:
-            options = [
-                0, 500000, 1000000, 1500000, 2000000, 2500000, 3000000, 3500000, 4000000, 4500000, 5000000,
-                6000000, 7000000, 8000000, 9000000, 10000000, 12000000, 15000000, 20000000, 25000000, 30000000,
-                40000000, 50000000, 75000000, 100000000, 150000000, 200000000, 300000000, 500000000, 1000000000
-            ]
-            
-            price_range = st.select_slider(
+            min_p = float(valid_prices.min())
+            max_p = float(valid_prices.max())
+            if min_p >= max_p:
+                max_p = min_p + 1000000.0
+                
+            price_span = max_p - min_p
+            if price_span > 1000000000:
+                step_p = 10000000.0
+            elif price_span > 100000000:
+                step_p = 1000000.0
+            elif price_span > 10000000:
+                step_p = 100000.0
+            elif price_span > 1000000:
+                step_p = 50000.0
+            else:
+                step_p = 10000.0
+
+            if "sidebar_price_slider" in st.session_state:
+                curr_val = st.session_state["sidebar_price_slider"]
+                if isinstance(curr_val, (list, tuple)) and len(curr_val) == 2:
+                    c_low, c_high = curr_val
+                    if c_low < min_p or c_high > max_p or c_low > c_high:
+                        st.session_state["sidebar_price_slider"] = (min_p, max_p)
+
+            price_range = st.slider(
                 "ช่วงราคาขาย (บาท)",
-                options=options,
-                value=(options[0], options[-1]),
-                format_func=lambda x: f"฿{x:,.0f}" if x < 1000000 else (f"฿{x/1000000:,.1f} ล้าน" if x % 1000000 != 0 else f"฿{x/1000000:,.0f} ล้าน")
+                min_value=min_p,
+                max_value=max_p,
+                value=(min_p, max_p),
+                step=step_p,
+                format="%,d",
+                key="sidebar_price_slider"
             )
         else:
-            options = [0, 1000000000]
-            price_range = (0, 1000000000)
+            price_range = (min_p, max_p)    
     else:
         st.warning("ไม่มีตัวกรองข้อมูลเนื่องจากยังไม่มีไฟล์ข้อมูล all_assets.parquet")
 
@@ -1442,13 +1465,8 @@ if selected_subdistricts_formatted:
 
 # 7. Price Range Filter
 if not valid_prices.empty:
-    is_default_price_range = (price_range[0] == options[0] and price_range[1] == options[-1])
-    if is_default_price_range:
-        df_filtered = df_filtered[
-            (df_filtered['ราคา'].isna()) | 
-            ((df_filtered['ราคา'] >= price_range[0]) & (df_filtered['ราคา'] <= price_range[1]))
-        ]
-    else:
+    is_default_price_range = (price_range[0] <= min_p and price_range[1] >= max_p)
+    if not is_default_price_range:
         df_filtered = df_filtered[
             (df_filtered['ราคา'].notna()) & 
             (df_filtered['ราคา'] >= price_range[0]) & 
@@ -2387,7 +2405,7 @@ with tab4:
                 max_value=max_price_val,
                 value=(min_price_val, max_price_val),
                 step=step_val,
-                format="%d",
+                format="%,d",
                 key="comp_price_slider"
             )
             st.caption(f"💰 ราคาต่ำสุด: **฿{min_price_val:,.0f}** | สูงสุด: **฿{max_price_val:,.0f}** (ครอบคลุมทุกกลุ่มเป็นค่า Default)")
