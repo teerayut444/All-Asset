@@ -103,25 +103,43 @@ def render_import_export_section(df_to_export, filename_prefix="npa_data", key_s
     with col_exp:
         st.markdown("###### 📤 ส่งออกข้อมูลในตาราง (Export Data)")
         if df_to_export is not None and not df_to_export.empty:
+            n_rows = len(df_to_export)
+            st.caption(f"📊 ข้อมูลพร้อมส่งออกทั้งหมด **{n_rows:,}** รายการ")
+            
             c_exp1, c_exp2 = st.columns(2)
             with c_exp1:
                 st.download_button(
-                    label="📊 ส่งออก Excel (.xlsx)",
-                    data=convert_df_to_excel(df_to_export),
-                    file_name=f"{filename_prefix}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True,
-                    key=f"btn_export_excel_{key_suffix}"
-                )
-            with c_exp2:
-                st.download_button(
-                    label="📄 ส่งออก CSV (.csv)",
+                    label="📄 ส่งออก CSV (.csv) ⚡",
                     data=convert_df_to_csv(df_to_export),
                     file_name=f"{filename_prefix}.csv",
                     mime="text/csv",
                     use_container_width=True,
-                    key=f"btn_export_csv_{key_suffix}"
+                    key=f"btn_export_csv_{key_suffix}",
+                    help="ดาวน์โหลดทันที (เสี้ยววินาที) รองรับภาษาไทย UTF-8 เปิดใน Microsoft Excel ได้โดยตรง"
                 )
+            with c_exp2:
+                excel_key = f"excel_data_{key_suffix}"
+                excel_rows_key = f"excel_rows_{key_suffix}"
+                
+                # Check if Excel was already prepared for this exact row count
+                if st.session_state.get(excel_rows_key) == n_rows and excel_key in st.session_state:
+                    st.download_button(
+                        label="📊 ดาวน์โหลด Excel (.xlsx)",
+                        data=st.session_state[excel_key],
+                        file_name=f"{filename_prefix}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        use_container_width=True,
+                        key=f"btn_export_excel_{key_suffix}"
+                    )
+                else:
+                    if st.button("📊 สร้างไฟล์ Excel (.xlsx)", key=f"btn_prep_excel_{key_suffix}", use_container_width=True, help="คลิกเพื่อเริ่มแปลงข้อมูลเป็นไฟล์ Excel (.xlsx)"):
+                        with st.spinner(f"⏳ กำลังแปลงข้อมูล {n_rows:,} รายการเป็นไฟล์ Excel..."):
+                            excel_bytes = convert_df_to_excel(df_to_export)
+                            st.session_state[excel_key] = excel_bytes
+                            st.session_state[excel_rows_key] = n_rows
+                            st.rerun()
+                    if n_rows > 10000:
+                        st.caption("💡 แนะนำ **CSV** สำหรับไฟล์ขนาดใหญ่ จะดาวน์โหลดได้ทันที")
         else:
             st.info("ไม่มีข้อมูลสำหรับส่งออก")
 
@@ -533,6 +551,58 @@ def load_properties_data(data_version=0):
         return None
         
     def ensure_derived_cols(df):
+        if 'ประเภททรัพย์' in df.columns:
+            prop_type_map = {
+                "บ้าน": "บ้านเดี่ยว",
+                "คอนโด": "ห้องชุดพักอาศัย",
+                "คอนโดมิเนียม": "ห้องชุดพักอาศัย",
+                "ทาวน์โฮม": "ทาวน์เฮ้าส์",
+                "ทาวน์เฮาส์": "ทาวน์เฮ้าส์",
+                "ที่ดินเปล่า": "ที่ดิน",
+                "ที่ดินเกษตรกรรม": "ที่ดิน",
+                "โรงงาน": "โรงงาน/โกดัง",
+                "โกดัง/โรงงาน": "โรงงาน/โกดัง",
+                "โกดัง / โรงงาน": "โรงงาน/โกดัง",
+                "มินิแฟคตอรี่": "โรงงาน/โกดัง",
+                "อพาร์ทเม้นท์": "อพาร์ทเมนท์",
+                "อพาร์ตเมนต์": "อพาร์ทเมนท์",
+                "อพาตเมนต์": "อพาร์ทเมนท์",
+                "อาคารพักอาศัย": "อพาร์ทเมนท์",
+                "Hotel Building": "โรงแรม/รีสอร์ท",
+                "โรงแรม": "โรงแรม/รีสอร์ท",
+                "รีสอร์ท": "โรงแรม/รีสอร์ท",
+                "สำนักงาน": "อาคารสำนักงาน",
+                "ห้องชุดสำนักงาน": "ห้องชุดพาณิชยกรรม/สำนักงาน",
+                "ห้องชุดพาณิชยกรรม": "ห้องชุดพาณิชยกรรม/สำนักงาน",
+                "เครื่องจักร": "สังหาริมทรัพย์",
+                "บัตรสมาชิกสนามกอล์ฟ": "สังหาริมทรัพย์",
+                "ส่วนโล่งหลังคาคลุม": "อื่นๆ",
+            }
+            df['ประเภททรัพย์'] = df['ประเภททรัพย์'].astype(str).str.strip().replace(prop_type_map)
+            
+            # Resolve any mixed types (e.g. บ้านเดี่ยว/ทาวน์เฮาส์) based on title/project name
+            mixed_mask = df['ประเภททรัพย์'].astype(str).str.contains('บ้านเดี่ยว/ทาวน์', na=False)
+            if mixed_mask.any():
+                def resolve_row(row):
+                    title = (str(row.get('ชื่อประกาศ', '')) + ' ' + str(row.get('ชื่อโครงการ', ''))).lower()
+                    if any(k in title for k in ['ตึกแถว', 'อาคารพาณิชย์', 'shophouse', 'พาณิชย์']):
+                        return 'อาคารพาณิชย์'
+                    if any(k in title for k in ['โฮมออฟฟิศ', 'สำนักงาน', 'office', 'home office']):
+                        return 'อาคารสำนักงาน'
+                    if any(k in title for k in ['โกดัง', 'โรงงาน', 'warehouse', 'factory']):
+                        return 'โรงงาน/โกดัง'
+                    if any(k in title for k in ['ทาวน์โฮม', 'ทาวน์เฮ้าส์', 'ทาวน์เฮาส์', 'townhome', 'townhouse', 'ทาวน์']):
+                        return 'ทาวน์เฮ้าส์'
+                    if any(k in title for k in ['ที่ดิน', 'land']):
+                        return 'ที่ดิน'
+                    if any(k in title for k in ['คอนโด', 'ห้องชุด', 'condo']):
+                        return 'ห้องชุดพักอาศัย'
+                    return 'บ้านเดี่ยว'
+                df.loc[mixed_mask, 'ประเภททรัพย์'] = df[mixed_mask].apply(resolve_row, axis=1)
+
+        if 'ประเภทการขาย' in df.columns:
+            df['ประเภทการขาย'] = df['ประเภทการขาย'].astype(str).str.strip().replace({'ซื้อตรง': 'ขาย'})
+
         if 'ชื่อประกาศ' not in df.columns:
             if 'ชื่อโครงการ' in df.columns:
                 df['ชื่อประกาศ'] = df['ชื่อโครงการ'].astype(object).fillna('ไม่มีชื่อ').astype(str)
@@ -714,10 +784,10 @@ with st.sidebar:
                 key="selected_rare_types"
             )
         
-        # Sale Type Filter (ประเภทการขาย)
-        sale_type_counts = df_by_company['ประเภทการขาย'].astype(str).str.strip().value_counts()
-        sale_types_list = ["ขาย", "ขาย/เช่า", "เช่า", "ประมูล / ขายทอดตลาด", "ขายดาวน์ / รอประกาศ"]
-        available_sale_types = [s for s in sale_types_list if sale_type_counts.get(s, 0) > 0]
+        # Sale Type Filter (ประเภทการขาย) - แสดงทุกแบบที่มีในฐานข้อมูลแบบไดนามิก
+        sale_type_series = df_by_company['ประเภทการขาย'].dropna().astype(str).str.strip()
+        sale_type_counts = sale_type_series[~sale_type_series.isin(["", "nan", "None"])].value_counts()
+        available_sale_types = sale_type_counts.index.tolist()
         
         sanitize_session_state("filter_sale_types", available_sale_types)
         selected_sale_types = st.pills(
@@ -1688,10 +1758,10 @@ with tab2:
                 # Simplify property type mapping for visualization
                 def map_simplified_type(t):
                     t_str = str(t).strip()
-                    if 'ที่ดินเปล่า' in t_str:
-                        return 'ที่ดินเปล่า'
-                    elif 'คอนโด' in t_str:
-                        return 'คอนโด'
+                    if 'ที่ดิน' in t_str:
+                        return 'ที่ดิน'
+                    elif 'คอนโด' in t_str or 'ห้องชุด' in t_str:
+                        return 'ห้องชุดพักอาศัย'
                     elif 'บ้านเดี่ยว' in t_str or 'บ้านแฝด' in t_str or 'พูลวิลล่า' in t_str or 'บ้าน' in t_str:
                         return 'บ้านเดี่ยว'
                     elif 'ทาวน์โฮม' in t_str or 'ทาวน์เฮ้าส์' in t_str or 'ทาวน์เฮาส์' in t_str:
@@ -1707,8 +1777,10 @@ with tab2:
                     df_hist_data = df_hist_data.sample(n=50000, random_state=42)
                 
                 color_map_dist = {
+                    "ที่ดิน": "#56B4E9",
                     "ที่ดินเปล่า": "#56B4E9", 
                     "บ้านเดี่ยว": "#CC79A7", 
+                    "ห้องชุดพักอาศัย": "#E69F00",
                     "คอนโด": "#E69F00", 
                     "ทาวน์เฮ้าส์": "#107c41"
                 }
@@ -1830,7 +1902,7 @@ with tab2:
                 
                 colors = px.colors.qualitative.Pastel
                 # Top property types that are considered "important"
-                TOP_TYPES = ['บ้านเดี่ยว', 'คอนโด', 'ทาวน์เฮ้าส์', 'ที่ดินเปล่า', 'อาคารพาณิชย์', 'โรงงาน/โกดัง', 'บ้านแฝด']
+                TOP_TYPES = ['บ้านเดี่ยว', 'ห้องชุดพักอาศัย', 'ทาวน์เฮ้าส์', 'ที่ดิน', 'อาคารพาณิชย์', 'โรงงาน/โกดัง', 'บ้านแฝด']
                 other_color = '#d1d5db'
                 color_map = {t: colors[i % len(colors)] for i, t in enumerate(TOP_TYPES)}
                 color_map['อื่นๆ'] = other_color

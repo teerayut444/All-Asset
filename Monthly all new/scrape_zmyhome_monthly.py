@@ -510,7 +510,7 @@ def parse_zmyhome_card(card):
             "ID": item_id,
             "รหัสทรัพย์": item_id,
             "ชื่อโครงการ": "",  # จะดึงจาก info-project ในหน้ารายละเอียด
-            "ประเภททรัพย์": "คอนโด" if item_id.startswith("V") else "บ้านเดี่ยว/ทาวน์เฮาส์",
+            "ประเภททรัพย์": "ห้องชุดพักอาศัย" if item_id.startswith("V") else "บ้านเดี่ยว",
             "ประเภทการขาย": "ขาย",
             "ราคา": price,
             "ตำบล": "",  # จะดึงจากหน้ารายละเอียด (nearby-place__address)

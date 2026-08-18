@@ -28,6 +28,80 @@ COLUMNS = [
     "ห้องนอน", "ห้องน้ำ", "ที่จอดรถ", "วันประกาศ"
 ]
 
+# ตารางการจัดกลุ่มและแปลงประเภททรัพย์สินให้เป็นมาตรฐานเดียวกันทุกค่าย
+PROPERTY_TYPE_MAPPING = {
+    # 1. หมวดบ้านเดี่ยว
+    "บ้าน": "บ้านเดี่ยว",
+    
+    # 2. หมวดคอนโดมิเนียม / ห้องชุด
+    "คอนโด": "ห้องชุดพักอาศัย",
+    "คอนโดมิเนียม": "ห้องชุดพักอาศัย",
+    
+    # 3. หมวดทาวน์เฮ้าส์ / ทาวน์โฮม
+    "ทาวน์โฮม": "ทาวน์เฮ้าส์",
+    "ทาวน์เฮาส์": "ทาวน์เฮ้าส์",
+    
+    # 4. หมวดที่ดิน
+    "ที่ดินเปล่า": "ที่ดิน",
+    "ที่ดินเกษตรกรรม": "ที่ดิน",
+    
+    # 5. หมวดโรงงาน / โกดัง
+    "โรงงาน": "โรงงาน/โกดัง",
+    "โกดัง/โรงงาน": "โรงงาน/โกดัง",
+    "โกดัง / โรงงาน": "โรงงาน/โกดัง",
+    "มินิแฟคตอรี่": "โรงงาน/โกดัง",
+    
+    # 6. หมวดอพาร์ทเมนท์ / หอพัก
+    "อพาร์ทเม้นท์": "อพาร์ทเมนท์",
+    "อพาร์ตเมนต์": "อพาร์ทเมนท์",
+    "อพาตเมนต์": "อพาร์ทเมนท์",
+    "อาคารพักอาศัย": "อพาร์ทเมนท์",
+    
+    # 7. หมวดโรงแรม / รีสอร์ท
+    "Hotel Building": "โรงแรม/รีสอร์ท",
+    "โรงแรม": "โรงแรม/รีสอร์ท",
+    "รีสอร์ท": "โรงแรม/รีสอร์ท",
+    
+    # 8. หมวดสำนักงาน / เชิงพาณิชย์
+    "สำนักงาน": "อาคารสำนักงาน",
+    "ห้องชุดสำนักงาน": "ห้องชุดพาณิชยกรรม/สำนักงาน",
+    "ห้องชุดพาณิชยกรรม": "ห้องชุดพาณิชยกรรม/สำนักงาน",
+    
+    # 9. หมวดสังหาริมทรัพย์ & อื่นๆ
+    "เครื่องจักร": "สังหาริมทรัพย์",
+    "บัตรสมาชิกสนามกอล์ฟ": "สังหาริมทรัพย์",
+    "ส่วนโล่งหลังคาคลุม": "อื่นๆ",
+}
+
+def resolve_mixed_property_types(df):
+    """Resolves fallback mixed property types (e.g. 'บ้านเดี่ยว/ทาวน์เฮาส์') based on listing title."""
+    if 'ประเภททรัพย์' not in df.columns:
+        return df
+    
+    mask = df['ประเภททรัพย์'].astype(str).str.contains('บ้านเดี่ยว/ทาวน์', na=False)
+    if not mask.any():
+        return df
+        
+    def resolve_row(row):
+        title = str(row.get('ชื่อประกาศ', '')) + ' ' + str(row.get('ชื่อโครงการ', ''))
+        t = title.lower()
+        if any(k in t for k in ['ตึกแถว', 'อาคารพาณิชย์', 'shophouse', 'พาณิชย์']):
+            return 'อาคารพาณิชย์'
+        if any(k in t for k in ['โฮมออฟฟิศ', 'สำนักงาน', 'office', 'home office']):
+            return 'อาคารสำนักงาน'
+        if any(k in t for k in ['โกดัง', 'โรงงาน', 'warehouse', 'factory']):
+            return 'โรงงาน/โกดัง'
+        if any(k in t for k in ['ทาวน์โฮม', 'ทาวน์เฮ้าส์', 'ทาวน์เฮาส์', 'townhome', 'townhouse', 'ทาวน์']):
+            return 'ทาวน์เฮ้าส์'
+        if any(k in t for k in ['ที่ดิน', 'land']):
+            return 'ที่ดิน'
+        if any(k in t for k in ['คอนโด', 'ห้องชุด', 'condo']):
+            return 'ห้องชุดพักอาศัย'
+        return 'บ้านเดี่ยว'
+        
+    df.loc[mask, 'ประเภททรัพย์'] = df[mask].apply(resolve_row, axis=1)
+    return df
+
 def merge_monthly_csv():
     print("==========================================================================", flush=True)
     print("📊 เริ่มต้นการรวมไฟล์ CSV ทั้งหมดจาก Monthly all new/CSV_Output/", flush=True)
@@ -71,6 +145,27 @@ def merge_monthly_csv():
         return False
         
     combined_df = pd.concat(dfs, ignore_index=True)
+    
+    # ทำความสะอาดและจัดกลุ่มประเภททรัพย์สินให้เป็นมาตรฐานเดียวกัน
+    if 'ประเภททรัพย์' in combined_df.columns:
+        combined_df['ประเภททรัพย์'] = (
+            combined_df['ประเภททรัพย์']
+            .astype(str)
+            .str.strip()
+            .replace(PROPERTY_TYPE_MAPPING)
+        )
+        combined_df = resolve_mixed_property_types(combined_df)
+        print("  ✨ จัดกลุ่มประเภททรัพย์สิน (Property Type Normalization) เรียบร้อยแล้ว", flush=True)
+        
+    # ทำความสะอาดและจัดกลุ่มประเภทการขาย
+    if 'ประเภทการขาย' in combined_df.columns:
+        combined_df['ประเภทการขาย'] = (
+            combined_df['ประเภทการขาย']
+            .astype(str)
+            .str.strip()
+            .replace({'ซื้อตรง': 'ขาย'})
+        )
+        print("  ✨ จัดกลุ่มประเภทการขาย (รวม 'ซื้อตรง' เข้า 'ขาย') เรียบร้อยแล้ว", flush=True)
     
     def safe_write_csv(df_in, target_path, label):
         for attempt in range(3):
