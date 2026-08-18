@@ -124,18 +124,22 @@ def main():
     processes = []
     start_time = time.time()
     
+    is_frozen = getattr(sys, 'frozen', False)
+    
     for scraper in SCRAPERS:
         name = scraper["name"]
         script_file = base_dir / scraper["script"]
         
-        if not script_file.exists():
-            with lock:
-                status_dict[name] = f"[{name:<13s}] ❌ ไม่พบไฟล์สคริปต์"
-                company_health[name] = "❌ ไม่พบไฟล์สคริปต์"
-                add_log(f"[{name}] ❌ ไม่พบไฟล์สคริปต์")
-            continue
-            
-        cmd = [python_exe, "-u", str(script_file)]
+        if is_frozen:
+            cmd = [sys.executable, "--worker", name]
+        else:
+            if not script_file.exists():
+                with lock:
+                    status_dict[name] = f"[{name:<13s}] ❌ ไม่พบไฟล์สคริปต์"
+                    company_health[name] = "❌ ไม่พบไฟล์สคริปต์"
+                    add_log(f"[{name}] ❌ ไม่พบไฟล์สคริปต์")
+                continue
+            cmd = [python_exe, "-u", str(script_file)]
         
         try:
             p = subprocess.Popen(
@@ -197,4 +201,20 @@ def main():
         print(f"⚠️ เกิดข้อผิดพลาดในการรวมไฟล์: {e}", flush=True)
 
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) > 2 and sys.argv[1] == "--worker":
+        worker = sys.argv[2]
+        if worker == "Baania":
+            import scrape_baania_monthly; scrape_baania_monthly.main()
+        elif worker == "BAM":
+            import scrape_bam_monthly; scrape_bam_monthly.main()
+        elif worker == "ZmyHome":
+            import scrape_zmyhome_monthly; scrape_zmyhome_monthly.main()
+        elif worker == "SAM":
+            import scrape_sam_monthly; scrape_sam_monthly.main()
+        elif worker == "DDproperty":
+            import scrape_ddproperty_monthly; scrape_ddproperty_monthly.main()
+        elif worker == "Taladnudbaan":
+            import scrape_taladnudbaan_monthly; scrape_taladnudbaan_monthly.main()
+        sys.exit(0)
+    else:
+        main()

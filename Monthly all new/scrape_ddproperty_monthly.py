@@ -18,7 +18,8 @@ if hasattr(sys.stdout, 'reconfigure'):
 COMPANY_NAME = "DDproperty"
 MONTH_STR = datetime.now().strftime("%Y_%m")
 
-OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "CSV_Output")
+_BASE_DIR = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__))
+OUTPUT_DIR = os.path.join(_BASE_DIR, "CSV_Output")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 OUTPUT_CSV = os.path.join(OUTPUT_DIR, f"DDproperty_NPA_New_{MONTH_STR}.csv")
 
@@ -140,6 +141,160 @@ def clean_text(val):
         return ""
     return re.sub(r"\s+", " ", str(val)).strip()
 
+def parse_dd_price(price_raw, text="", prop_type=""):
+    if not price_raw and not text:
+        return None
+    p_str = ""
+    if isinstance(price_raw, dict):
+        v = price_raw.get("value")
+        if isinstance(v, (int, float)) and v > 0:
+            return float(v)
+        p_str = str(price_raw.get("pretty") or price_raw.get("value") or price_raw.get("localeStringValue") or "")
+    elif isinstance(price_raw, (int, float)):
+        if price_raw > 0:
+            return float(price_raw)
+    elif price_raw:
+        p_str = str(price_raw)
+        
+    if not p_str and text:
+        m = re.search(r'฿\s*([\d\.,]+(?:\s*[-–—ถึง]\s*[\d\.,]+)?)', text)
+        if m:
+            p_str = m.group(1)
+            
+    if not p_str:
+        return None
+        
+    p_str = str(p_str).strip()
+    
+    # 1. Handle price ranges (take the starting price)
+    if "-" in p_str or "ถึง" in p_str or "–" in p_str or "—" in p_str:
+        parts = re.split(r'[-–—ถึง]', p_str)
+        p_str = parts[0].strip()
+        
+    # 2. Handle Thai million word "ล้าน" / "ล้านบาท"
+    if "ล้าน" in p_str:
+        m_m = re.search(r'([\d\.]+)\s*ล้าน', p_str)
+        if m_m:
+            try:
+                return float(m_m.group(1)) * 1_000_000
+            except Exception: pass
+            
+    clean_num = re.sub(r'[^\d\.]', '', p_str)
+    if not clean_num:
+        return None
+        
+    try:
+        val = float(clean_num)
+        # Handle concatenated range numbers (e.g. 1890000021900000 > 1 Trillion)
+        if val > 1_000_000_000_000:
+            s = str(int(val))
+            if len(s) == 16:
+                val = float(s[:8]) if s[7] != '0' else float(s[:7])
+            elif len(s) == 14:
+                val = float(s[:7])
+            else:
+                val = float(s[:len(s)//2])
+                
+        # Handle extreme typos on residential properties (> 5 Billion)
+        if val > 5_000_000_000 and any(t in str(prop_type) for t in ["คอนโด", "ทาวน์เฮ้าส์", "บ้านเดี่ยว", "ตึกแถว"]):
+            s_val = str(int(val))
+            if s_val.endswith("000000") and len(s_val) >= 11:
+                val = val / 1000
+                
+        return val if val > 0 else None
+    except Exception:
+        return None
+
+def parse_dd_areas(ld, listing, card_text, prop_type=""):
+    land_area = ""
+    usable_area = ""
+    
+    area_raw = ld.get("area") or ld.get("usableArea") or listing.get("area")
+    area_str = ""
+    if isinstance(area_raw, dict):
+        area_str = clean_text(area_raw.get("localeStringValue") or area_raw.get("value") or "")
+    elif area_raw:
+        area_str = clean_text(area_raw)
+        
+    floor_raw = ld.get("floorAreaText") or ld.get("floorArea") or ld.get("usableAreaText") or ""
+    land_raw = ld.get("landAreaText") or ld.get("landArea") or ""
+    
+    if not land_raw and isinstance(listing.get("unitDetails"), dict):
+        dims = listing["unitDetails"].get("dimensions", {}).get("land", {}).get("size", [])
+        for dim in dims:
+            if isinstance(dim, dict) and any(w in str(dim.get("formatted")) for w in ["วา", "ตร.ว.", "ไร่", "งาน", "ตารางวา"]):
+                land_raw = dim.get("formatted")
+                break
+
+    combined_text = f"{area_str} {land_raw} {floor_raw} {card_text}"
+    
+    # 1. Look for Land Area: ตร.วา / ตารางวา / วา / ไร่ / งาน / ตร.ว.
+    m_dash = re.search(r'(\d+)\s*-\s*(\d+)\s*-\s*([\d\.]+)\s*(?:ไร่)?', combined_text)
+    m_full_land = re.search(r'((?:\d+\s*ไร่\s*)?(?:\d+\s*งาน\s*)?[\d\.,]+\s*(?:ตร\.วา|ตารางวา|ตร\.ว\.|วา))\b', combined_text)
+    m_rai = re.search(r'(\d+(?:\.\d+)?)\s*ไร่\b', combined_text)
+    m_sqw = re.search(r'([\d\.,]+)\s*(?:ตร\.วา|ตารางวา|ตร\.ว\.|วา)\b', combined_text)
+    
+    if m_dash and any(w in combined_text for w in ["ไร่", "ขนาด", "เนื้อที่", "ที่ดิน"]):
+        r_r, r_n, r_w = m_dash.group(1), m_dash.group(2), m_dash.group(3)
+        land_area = f"{r_r} ไร่ {r_n} งาน {r_w} ตร.ว."
+    elif m_full_land:
+        l_val = m_full_land.group(1).strip()
+        land_area = re.sub(r'(?<=\d|\s)(?:ตร\.วา|ตารางวา|วา)\b', 'ตร.ว.', l_val)
+        land_area = re.sub(r'\s+', ' ', land_area).strip()
+    elif m_rai and any(w in combined_text for w in ["ที่ดิน", "เนื้อที่", "ขนาด", "ไร่"]):
+        r_num = m_rai.group(1).strip()
+        land_area = f"{r_num} ไร่"
+    elif m_sqw:
+        w_num = m_sqw.group(1).replace(',', '').strip()
+        land_area = f"{w_num} ตร.ว."
+
+    # 2. Look for Usable Area: ตร.ม. / ตารางเมตร
+    m_sqm = re.search(r'([\d\.,]+)\s*(?:ตร\.ม\.|ตารางเมตร|sq\.?m|sqm)\b', combined_text, re.I)
+    if m_sqm:
+        usable_area = m_sqm.group(1).replace(',', '').strip()
+    elif floor_raw:
+        m_f = re.search(r'([\d\.,]+)', str(floor_raw))
+        if m_f: usable_area = m_f.group(1).replace(',', '').strip()
+    elif area_str and any(w in area_str for w in ["ตร.ม.", "ตารางเมตร"]):
+        m_num = re.search(r'([\d\.,]+)', area_str)
+        if m_num: usable_area = m_num.group(1).replace(',', '').strip()
+
+    # 3. Property Type Specific Rules
+    if prop_type == "คอนโด":
+        land_area = ""
+        
+    if prop_type == "ที่ดิน":
+        if not land_area and usable_area:
+            try:
+                sqm_val = float(usable_area)
+                sqw_val = sqm_val / 4.0
+                if sqw_val >= 400:
+                    rai = int(sqw_val // 400)
+                    rem = sqw_val % 400
+                    ngan = int(rem // 100)
+                    wah = rem % 100
+                    if wah == 0 and ngan == 0:
+                        land_area = f"{rai} ไร่"
+                    elif wah == 0:
+                        land_area = f"{rai} ไร่ {ngan} งาน"
+                    else:
+                        land_area = f"{rai} ไร่ {ngan} งาน {wah:.1f} ตร.ว.".replace('.0 ตร.ว.', ' ตร.ว.')
+                else:
+                    land_area = f"{sqw_val:.1f} ตร.ว.".replace('.0 ตร.ว.', ' ตร.ว.')
+            except Exception: pass
+            
+        if not any(w in combined_text for w in ["ตึก", "อาคาร", "โรงงาน", "โกดัง", "บ้าน", "รีสอร์ท", "โรงแรม"]):
+            usable_area = ""
+
+    if land_area:
+        land_area = re.sub(r'\s*วา$', ' ตร.ว.', land_area)
+        land_area = re.sub(r'\s*ตารางวา$', ' ตร.ว.', land_area)
+        land_area = re.sub(r'\s*ตร\.วา$', ' ตร.ว.', land_area)
+        if re.match(r'^\d+(?:\.\d+)?$', land_area):
+            land_area = f"{land_area} ตร.ว."
+
+    return land_area, usable_area
+
 def parse_dd_location(title, link, text):
     combined = f"{title} {link} {text}"
     prov, dist, subdist = "", "", ""
@@ -164,6 +319,92 @@ def parse_dd_location(title, link, text):
         if not dist and len(d_cand) < 20: dist = d_cand
         if not prov and len(p_cand) < 20: prov = p_cand
     return subdist, dist, prov
+
+# --- Offline GIS Engine Data Loader ---
+_GIS_FEATURES = None
+
+def _get_gis_features():
+    global _GIS_FEATURES
+    if _GIS_FEATURES is None:
+        base_d = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__))
+        geojson_path = os.path.join(base_d, "subdistricts.geojson")
+        if not os.path.exists(geojson_path):
+            geojson_path = os.path.join(os.path.dirname(base_d), "subdistricts.geojson")
+        if os.path.exists(geojson_path):
+            try:
+                with open(geojson_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                features = []
+                for feat in data.get("features", []):
+                    geom = feat.get("geometry", {})
+                    props = feat.get("properties", {})
+                    features.append((geom, props.get("tam_th", ""), props.get("amp_th", ""), props.get("pro_th", "")))
+                _GIS_FEATURES = features
+            except Exception:
+                _GIS_FEATURES = []
+        else:
+            _GIS_FEATURES = []
+    return _GIS_FEATURES
+
+def _point_in_poly(x, y, poly_coords):
+    n = len(poly_coords)
+    inside = False
+    p1x, p1y = poly_coords[0]
+    for i in range(n + 1):
+        p2x, p2y = poly_coords[i % n]
+        if y > min(p1y, p2y):
+            if y <= max(p1y, p2y):
+                if x <= max(p1x, p2x):
+                    if p1y != p2y:
+                        xinters = (y - p1y) * (p2x - p1x) / (p2y - p1y) + p1x
+                    if p1x == p2x or x <= xinters:
+                        inside = not inside
+        p1x, p1y = p2x, p2y
+    return inside
+
+def _check_geom(lng, lat, geometry):
+    gtype = geometry.get("type")
+    coords = geometry.get("coordinates", [])
+    if gtype == "Polygon":
+        for ring in coords:
+            if _point_in_poly(lng, lat, ring): return True
+    elif gtype == "MultiPolygon":
+        for poly in coords:
+            for ring in poly:
+                if _point_in_poly(lng, lat, ring): return True
+    return False
+
+def reverse_geocode_location(session, lat, lng):
+    """Reverse geocode Lat/Lng into ตำบล, อำเภอ, จังหวัด using Offline Thailand GeoJSON Engine + Nominatim Fallback."""
+    if not lat or not lng or str(lat) == "nan":
+        return "", "", ""
+    try:
+        lat_v, lng_v = float(lat), float(lng)
+        features = _get_gis_features()
+        for geom, tam_th, amp_th, pro_th in features:
+            if _check_geom(lng_v, lat_v, geom):
+                p = pro_th
+                if "กรุงเทพ" in p: p = "กรุงเทพมหานคร"
+                return tam_th, amp_th, p
+    except Exception:
+        pass
+        
+    # Nominatim Fallback if offline GIS misses
+    url = f"https://nominatim.openstreetmap.org/reverse?format=json&lat={lat}&lon={lng}&accept-language=th"
+    headers = {"User-Agent": "AllAssetDashboardApp/1.0"}
+    try:
+        if session:
+            r = session.get(url, headers=headers, timeout=5)
+            if r.status_code == 200:
+                addr = r.json().get('address', {})
+                sd = clean_text(addr.get('quarter') or addr.get('suburb') or addr.get('neighbourhood') or addr.get('village'))
+                d = clean_text(addr.get('city_district') or addr.get('district') or addr.get('county') or addr.get('town'))
+                p = clean_text(addr.get('city') or addr.get('state') or addr.get('province'))
+                if p and "กรุงเทพ" in p: p = "กรุงเทพมหานคร"
+                return sd, d, p
+    except Exception:
+        pass
+    return "", "", ""
 
 def load_existing_csv(filename, session=None):
     records = []
@@ -294,19 +535,9 @@ def fetch_ddproperty_page(session, base_url, target_type, page_num):
                         link = f"https://www.ddproperty.com/property/{lid}"
                         
                     price_raw = ld.get("price") or listing.get("price")
-                    price = None
-                    if isinstance(price_raw, dict):
-                        p_val = price_raw.get("value") or price_raw.get("pretty")
-                        if p_val:
-                            p_clean = re.sub(r"[^\d\.]", "", str(p_val))
-                            try: price = float(p_clean) if p_clean else None
-                            except Exception: pass
-                    elif isinstance(price_raw, (int, float)):
-                        price = float(price_raw)
-                    elif price_raw:
-                        p_clean = re.sub(r"[^\d\.]", "", str(price_raw))
-                        try: price = float(p_clean) if p_clean else None
-                        except Exception: pass
+                    card_parent = card_match.find_parent(class_=re.compile(r'listing-card|hui-card', re.I)) if card_match else None
+                    card_text = card_parent.get_text() if card_parent else str(listing)
+                    price = parse_dd_price(price_raw, card_text, prop_type)
                         
                     addr = ld.get("address", {}) or ld.get("localizedAddress", {}) or listing.get("address", {}) or listing.get("localizedAddress", {})
                     subdist, dist, prov = "", "", ""
@@ -340,48 +571,17 @@ def fetch_ddproperty_page(session, base_url, target_type, page_num):
                             try: lat = float(m_map.group(1)); lng = float(m_map.group(2))
                             except Exception: pass
 
-                    area_raw = ld.get("area") or ld.get("usableArea") or listing.get("area")
-                    area_str = ""
-                    if isinstance(area_raw, dict):
-                        area_str = clean_text(area_raw.get("localeStringValue") or area_raw.get("value") or "")
-                    elif area_raw:
-                        area_str = clean_text(area_raw)
-                        
-                    land_area = ""
-                    usable_area = ""
-                    
-                    # 1. Check direct land area fields from listing JSON (unitDetails / dimensions / landAreaText)
-                    land_raw = ld.get("landAreaText") or ld.get("landArea")
-                    if not land_raw and isinstance(listing.get("unitDetails"), dict):
-                        dims = listing["unitDetails"].get("dimensions", {}).get("land", {}).get("size", [])
-                        for dim in dims:
-                            if isinstance(dim, dict) and any(w in str(dim.get("formatted")) for w in ["วา", "ตร.ว.", "ไร่", "งาน"]):
-                                land_raw = dim.get("formatted")
-                                break
-                    if land_raw and any(w in str(land_raw) for w in ["วา", "ตร.ว.", "ไร่", "งาน", "ตารางวา"]):
-                        l_clean = re.sub(r'(?<=\d|\s)(?:ตร\.วา|ตารางวา|วา)\b', 'ตร.ว.', str(land_raw).strip())
-                        if re.match(r'^\d+(?:\.\d+)?$', l_clean):
-                            l_clean = f"{l_clean} ตร.ว."
-                        land_area = l_clean
+                    if not lat and lid in DD_KNOWN_COORDINATES:
+                        lat, lng = DD_KNOWN_COORDINATES[lid]
 
-                    # 2. Check floor area (usable area)
-                    floor_raw = ld.get("floorAreaText") or ld.get("floorArea") or ld.get("usableAreaText")
-                    if floor_raw:
-                        m_f = re.search(r'([\d\.,]+)', str(floor_raw))
-                        if m_f: usable_area = m_f.group(1).replace(',', '').strip()
+                    # Reverse geocode with Map/GIS engine
+                    if lat and lng:
+                        geo_sd, geo_d, geo_p = reverse_geocode_location(session, lat, lng)
+                        if geo_sd: subdist = geo_sd
+                        if geo_d: dist = geo_d
+                        if geo_p: prov = geo_p
 
-                    # 3. Fallback parse from area_str or listing card_text for ไร่/งาน/วา/ตร.ว./ตารางวา
-                    if not land_area:
-                        full_search_text = area_str + " " + card_text
-                        m_land_full = re.search(r'((?:\d+\s*ไร่\s*)?(?:\d+\s*งาน\s*)?[\d\.,]+\s*(?:ตร\.ว\.|ตร\.วา|ตารางวา|วา))', full_search_text, re.I)
-                        if m_land_full:
-                            l_fallback = m_land_full.group(1).strip()
-                            land_area = re.sub(r'(?<=\d|\s)(?:ตร\.วา|ตารางวา|วา)\b', 'ตร.ว.', l_fallback)
-
-                    if not usable_area and area_str:
-                        if re.search(r'ตร\.ม\.|ตารางเมตร', area_str):
-                            m_num = re.search(r'([\d\.,]+)', area_str)
-                            if m_num: usable_area = m_num.group(1).replace(',', '').strip()
+                    land_area, usable_area = parse_dd_areas(ld, listing, card_text, prop_type)
                         
                     post_date = clean_text(ld.get("listingDate") or ld.get("createdDate") or ld.get("postDate") or ld.get("completionYear") or ld.get("builtYear") or "")
                     if not post_date and card_parent:
@@ -440,12 +640,7 @@ def fetch_ddproperty_page(session, base_url, target_type, page_num):
                         title = urllib.parse.unquote(parts).replace('-', ' ').strip().title()
                     title = re.sub(r'^(?:บริษัท|นายหน้า).*?จำกัด\s*', '', title, flags=re.I).strip() or title
                     
-                    price = None
-                    m_price = re.search(r'฿\s*([\d\.,]+)', text)
-                    if m_price:
-                        p_clean = m_price.group(1).replace(',', '')
-                        try: price = float(p_clean)
-                        except Exception: pass
+                    price = parse_dd_price(None, text, target_type)
                         
                     subdist, dist, prov = parse_dd_location(title, link, text)
                     
@@ -472,14 +667,7 @@ def fetch_ddproperty_page(session, base_url, target_type, page_num):
                     m_bath = re.search(r'(\d+)\s*ห้องน้ำ', text)
                     if m_bath: bath = int(m_bath.group(1))
                     
-                    land_area = ""
-                    usable_area = ""
-                    m_land = re.search(r'([\d\.,]+)\s*(?:ตร\.ว\.|ตารางวา)', text, re.I)
-                    if m_land:
-                        land_area = m_land.group(1).replace(',', '').strip()
-                    m_u = re.search(r'([\d\.,]+)\s*(?:ตร\.ม\.|ตารางเมตร)', text, re.I)
-                    if m_u:
-                        usable_area = m_u.group(1).replace(',', '').strip()
+                    land_area, usable_area = parse_dd_areas({}, {}, text, target_type)
                     
                     records.append({
                         "บริษัท": COMPANY_NAME,
@@ -652,18 +840,39 @@ def enrich_ddproperty_coords(records, session, max_workers=5):
                 if lat and lng:
                     r["ละติจูด"] = lat
                     r["ลองจิจูด"] = lng
+                    geo_sd, geo_d, geo_p = reverse_geocode_location(session, lat, lng)
+                    if geo_sd: r["ตำบล"] = geo_sd
+                    if geo_d: r["อำเภอ"] = geo_d
+                    if geo_p: r["จังหวัด"] = geo_p
                 break  # Success, exit retry loop
             except Exception:
                 time.sleep(1)
         return r
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         list(executor.map(worker, missing))
+        
+    for r in records:
+        la, lo = r.get("ละติจูด"), r.get("ลองจิจูด")
+        if la and lo:
+            geo_sd, geo_d, geo_p = reverse_geocode_location(session, la, lo)
+            if geo_sd: r["ตำบล"] = geo_sd
+            if geo_d: r["อำเภอ"] = geo_d
+            if geo_p: r["จังหวัด"] = geo_p
+            
     return records
 
 def save_to_csv(records, filename, session=None):
     try:
         if session:
             records = enrich_ddproperty_coords(records, session)
+        else:
+            for r in records:
+                la, lo = r.get("ละติจูด"), r.get("ลองจิจูด")
+                if la and lo:
+                    geo_sd, geo_d, geo_p = reverse_geocode_location(session, la, lo)
+                    if geo_sd: r["ตำบล"] = geo_sd
+                    if geo_d: r["อำเภอ"] = geo_d
+                    if geo_p: r["จังหวัด"] = geo_p
         df = pd.DataFrame(records)
         for col in COLUMNS:
             if col not in df.columns:
@@ -740,11 +949,20 @@ def main():
         save_to_csv(all_records, OUTPUT_CSV, session=session)
         return
         
-    processed_pages = 0
+    last_completed = load_state()
+    if last_completed > 0:
+        print(f"[{COMPANY_NAME}] ⏩ Fast-Forward: ข้ามหน้าที่เคยดึงสำเร็จแล้ว {last_completed:,} หน้า", flush=True)
+        processed_pages = last_completed
+    else:
+        processed_pages = 0
+        
     new_added = 0
     
     for ctype, curl, total_p in cat_tasks:
         pages_order = list(range(1, total_p + 1))
+        if last_completed > 0:
+            pages_order = [p for p in pages_order if p > last_completed]
+            
         for p in pages_order:
             if estimated_total > 0 and len(all_records) >= estimated_total:
                 print(f"\n[{COMPANY_NAME}] 🎉 สะสมข้อมูลครบถ้วนทั้งหมดแล้ว ({len(all_records):,}/{estimated_total:,} รายการ) -> สิ้นสุดการสแครป!", flush=True)
@@ -754,6 +972,7 @@ def main():
                 failed_pages.append(f"{ctype}-หน้า{p}")
                 print(f"\n[{COMPANY_NAME}] ⚠️ ข้ามหมวด {ctype} หน้า {p} เนื่องจากดึงข้อมูลไม่สำเร็จ", flush=True)
                 processed_pages += 1
+                save_state(p)
                 continue
 
             page_added = 0
@@ -768,10 +987,14 @@ def main():
                 new_added += 1
                 
             processed_pages += 1
+            save_state(p)
             if page_added > 0:
                 save_to_csv(all_records, OUTPUT_CSV, session=session)
                 
-            pct = int((processed_pages / total_task_pages) * 100) if total_task_pages > 0 else 0
+            pct_pages = int((processed_pages / total_task_pages) * 100) if total_task_pages > 0 else 0
+            pct_items = int((len(all_records) / estimated_total) * 100) if estimated_total > 0 else 0
+            pct = min(100, max(pct_pages, pct_items))
+            
             elapsed_sec = time.time() - start_time
             eta_msg = format_eta(elapsed_sec, processed_pages, total_task_pages)
             pbar = make_progress_bar(pct)
@@ -780,13 +1003,11 @@ def main():
             
             if len(all_records) >= 10 and "initial_10" not in saved_milestones:
                 saved_milestones.add("initial_10")
-                save_state(processed_pages)
 
             if total_task_pages > 0:
                 for target_pct in [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100]:
                     if pct >= target_pct and target_pct not in saved_milestones:
                         saved_milestones.add(target_pct)
-                        save_state(processed_pages)
                         
             time.sleep(0.5)
             

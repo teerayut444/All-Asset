@@ -1440,12 +1440,11 @@ floating_kpi_html = f"""
 st.markdown(floating_kpi_html, unsafe_allow_html=True)
 
 # ----------------- TABS CREATION -----------------
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
+tab1, tab2, tab3, tab4 = st.tabs([
     "🔮 ภาพรวม & แผนที่ (Bubble & Map)", 
     "📈 สถิติ & วิเคราะห์ (Analytics)", 
     "📋 รายการทรัพย์สิน (Property Listing)", 
-    "🔍 เปรียบเทียบตำแหน่ง (Comparison)",
-    "💎 ค้นหาของดีราคาถูก (Bargain Hunter)"
+    "🔍 เปรียบเทียบตำแหน่ง (Comparison)"
 ])
 
 # ----- TAB 1: BUBBLE & MAP -----
@@ -1603,10 +1602,9 @@ with tab2:
         st.warning("⚠️ ไม่มีข้อมูลสำหรับจัดทำแผนภูมิวิเคราะห์สถิติ")
     else:
         # Create sub-tabs inside Tab 2
-        sub_tab1, sub_tab2, sub_tab3 = st.tabs([
+        sub_tab1, sub_tab2 = st.tabs([
             "📊 ภาพรวมตลาด (Market Overview)",
-            "🏢 สัดส่วนสินค้าคู่แข่ง (Asset Type Focus)",
-            "📐 ราคาต่อตารางเมตร (Price per Sq.M. Analysis)"
+            "🏢 สัดส่วนสินค้าคู่แข่ง (Asset Type Focus)"
         ])
         
         with sub_tab1:
@@ -1889,65 +1887,6 @@ with tab2:
                     showlegend=False,
                 )
                 st.plotly_chart(style_plotly_fig(fig_asset_focus), width="stretch", theme=None)
-            
-        with sub_tab3:
-            st.markdown("#### 📐 วิเคราะห์ราคาเฉลี่ยและราคากลางต่อตารางเมตร (Price per Sq.M. Insights)")
-            st.write("เปรียบเทียบราคากลางต่อตารางเมตรแยกตามประเภททรัพย์สินและบริษัทคู่แข่ง (ตรงตามประเภททรัพย์สินที่เลือกทางแถบฝั่งซ้าย)")
-            
-            # Calculate fallback price per sq.m. (using sq.m. or 1 sq.wah = 4 sq.m.)
-            sqm_calc = np.where(
-                (df_filtered['ราคาต่อตารางเมตร'].notna()) & (df_filtered['ราคาต่อตารางเมตร'] > 0),
-                df_filtered['ราคาต่อตารางเมตร'],
-                np.where(
-                    (df_filtered['พื้นที่_ตารางวา'] > 0) & (df_filtered['ราคา'] > 0),
-                    df_filtered['ราคา'] / (df_filtered['พื้นที่_ตารางวา'] * 4.0),
-                    np.nan
-                )
-            )
-            df_filtered['ราคาต่อตารางเมตร_คำนวณ'] = sqm_calc
-
-            # Filter properties with valid price per sq.m. and positive price
-            area_df = df_filtered[
-                (df_filtered['ราคาต่อตารางเมตร_คำนวณ'].notna()) & 
-                (df_filtered['ราคาต่อตารางเมตร_คำนวณ'] > 0) & 
-                (df_filtered['ราคาต่อตารางเมตร_คำนวณ'] < 5000000) # Exclude extreme outliers
-            ].copy()
-            
-            if not area_df.empty:
-                # Group directly by Company and exact Property Type (matching the sidebar selection)
-                median_per_sqm = area_df.groupby(['บริษัท', 'ประเภททรัพย์'])['ราคาต่อตารางเมตร_คำนวณ'].median().reset_index()
-                median_per_sqm.columns = ['บริษัท', 'ประเภททรัพย์', 'ราคากลางต่อ ตร.ม. (บาท)']
-                
-                fig_sqm = px.bar(
-                    median_per_sqm,
-                    x='ประเภททรัพย์',
-                    y='ราคากลางต่อ ตร.ม. (บาท)',
-                    color='บริษัท',
-                    barmode='group',
-                    title='เปรียบเทียบราคากลาง (Median) ต่อตารางเมตร เชื่อมโยงกับประเภททรัพย์สินฝั่งซ้าย',
-                    color_discrete_map={"Baania": "#f59e0b", "BAM": "#3b82f6", "SAM": "#10b981", "DDproperty": "#a855f7", "Taladnudbaan": "#06b6d4", "ZmyHome": "#ec4899"},
-                    template=plotly_template
-                )
-                fig_sqm.update_layout(
-                    title_font=dict(size=14, family="Outfit"),
-                    xaxis_title="ประเภททรัพย์สิน (จากแถบตัวกรองฝั่งซ้าย)",
-                    yaxis_title="ราคากลางต่อ ตร.ม. (บาท)",
-                    legend_title="บริษัท"
-                )
-                st.plotly_chart(style_plotly_fig(fig_sqm), width="stretch", theme=None)
-
-                # Show Summary Pivot Table
-                st.markdown("##### 📋 ตารางสรุปราคากลางต่อตารางเมตร (บาท/ตร.ม.) แยกตามประเภททรัพย์สินฝั่งซ้าย รายบริษัท")
-                pivot_sqm = median_per_sqm.pivot(index='บริษัท', columns='ประเภททรัพย์', values='ราคากลางต่อ ตร.ม. (บาท)')
-                st.dataframe(
-                    pivot_sqm,
-                    width="stretch",
-                    column_config={
-                        col: st.column_config.NumberColumn(format="%,d") for col in pivot_sqm.columns if pd.notna(col)
-                    }
-                )
-            else:
-                st.warning("⚠️ ไม่มีข้อมูลพื้นที่ใช้สอยหรือราคาทรัพย์สินสำหรับวิเคราะห์ราคาต่อตารางเมตร")
 
 # ----- TAB 3: PROPERTY LISTING -----
 with tab3:
@@ -3570,7 +3509,6 @@ with tab4:
                                 <td style="padding: 10px; text-align: center; color: var(--card-subtext); border-right: 1px solid var(--card-border);">{str_med_type_a}</td>
                                 <td style="padding: 10px; text-align: center; color: var(--card-subtext);">{str_med_type_b}</td>
                             </tr>
-                            <tr style="border-bottom: 1px solid var(--card-border);">
                                 <td style="padding: 10px; font-weight: 600; color: #8b5cf6; border-right: 1px solid var(--card-border);">📍 ราคากลางต่อวาในทำเลย่านนั้น (Median ตามอำเภอ/ตำบล)</td>
                                 <td style="padding: 10px; text-align: center; color: var(--card-text); border-right: 1px solid var(--card-border);">{str_loc_med_a}</td>
                                 <td style="padding: 10px; text-align: center; color: var(--card-text);">{str_loc_med_b}</td>
@@ -3830,233 +3768,3 @@ with tab4:
                             st.markdown(f"- {p}")
                     else:
                         st.markdown("- เหมาะสำหรับเปรียบเทียบในเชิงทำเลหรือมิติพิเศษอื่น ๆ")
-
-# ----- TAB 5: BARGAIN HUNTER -----
-with tab5:
-    st.markdown("### 💎 ระบบค้นหาและคัดกรองทรัพย์ของดีราคาถูก (Bargain Hunter & Outliers)")
-    st.write("คัดกรองและเปรียบเทียบหาทรัพย์สินที่มีราคาถูกกว่าราคาเฉลี่ยอย่างผิดปกติในทำเลที่คุณเลือก")
-    
-    st.markdown("---")
-    
-    if df_raw is None or df_raw.empty:
-        st.warning("⚠️ ไม่มีข้อมูลทรัพย์สินให้ทำการวิเคราะห์")
-    else:
-        # Form for filtering location & property type for analysis
-        col_b1, col_b2, col_b3 = st.columns(3)
-        with col_b1:
-            # Clean province list (excluding ไม่ระบุ)
-            prov_list = sorted([str(p) for p in df_raw['จังหวัด'].dropna().unique() if str(p) not in ["ไม่ระบุ", "nan", "None", ""]])
-            sel_b_prov = st.selectbox("เลือกจังหวัด (Province) (วิเคราะห์ส่วนลด)", options=prov_list if prov_list else ["ไม่มีข้อมูล"], index=0)
-            
-        with col_b2:
-            # Filter districts by province
-            dist_list = sorted([str(d) for d in df_raw[df_raw['จังหวัด'] == sel_b_prov]['อำเภอ'].dropna().unique() if str(d).strip() not in ["", "nan", "None"]])
-            sel_b_dist = st.selectbox("เลือกอำเภอ/เขต (District) (วิเคราะห์ส่วนลด)", options=["ทั้งหมด"] + dist_list, index=0)
-            
-        with col_b3:
-            # Filter property types by location
-            loc_df = df_raw[df_raw['จังหวัด'] == sel_b_prov]
-            if sel_b_dist != "ทั้งหมด":
-                loc_df = loc_df[loc_df['อำเภอ'] == sel_b_dist]
-            prop_types = sorted([str(t) for t in loc_df['ประเภททรัพย์'].dropna().unique() if str(t).strip() not in ["", "nan", "None"]])
-            sel_b_type = st.selectbox("ประเภททรัพย์สิน (Property Type) (วิเคราะห์ส่วนลด)", options=prop_types if prop_types else ["ไม่มีข้อมูล"], index=0)
-            
-        # Perform analysis on this filtered dataset
-        analysis_df = loc_df[loc_df['ประเภททรัพย์'] == sel_b_type].copy()
-        
-        # Decide unit to use dynamically based on data availability
-        w_count = analysis_df['พื้นที่_ตารางวา'].notna().sum() if not analysis_df.empty else 0
-        m_count = analysis_df['พื้นที่ใช้สอย (ตร.ม.)'].notna().sum() if not analysis_df.empty else 0
-        
-        if w_count >= m_count and w_count > 0:
-            unit_col = 'ราคาต่อตารางวา'
-            unit_label = 'ตารางวา'
-            unit_short = 'ตร.ว.'
-        else:
-            unit_col = 'ราคาต่อตารางเมตร'
-            unit_label = 'ตารางเมตร'
-            unit_short = 'ตร.ม.'
-        
-        # Drop rows with no price, non-positive price, or no unit area
-        analysis_df = analysis_df[
-            analysis_df['ราคา'].notna() & 
-            (analysis_df['ราคา'] > 0) & 
-            analysis_df[unit_col].notna() &
-            (analysis_df[unit_col] > 0)
-        ]
-        
-        if analysis_df.empty or len(analysis_df) < 3:
-            st.info("💡 มีข้อมูลไม่เพียงพอในการวิเคราะห์สถิติเชิงลึกในทำเลนี้ (ต้องการข้อมูลราคาและพื้นที่อย่างน้อย 3 รายการขึ้นไป)")
-        else:
-            # Outlier Filter Controls
-            col_out1, col_out2 = st.columns([2, 2])
-            with col_out1:
-                enable_outlier_filter = st.checkbox(
-                    "🛡️ กรองตัดราคาโดดผิดปกติ (Remove Extreme Outliers)", 
-                    value=True, 
-                    key="tab5_outlier_filter",
-                    help="ตัดรายการที่ราคาต่อหน่วยสูงเกินจริงผิดปกติ (เช่น พิมพ์ราคาผิดหลักพันล้าน) เพื่อให้ Box Plot และสถิติแสดงผลได้อย่างสมดุลและถูกต้อง"
-                )
-            with col_out2:
-                if enable_outlier_filter:
-                    outlier_mode = st.selectbox(
-                        "ระดับความเข้มงวดในการกรอง Outlier",
-                        options=[
-                            "ปานกลาง (Q3 + 3.0×IQR - ตัดเฉพาะราคาโดดผิดปกติรุนแรง)",
-                            "เข้มงวด (Q3 + 1.5×IQR - ตัด Outlier ตามสถิติมาตรฐาน)",
-                            "เพดานสูงสุด 500,000 บาท/หน่วย",
-                            "เพดานสูงสุด 1,000,000 บาท/หน่วย"
-                        ],
-                        index=0,
-                        key="tab5_outlier_mode"
-                    )
-                else:
-                    outlier_mode = "ไม่กรอง"
-                    
-            plot_df = analysis_df.copy()
-            removed_count = 0
-            lower_limit_val = None
-            upper_limit_val = None
-            
-            # Floor sanity threshold for realistic real estate price per unit
-            floor_limit = 50.0 if unit_label == 'ตารางวา' else 500.0
-            
-            if enable_outlier_filter and len(analysis_df) >= 4:
-                q1 = float(analysis_df[unit_col].quantile(0.25))
-                q3 = float(analysis_df[unit_col].quantile(0.75))
-                iqr = q3 - q1
-                if "3.0×IQR" in outlier_mode:
-                    lower_limit_val = max(floor_limit, q1 - (3.0 * iqr)) if iqr > 0 else floor_limit
-                    upper_limit_val = q3 + (3.0 * iqr) if iqr > 0 else q3 * 3.0
-                elif "1.5×IQR" in outlier_mode:
-                    lower_limit_val = max(floor_limit * 2.0, q1 - (1.5 * iqr)) if iqr > 0 else floor_limit * 2.0
-                    upper_limit_val = q3 + (1.5 * iqr) if iqr > 0 else q3 * 2.0
-                elif "500,000" in outlier_mode:
-                    lower_limit_val = floor_limit
-                    upper_limit_val = 500000.0
-                elif "1,000,000" in outlier_mode:
-                    lower_limit_val = floor_limit
-                    upper_limit_val = 1000000.0
-                    
-                if upper_limit_val is not None and lower_limit_val is not None:
-                    plot_df = analysis_df[
-                        (analysis_df[unit_col] >= lower_limit_val) & 
-                        (analysis_df[unit_col] <= upper_limit_val)
-                    ].copy()
-                    removed_count = len(analysis_df) - len(plot_df)
-                    if removed_count > 0:
-                        st.caption(f"ℹ️ ระบบกรองตัดข้อมูลราคาโดดผิดปกติออก **{removed_count:,}** รายการ (คงเหลือวิเคราะห์ **{len(plot_df):,}** รายการ ในช่วงราคา **฿{lower_limit_val:,.0f} - ฿{upper_limit_val:,.0f}** / {unit_label})")
-
-            # Calculate Statistics on clean data
-            median_val = float(plot_df[unit_col].median()) if not plot_df.empty else 0.0
-            mean_val = float(plot_df[unit_col].mean()) if not plot_df.empty else 0.0
-            std_val = float(plot_df[unit_col].std()) if not plot_df.empty else 0.0
-            min_val = float(plot_df[unit_col].min()) if not plot_df.empty else 0.0
-            max_val = float(plot_df[unit_col].max()) if not plot_df.empty else 0.0
-            
-            # Display Statistics Cards
-            s_col1, s_col2, s_col3, s_col4 = st.columns(4)
-            s_col1.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-title"><i class="fa fa-calculator"></i> ค่ากลางราคาต่อหน่วย</div>
-                <div class="metric-value">฿{median_val:,.0f}</div>
-                <div class="metric-sub">บาท / {unit_label} (Median)</div>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            s_col2.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-title"><i class="fa fa-arrow-down" style="color: #10b981;"></i> ราคาต่ำสุดต่อหน่วย</div>
-                <div class="metric-value">฿{min_val:,.0f}</div>
-                <div class="metric-sub">บาท / {unit_label} (Min)</div>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            s_col3.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-title"><i class="fa fa-arrow-up" style="color: #ef4444;"></i> ราคาสูงสุดต่อหน่วย</div>
-                <div class="metric-value">฿{max_val:,.0f}</div>
-                <div class="metric-sub">บาท / {unit_label} (Max)</div>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            s_col4.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-title"><i class="fa fa-list"></i> จำนวนทรัพย์วิเคราะห์</div>
-                <div class="metric-value">{len(plot_df):,}</div>
-                <div class="metric-sub">รายการในทำเลนี้</div>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            st.markdown("<br/>", unsafe_allow_html=True)
-            
-            # Display Layout: Box Plot and AMC vs Portal average price
-            col_graph1, col_graph2 = st.columns(2)
-            
-            with col_graph1:
-                # Box Plot
-                fig_box = px.box(
-                    plot_df,
-                    y=unit_col,
-                    color='บริษัท',
-                    points="outliers" if len(plot_df) > 150 else "all",
-                    hover_data=['ชื่อประกาศ', 'รหัสทรัพย์', 'ราคา'] if 'ชื่อประกาศ' in plot_df.columns else ['รหัสทรัพย์', 'ราคา'],
-                    title=f'แผนภูมิการกระจายตัวราคาต่อ{unit_label} (Box Plot)',
-                    color_discrete_map={"Baania": "#f59e0b", "BAM": "#3b82f6", "SAM": "#10b981", "DDproperty": "#a855f7", "Taladnudbaan": "#06b6d4", "ZmyHome": "#ec4899"},
-                    template=plotly_template
-                )
-                fig_box.update_layout(title_font=dict(size=14, family="Outfit"), yaxis_title=f"ราคา (บาท / {unit_label})")
-                st.plotly_chart(style_plotly_fig(fig_box), use_container_width=True, theme=None)
-                
-            with col_graph2:
-                # AMC vs Portal median price comparison
-                amc_portal_group = plot_df.groupby('บริษัท')[unit_col].median().reset_index()
-                fig_amc_vs_portal = px.bar(
-                    amc_portal_group,
-                    x='บริษัท',
-                    y=unit_col,
-                    color='บริษัท',
-                    title=f'ราคากลาง (Median) ต่อ{unit_label} เปรียบเทียบ AMC vs พอร์ทัลทั่วไป',
-                    color_discrete_map={"Baania": "#f59e0b", "BAM": "#3b82f6", "SAM": "#10b981", "DDproperty": "#a855f7", "Taladnudbaan": "#06b6d4", "ZmyHome": "#ec4899"},
-                    template=plotly_template
-                )
-                fig_amc_vs_portal.update_layout(title_font=dict(size=14, family="Outfit"), yaxis_title=f"ราคากลาง (บาท / {unit_label})")
-                st.plotly_chart(style_plotly_fig(fig_amc_vs_portal), use_container_width=True, theme=None)
-                
-            # Underpriced Assets Finder
-            st.markdown("#### 💎 ทรัพย์สินที่ราคาต่อหน่วยคุ้มค่าที่สุด (ส่วนลดสูงสุดเทียบกับราคากลางทำเล)")
-            st.write(f"แสดงรายการทรัพย์สินที่มีราคาต่อ{unit_label} ต่ำกว่าราคาเฉลี่ยกลาง (Median) ของพื้นที่ ซึ่งคิดเป็นดีลสุดคุ้มในการลงทุน")
-            
-            # Calculate discount from median
-            plot_df['ส่วนต่างจากราคากลาง (%)'] = ((plot_df[unit_col] - median_val) / median_val) * 100.0
-            
-            # Sort by lowest unit price (or most negative deviation)
-            bargain_df = plot_df.sort_values(by=unit_col)
-            
-            # Format and show columns
-            name_col = 'ชื่อประกาศ' if 'ชื่อประกาศ' in bargain_df.columns else 'ชื่อโครงการ'
-            link_col = 'ลิงก์' if 'ลิงก์' in bargain_df.columns else 'ลิงก์_สะอาด'
-            
-            display_cols = [c for c in [
-                'บริษัท', 'รหัสทรัพย์', name_col, 'ราคา', unit_col, 'ส่วนต่างจากราคากลาง (%)', 
-                'จังหวัด', 'อำเภอ', 'ตำบล', 'พื้นที่ (ไร่-งาน-วา)', 'พื้นที่ใช้สอย (ตร.ม.)', link_col
-            ] if c in bargain_df.columns]
-            
-            bargain_display = bargain_df[display_cols].copy()
-            
-            if 'ราคา' in bargain_display.columns:
-                bargain_display = bargain_display.rename(columns={'ราคา': 'ราคาเสนอขาย (บาท)'})
-                bargain_display['ราคาเสนอขาย (บาท)'] = pd.to_numeric(bargain_display['ราคาเสนอขาย (บาท)'], errors='coerce')
-
-            st.dataframe(
-                bargain_display,
-                use_container_width=True,
-                column_config={
-                    "ราคาเสนอขาย (บาท)": st.column_config.NumberColumn("ราคาเสนอขาย (บาท)", format="%,d"),
-                    unit_col: st.column_config.NumberColumn(f"ราคา/หน่วย (บาท/{unit_short})", format="%,d"),
-                    "ส่วนต่างจากราคากลาง (%)": st.column_config.NumberColumn("เทียบราคากลาง (%)", format="%+.1f%%"),
-                    "พื้นที่ใช้สอย (ตร.ม.)": st.column_config.NumberColumn("พื้นที่ใช้สอย (ตร.ม.)", format="%.1f"),
-                    link_col: st.column_config.LinkColumn("ลิงก์ประกาศ")
-                }
-            )
-
