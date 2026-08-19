@@ -20,7 +20,8 @@ OUTPUT_DIR = os.path.join(_BASE_DIR, "CSV_Output")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 OUTPUT_CSV = os.path.join(OUTPUT_DIR, f"GHB_NPA_New_{MONTH_STR}.csv")
 
-THREAD_POOL_SIZE = 8
+PAGE_WORKERS = 4
+DETAIL_WORKERS = 8
 
 COLUMNS = [
     "บริษัท", "ID", "รหัสทรัพย์", "ชื่อโครงการ", "ประเภททรัพย์", "ประเภทการขาย", "ราคา",
@@ -115,15 +116,52 @@ def check_link_health():
             time.sleep(2)
     return False, 0, 0, 0
 
-def fetch_page_records(page_no, today_str):
-    url = f"https://www.ghbhomecenter.com/property-for-sale?pg={page_no}"
+def fetch_detail_coords(item):
+    pid = item.get("ID")
+    if not pid:
+        return item
     session = requests.Session(impersonate="chrome120")
     for attempt in range(3):
+        try:
+            resp = session.get(f"https://www.ghbhomecenter.com/property-{pid}", timeout=10)
+            if resp.status_code == 200:
+                m_lat = re.search(r'var\s+geoLat\s*=\s*([0-9\.\-]+)', resp.text)
+                m_lng = re.search(r'var\s+geoLong\s*=\s*([0-9\.\-]+)', resp.text)
+                if m_lat and m_lng:
+                    item["ละติจูด"] = float(m_lat.group(1))
+                    item["ลองจิจูด"] = float(m_lng.group(1))
+                else:
+                    m_gmaps = re.search(r'google\.com/maps\?q=([0-9\.\-]+),([0-9\.\-]+)', resp.text)
+                    if m_gmaps:
+                        item["ละติจูด"] = float(m_gmaps.group(1))
+                        item["ลองจิจูด"] = float(m_gmaps.group(2))
+                
+                m_bed = re.search(r'(\d+)\s*ห้องนอน', resp.text)
+                if m_bed:
+                    item["ห้องนอน"] = int(m_bed.group(1))
+                m_bath = re.search(r'(\d+)\s*ห้องน้ำ', resp.text)
+                if m_bath:
+                    item["ห้องน้ำ"] = int(m_bath.group(1))
+                return item
+            elif resp.status_code == 423:
+                time.sleep(1.5)
+        except Exception:
+            time.sleep(1)
+    return item
+
+def fetch_page_items(page_no, today_str):
+    url = f"https://www.ghbhomecenter.com/property-for-sale?pg={page_no}"
+    session = requests.Session(impersonate="chrome120")
+    for attempt in range(5):
         try:
             r = session.get(url, timeout=15)
             if r.status_code == 200:
                 soup = BeautifulSoup(r.text, 'html.parser')
                 cards = soup.find_all('div', class_='card d-block')
+                if not cards:
+                    # Sometimes rate limited or empty
+                    time.sleep(1)
+                    continue
                 page_records = []
                 for c in cards:
                     a_link = c.find('a', href=re.compile(r'/property-\d+'))
@@ -213,9 +251,21 @@ def fetch_page_records(page_no, today_str):
                     }
                     page_records.append(record)
                 return page_records
+            elif r.status_code == 423:
+                time.sleep(2)
         except Exception:
             time.sleep(1.5)
     return []
+
+def process_page(page_no, seen_ids, today_str):
+    raw_items = fetch_page_items(page_no, today_str)
+    new_items = [it for it in raw_items if it.get("ID") and it.get("ID") not in seen_ids]
+    if not new_items:
+        return []
+    
+    with concurrent.futures.ThreadPoolExecutor(max_workers=DETAIL_WORKERS) as detail_executor:
+        enriched_items = list(detail_executor.map(fetch_detail_coords, new_items))
+    return enriched_items
 
 def main():
     global start_time_global, progress_counter
@@ -234,8 +284,8 @@ def main():
     progress_counter = 0
     today_str = datetime.now().strftime("%Y-%m-%d")
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=THREAD_POOL_SIZE) as executor:
-        futures = {executor.submit(fetch_page_records, p, today_str): p for p in range(1, total_pages + 1)}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=PAGE_WORKERS) as executor:
+        futures = {executor.submit(process_page, p, seen_ids, today_str): p for p in range(1, total_pages + 1)}
         for future in concurrent.futures.as_completed(futures):
             p_no = futures[future]
             try:
@@ -264,7 +314,7 @@ def main():
                 )
                 print(f"\r{status_line}", end="", flush=True)
 
-                if progress_counter % 25 == 0 or progress_counter == total_pages:
+                if progress_counter % 10 == 0 or progress_counter == total_pages:
                     df = pd.DataFrame(records, columns=COLUMNS)
                     df.to_csv(OUTPUT_CSV, index=False, encoding="utf-8-sig")
 
