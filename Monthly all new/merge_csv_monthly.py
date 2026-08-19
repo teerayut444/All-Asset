@@ -115,6 +115,7 @@ def merge_monthly_csv():
         and not os.path.basename(f).startswith("all_assets_")
         and not f.endswith("_BACKUP.csv")
         and "livinginsider" not in os.path.basename(f).lower()
+        and "ddproperty" not in os.path.basename(f).lower()
     ]
     
     if not csv_files:
@@ -131,7 +132,7 @@ def merge_monthly_csv():
             df = df[COLUMNS]
             company_name = os.path.basename(f).split('_')[0]
             # Ensure primary company name is set correctly for dashboard filters
-            if company_name in ['Baania', 'BAM', 'SAM', 'DDproperty', 'Taladnudbaan', 'ZmyHome', 'Chayo555', 'NaYoo']:
+            if company_name in ['Baania', 'BAM', 'SAM', 'Taladnudbaan', 'ZmyHome', 'Chayo555', 'NaYoo', 'GHB', 'KBANK', 'KTB', 'SCB']:
                 if 'บริษัทเจ้าของทรัพย์' in df.columns:
                     df['บริษัทเจ้าของทรัพย์'] = df['บริษัท']
                 df['บริษัท'] = company_name

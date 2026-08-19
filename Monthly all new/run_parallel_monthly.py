@@ -17,10 +17,13 @@ SCRAPERS = [
     {"name": "BAM", "script": "scrape_bam_monthly.py"},
     {"name": "ZmyHome", "script": "scrape_zmyhome_monthly.py"},
     {"name": "SAM", "script": "scrape_sam_monthly.py"},
-    {"name": "DDproperty", "script": "scrape_ddproperty_monthly.py"},
     {"name": "Taladnudbaan", "script": "scrape_taladnudbaan_monthly.py"},
     {"name": "Chayo555", "script": "scrape_chayo555_monthly.py"},
-    {"name": "NaYoo", "script": "scrape_nayoo_monthly.py"}
+    {"name": "NaYoo", "script": "scrape_nayoo_monthly.py"},
+    {"name": "GHB", "script": "scrape_ghb_monthly.py"},
+    {"name": "KBANK", "script": "scrape_kbank_monthly.py"},
+    {"name": "KTB", "script": "scrape_ktb_monthly.py"},
+    {"name": "SCB", "script": "scrape_scb_monthly.py"}
 ]
 
 status_dict = {s["name"]: f"[{s['name']:<13s}] [░░░░░░░░░░░░░░░░░░░░]   0% | (    0/    0 หน้า) | สะสม:       0 รายการ | กำลังเริ่มต้น..." for s in SCRAPERS}
@@ -41,7 +44,7 @@ def draw_fixed_dashboard():
         # Move cursor to top-left home position
         sys.stdout.write("\033[H")
         sys.stdout.write(f"{BORDER_LINE}\n")
-        sys.stdout.write("🚀 Live Dashboard: Scraper Monthly ขนาน 8 บริษัท (Fixed Screen Aligned Mode)\n")
+        sys.stdout.write("🚀 Live Dashboard: Scraper Monthly ขนาน 11 บริษัท / ธนาคาร (Fixed Screen Aligned Mode)\n")
         sys.stdout.write(f"{BORDER_LINE}\n")
         for s in SCRAPERS:
             name = s["name"]

@@ -116,14 +116,14 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
             "is_tnb": True
         },
         {
-            "id": "ddproperty",
-            "name": "DDproperty",
-            "label": "DDproperty NPA",
+            "id": "nayoo",
+            "name": "NaYoo",
+            "label": "NaYoo NPA",
             "base_cx": 830, "base_cy": 240,
-            "scraped_grad": "ddproperty-scraped",
-            "unscraped_grad": "ddproperty-unscraped",
+            "scraped_grad": "nayoo-scraped",
+            "unscraped_grad": "nayoo-unscraped",
             "float_dur": "6.5s",
-            "color_hex": "#a855f7",
+            "color_hex": "#8b5cf6",
             "is_tnb": False
         },
         {
@@ -417,8 +417,8 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
           <stop offset="100%" stop-color="#059669"/>
         </radialGradient>
         
-        <!-- DDproperty Radial Gradients (Purple) -->
-        <radialGradient id="ddproperty-scraped" cx="50%" cy="50%" r="50%" fx="35%" fy="30%">
+        <!-- NaYoo Radial Gradients (Purple) -->
+        <radialGradient id="nayoo-scraped" cx="50%" cy="50%" r="50%" fx="35%" fy="30%">
           <stop offset="0%" stop-color="#faf5ff"/>
           <stop offset="45%" stop-color="#c084fc"/>
           <stop offset="100%" stop-color="#7e22ce"/>

@@ -861,7 +861,7 @@ with st.sidebar:
         co_counts = df_raw['บริษัท'].value_counts()
         companies_list = sorted([str(c) for c in df_raw['บริษัท'].dropna().unique() if str(c).strip() not in ['', 'nan', 'None']])
         if not companies_list:
-            companies_list = ["Baania", "BAM", "SAM", "DDproperty", "Taladnudbaan", "ZmyHome"]
+            companies_list = ["BAM", "SAM", "Chayo555", "Baania", "NaYoo", "Taladnudbaan", "ZmyHome"]
         
         sanitize_session_state("filter_companies", companies_list)
         selected_companies = st.pills(
@@ -1898,10 +1898,11 @@ with tab1:
                 else:
                     progress_bar.progress(60, text="กำลังจัดเตรียมสีตามบริษัทคู่แข่ง (60%)...")
                     COMPANY_COLORS = {
-                        "Baania": [245, 158, 11],
                         "BAM": [59, 130, 246],
                         "SAM": [16, 185, 129],
-                        "DDproperty": [168, 85, 247],
+                        "Chayo555": [249, 115, 22],
+                        "Baania": [245, 158, 11],
+                        "NaYoo": [139, 92, 246],
                         "Taladnudbaan": [6, 182, 212],
                         "ZmyHome": [236, 72, 153]
                     }
@@ -2004,7 +2005,7 @@ with tab2:
                     y='จำนวนทรัพย์สิน',
                     color='บริษัท',
                     title='จำนวนรายการทรัพย์สินเปรียบเทียบแต่ละบริษัท',
-                    color_discrete_map={"Baania": "#f59e0b", "BAM": "#3b82f6", "SAM": "#10b981", "DDproperty": "#a855f7", "Taladnudbaan": "#06b6d4", "ZmyHome": "#ec4899"},
+                    color_discrete_map={"BAM": "#3b82f6", "SAM": "#10b981", "Chayo555": "#f97316", "Baania": "#f59e0b", "NaYoo": "#8b5cf6", "Taladnudbaan": "#06b6d4", "ZmyHome": "#ec4899"},
                     template=plotly_template
                 )
                 fig_comp.update_layout(title_font=dict(size=14, family="Outfit"))
@@ -2039,7 +2040,7 @@ with tab2:
                     y='ราคากลาง Median (บาท)',
                     color='บริษัท',
                     title='ราคากลาง (Median) จำแนกตามบริษัททรัพย์สิน',
-                    color_discrete_map={"Baania": "#f59e0b", "BAM": "#3b82f6", "SAM": "#10b981", "DDproperty": "#a855f7", "Taladnudbaan": "#06b6d4", "ZmyHome": "#ec4899"},
+                    color_discrete_map={"BAM": "#3b82f6", "SAM": "#10b981", "Chayo555": "#f97316", "Baania": "#f59e0b", "NaYoo": "#8b5cf6", "Taladnudbaan": "#06b6d4", "ZmyHome": "#ec4899"},
                     template=plotly_template
                 )
                 fig_avg_p.update_layout(title_font=dict(size=14, family="Outfit"))
@@ -2214,7 +2215,7 @@ with tab2:
                 hover_tmpl = "<b>%{label}</b><br>จำนวน: %{value:,} รายการ<br>สัดส่วน: %{percent}<extra>%{name}</extra>"
                 
             # Sort with SAM, BAM, Chayo555 / Chayo prioritized in the top row (3 columns)
-            PREFERRED_COMPANY_ORDER = ["SAM", "BAM", "Chayo555", "Chayo", "Chayo NPA", "Baania", "DDproperty", "Taladnudbaan", "ZmyHome"]
+            PREFERRED_COMPANY_ORDER = ["SAM", "BAM", "Chayo555", "Chayo", "Chayo NPA", "Baania", "NaYoo", "Taladnudbaan", "ZmyHome"]
             all_comps = list(comp_type_df['บริษัท'].unique())
             companies = sorted(
                 all_comps, 
@@ -3275,10 +3276,11 @@ with tab4:
                         height=620,
                         color_discrete_map={
                             "จุดอ้างอิง": "#ef4444",
-                            "Baania": "#f59e0b",
                             "BAM": "#3b82f6",
                             "SAM": "#10b981",
-                            "DDproperty": "#a855f7",
+                            "Chayo555": "#f97316",
+                            "Baania": "#f59e0b",
+                            "NaYoo": "#8b5cf6",
                             "Taladnudbaan": "#06b6d4",
                             "ZmyHome": "#ec4899"
                         },
@@ -3557,8 +3559,8 @@ with tab4:
                             zoom=10,
                             height=380,
                             color_discrete_map={
-                                "Baania": "#f59e0b", "BAM": "#3b82f6", "SAM": "#10b981",
-                                "DDproperty": "#a855f7",
+                                "BAM": "#3b82f6", "SAM": "#10b981", "Chayo555": "#f97316",
+                                "Baania": "#f59e0b", "NaYoo": "#8b5cf6",
                                 "Taladnudbaan": "#06b6d4", "ZmyHome": "#ec4899"
                             },
                             template=plotly_template

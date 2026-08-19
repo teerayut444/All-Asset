@@ -18,8 +18,9 @@ TARGET_URLS = {
     "BAM": "https://www.bam.co.th/th/npa/property/search",
     "ZmyHome": "https://zmyhome.com/buy",
     "SAM": "https://sam.or.th/site/npa/page_list.php",
-    "DDproperty": "https://www.ddproperty.com/",
-    "Taladnudbaan": "https://www.taladnudbaan.com/properties"
+    "Taladnudbaan": "https://www.taladnudbaan.com/properties",
+    "Chayo555": "https://www.chayo555.com/property",
+    "NaYoo": "https://nayoo.co/"
 }
 
 SCRAPERS = [
@@ -27,8 +28,9 @@ SCRAPERS = [
     {"name": "BAM", "script": "scrape_bam_monthly.py"},
     {"name": "ZmyHome", "script": "scrape_zmyhome_monthly.py"},
     {"name": "SAM", "script": "scrape_sam_monthly.py"},
-    {"name": "DDproperty", "script": "scrape_ddproperty_monthly.py"},
-    {"name": "Taladnudbaan", "script": "scrape_taladnudbaan_monthly.py"}
+    {"name": "Taladnudbaan", "script": "scrape_taladnudbaan_monthly.py"},
+    {"name": "Chayo555", "script": "scrape_chayo555_monthly.py"},
+    {"name": "NaYoo", "script": "scrape_nayoo_monthly.py"}
 ]
 
 def check_website_accessibility(name: str, url: str) -> bool:

@@ -2,7 +2,7 @@
 title All Asset NPA Scrapers Runner (Monthly All New)
 echo ======================================================================
 echo   All Asset NPA Scrapers Runner
-echo   [ Baania / BAM / SAM / ZmyHome / DDproperty / Taladnudbaan ]
+echo   [ BAM / SAM / Chayo555 / Baania / NaYoo / Taladnudbaan / ZmyHome ]
 echo   Source Folder: Monthly all new
 echo ======================================================================
 echo.
