@@ -297,16 +297,30 @@ def fetch_and_process_item(session, item):
             raw_type = pt_val
     prop_type = normalize_prop_type(raw_type, title)
 
-    # Price
+    # Price & Sale Type
     pricing = item.get("pricing", {}) or {}
     price = None
+    sale_type = "ขาย"
+
     if isinstance(pricing, dict):
-        p_val = pricing.get("sale_price") or pricing.get("starting_price") or pricing.get("promotion_price")
+        p_val = pricing.get("sale_price") or pricing.get("start_price") or pricing.get("starting_price") or pricing.get("promotion_price")
         if p_val and str(p_val).replace('.', '').isdigit():
-            try: price = float(p_val)
+            try:
+                p_num = float(p_val)
+                if p_num > 0: price = p_num
             except Exception: pass
+        if not price and pricing.get("rent_price"):
+            try:
+                r_num = float(pricing.get("rent_price"))
+                if r_num > 0:
+                    price = r_num
+                    sale_type = "ให้เช่า"
+            except Exception: pass
+
     if not price and item.get("price"):
-        try: price = float(item.get("price"))
+        try:
+            p_num = float(item.get("price"))
+            if p_num > 0: price = p_num
         except Exception: pass
 
     # Functions (Bed, Bath, Area)
@@ -367,9 +381,51 @@ def fetch_and_process_item(session, item):
             if spec.get("usable_area") and float(spec.get("usable_area") or 0) > 1.0:
                 raw_usable = spec.get("usable_area")
 
+        # Price fallback from detail_data
+        det_pricing = detail_data.get("pricing", {}) or {}
+        if isinstance(det_pricing, dict):
+            det_val = det_pricing.get("sale_price") or det_pricing.get("start_price") or det_pricing.get("starting_price") or det_pricing.get("promotion_price")
+            if det_val and str(det_val).replace('.', '').isdigit():
+                try:
+                    d_num = float(det_val)
+                    if d_num > 0 and (not price or price == 0):
+                        price = d_num
+                except Exception: pass
+            if (not price or price == 0) and det_pricing.get("rent_price"):
+                try:
+                    r_num = float(det_pricing.get("rent_price"))
+                    if r_num > 0:
+                        price = r_num
+                        sale_type = "ให้เช่า"
+                except Exception: pass
+
+        if (not price or price == 0) and detail_data.get("price"):
+            try:
+                d_num = float(detail_data.get("price"))
+                if d_num > 0: price = d_num
+            except Exception: pass
+
+        det_types = detail_data.get("listing_types") or item.get("listing_types") or []
+        if isinstance(det_types, list) and "rent" in det_types and "sale" not in det_types:
+            sale_type = "ให้เช่า"
+
         pub_dt = detail_data.get("published_at") or detail_data.get("created_at") or detail_data.get("updated_at")
         if pub_dt:
             post_date = str(pub_dt)[:10]
+
+    # Smart price sanity check (filter out seller input typos like phone numbers or billion errors)
+    desc_obj = (detail_data.get("description") if detail_data else None) or item.get("description") or {}
+    desc_text = desc_obj.get("th", "") if isinstance(desc_obj, dict) else str(desc_obj or "")
+    combined_text = f"{title} {desc_text}"
+    if price and price > 1_000_000_000:
+        m_lakh = re.findall(r'(?:ราคา|ขาย|เพียง)?\s*[:\s]*(\d+(?:\.\d+)?)\s*(?:ล้านบาท|ล้าน|ลบ\b)', combined_text)
+        if m_lakh:
+            try:
+                candidate = float(m_lakh[0]) * 1_000_000
+                if 100_000 <= candidate <= 500_000_000:
+                    price = candidate
+            except Exception:
+                pass
 
     # Fallback for location if detail was not reachable
     if not prov:
@@ -408,7 +464,7 @@ def fetch_and_process_item(session, item):
         "รหัสทรัพย์": pid,
         "ชื่อโครงการ": title,
         "ประเภททรัพย์": prop_type,
-        "ประเภทการขาย": "ขาย",
+        "ประเภทการขาย": sale_type,
         "ราคา": price,
         "ตำบล": subdist,
         "อำเภอ": dist,
