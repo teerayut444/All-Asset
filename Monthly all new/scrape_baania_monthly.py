@@ -78,6 +78,62 @@ def clean_text(val):
     s = str(val)
     return re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]', '', s).strip()
 
+def parse_rai_ngan_wah_robust(s):
+    if s is None or pd.isna(s):
+        return None, None, None
+    s = str(s).strip()
+    if not s or s.lower() in ["nan", "none", "null", "$undefined", "-", "0", "0.0"]:
+        return None, None, None
+    m_dash = re.match(r'^(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)$', s)
+    if m_dash:
+        return float(m_dash.group(1)), float(m_dash.group(2)), float(m_dash.group(3))
+    has_thai_units = any(u in s for u in ['ไร่', 'งาน', 'วา', 'ตร.ว', 'ตารางวา', 'ตร.ว.'])
+    if has_thai_units:
+        m_r = re.search(r'([\d\.,]+)\s*ไร่', s)
+        m_g = re.search(r'([\d\.,]+)\s*งาน', s)
+        m_w = re.search(r'([\d\.,]+)\s*(?:ตร\.?ว\.?|ตารางวา|วา)', s)
+        r = float(m_r.group(1).replace(',', '')) if m_r else 0.0
+        g = float(m_g.group(1).replace(',', '')) if m_g else 0.0
+        w = float(m_w.group(1).replace(',', '')) if m_w else 0.0
+        if r > 0 or g > 0 or w > 0:
+            return r, g, w
+    clean_num = re.sub(r'[^\d\.]', '', s)
+    if clean_num:
+        try:
+            total_wah = float(clean_num)
+            if total_wah > 0:
+                r = int(total_wah // 400)
+                rem = total_wah - (r * 400)
+                g = int(rem // 100)
+                w = rem - (g * 100)
+                return r, g, round(w, 4)
+        except ValueError:
+            pass
+    return None, None, None
+
+def format_wah_val(w):
+    if isinstance(w, float) and w.is_integer():
+        return str(int(w))
+    elif isinstance(w, int):
+        return str(int(w))
+    elif isinstance(w, float):
+        return f"{w:g}"
+    return str(w)
+
+def convert_to_rai_ngan_wah(val):
+    r, g, w = parse_rai_ngan_wah_robust(val)
+    if r is None:
+        return ""
+    if w >= 100:
+        g += int(w // 100)
+        w = w % 100
+    if g >= 4:
+        r += int(g // 4)
+        g = g % 4
+    if r == 0 and g == 0 and w == 0:
+        return ""
+    return f"{int(r)}-{int(g)}-{format_wah_val(w)}"
+
 def parse_land_area(area_total):
     if not isinstance(area_total, dict):
         return ""
@@ -217,7 +273,7 @@ def fetch_page_items(session, page_num):
                     "ลองจิจูด": loc.get("lon") if isinstance(loc, dict) else None,
                     "ชื่อประกาศ": title_th,
                     "ลิงก์": link,
-                    "เนื้อที่ (ตร.ว.)": clean_text(parse_land_area(vd.get("area_total"))),
+                    "เนื้อที่ (ตร.ว.)": convert_to_rai_ngan_wah(clean_text(parse_land_area(vd.get("area_total")))),
                     "พื้นที่ใช้สอย (ตร.ม.)": vd.get("area_usable"),
                     "วันที่ดึงข้อมูล": scrape_time,
                     "วันประกาศ": clean_text(vd.get("created_at") or vd.get("published_at") or vd.get("updated_at") or ""),

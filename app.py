@@ -857,13 +857,27 @@ with st.sidebar:
     if df_raw is not None and not df_raw.empty:
         search_query = ""
         
-        # Company Filter (Pills) with dynamic list from data
+        # Company Filter (Pills) with dynamic list from data (Prioritize SAM, BAM, Chayo555 first)
         co_counts = df_raw['บริษัท'].value_counts()
-        companies_list = sorted([str(c) for c in df_raw['บริษัท'].dropna().unique() if str(c).strip() not in ['', 'nan', 'None']])
+        raw_comps = [str(c) for c in df_raw['บริษัท'].dropna().unique() if str(c).strip() not in ['', 'nan', 'None']]
+        COMPANY_PRIORITY = ["SAM", "BAM", "Chayo555", "Chayo", "Baania", "NaYoo", "Taladnudbaan", "ZmyHome", "KBANK", "GHB", "SCB", "KTB"]
+        companies_list = sorted(
+            raw_comps,
+            key=lambda c: (COMPANY_PRIORITY.index(c) if c in COMPANY_PRIORITY else 999, c)
+        )
         if not companies_list:
-            companies_list = ["BAM", "SAM", "Chayo555", "Baania", "NaYoo", "Taladnudbaan", "ZmyHome"]
+            companies_list = ["SAM", "BAM", "Chayo555", "Baania", "NaYoo", "Taladnudbaan", "ZmyHome", "KBANK", "GHB", "SCB", "KTB"]
         
-        sanitize_session_state("filter_companies", companies_list)
+        # Ensure session state automatically includes all available companies
+        if "filter_companies" not in st.session_state or not st.session_state["filter_companies"]:
+            st.session_state["filter_companies"] = companies_list
+        else:
+            curr_sel = list(st.session_state["filter_companies"])
+            missing_new = [c for c in companies_list if c not in curr_sel]
+            if missing_new and len(curr_sel) >= len(companies_list) - len(missing_new):
+                st.session_state["filter_companies"] = [c for c in companies_list if c in curr_sel or c in missing_new]
+            else:
+                sanitize_session_state("filter_companies", companies_list)
         selected_companies = st.pills(
             "บริษัททรัพย์สิน", 
             options=companies_list, 
@@ -1768,8 +1782,8 @@ st.markdown(floating_kpi_html, unsafe_allow_html=True)
 tab1, tab2, tab3, tab4 = st.tabs([
     "🔮 ภาพรวม & แผนที่ (Bubble & Map)", 
     "📈 สถิติ & วิเคราะห์ (Analytics)", 
-    "📋 รายการทรัพย์สิน (Property Listing)", 
-    "🔍 เปรียบเทียบตำแหน่ง (Comparison)"
+    "🔍 เปรียบเทียบตำแหน่ง (Comparison)",
+    "📋 รายการทรัพย์สิน (Property Listing)"
 ])
 
 # ----- TAB 1: BUBBLE & MAP -----
@@ -1898,13 +1912,17 @@ with tab1:
                 else:
                     progress_bar.progress(60, text="กำลังจัดเตรียมสีตามบริษัทคู่แข่ง (60%)...")
                     COMPANY_COLORS = {
-                        "BAM": [59, 130, 246],
                         "SAM": [16, 185, 129],
+                        "BAM": [59, 130, 246],
                         "Chayo555": [249, 115, 22],
                         "Baania": [245, 158, 11],
                         "NaYoo": [139, 92, 246],
                         "Taladnudbaan": [6, 182, 212],
-                        "ZmyHome": [236, 72, 153]
+                        "ZmyHome": [236, 72, 153],
+                        "KBANK": [5, 150, 105],
+                        "GHB": [202, 138, 4],
+                        "SCB": [126, 34, 206],
+                        "KTB": [2, 132, 199]
                     }
                     DEFAULT_COLOR = [148, 163, 184]
                     
@@ -2005,7 +2023,7 @@ with tab2:
                     y='จำนวนทรัพย์สิน',
                     color='บริษัท',
                     title='จำนวนรายการทรัพย์สินเปรียบเทียบแต่ละบริษัท',
-                    color_discrete_map={"BAM": "#3b82f6", "SAM": "#10b981", "Chayo555": "#f97316", "Baania": "#f59e0b", "NaYoo": "#8b5cf6", "Taladnudbaan": "#06b6d4", "ZmyHome": "#ec4899"},
+                    color_discrete_map={"SAM": "#10b981", "BAM": "#3b82f6", "Chayo555": "#f97316", "Baania": "#f59e0b", "NaYoo": "#8b5cf6", "Taladnudbaan": "#06b6d4", "ZmyHome": "#ec4899", "KBANK": "#059669", "GHB": "#ca8a04", "SCB": "#7e22ce", "KTB": "#0284c7"},
                     template=plotly_template
                 )
                 fig_comp.update_layout(title_font=dict(size=14, family="Outfit"))
@@ -2040,7 +2058,7 @@ with tab2:
                     y='ราคากลาง Median (บาท)',
                     color='บริษัท',
                     title='ราคากลาง (Median) จำแนกตามบริษัททรัพย์สิน',
-                    color_discrete_map={"BAM": "#3b82f6", "SAM": "#10b981", "Chayo555": "#f97316", "Baania": "#f59e0b", "NaYoo": "#8b5cf6", "Taladnudbaan": "#06b6d4", "ZmyHome": "#ec4899"},
+                    color_discrete_map={"SAM": "#10b981", "BAM": "#3b82f6", "Chayo555": "#f97316", "Baania": "#f59e0b", "NaYoo": "#8b5cf6", "Taladnudbaan": "#06b6d4", "ZmyHome": "#ec4899", "KBANK": "#059669", "GHB": "#ca8a04", "SCB": "#7e22ce", "KTB": "#0284c7"},
                     template=plotly_template
                 )
                 fig_avg_p.update_layout(title_font=dict(size=14, family="Outfit"))
@@ -2215,7 +2233,7 @@ with tab2:
                 hover_tmpl = "<b>%{label}</b><br>จำนวน: %{value:,} รายการ<br>สัดส่วน: %{percent}<extra>%{name}</extra>"
                 
             # Sort with SAM, BAM, Chayo555 / Chayo prioritized in the top row (3 columns)
-            PREFERRED_COMPANY_ORDER = ["SAM", "BAM", "Chayo555", "Chayo", "Chayo NPA", "Baania", "NaYoo", "Taladnudbaan", "ZmyHome"]
+            PREFERRED_COMPANY_ORDER = ["SAM", "BAM", "Chayo555", "Chayo", "Chayo NPA", "Baania", "NaYoo", "Taladnudbaan", "ZmyHome", "KBANK", "GHB", "SCB", "KTB"]
             all_comps = list(comp_type_df['บริษัท'].unique())
             companies = sorted(
                 all_comps, 
@@ -2295,66 +2313,8 @@ with tab2:
                 )
                 st.plotly_chart(style_plotly_fig(fig_asset_focus), width="stretch", theme=None)
 
-# ----- TAB 3: PROPERTY LISTING -----
+# ----- TAB 3: COMPARISON -----
 with tab3:
-    st.markdown(f"### 📋 รายการทรัพย์สินที่ค้นพบ ({total_count:,} รายการ)")
-    
-    if df_filtered.empty:
-        st.warning("⚠️ ไม่พบข้อมูลตามเงื่อนไข")
-    else:
-        # Search Box to filter Tab 3 Property Listing table
-        tab3_search_query = st.text_input(
-            "🔍 ค้นหา ชื่อโครงการ / รหัสทรัพย์ / ชื่อประกาศ",
-            value="",
-            placeholder="พิมพ์ชื่อโครงการ, รหัสทรัพย์, หรือชื่อประกาศเพื่อกรองข้อมูลในตาราง...",
-            key="tab3_property_listing_search"
-        )
-
-        df_table_source = df_filtered.copy()
-        if tab3_search_query:
-            q_tab3 = tab3_search_query.strip().lower()
-            cond_title = df_table_source['ชื่อประกาศ'].astype(str).str.lower().str.contains(q_tab3, na=False)
-            cond_code = df_table_source['รหัสทรัพย์'].astype(str).str.lower().str.contains(q_tab3, na=False)
-            cond_proj = df_table_source['ชื่อโครงการ'].astype(str).str.lower().str.contains(q_tab3, na=False) if 'ชื่อโครงการ' in df_table_source.columns else False
-            df_table_source = df_table_source[cond_title | cond_code | cond_proj]
-
-        # Show top 5,000 rows in the interactive table for performance
-        display_limit = 5000
-        if len(df_table_source) > display_limit:
-            st.info(f"💡 แสดงผลตารางเฉพาะ {display_limit:,} รายการแรก จากที่ค้นพบ {len(df_table_source):,} รายการ เพื่อลดการใช้ข้อมูลหน้าเว็บและช่วยให้โหลดรวดเร็ว")
-            df_table = df_table_source.head(display_limit)
-        else:
-            df_table = df_table_source
-            
-        cols_table_raw = [
-            "บริษัท", "ID", "รหัสทรัพย์", "ชื่อโครงการ", "ประเภททรัพย์", "ประเภทการขาย", 
-            "ราคา", "ตำบล", "อำเภอ", "จังหวัด", "ละติจูด", "ลองจิจูด", 
-            "ชื่อประกาศ", "ลิงก์", "เนื้อที่ (ตร.ว.)", "พื้นที่ (ไร่-งาน-วา)", "พื้นที่ใช้สอย (ตร.ม.)", 
-            "วันที่ดึงข้อมูล", "ห้องนอน", "ห้องน้ำ", "ที่จอดรถ", "วันประกาศ"
-        ]
-        df_table_show = df_table[[c for c in cols_table_raw if c in df_table.columns]].copy()
-        if 'ราคา' in df_table_show.columns:
-            df_table_show['ราคาขาย (บาท)'] = pd.to_numeric(df_table_show['ราคา'], errors='coerce')
-            p_idx = list(df_table_show.columns).index('ราคา')
-            df_table_show = df_table_show.drop(columns=['ราคา'])
-            df_table_show.insert(p_idx, 'ราคาขาย (บาท)', df_table_show.pop('ราคาขาย (บาท)'))
-
-        st.dataframe(
-            df_table_show,
-            width="stretch",
-            column_config={
-                "ราคาขาย (บาท)": st.column_config.NumberColumn("ราคาขาย (บาท)", format="%,d"),
-                "พื้นที่ใช้สอย (ตร.ม.)": st.column_config.NumberColumn(format="%.1f"),
-                "เนื้อที่ (ตร.ว.)": st.column_config.NumberColumn(format="%.1f"),
-                "ละติจูด": st.column_config.NumberColumn(format="%.6f"),
-                "ลองจิจูด": st.column_config.NumberColumn(format="%.6f"),
-                "ลิงก์": st.column_config.LinkColumn("ลิงก์ประกาศ", display_text="🔗 เปิดดูทรัพย์")
-            }
-        )
-        render_import_export_section(df_table_source, filename_prefix="npa_property_listing", key_suffix="tab3")
-
-# ----- TAB 4: COMPARISON -----
-with tab4:
     comp_sub_tab1, comp_sub_tab2 = st.tabs([
         "📍 เปรียบเทียบตามรัศมีทำเล (Radius Location Analysis)",
         "⚔️ เปรียบเทียบแบบ 1 ต่อ 1 (1-on-1 Asset Comparison)"
@@ -3668,7 +3628,11 @@ with tab4:
                 # --- ASSET A SELECTOR ---
                 with col_comp_1:
                     st.markdown("<h5 style='color: #3b82f6;'><i class='fa fa-home'></i> เลือกทรัพย์สินรายการที่ 1 (Asset A)</h5>", unsafe_allow_html=True)
-                    comp_a_co = st.selectbox("เลือกบริษัท (รายการที่ 1)", options=sorted([str(c) for c in df_raw['บริษัท'].dropna().unique()]), index=0, key="oneone_co_a")
+                    oneone_comps = sorted(
+                        [str(c) for c in df_raw['บริษัท'].dropna().unique()],
+                        key=lambda c: (["SAM", "BAM", "Chayo555", "Chayo", "Baania", "NaYoo", "Taladnudbaan", "ZmyHome"].index(c) if c in ["SAM", "BAM", "Chayo555", "Chayo", "Baania", "NaYoo", "Taladnudbaan", "ZmyHome"] else 999, c)
+                    )
+                    comp_a_co = st.selectbox("เลือกบริษัท (รายการที่ 1)", options=oneone_comps, index=0, key="oneone_co_a")
                     df_a_filtered = df_raw[df_raw['บริษัท'] == comp_a_co].copy()
                     types_a = sorted([str(t) for t in df_a_filtered['ประเภททรัพย์'].dropna().unique()]) if not df_a_filtered.empty else []
                     valid_types_a = ["ทั้งหมด"] + types_a
@@ -3703,9 +3667,8 @@ with tab4:
                 # --- ASSET B SELECTOR ---
                 with col_comp_2:
                     st.markdown("<h5 style='color: #ec4899;'><i class='fa fa-home'></i> เลือกทรัพย์สินรายการที่ 2 (Asset B)</h5>", unsafe_allow_html=True)
-                    companies_list = sorted([str(c) for c in df_raw['บริษัท'].dropna().unique()])
-                    default_idx_b = 1 if len(companies_list) > 1 else 0
-                    comp_b_co = st.selectbox("เลือกบริษัท (รายการที่ 2)", options=companies_list, index=default_idx_b, key="oneone_co_b")
+                    default_idx_b = 1 if len(oneone_comps) > 1 else 0
+                    comp_b_co = st.selectbox("เลือกบริษัท (รายการที่ 2)", options=oneone_comps, index=default_idx_b, key="oneone_co_b")
                     df_b_filtered = df_raw[df_raw['บริษัท'] == comp_b_co].copy()
                     types_b = sorted([str(t) for t in df_b_filtered['ประเภททรัพย์'].dropna().unique()]) if not df_b_filtered.empty else []
                     valid_types_b = ["ทั้งหมด"] + types_b
@@ -4272,3 +4235,61 @@ with tab4:
                             st.markdown(f"- {p}")
                     else:
                         st.markdown("- เหมาะสำหรับเปรียบเทียบในเชิงทำเลหรือมิติพิเศษอื่น ๆ")
+
+# ----- TAB 4: PROPERTY LISTING -----
+with tab4:
+    st.markdown(f"### 📋 รายการทรัพย์สินที่ค้นพบ ({total_count:,} รายการ)")
+    
+    if df_filtered.empty:
+        st.warning("⚠️ ไม่พบข้อมูลตามเงื่อนไข")
+    else:
+        # Search Box to filter Tab 3 Property Listing table
+        tab3_search_query = st.text_input(
+            "🔍 ค้นหา ชื่อโครงการ / รหัสทรัพย์ / ชื่อประกาศ",
+            value="",
+            placeholder="พิมพ์ชื่อโครงการ, รหัสทรัพย์, หรือชื่อประกาศเพื่อกรองข้อมูลในตาราง...",
+            key="tab3_property_listing_search"
+        )
+
+        df_table_source = df_filtered.copy()
+        if tab3_search_query:
+            q_tab3 = tab3_search_query.strip().lower()
+            cond_title = df_table_source['ชื่อประกาศ'].astype(str).str.lower().str.contains(q_tab3, na=False)
+            cond_code = df_table_source['รหัสทรัพย์'].astype(str).str.lower().str.contains(q_tab3, na=False)
+            cond_proj = df_table_source['ชื่อโครงการ'].astype(str).str.lower().str.contains(q_tab3, na=False) if 'ชื่อโครงการ' in df_table_source.columns else False
+            df_table_source = df_table_source[cond_title | cond_code | cond_proj]
+
+        # Show top 5,000 rows in the interactive table for performance
+        display_limit = 5000
+        if len(df_table_source) > display_limit:
+            st.info(f"💡 แสดงผลตารางเฉพาะ {display_limit:,} รายการแรก จากที่ค้นพบ {len(df_table_source):,} รายการ เพื่อลดการใช้ข้อมูลหน้าเว็บและช่วยให้โหลดรวดเร็ว")
+            df_table = df_table_source.head(display_limit)
+        else:
+            df_table = df_table_source
+            
+        cols_table_raw = [
+            "บริษัท", "ID", "รหัสทรัพย์", "ชื่อโครงการ", "ประเภททรัพย์", "ประเภทการขาย", 
+            "ราคา", "ตำบล", "อำเภอ", "จังหวัด", "ละติจูด", "ลองจิจูด", 
+            "ชื่อประกาศ", "ลิงก์", "เนื้อที่ (ตร.ว.)", "พื้นที่ (ไร่-งาน-วา)", "พื้นที่ใช้สอย (ตร.ม.)", 
+            "วันที่ดึงข้อมูล", "ห้องนอน", "ห้องน้ำ", "ที่จอดรถ", "วันประกาศ"
+        ]
+        df_table_show = df_table[[c for c in cols_table_raw if c in df_table.columns]].copy()
+        if 'ราคา' in df_table_show.columns:
+            df_table_show['ราคาขาย (บาท)'] = pd.to_numeric(df_table_show['ราคา'], errors='coerce')
+            p_idx = list(df_table_show.columns).index('ราคา')
+            df_table_show = df_table_show.drop(columns=['ราคา'])
+            df_table_show.insert(p_idx, 'ราคาขาย (บาท)', df_table_show.pop('ราคาขาย (บาท)'))
+
+        st.dataframe(
+            df_table_show,
+            width="stretch",
+            column_config={
+                "ราคาขาย (บาท)": st.column_config.NumberColumn("ราคาขาย (บาท)", format="%,d"),
+                "พื้นที่ใช้สอย (ตร.ม.)": st.column_config.NumberColumn(format="%.1f"),
+                "เนื้อที่ (ตร.ว.)": st.column_config.NumberColumn(format="%.1f"),
+                "ละติจูด": st.column_config.NumberColumn(format="%.6f"),
+                "ลองจิจูด": st.column_config.NumberColumn(format="%.6f"),
+                "ลิงก์": st.column_config.LinkColumn("ลิงก์ประกาศ", display_text="🔗 เปิดดูทรัพย์")
+            }
+        )
+        render_import_export_section(df_table_source, filename_prefix="npa_property_listing", key_suffix="tab3")

@@ -14,7 +14,7 @@ def format_price_thai(val):
     return f"฿{val:,.0f} บาท"
 
 def get_tnb_subinstitutions(df_tnb):
-    """Extracts and summarizes sub-companies / banks / institutions inside Taladnudbaan with tightly packed sub-circles."""
+    """Extracts and summarizes sub-companies / institutions inside Taladnudbaan with accurately computed sub-circles."""
     if df_tnb is None or df_tnb.empty:
         return []
     
@@ -25,11 +25,8 @@ def get_tnb_subinstitutions(df_tnb):
             code = parts[5].strip().upper()
             mapping = {
                 "LED": "LED",
-                "GHB": "GHB",
-                "KBANK": "KBANK",
                 "EST": "EST",
                 "JAM": "JAM",
-                "KTB": "KTB",
                 "BAY": "BAY",
                 "TTB": "TTB",
                 "SWP": "SWP",
@@ -48,9 +45,9 @@ def get_tnb_subinstitutions(df_tnb):
     total = len(df_tnb)
     
     c_led = counts.get("LED", 0)
-    c_ghb = counts.get("GHB", 0)
-    c_kbank = counts.get("KBANK", 0)
-    c_others = total - (c_led + c_ghb + c_kbank)
+    c_est = counts.get("EST", 0)
+    c_jam = counts.get("JAM", 0)
+    c_others = total - (c_led + c_est + c_jam)
     if c_others < 0: c_others = 0
     
     sub_data = [
@@ -60,39 +57,39 @@ def get_tnb_subinstitutions(df_tnb):
             "sub": "กรมบังคับคดี",
             "count": c_led,
             "pct": (c_led / total * 100) if total > 0 else 0,
-            "rel_x": -78, "rel_y": 30, "r": 112,
+            "rel_x": -68, "rel_y": 26, "r": 96,
             "grad": "sub-led-grad",
             "border": "#0891b2"
         },
         {
-            "id": "sub-ghb",
-            "name": "GHB",
-            "sub": "ธนาคาร ธอส.",
-            "count": c_ghb,
-            "pct": (c_ghb / total * 100) if total > 0 else 0,
-            "rel_x": 92, "rel_y": -78, "r": 70,
-            "grad": "sub-ghb-grad",
-            "border": "#d97706"
+            "id": "sub-est",
+            "name": "EST",
+            "sub": "อสังหาฯ/นายหน้า",
+            "count": c_est,
+            "pct": (c_est / total * 100) if total > 0 else 0,
+            "rel_x": 78, "rel_y": -65, "r": 60,
+            "grad": "sub-est-grad",
+            "border": "#059669"
         },
         {
             "id": "sub-others",
             "name": "อื่นๆ",
-            "sub": "JAM/KTB/BAY",
+            "sub": "BAY/TTB/AMC",
             "count": c_others,
             "pct": (c_others / total * 100) if total > 0 else 0,
-            "rel_x": -27, "rel_y": -140, "r": 62,
+            "rel_x": -22, "rel_y": -118, "r": 54,
             "grad": "sub-others-grad",
-            "border": "#6366f1"
+            "border": "#d97706"
         },
         {
-            "id": "sub-kbank",
-            "name": "KBANK",
-            "sub": "ธ.กสิกรไทย",
-            "count": c_kbank,
-            "pct": (c_kbank / total * 100) if total > 0 else 0,
-            "rel_x": 89, "rel_y": 78, "r": 60,
-            "grad": "sub-kbank-grad",
-            "border": "#059669"
+            "id": "sub-jam",
+            "name": "JAM",
+            "sub": "บส. เจ เอ็ม ที",
+            "count": c_jam,
+            "pct": (c_jam / total * 100) if total > 0 else 0,
+            "rel_x": 76, "rel_y": 66, "r": 54,
+            "grad": "sub-jam-grad",
+            "border": "#7c3aed"
         }
     ]
     return sub_data
@@ -100,7 +97,7 @@ def get_tnb_subinstitutions(df_tnb):
 def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัดส่วนตามจำนวนทรัพย์สิน (Asset Count)", is_dark_mode=False):
     """
     Generates an interactive, responsive 3D Glossy Bubble Chart HTML component
-    matching the AMC NPA Monitor style for the 6 active property companies,
+    matching the AMC NPA Monitor style for all active property companies & financial institutions,
     including enlarged, tightly packed 3D sub-bubbles inside Taladnudbaan.
     """
     companies_meta = [
@@ -108,23 +105,11 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
             "id": "taladnudbaan",
             "name": "Taladnudbaan",
             "label": "Taladnudbaan NPA",
-            "base_cx": 460, "base_cy": 310,
+            "base_cx": 560, "base_cy": 330,
             "scraped_grad": "taladnudbaan-outer-grad",
-            "unscraped_grad": "taladnudbaan-unscraped",
             "float_dur": "7s",
             "color_hex": "#06b6d4",
             "is_tnb": True
-        },
-        {
-            "id": "nayoo",
-            "name": "NaYoo",
-            "label": "NaYoo NPA",
-            "base_cx": 830, "base_cy": 240,
-            "scraped_grad": "nayoo-scraped",
-            "unscraped_grad": "nayoo-unscraped",
-            "float_dur": "6.5s",
-            "color_hex": "#8b5cf6",
-            "is_tnb": False
         },
         {
             "id": "zmyhome",
@@ -132,7 +117,6 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
             "label": "ZmyHome NPA",
             "base_cx": 160, "base_cy": 200,
             "scraped_grad": "zmyhome-scraped",
-            "unscraped_grad": "zmyhome-unscraped",
             "float_dur": "8s",
             "color_hex": "#ec4899",
             "is_tnb": False
@@ -143,18 +127,36 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
             "label": "BAM NPA",
             "base_cx": 170, "base_cy": 470,
             "scraped_grad": "bam-scraped",
-            "unscraped_grad": "bam-unscraped",
             "float_dur": "6s",
             "color_hex": "#3b82f6",
+            "is_tnb": False
+        },
+        {
+            "id": "kbank",
+            "name": "KBANK",
+            "label": "KBANK NPA",
+            "base_cx": 360, "base_cy": 110,
+            "scraped_grad": "kbank-scraped",
+            "float_dur": "7.2s",
+            "color_hex": "#059669",
+            "is_tnb": False
+        },
+        {
+            "id": "nayoo",
+            "name": "NaYoo",
+            "label": "NaYoo NPA",
+            "base_cx": 950, "base_cy": 180,
+            "scraped_grad": "nayoo-scraped",
+            "float_dur": "6.5s",
+            "color_hex": "#8b5cf6",
             "is_tnb": False
         },
         {
             "id": "baania",
             "name": "Baania",
             "label": "Baania NPA",
-            "base_cx": 780, "base_cy": 480,
+            "base_cx": 860, "base_cy": 490,
             "scraped_grad": "baania-scraped",
-            "unscraped_grad": "baania-unscraped",
             "float_dur": "7.5s",
             "color_hex": "#f59e0b",
             "is_tnb": False
@@ -163,11 +165,50 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
             "id": "sam",
             "name": "SAM",
             "label": "SAM NPA",
-            "base_cx": 1000, "base_cy": 150,
+            "base_cx": 1070, "base_cy": 330,
             "scraped_grad": "sam-scraped",
-            "unscraped_grad": "sam-unscraped",
             "float_dur": "8.5s",
             "color_hex": "#10b981",
+            "is_tnb": False
+        },
+        {
+            "id": "chayo555",
+            "name": "Chayo555",
+            "label": "Chayo555 NPA",
+            "base_cx": 1040, "base_cy": 500,
+            "scraped_grad": "chayo555-scraped",
+            "float_dur": "7.8s",
+            "color_hex": "#f97316",
+            "is_tnb": False
+        },
+        {
+            "id": "ghb",
+            "name": "GHB",
+            "label": "GHB NPA",
+            "base_cx": 740, "base_cy": 110,
+            "scraped_grad": "ghb-scraped",
+            "float_dur": "6.8s",
+            "color_hex": "#ca8a04",
+            "is_tnb": False
+        },
+        {
+            "id": "scb",
+            "name": "SCB",
+            "label": "SCB NPA",
+            "base_cx": 930, "base_cy": 350,
+            "scraped_grad": "scb-scraped",
+            "float_dur": "7.0s",
+            "color_hex": "#7e22ce",
+            "is_tnb": False
+        },
+        {
+            "id": "ktb",
+            "name": "KTB",
+            "label": "KTB NPA",
+            "base_cx": 370, "base_cy": 530,
+            "scraped_grad": "ktb-scraped",
+            "float_dur": "6.2s",
+            "color_hex": "#0284c7",
             "is_tnb": False
         }
     ]
@@ -187,6 +228,9 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
         comp_df = df_filtered[df_filtered['บริษัท'] == comp_name] if df_filtered is not None and not df_filtered.empty else pd.DataFrame()
         
         c_count = len(comp_df)
+        if c_count == 0:
+            continue
+
         c_prices = comp_df['ราคา'].dropna() if not comp_df.empty else pd.Series()
         c_val = c_prices.sum() if not c_prices.empty else 0.0
         
@@ -197,13 +241,13 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
         active_fraction = active_pct / 100.0
         
         if comp.get("is_tnb"):
-            radius = 215
+            radius = 185
         else:
             if active_fraction > 0:
-                radius = int(50 + 125 * math.sqrt(active_fraction))
-                radius = max(50, min(150, radius))
+                radius = int(45 + 95 * math.sqrt(active_fraction))
+                radius = max(45, min(115, radius))
             else:
-                radius = 45
+                radius = 40
 
         cx, cy = comp["base_cx"], comp["base_cy"]
         bubble_id = f"bubble-{comp['id']}"
@@ -218,13 +262,13 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
         hry = radius * 0.25
         highlight = f'<ellipse cx="{hcx}" cy="{hcy}" rx="{hrx}" ry="{hry}" fill="url(#highlight-grad)" transform="rotate(-30, {hcx}, {hcy})" />'
         
-        title_size = max(12, int(radius * 0.12))
-        text_size = max(9.5, int(radius * 0.082))
-        badge_padding = "3px 9px" if radius > 110 else "2px 6px"
-        badge_gap = "4px" if radius > 110 else "2px"
-        margin_bottom = "4px" if radius > 110 else "2px"
+        title_size = max(11.5, int(radius * 0.125))
+        text_size = max(9.0, int(radius * 0.084))
+        badge_padding = "3px 8px" if radius > 75 else "2px 5px"
+        badge_gap = "3px" if radius > 75 else "2px"
+        margin_bottom = "3px" if radius > 75 else "2px"
 
-        card_bg_color = "rgba(15, 23, 42, 0.55)" if is_dark_mode else "rgba(255, 255, 255, 0.55)"
+        card_bg_color = "rgba(15, 23, 42, 0.55)" if is_dark_mode else "rgba(255, 255, 255, 0.60)"
         text_title_color = "#f8fafc" if is_dark_mode else "#0f172a"
         text_sub_color = "#94a3b8" if is_dark_mode else "#475569"
         text_val_color = "#ffffff" if is_dark_mode else "#0f172a"
@@ -250,33 +294,32 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
                 s_highlight = f'<ellipse cx="{shcx}" cy="{shcy}" rx="{shrx}" ry="{shry}" fill="url(#highlight-grad)" transform="rotate(-30, {shcx}, {shcy})" />'
                 
                 # Sub-circle typography
-                if sr >= 100:
-                    # Giant LED sub-circle
-                    s_title_sz = 16
-                    s_sub_sz = 11.5
-                    s_badge_sz = 14
-                    s_pct_sz = 12.5
-                elif sr >= 65:
-                    s_title_sz = 13.5
-                    s_sub_sz = 10
-                    s_badge_sz = 11.5
-                    s_pct_sz = 10.5
+                if sr >= 90:
+                    s_title_sz = 15
+                    s_sub_sz = 10.5
+                    s_badge_sz = 13
+                    s_pct_sz = 11.5
+                elif sr >= 58:
+                    s_title_sz = 12.5
+                    s_sub_sz = 9.5
+                    s_badge_sz = 11
+                    s_pct_sz = 10
                 else:
-                    s_title_sz = 12
-                    s_sub_sz = 9
-                    s_badge_sz = 10.5
-                    s_pct_sz = 9.5
+                    s_title_sz = 11
+                    s_sub_sz = 8.5
+                    s_badge_sz = 10
+                    s_pct_sz = 9
                 
                 s_text = f"""
                 <foreignObject x="{scx - sr}" y="{scy - sr}" width="{2*sr}" height="{2*sr}">
-                    <div style="width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; font-family: 'Outfit', 'Sarabun', sans-serif; pointer-events: none; box-sizing: border-box; line-height: 1.2; padding: 4px;">
+                    <div style="width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; font-family: 'Outfit', 'Sarabun', sans-serif; pointer-events: none; box-sizing: border-box; line-height: 1.15; padding: 2px;">
                         <div style="font-weight: 800; font-size: {s_title_sz}px; color: #0f172a; text-transform: uppercase; letter-spacing: -0.3px;">
                             {sub['name']}
                         </div>
                         <div style="font-size: {s_sub_sz}px; color: #334155; font-weight: 600; margin-bottom: 2px;">
                             {sub['sub']}
                         </div>
-                        <div style="background: rgba(255,255,255,0.85); backdrop-filter: blur(2px); border-radius: 12px; padding: 1px 8px; font-weight: 800; font-size: {s_badge_sz}px; color: #0f172a; box-shadow: 0 1px 4px rgba(0,0,0,0.08); border: 1px solid rgba(255,255,255,0.9);">
+                        <div style="background: rgba(255,255,255,0.85); backdrop-filter: blur(2px); border-radius: 12px; padding: 1px 6px; font-weight: 800; font-size: {s_badge_sz}px; color: #0f172a; box-shadow: 0 1px 4px rgba(0,0,0,0.08); border: 1px solid rgba(255,255,255,0.9);">
                             {sub['count']:,}
                         </div>
                         <div style="font-size: {s_pct_sz}px; color: #0284c7; font-weight: 800; margin-top: 1px;">
@@ -305,9 +348,9 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
                     {''.join(nested_circles_svg)}
                     
                     <!-- Subtle Floating Tag for Taladnudbaan -->
-                    <foreignObject x="{cx - 100}" y="{cy + radius - 28}" width="200" height="30">
+                    <foreignObject x="{cx - 100}" y="{cy + radius - 26}" width="200" height="28">
                         <div style="width: 100%; display: flex; justify-content: center; align-items: center; text-align: center; font-family: 'Outfit', 'Sarabun', sans-serif; pointer-events: none;">
-                            <div style="background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(6px); color: #ffffff; border-radius: 20px; padding: 2px 12px; font-size: 11px; font-weight: 800; border: 1px solid rgba(255,255,255,0.3); box-shadow: 0 2px 6px rgba(0,0,0,0.25);">
+                            <div style="background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(6px); color: #ffffff; border-radius: 20px; padding: 2px 12px; font-size: 10.5px; font-weight: 800; border: 1px solid rgba(255,255,255,0.3); box-shadow: 0 2px 6px rgba(0,0,0,0.25);">
                                 TALADNUDBAAN: {c_count:,}
                             </div>
                         </div>
@@ -322,9 +365,9 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
                     {sheen}
                     {highlight}
                     <foreignObject x="{cx - radius}" y="{cy - radius}" width="{2*radius}" height="{2*radius}">
-                        <div style="width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; font-family: 'Outfit', 'Sarabun', sans-serif; pointer-events: none; box-sizing: border-box; padding: 8px; line-height: 1.35; will-change: transform; transform: translate3d(0,0,0);">
+                        <div style="width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; font-family: 'Outfit', 'Sarabun', sans-serif; pointer-events: none; box-sizing: border-box; padding: 6px; line-height: 1.3; will-change: transform; transform: translate3d(0,0,0);">
                             <!-- Title -->
-                            <div style="font-weight: 800; font-size: {title_size}px; color: {text_title_color}; letter-spacing: -0.3px; margin-bottom: 5px; text-transform: uppercase;">
+                            <div style="font-weight: 800; font-size: {title_size}px; color: {text_title_color}; letter-spacing: -0.3px; margin-bottom: 4px; text-transform: uppercase;">
                                 {comp['name']}
                             </div>
                             
@@ -353,8 +396,8 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
         hover_classes_list.append(f"#{bubble_id} {{ transform-origin: {cx}px {cy}px; }}")
         
         anim_name = f"float-{comp['id']}-anim"
-        dx = 4 if comp["base_cx"] > 500 else -4
-        dy = -6 if comp["base_cy"] > 300 else 6
+        dx = 4 if comp["base_cx"] > 560 else -4
+        dy = -6 if comp["base_cy"] > 330 else 6
         keyframes_list.append(f"""
         @keyframes {anim_name} {{
             0% {{ transform: translate(0px, 0px); }}
@@ -367,7 +410,7 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
         """)
 
     svg_content = f"""
-    <svg viewBox="0 0 1120 640" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="background-color: transparent;">
+    <svg viewBox="0 0 1180 650" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="background-color: transparent;">
       <defs>
         <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
           <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#0f172a" flood-opacity="{'0.35' if is_dark_mode else '0.15'}"/>
@@ -396,28 +439,28 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
           <stop offset="100%" stop-color="#0891b2"/>
         </radialGradient>
         
-        <!-- GHB (Amber/Gold) -->
-        <radialGradient id="sub-ghb-grad" cx="50%" cy="50%" r="50%" fx="35%" fy="30%">
-          <stop offset="0%" stop-color="#ffffff"/>
-          <stop offset="40%" stop-color="#fde68a"/>
-          <stop offset="100%" stop-color="#d97706"/>
-        </radialGradient>
-        
-        <!-- Others (Indigo/Purple) -->
-        <radialGradient id="sub-others-grad" cx="50%" cy="50%" r="50%" fx="35%" fy="30%">
-          <stop offset="0%" stop-color="#ffffff"/>
-          <stop offset="40%" stop-color="#c7d2fe"/>
-          <stop offset="100%" stop-color="#6366f1"/>
-        </radialGradient>
-        
-        <!-- KBANK (Emerald/Green) -->
-        <radialGradient id="sub-kbank-grad" cx="50%" cy="50%" r="50%" fx="35%" fy="30%">
+        <!-- EST (Emerald/Green) -->
+        <radialGradient id="sub-est-grad" cx="50%" cy="50%" r="50%" fx="35%" fy="30%">
           <stop offset="0%" stop-color="#ffffff"/>
           <stop offset="40%" stop-color="#a7f3d0"/>
           <stop offset="100%" stop-color="#059669"/>
         </radialGradient>
         
-        <!-- NaYoo Radial Gradients (Purple) -->
+        <!-- Others (Amber/Gold) -->
+        <radialGradient id="sub-others-grad" cx="50%" cy="50%" r="50%" fx="35%" fy="30%">
+          <stop offset="0%" stop-color="#ffffff"/>
+          <stop offset="40%" stop-color="#fed7aa"/>
+          <stop offset="100%" stop-color="#d97706"/>
+        </radialGradient>
+        
+        <!-- JAM (Purple/Violet) -->
+        <radialGradient id="sub-jam-grad" cx="50%" cy="50%" r="50%" fx="35%" fy="30%">
+          <stop offset="0%" stop-color="#ffffff"/>
+          <stop offset="40%" stop-color="#ddd6fe"/>
+          <stop offset="100%" stop-color="#7c3aed"/>
+        </radialGradient>
+        
+        <!-- NaYoo Radial Gradients (Purple/Violet) -->
         <radialGradient id="nayoo-scraped" cx="50%" cy="50%" r="50%" fx="35%" fy="30%">
           <stop offset="0%" stop-color="#faf5ff"/>
           <stop offset="45%" stop-color="#c084fc"/>
@@ -451,6 +494,41 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
           <stop offset="45%" stop-color="#34d399"/>
           <stop offset="100%" stop-color="#047857"/>
         </radialGradient>
+
+        <!-- Chayo555 Radial Gradients (Orange/Coral) -->
+        <radialGradient id="chayo555-scraped" cx="50%" cy="50%" r="50%" fx="35%" fy="30%">
+          <stop offset="0%" stop-color="#fff7ed"/>
+          <stop offset="45%" stop-color="#fb923c"/>
+          <stop offset="100%" stop-color="#ea580c"/>
+        </radialGradient>
+
+        <!-- KBANK Standalone Gradient (Green) -->
+        <radialGradient id="kbank-scraped" cx="50%" cy="50%" r="50%" fx="35%" fy="30%">
+          <stop offset="0%" stop-color="#ecfdf5"/>
+          <stop offset="45%" stop-color="#34d399"/>
+          <stop offset="100%" stop-color="#059669"/>
+        </radialGradient>
+
+        <!-- GHB Standalone Gradient (Gold/Yellow) -->
+        <radialGradient id="ghb-scraped" cx="50%" cy="50%" r="50%" fx="35%" fy="30%">
+          <stop offset="0%" stop-color="#fefce8"/>
+          <stop offset="45%" stop-color="#fde047"/>
+          <stop offset="100%" stop-color="#ca8a04"/>
+        </radialGradient>
+
+        <!-- SCB Standalone Gradient (Royal Purple) -->
+        <radialGradient id="scb-scraped" cx="50%" cy="50%" r="50%" fx="35%" fy="30%">
+          <stop offset="0%" stop-color="#faf5ff"/>
+          <stop offset="45%" stop-color="#a855f7"/>
+          <stop offset="100%" stop-color="#6b21a8"/>
+        </radialGradient>
+
+        <!-- KTB Standalone Gradient (Sky Blue) -->
+        <radialGradient id="ktb-scraped" cx="50%" cy="50%" r="50%" fx="35%" fy="30%">
+          <stop offset="0%" stop-color="#f0f9ff"/>
+          <stop offset="45%" stop-color="#38bdf8"/>
+          <stop offset="100%" stop-color="#0284c7"/>
+        </radialGradient>
       </defs>
       
       {''.join(bubbles_html_list)}
@@ -469,58 +547,37 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
         body {{
             margin: 0;
             padding: 0;
-            background-color: transparent;
+            background: transparent;
             overflow: hidden;
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 640px;
-        }}
-        .bubble-container {{
-            width: 100%;
-            max-width: 1100px;
-            height: auto;
-            margin: 0 auto;
-        }}
-        svg {{
-            text-rendering: geometricPrecision;
-        }}
-        .float-wrapper, .bubble-group, text {{
-            will-change: transform;
-            transform: translate3d(0, 0, 0);
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
+            height: 100vh;
+            width: 100vw;
+            user-select: none;
         }}
         .bubble-group {{
-            transition: transform 0.35s cubic-bezier(0.25, 0.8, 0.25, 1);
             cursor: pointer;
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.3s ease;
         }}
-        
+        .bubble-group:hover {{
+            transform: scale(1.08);
+            filter: brightness(1.08) drop-shadow(0 15px 25px rgba(0,0,0,0.25));
+        }}
         .nested-sub-bubble {{
-            transition: transform 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
             cursor: pointer;
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.25s ease;
         }}
         .nested-sub-bubble:hover {{
-            transform: scale(1.09);
-            transform-origin: center;
+            transform: scale(1.12);
+            filter: brightness(1.12) drop-shadow(0 6px 12px rgba(0,0,0,0.2));
         }}
-        
         {hover_css}
-        
-        .bubble-group:hover {{
-            transform: scale(1.03);
-        }}
-        .bubble-group:hover circle {{
-            filter: brightness(1.05);
-        }}
-        
         {keyframes_css}
     </style>
     </head>
     <body>
-    <div class="bubble-container">
         {svg_content}
-    </div>
     </body>
     </html>
     """

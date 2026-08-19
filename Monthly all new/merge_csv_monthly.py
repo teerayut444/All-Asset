@@ -4,6 +4,7 @@ import sys
 import time
 import re
 import pandas as pd
+import numpy as np
 from datetime import datetime
 
 if hasattr(sys.stdout, 'reconfigure'):
@@ -73,6 +74,81 @@ PROPERTY_TYPE_MAPPING = {
     "ส่วนโล่งหลังคาคลุม": "อื่นๆ",
 }
 
+def parse_rai_ngan_wah_robust(s):
+    if s is None or pd.isna(s):
+        return None, None, None
+    s = str(s).strip()
+    if not s or s.lower() in ["nan", "none", "null", "$undefined", "-", "0", "0.0", "."]:
+        return None, None, None
+    
+    # 1. Dash pattern: R-N-W
+    m_dash = re.match(r'^(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)$', s)
+    if m_dash:
+        try:
+            return float(m_dash.group(1)), float(m_dash.group(2)), float(m_dash.group(3))
+        except ValueError:
+            pass
+        
+    # 2. Thai explicit units: ไร่, งาน, วา / ตร.ว. / ตารางวา
+    has_thai_units = any(u in s for u in ['ไร่', 'งาน', 'วา', 'ตร.ว', 'ตารางวา', 'ตร.ว.'])
+    if has_thai_units:
+        m_r = re.search(r'([\d\.,]+)\s*ไร่', s)
+        m_g = re.search(r'([\d\.,]+)\s*งาน', s)
+        m_w = re.search(r'([\d\.,]+)\s*(?:ตร\.?ว\.?|ตารางวา|วา)', s)
+        
+        r, g, w = 0.0, 0.0, 0.0
+        try:
+            if m_r: r = float(m_r.group(1).replace(',', ''))
+        except ValueError: pass
+        try:
+            if m_g: g = float(m_g.group(1).replace(',', ''))
+        except ValueError: pass
+        try:
+            if m_w: w = float(m_w.group(1).replace(',', ''))
+        except ValueError: pass
+        
+        if r > 0 or g > 0 or w > 0:
+            return r, g, w
+
+    # 3. Clean numeric with optional unit suffix
+    clean_num = re.sub(r'[^\d\.]', '', s)
+    if clean_num and clean_num != '.' and clean_num != '..':
+        try:
+            total_wah = float(clean_num)
+            if total_wah > 0:
+                r = int(total_wah // 400)
+                rem = total_wah - (r * 400)
+                g = int(rem // 100)
+                w = rem - (g * 100)
+                return r, g, round(w, 4)
+        except ValueError:
+            pass
+            
+    return None, None, None
+
+def format_wah_val(w):
+    if isinstance(w, float) and w.is_integer():
+        return str(int(w))
+    elif isinstance(w, int):
+        return str(int(w))
+    elif isinstance(w, float):
+        return f"{w:g}"
+    return str(w)
+
+def convert_to_rai_ngan_wah(val):
+    r, g, w = parse_rai_ngan_wah_robust(val)
+    if r is None:
+        return ""
+    if w >= 100:
+        g += int(w // 100)
+        w = w % 100
+    if g >= 4:
+        r += int(g // 4)
+        g = g % 4
+    if r == 0 and g == 0 and w == 0:
+        return ""
+    return f"{int(r)}-{int(g)}-{format_wah_val(w)}"
+
 def resolve_mixed_property_types(df):
     """Resolves fallback mixed property types (e.g. 'บ้านเดี่ยว/ทาวน์เฮาส์') based on listing title."""
     if 'ประเภททรัพย์' not in df.columns:
@@ -130,6 +206,12 @@ def merge_monthly_csv():
                 if col not in df.columns:
                     df[col] = ""
             df = df[COLUMNS]
+            
+            # แปลงคอลัมน์ เนื้อที่ (ตร.ว.) ให้เป็นรูปแบบ ไร่-งาน-ตร.ว. (เช่น 1-1-1, 0-1-1, 0-0-1)
+            if 'เนื้อที่ (ตร.ว.)' in df.columns:
+                df['เนื้อที่ (ตร.ว.)'] = df['เนื้อที่ (ตร.ว.)'].apply(convert_to_rai_ngan_wah)
+                df.to_csv(f, index=False, encoding="utf-8-sig")
+
             company_name = os.path.basename(f).split('_')[0]
             # Ensure primary company name is set correctly for dashboard filters
             if company_name in ['Baania', 'BAM', 'SAM', 'Taladnudbaan', 'ZmyHome', 'Chayo555', 'NaYoo', 'GHB', 'KBANK', 'KTB', 'SCB']:
@@ -168,6 +250,11 @@ def merge_monthly_csv():
         )
         print("  ✨ จัดกลุ่มประเภทการขาย (รวม 'ซื้อตรง' เข้า 'ขาย') เรียบร้อยแล้ว", flush=True)
     
+    # แปลงคอลัมน์ เนื้อที่ (ตร.ว.) ให้เป็นรูปแบบ ไร่-งาน-ตร.ว. (เช่น 1-1-1, 0-1-1, 0-0-1)
+    if 'เนื้อที่ (ตร.ว.)' in combined_df.columns:
+        combined_df['เนื้อที่ (ตร.ว.)'] = combined_df['เนื้อที่ (ตร.ว.)'].apply(convert_to_rai_ngan_wah)
+        print("  ✨ แปลงคอลัมน์ 'เนื้อที่ (ตร.ว.)' เป็นรูปแบบ ไร่-งาน-ตร.ว. (เช่น 1-1-1, 0-1-1, 0-0-1) เรียบร้อยแล้ว", flush=True)
+
     def safe_write_csv(df_in, target_path, label):
         for attempt in range(3):
             try:
@@ -208,6 +295,16 @@ def merge_monthly_csv():
         df_p["ลองจิจูด"] = pd.to_numeric(df_p["ลองจิจูด"], errors="coerce")
         df_p["ห้องนอน"] = pd.to_numeric(df_p["ห้องนอน"], errors="coerce")
         df_p["ห้องน้ำ"] = pd.to_numeric(df_p["ห้องน้ำ"], errors="coerce")
+        
+        # คืนค่าพื้นที่_ตารางวา (float) ให้ Dashboard สำหรับการกรองและคำนวณกราฟ
+        def calc_sqwah_num(val):
+            r, g, w = parse_rai_ngan_wah_robust(val)
+            if r is None:
+                return np.nan
+            return r * 400.0 + g * 100.0 + w
+            
+        df_p["พื้นที่_ตารางวา"] = df_p["เนื้อที่ (ตร.ว.)"].apply(calc_sqwah_num)
+        
         df_p.to_parquet(ROOT_PARQUET, index=False, compression="zstd")
         print(f"🚀 [PARQUET]    อัปเดตไฟล์ความเร็วสูง Dashboard: {ROOT_PARQUET}", flush=True)
     except Exception as e:
