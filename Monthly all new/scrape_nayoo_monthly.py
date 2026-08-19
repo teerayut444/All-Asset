@@ -240,7 +240,7 @@ def normalize_prop_type(raw_type, title=""):
     if any(w in combined for w in ["โรงงาน", "โกดัง", "คลังสินค้า"]):
         return "โรงงาน/โกดัง"
     if any(w in combined for w in ["ที่ดิน", "สวน", "ไร่", "นา", "เกษตรกรรม"]):
-        return "ที่ดิน"
+        return "ที่ดินเปล่า"
     if any(w in combined for w in ["โรงแรม", "รีสอร์ท", "อพาร์ทเม้นท์", "อพาร์ตเมนต์", "หอพัก"]):
         return "โรงแรม/รีสอร์ท"
     return "บ้านเดี่ยว" if raw_type else "อื่นๆ"

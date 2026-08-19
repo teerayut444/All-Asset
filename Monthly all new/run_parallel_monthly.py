@@ -23,7 +23,8 @@ SCRAPERS = [
     {"name": "GHB", "script": "scrape_ghb_monthly.py"},
     {"name": "KBANK", "script": "scrape_kbank_monthly.py"},
     {"name": "KTB", "script": "scrape_ktb_monthly.py"},
-    {"name": "SCB", "script": "scrape_scb_monthly.py"}
+    {"name": "SCB", "script": "scrape_scb_monthly.py"},
+    {"name": "GSB", "script": "scrape_gsb_monthly.py"}
 ]
 
 status_dict = {s["name"]: f"[{s['name']:<13s}] [░░░░░░░░░░░░░░░░░░░░]   0% | (    0/    0 หน้า) | สะสม:       0 รายการ | กำลังเริ่มต้น..." for s in SCRAPERS}

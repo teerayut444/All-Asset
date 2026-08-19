@@ -429,7 +429,7 @@ def detect_talad_property_type(link, title="", text=""):
     if "town-home" in link_l or "townhome" in link_l or "townhouse" in link_l:
         return "ทาวน์โฮม"
     if "land" in link_l:
-        return "ที่ดิน"
+        return "ที่ดินเปล่า"
     if "apartment" in link_l:
         return "อพาร์ทเม้นท์"
         
@@ -446,7 +446,7 @@ def detect_talad_property_type(link, title="", text=""):
     if "ทาวน์โฮม" in text_l or "ทาวน์เฮ้าส์" in text_l:
         return "ทาวน์โฮม"
     if "ที่ดิน" in text_l:
-        return "ที่ดิน"
+        return "ที่ดินเปล่า"
     if "อพาร์ทเม้นท์" in text_l or "หอพัก" in text_l:
         return "อพาร์ทเม้นท์"
         
