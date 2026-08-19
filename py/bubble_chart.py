@@ -1,4 +1,6 @@
+import os
 import math
+import base64
 import pandas as pd
 import numpy as np
 
@@ -12,6 +14,32 @@ def format_price_thai(val):
     elif val >= 1_000:
         return f"฿{val / 1_000:,.0f} พัน"
     return f"฿{val:,.0f} บาท"
+
+def get_company_logo_data_uri(comp_id):
+    """Loads base64 Data URI of official original logo from assets/logos/ fresh from disk."""
+    alias_map = {
+        'sub-led': 'led',
+        'sub-est': 'taladnudbaan',
+        'sub-jam': 'bay',
+        'sub-others': 'bay'
+    }
+    target = alias_map.get(comp_id, comp_id).lower()
+    
+    # Priority order for file extensions
+    for ext in ['.png', '.svg', '.webp', '.jpg', '.jpeg']:
+        for fname in [f"{target}{ext}", f"{target.upper()}{ext}", f"{target.capitalize()}{ext}"]:
+            p = os.path.join('assets', 'logos', fname)
+            if os.path.exists(p):
+                try:
+                    mime = 'image/svg+xml' if ext == '.svg' else f"image/{ext.replace('.', '')}"
+                    with open(p, 'rb') as f:
+                        b64 = base64.b64encode(f.read()).decode('utf-8')
+                    return f'data:{mime};base64,{b64}'
+                except Exception:
+                    pass
+                
+    fallback = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiIgcj0iMTAiIGZpbGw9IiM2NDc0OGIiLz48L3N2Zz4="
+    return fallback
 
 def get_tnb_subinstitutions(df_tnb):
     """Extracts and summarizes sub-companies / institutions inside Taladnudbaan with accurately computed sub-circles."""
@@ -98,7 +126,7 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
     """
     Generates an interactive, responsive 3D Glossy Bubble Chart HTML component
     matching the AMC NPA Monitor style for all active property companies & financial institutions,
-    including enlarged, tightly packed 3D sub-bubbles inside Taladnudbaan.
+    featuring updated high-definition official logo badges.
     """
     companies_meta = [
         {
@@ -244,10 +272,10 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
             radius = 185
         else:
             if active_fraction > 0:
-                radius = int(45 + 95 * math.sqrt(active_fraction))
-                radius = max(45, min(115, radius))
+                radius = int(48 + 95 * math.sqrt(active_fraction))
+                radius = max(48, min(118, radius))
             else:
-                radius = 40
+                radius = 45
 
         cx, cy = comp["base_cx"], comp["base_cy"]
         bubble_id = f"bubble-{comp['id']}"
@@ -262,11 +290,15 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
         hry = radius * 0.25
         highlight = f'<ellipse cx="{hcx}" cy="{hcy}" rx="{hrx}" ry="{hry}" fill="url(#highlight-grad)" transform="rotate(-30, {hcx}, {hcy})" />'
         
-        title_size = max(11.5, int(radius * 0.125))
-        text_size = max(9.0, int(radius * 0.084))
-        badge_padding = "3px 8px" if radius > 75 else "2px 5px"
-        badge_gap = "3px" if radius > 75 else "2px"
-        margin_bottom = "3px" if radius > 75 else "2px"
+        # Significantly enlarged logo badge size
+        logo_badge_sz = max(36, min(68, int(radius * 0.54)))
+        logo_data_uri = get_company_logo_data_uri(comp["id"])
+
+        title_size = max(11, int(radius * 0.115))
+        text_size = max(8.5, int(radius * 0.08))
+        badge_padding = "1.5px 7px" if radius > 70 else "1px 5px"
+        badge_gap = "3px" if radius > 70 else "2px"
+        margin_bottom = "2px" if radius > 70 else "1px"
 
         card_bg_color = "rgba(15, 23, 42, 0.55)" if is_dark_mode else "rgba(255, 255, 255, 0.60)"
         text_title_color = "#f8fafc" if is_dark_mode else "#0f172a"
@@ -293,30 +325,37 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
                 shry = sr * 0.25
                 s_highlight = f'<ellipse cx="{shcx}" cy="{shcy}" rx="{shrx}" ry="{shry}" fill="url(#highlight-grad)" transform="rotate(-30, {shcx}, {shcy})" />'
                 
+                sub_badge_sz = max(26, min(50, int(sr * 0.48)))
+                sub_logo_data = get_company_logo_data_uri(sub["id"])
+
                 # Sub-circle typography
                 if sr >= 90:
-                    s_title_sz = 15
-                    s_sub_sz = 10.5
-                    s_badge_sz = 13
-                    s_pct_sz = 11.5
-                elif sr >= 58:
-                    s_title_sz = 12.5
+                    s_title_sz = 13.5
                     s_sub_sz = 9.5
-                    s_badge_sz = 11
-                    s_pct_sz = 10
-                else:
-                    s_title_sz = 11
+                    s_badge_sz = 11.5
+                    s_pct_sz = 10.5
+                elif sr >= 58:
+                    s_title_sz = 11.5
                     s_sub_sz = 8.5
                     s_badge_sz = 10
                     s_pct_sz = 9
+                else:
+                    s_title_sz = 10
+                    s_sub_sz = 7.5
+                    s_badge_sz = 9
+                    s_pct_sz = 8
                 
                 s_text = f"""
                 <foreignObject x="{scx - sr}" y="{scy - sr}" width="{2*sr}" height="{2*sr}">
-                    <div style="width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; font-family: 'Outfit', 'Sarabun', sans-serif; pointer-events: none; box-sizing: border-box; line-height: 1.15; padding: 2px;">
+                    <div style="width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; font-family: 'Outfit', 'Sarabun', sans-serif; pointer-events: none; box-sizing: border-box; line-height: 1.12; padding: 2px;">
+                        <!-- Enlarged Sub-Circle Logo Badge -->
+                        <div style="background: rgba(255, 255, 255, 0.96); border-radius: 50%; width: {sub_badge_sz}px; height: {sub_badge_sz}px; display: flex; justify-content: center; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.18); border: 2px solid #ffffff; margin-bottom: 2px; overflow: hidden; padding: 2px; box-sizing: border-box;">
+                            <img src="{sub_logo_data}" style="max-width: 90%; max-height: 90%; width: 90%; height: 90%; object-fit: contain;" alt="{sub['name']}" />
+                        </div>
                         <div style="font-weight: 800; font-size: {s_title_sz}px; color: #0f172a; text-transform: uppercase; letter-spacing: -0.3px;">
                             {sub['name']}
                         </div>
-                        <div style="font-size: {s_sub_sz}px; color: #334155; font-weight: 600; margin-bottom: 2px;">
+                        <div style="font-size: {s_sub_sz}px; color: #334155; font-weight: 600; margin-bottom: 1.5px;">
                             {sub['sub']}
                         </div>
                         <div style="background: rgba(255,255,255,0.85); backdrop-filter: blur(2px); border-radius: 12px; padding: 1px 6px; font-weight: 800; font-size: {s_badge_sz}px; color: #0f172a; box-shadow: 0 1px 4px rgba(0,0,0,0.08); border: 1px solid rgba(255,255,255,0.9);">
@@ -338,6 +377,7 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
                 </g>
                 """)
             
+            tnb_logo = get_company_logo_data_uri('taladnudbaan')
             bubble_body = f"""
                 <g class="bubble-group" id="{bubble_id}">
                     {slices}
@@ -347,10 +387,13 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
                     <!-- 4 Nested Sub-Circles that fill the circle space -->
                     {''.join(nested_circles_svg)}
                     
-                    <!-- Subtle Floating Tag for Taladnudbaan -->
-                    <foreignObject x="{cx - 100}" y="{cy + radius - 26}" width="200" height="28">
+                    <!-- Subtle Floating Tag for Taladnudbaan with Logo Badge -->
+                    <foreignObject x="{cx - 120}" y="{cy + radius - 26}" width="240" height="28">
                         <div style="width: 100%; display: flex; justify-content: center; align-items: center; text-align: center; font-family: 'Outfit', 'Sarabun', sans-serif; pointer-events: none;">
-                            <div style="background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(6px); color: #ffffff; border-radius: 20px; padding: 2px 12px; font-size: 10.5px; font-weight: 800; border: 1px solid rgba(255,255,255,0.3); box-shadow: 0 2px 6px rgba(0,0,0,0.25);">
+                            <div style="background: rgba(15, 23, 42, 0.88); backdrop-filter: blur(6px); color: #ffffff; border-radius: 20px; padding: 2px 14px; font-size: 11px; font-weight: 800; border: 1px solid rgba(255,255,255,0.3); box-shadow: 0 2px 6px rgba(0,0,0,0.25); display: inline-flex; align-items: center; gap: 7px;">
+                                <div style="background: #ffffff; border-radius: 50%; width: 18px; height: 18px; display: flex; justify-content: center; align-items: center; overflow: hidden; padding: 1.5px; box-sizing: border-box;">
+                                    <img src="{tnb_logo}" style="width: 100%; height: 100%; object-fit: contain;" alt="TNB" />
+                                </div>
                                 TALADNUDBAAN: {c_count:,}
                             </div>
                         </div>
@@ -358,16 +401,21 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
                 </g>
             """
         else:
-            # Standard single provider bubble layout
+            # Standard single provider bubble layout with Extra Large Frosted Glass White Background Badge
             bubble_body = f"""
                 <g class="bubble-group" id="{bubble_id}">
                     {slices}
                     {sheen}
                     {highlight}
                     <foreignObject x="{cx - radius}" y="{cy - radius}" width="{2*radius}" height="{2*radius}">
-                        <div style="width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; font-family: 'Outfit', 'Sarabun', sans-serif; pointer-events: none; box-sizing: border-box; padding: 6px; line-height: 1.3; will-change: transform; transform: translate3d(0,0,0);">
+                        <div style="width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; font-family: 'Outfit', 'Sarabun', sans-serif; pointer-events: none; box-sizing: border-box; padding: 4px; line-height: 1.2; will-change: transform; transform: translate3d(0,0,0);">
+                            <!-- Extra Large Logo with Crisp White Circular Badge Background -->
+                            <div style="background: rgba(255, 255, 255, 0.96); border-radius: 50%; width: {logo_badge_sz}px; height: {logo_badge_sz}px; display: flex; justify-content: center; align-items: center; box-shadow: 0 4px 12px rgba(0,0,0,0.20), 0 1px 3px rgba(0,0,0,0.12); border: 2.5px solid #ffffff; margin-bottom: 2.5px; overflow: hidden; padding: 2px; box-sizing: border-box; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.15));">
+                                <img src="{logo_data_uri}" style="max-width: 90%; max-height: 90%; width: 90%; height: 90%; object-fit: contain;" alt="{comp['name']}" />
+                            </div>
+                            
                             <!-- Title -->
-                            <div style="font-weight: 800; font-size: {title_size}px; color: {text_title_color}; letter-spacing: -0.3px; margin-bottom: 4px; text-transform: uppercase;">
+                            <div style="font-weight: 800; font-size: {title_size}px; color: {text_title_color}; letter-spacing: -0.3px; margin-bottom: 2.5px; text-transform: uppercase;">
                                 {comp['name']}
                             </div>
                             
@@ -531,7 +579,7 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
         </radialGradient>
       </defs>
       
-      {''.join(bubbles_html_list)}
+      {'\n'.join(bubbles_html_list)}
     </svg>
     """
 
@@ -543,7 +591,7 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
     <html>
     <head>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Sarabun:wght@400;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&family=Sarabun:wght@400;600;700;800&display=swap');
         body {{
             margin: 0;
             padding: 0;

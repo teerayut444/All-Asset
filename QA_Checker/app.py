@@ -465,9 +465,10 @@ elif view_mode.startswith("🔍"):
     if "screenshot_cache" not in st.session_state:
         st.session_state.screenshot_cache = {}
 
-    tab_mode_sample, tab_mode_search = st.tabs([
-        "🎲 สุ่มตรวจตัวอย่าง (Random Sampling)",
-        "🔎 ค้นหาทรัพย์เจาะจง (Search Specific Property)"
+    tab_mode_sample, tab_mode_search, tab_mode_direct = st.tabs([
+        "🎲 1. สุ่มตรวจตัวอย่าง (Random Sampling)",
+        "🔎 2. ค้นหาทรัพย์จากฐานข้อมูล (Search by ID/Name)",
+        "🔗 3. วางลิงก์ URL ตรวจสอบเอง (Direct URL Inspector)"
     ])
 
     btn_sample = False
@@ -502,10 +503,10 @@ elif view_mode.startswith("🔍"):
             btn_sample = st.button("🎲 สุ่มตัวอย่างใหม่ (Generate Sample)", type="primary", use_container_width=True, key="btn_sample_trigger")
 
     with tab_mode_search:
-        st.markdown("##### 🔎 ค้นหาทรัพย์จากฐานข้อมูล (ID, รหัสทรัพย์, ชื่อโครงการ, ชื่อประกาศ หรือ URL):")
+        st.markdown("##### 🔎 ค้นหาทรัพย์จากฐานข้อมูล CSV ทั้งหมด (ID, รหัสทรัพย์, ชื่อโครงการ, ชื่อประกาศ, หรือ ลิงก์ URL):")
         srch_c1, srch_c2, srch_c3, srch_c4 = st.columns([2.5, 1.3, 1, 1.2])
         with srch_c1:
-            search_query = st.text_input("คำค้นหา:", placeholder="เช่น 63711, RCAM660022, คอนโด, พระราม 9 หรือ URL...", key="prop_search_query")
+            search_query = st.text_input("คำค้นหา:", placeholder="เช่น 63711, RCAM660022, คอนโด, พระราม 9, หรือ URL...", key="prop_search_query")
         with srch_c2:
             search_co = st.selectbox("บริษัท:", ["ทุกบริษัท"] + list(company_dfs.keys()), key="prop_search_co")
         with srch_c3:
@@ -547,6 +548,67 @@ elif view_mode.startswith("🔍"):
                         st.warning(f"❌ ไม่พบรายการทรัพย์ที่ตรงกับคำค้นหา '{search_query}' ในบริษัทที่เลือก")
                 else:
                     st.warning("⚠️ ไม่มีข้อมูลสำหรับค้นหา")
+
+    with tab_mode_direct:
+        st.markdown("##### 🔗 วางลิงก์ URL หรือระบุรหัสทรัพย์ที่ต้องการตรวจสอบโดยตรง:")
+        dir_c1, dir_c2, dir_c3 = st.columns([3, 1.2, 1.3])
+        with dir_c1:
+            direct_url = st.text_input("ลิงก์ URL หน้าเว็บทรัพย์:", placeholder="เช่น https://www.bam.co.th/th/npa/property/63711 หรือ https://...", key="direct_url_input")
+        with dir_c2:
+            direct_company = st.selectbox("ระบุบริษัท:", ["อัตโนมัติ (Auto-detect)"] + list(company_dfs.keys()), key="direct_co_select")
+        with dir_c3:
+            st.write("")
+            st.write("")
+            btn_direct_inspect = st.button("🚀 ตรวจสอบ URL นี้ทันที", type="primary", use_container_width=True, key="btn_direct_inspect")
+
+        if btn_direct_inspect:
+            url_clean = direct_url.strip()
+            if not url_clean or not (url_clean.startswith("http://") or url_clean.startswith("https://")):
+                st.warning("⚠️ กรุณากรอกลิงก์ URL ให้ถูกต้อง (ขึ้นต้นด้วย http:// หรือ https://)")
+            else:
+                # 1. Search if this URL already exists in all_df
+                found_in_db = False
+                matched_record = None
+                if not all_df.empty and "ลิงก์" in all_df.columns:
+                    url_match = all_df[all_df["ลิงก์"].astype(str).str.strip() == url_clean]
+                    if not url_match.empty:
+                        found_in_db = True
+                        matched_record = url_match.iloc[0].to_dict()
+                
+                # 2. If not found, detect company and create custom record
+                if not matched_record:
+                    detected_co = direct_company if direct_company != "อัตโนมัติ (Auto-detect)" else "Custom"
+                    if detected_co == "Custom":
+                        lower_url = url_clean.lower()
+                        if "bam.co.th" in lower_url: detected_co = "BAM"
+                        elif "sam.or.th" in lower_url: detected_co = "SAM"
+                        elif "baania.com" in lower_url: detected_co = "Baania"
+                        elif "ddproperty.com" in lower_url: detected_co = "DDproperty"
+                        elif "livinginsider.com" in lower_url: detected_co = "Livinginsider"
+                        elif "taladnudbaan.com" in lower_url: detected_co = "Taladnudbaan"
+                        elif "zmyhome.com" in lower_url: detected_co = "ZmyHome"
+                    
+                    matched_record = {
+                        "ID": "CUSTOM-" + str(int(time.time()))[-6:],
+                        "รหัสทรัพย์": "-",
+                        "ชื่อประกาศ": f"ทรัพย์กำหนดเอง ({detected_co})",
+                        "ราคา": "-",
+                        "ลิงก์": url_clean,
+                        "บริษัท": detected_co,
+                        "บริษัทเจ้าของทรัพย์": detected_co,
+                        "วันที่ดึงข้อมูล": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    }
+                    for col in STANDARD_COLUMNS:
+                        if col not in matched_record:
+                            matched_record[col] = "-"
+                
+                st.session_state.qa_samples = [matched_record]
+                st.session_state.current_qa_index = 0
+                if found_in_db:
+                    st.success("🎉 พบข้อมูลทรัพย์นี้ในฐานข้อมูล Scraped Data! นำเข้าสู่หน้าตรวจเทียบเรียบร้อยแล้ว")
+                else:
+                    st.info("ℹ️ สร้างรายการตรวจสอบจาก URL ที่กำหนด นำเข้าสู่หน้าตรวจเทียบเรียบร้อยแล้ว")
+                st.rerun()
 
     def get_valid_url_df(df_in):
         if "ลิงก์" not in df_in.columns:
