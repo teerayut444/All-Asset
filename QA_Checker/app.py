@@ -1,4 +1,5 @@
 import os
+import sys
 import glob
 import time
 import io
@@ -11,6 +12,9 @@ import streamlit as st
 from datetime import datetime
 
 # Local screenshot service
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+if CURRENT_DIR not in sys.path:
+    sys.path.insert(0, CURRENT_DIR)
 from screenshot_service import capture_url_sync, CACHE_DIR
 
 # ---------------------------------------------------------
@@ -141,7 +145,14 @@ def load_all_company_data():
         return {}, pd.DataFrame(columns=STANDARD_COLUMNS)
         
     csv_files = glob.glob(os.path.join(CSV_DIR, "*.csv"))
-    csv_files = [f for f in csv_files if not f.endswith("all_assets_monthly.csv") and not f.endswith("_BACKUP.csv")]
+    # Exclude all-merged files and backup files
+    csv_files = [
+        f for f in csv_files 
+        if not os.path.basename(f).lower().startswith("all") 
+        and not "all_assets" in os.path.basename(f).lower() 
+        and not "_backup" in os.path.basename(f).lower() 
+        and not "merge" in os.path.basename(f).lower()
+    ]
     
     company_dfs = {}
     combined_list = []
@@ -241,7 +252,6 @@ st.sidebar.markdown("---")
 st.sidebar.markdown("### 📁 ข้อมูลที่ตรวจพบ")
 for co, df in company_dfs.items():
     st.sidebar.write(f"• **{co}**: {len(df):,} รายการ")
-st.sidebar.write(f"**รวมทั้งหมด**: `{len(all_df):,}` รายการ")
 
 st.sidebar.markdown("---")
 view_mode = st.sidebar.radio(
@@ -455,21 +465,27 @@ elif view_mode.startswith("🔍"):
     if "screenshot_cache" not in st.session_state:
         st.session_state.screenshot_cache = {}
 
-    with st.container():
-        st.markdown("### ⚙️ กำหนดเงื่อนไขการสุ่มตรวจ (Sampling Settings)")
+    tab_mode_sample, tab_mode_search = st.tabs([
+        "🎲 สุ่มตรวจตัวอย่าง (Random Sampling)",
+        "🔎 ค้นหาทรัพย์เจาะจง (Search Specific Property)"
+    ])
+
+    btn_sample = False
+    with tab_mode_sample:
         cfg_c1, cfg_c2, cfg_c3, cfg_c4 = st.columns([1.5, 1.3, 1.5, 1.4])
         
         with cfg_c1:
             sample_target_co = st.selectbox(
                 "บริษัทที่ต้องการสุ่ม:",
-                ["ทุกบริษัท (ครบทั้ง 7 บริษัท)"] + list(company_dfs.keys())
+                ["ทุกบริษัท (ครบทั้ง 7 บริษัท)"] + list(company_dfs.keys()),
+                key="sel_target_co"
             )
         with cfg_c2:
             if sample_target_co.startswith("ทุกบริษัท"):
-                samples_per_co = st.number_input("จำนวนที่สุ่ม (ต่อบริษัท):", min_value=1, max_value=20, value=1, step=1)
+                samples_per_co = st.number_input("จำนวนที่สุ่ม (ต่อบริษัท):", min_value=1, max_value=20, value=1, step=1, key="num_samples_co")
                 st.caption(f"📊 รวมทั้งหมด: **{samples_per_co * len(company_dfs)} รายการ** ({samples_per_co} × {len(company_dfs)} บริษัท)")
             else:
-                samples_per_co = st.number_input("จำนวนที่สุ่ม (รายการ):", min_value=1, max_value=50, value=5, step=1)
+                samples_per_co = st.number_input("จำนวนที่สุ่ม (รายการ):", min_value=1, max_value=50, value=5, step=1, key="num_samples_single")
         with cfg_c3:
             sample_strategy = st.selectbox(
                 "รูปแบบการสุ่ม:",
@@ -477,21 +493,68 @@ elif view_mode.startswith("🔍"):
                     "⚖️ สุ่มตัวแทนครบทุกบริษัท (Balanced per Company)",
                     "⚠️ สุ่มเน้นรายการที่ข้อมูลแหว่ง (Missing Fields Focus)",
                     "🎲 สุ่มทั่วไปทั้งหมด (Random Pool)"
-                ]
+                ],
+                key="sel_strategy"
             )
         with cfg_c4:
             st.write("")
             st.write("")
-            btn_sample = st.button("🎲 สุ่มตัวอย่างใหม่ (Generate Sample)", type="primary", use_container_width=True)
+            btn_sample = st.button("🎲 สุ่มตัวอย่างใหม่ (Generate Sample)", type="primary", use_container_width=True, key="btn_sample_trigger")
+
+    with tab_mode_search:
+        st.markdown("##### 🔎 ค้นหาทรัพย์จากฐานข้อมูล (ID, รหัสทรัพย์, ชื่อโครงการ, ชื่อประกาศ หรือ URL):")
+        srch_c1, srch_c2, srch_c3, srch_c4 = st.columns([2.5, 1.3, 1, 1.2])
+        with srch_c1:
+            search_query = st.text_input("คำค้นหา:", placeholder="เช่น 63711, RCAM660022, คอนโด, พระราม 9 หรือ URL...", key="prop_search_query")
+        with srch_c2:
+            search_co = st.selectbox("บริษัท:", ["ทุกบริษัท"] + list(company_dfs.keys()), key="prop_search_co")
+        with srch_c3:
+            search_limit = st.number_input("จำกัดผลลัพธ์:", min_value=1, max_value=100, value=10, step=5, key="prop_search_limit")
+        with srch_c4:
+            st.write("")
+            st.write("")
+            btn_search = st.button("🔎 ค้นหาทรัพย์", type="primary", use_container_width=True, key="btn_search_trigger")
+            
+        if btn_search:
+            if not search_query.strip():
+                st.warning("⚠️ กรุณากรอกคำค้นหา (เช่น ID หรือ รหัสทรัพย์ หรือชื่อโครงการ)")
+            else:
+                target_df = all_df if search_co == "ทุกบริษัท" else company_dfs.get(search_co, pd.DataFrame())
+                if not target_df.empty:
+                    q_clean = search_query.strip().lower()
+                    searchable_cols = [c for c in ["ID", "รหัสทรัพย์", "ชื่อโครงการ", "ชื่อประกาศ", "ลิงก์", "จังหวัด", "อำเภอ"] if c in target_df.columns]
+                    
+                    mask = pd.Series(False, index=target_df.index)
+                    for col in searchable_cols:
+                        mask = mask | target_df[col].astype(str).str.lower().str.contains(q_clean, na=False, regex=False)
+                        
+                    matched_df = target_df[mask]
+                    
+                    if not matched_df.empty:
+                        # Prioritize items with valid links
+                        if "ลิงก์" in matched_df.columns:
+                            valid_matched = matched_df[~matched_df["ลิงก์"].apply(is_value_missing) & matched_df["ลิงก์"].astype(str).str.startswith("http")]
+                            pool_to_use = valid_matched if not valid_matched.empty else matched_df
+                        else:
+                            pool_to_use = matched_df
+                            
+                        results_list = pool_to_use.head(search_limit).to_dict('records')
+                        st.session_state.qa_samples = results_list
+                        st.session_state.current_qa_index = 0
+                        st.success(f"🎉 พบทั้งหมด **{len(matched_df):,} รายการ** (นำ {len(results_list)} รายการเข้าสู่หน้าตรวจเทียบเรียบร้อยแล้ว!)")
+                        st.rerun()
+                    else:
+                        st.warning(f"❌ ไม่พบรายการทรัพย์ที่ตรงกับคำค้นหา '{search_query}' ในบริษัทที่เลือก")
+                else:
+                    st.warning("⚠️ ไม่มีข้อมูลสำหรับค้นหา")
+
+    def get_valid_url_df(df_in):
+        if "ลิงก์" not in df_in.columns:
+            return pd.DataFrame()
+        return df_in[~df_in["ลิงก์"].apply(is_value_missing) & df_in["ลิงก์"].str.startswith("http")]
 
     if btn_sample or len(st.session_state.qa_samples) == 0:
         samples = []
-        
-        def get_valid_url_df(df_in):
-            if "ลิงก์" not in df_in.columns:
-                return pd.DataFrame()
-            return df_in[~df_in["ลิงก์"].apply(is_value_missing) & df_in["ลิงก์"].str.startswith("http")]
-
         if sample_target_co.startswith("ทุกบริษัท"):
             if sample_strategy.startswith("⚠️"):
                 # Missing fields focus per company
@@ -532,7 +595,7 @@ elif view_mode.startswith("🔍"):
 
     samples = st.session_state.qa_samples
     if not samples:
-        st.info("กรุณากดปุ่ม **สุ่มตัวอย่างใหม่** เพื่อเริ่มต้นตรวจสอบ")
+        st.info("กรุณากดปุ่ม **สุ่มตัวอย่างใหม่** หรือใช้ **ช่องค้นหาทรัพย์** เพื่อเริ่มต้นตรวจสอบ")
         st.stop()
 
     st.markdown("---")
@@ -540,7 +603,7 @@ elif view_mode.startswith("🔍"):
     # Navigation & Batch Capture
     nav_c1, nav_c2, nav_c3, nav_c4 = st.columns([1.5, 1, 1, 2])
     with nav_c1:
-        st.markdown(f"### รายการที่สุ่มได้: **{len(samples)} รายการ**")
+        st.markdown(f"### 📋 รายการพร้อมตรวจ: **{len(samples)} รายการ**")
     with nav_c2:
         if st.button("⬅️ ก่อนหน้า (Previous)", use_container_width=True, disabled=(st.session_state.current_qa_index == 0)):
             st.session_state.current_qa_index = max(0, st.session_state.current_qa_index - 1)

@@ -2,7 +2,7 @@
 """
 NaYoo (น่าอยู่) Monthly Scraper
 Scrapes all Secondhand properties (~10,711) and Project listings (~3,528) from https://api.nayoo.co
-Adheres strictly to the 16 standard dashboard columns, GIS reverse geocoding, gazetteer lookup, and monthly export structure.
+Adheres strictly to the 21 standard dashboard columns, GIS STRtree reverse geocoding, coordinates extraction, and monthly export structure.
 """
 
 import os
@@ -55,12 +55,13 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 MONTH_STR = datetime.datetime.now().strftime("%Y_%m")
 OUTPUT_CSV = os.path.join(OUTPUT_DIR, f"{COMPANY_NAME}_NPA_New_{MONTH_STR}.csv")
 
-# Standard 16 Columns
+# Standard 21 Columns
 COLUMNS = [
     "บริษัท", "ID", "รหัสทรัพย์", "ชื่อโครงการ", "ประเภททรัพย์",
     "ประเภทการขาย", "ราคา", "ตำบล", "อำเภอ", "จังหวัด",
-    "ละติจูด", "ลองจิจูด", "ชื่อประกาศ", "เนื้อที่ (ตร.ว.)",
-    "พื้นที่ใช้สอย (ตร.ม.)", "ห้องนอน", "ห้องน้ำ", "วันที่ลงประกาศ", "ลิงก์"
+    "ละติจูด", "ลองจิจูด", "ชื่อประกาศ", "ลิงก์",
+    "เนื้อที่ (ตร.ว.)", "พื้นที่ใช้สอย (ตร.ม.)", "วันที่ดึงข้อมูล",
+    "ห้องนอน", "ห้องน้ำ", "ที่จอดรถ", "วันประกาศ"
 ]
 
 # Thailand Province Slug Mapping
@@ -91,157 +92,82 @@ PROVINCES = [
     "อ่างทอง", "อำนาจเจริญ", "อุดรธานี", "อุตรดิตถ์", "อุทัยธานี", "อุบลราชธานี"
 ]
 
-# GIS Boundary & Gazetteer Cache
-_GIS_SUBDISTRICTS = None
-_DISTRICTS_BY_PROV = None
-_SUBDIST_TO_DIST = None
+# GIS Boundary Engine Cache
+_GIS_TREE = None
+_GIS_PROPS = None
 
-def _load_gis():
-    global _GIS_SUBDISTRICTS, _DISTRICTS_BY_PROV, _SUBDIST_TO_DIST
-    if _GIS_SUBDISTRICTS is not None:
-        return _GIS_SUBDISTRICTS, _DISTRICTS_BY_PROV, _SUBDIST_TO_DIST
+SPECIAL_TAM_CLEAN = {
+    'เทศบาลนครสมุทรปร': 'ปากน้ำ',
+    'เทศบาลบางปู': 'บางปูใหม่',
+    'เทศบาลบางเมือง': 'บางเมือง',
+    'เทศบาลเมืองพระปร': 'ตลาด',
+    'เทศบาลสำโรงใต้': 'สำโรงใต้',
+    'เขตการปกคองพิเศษ': 'เมืองพัทยา',
+    'ท่าเรือ (เทศบาลเมื': 'ท่าเรือ',
+    'เทศบาลเมืองทุ่งส': 'ปากแพรก'
+}
 
-    geojson_path = os.path.join(_BASE_DIR, "subdistricts.geojson")
-    if not os.path.exists(geojson_path):
-        geojson_path = os.path.join(os.path.dirname(_BASE_DIR), "Monthly all new", "subdistricts.geojson")
-
-    _GIS_SUBDISTRICTS = []
-    _DISTRICTS_BY_PROV = {}
-    _SUBDIST_TO_DIST = {}
-
-    if os.path.exists(geojson_path):
-        try:
+def _init_gis():
+    global _GIS_TREE, _GIS_PROPS
+    if _GIS_TREE is not None:
+        return
+    try:
+        from shapely.geometry import shape
+        from shapely.strtree import STRtree
+        
+        geojson_path = os.path.join(_BASE_DIR, "subdistricts.geojson")
+        if not os.path.exists(geojson_path):
+            geojson_path = os.path.join(os.path.dirname(_BASE_DIR), "subdistricts.geojson")
+        
+        if os.path.exists(geojson_path):
             with open(geojson_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                _GIS_SUBDISTRICTS = data.get("features", [])
-                for feat in _GIS_SUBDISTRICTS:
-                    props = feat.get("properties", {})
-                    p = props.get("pro_th") or props.get("province_th") or props.get("province") or ""
-                    d = props.get("amp_th") or props.get("district_th") or props.get("district") or ""
-                    sd = props.get("tam_th") or props.get("subdistrict_th") or props.get("subdistrict") or ""
-                    if p not in _DISTRICTS_BY_PROV: _DISTRICTS_BY_PROV[p] = set()
-                    if d: _DISTRICTS_BY_PROV[p].add(d.replace("อำเภอ", "").replace("เขต", "").strip())
-                    if sd and d: _SUBDIST_TO_DIST[(p, sd.replace("ตำบล", "").replace("แขวง", "").strip())] = d.replace("อำเภอ", "").replace("เขต", "").strip()
-                logger.info(f"Loaded {len(_GIS_SUBDISTRICTS):,} GIS subdistrict boundaries & gazetteer.")
-        except Exception as e:
-            logger.warning(f"Failed to load subdistricts.geojson: {e}")
+            geoms = []
+            props = []
+            for feat in data.get("features", []):
+                geom = shape(feat["geometry"])
+                geoms.append(geom)
+                p = feat.get("properties", {})
+                tam = p.get("tam_th", "").strip()
+                amp = p.get("amp_th", "").strip()
+                pro = p.get("pro_th", "").strip()
+                if tam in SPECIAL_TAM_CLEAN:
+                    tam = SPECIAL_TAM_CLEAN[tam]
+                if "กรุงเทพ" in pro:
+                    pro = "กรุงเทพมหานคร"
+                props.append((tam, amp, pro))
+            _GIS_PROPS = props
+            _GIS_TREE = STRtree(geoms)
+            logger.info(f"Loaded {len(_GIS_PROPS):,} GIS subdistrict boundaries & built STRtree.")
+    except Exception as e:
+        logger.warning(f"Failed to load subdistricts.geojson: {e}")
 
-    return _GIS_SUBDISTRICTS, _DISTRICTS_BY_PROV, _SUBDIST_TO_DIST
-
-def _point_in_poly(x, y, poly):
-    n = len(poly)
-    inside = False
-    p1x, p1y = poly[0]
-    for i in range(n + 1):
-        p2x, p2y = poly[i % n]
-        if y > min(p1y, p2y):
-            if y <= max(p1y, p2y):
-                if x <= max(p1x, p2x):
-                    if p1y != p2y:
-                        xinters = (y - p1y) * (p2x - p1x) / (p2y - p1y) + p1x
-                    if p1x == p2x or x <= xinters:
-                        inside = not inside
-        p1x, p1y = p2x, p2y
-    return inside
-
-def _check_geom(lng, lat, geom):
-    gtype = geom.get("type")
-    coords = geom.get("coordinates", [])
-    if gtype == "Polygon":
-        if coords and _point_in_poly(lng, lat, coords[0]):
-            return True
-    elif gtype == "MultiPolygon":
-        for poly in coords:
-            if poly and _point_in_poly(lng, lat, poly[0]):
-                return True
-    return False
-
-def reverse_geocode_location(session, lat, lng):
+def reverse_geocode_location(lat, lng):
     if not lat or not lng:
         return "", "", ""
     try:
         lat_f = float(lat)
         lng_f = float(lng)
+        if not (5.0 < lat_f < 21.0 and 97.0 < lng_f < 106.0):
+            return "", "", ""
+        _init_gis()
+        if _GIS_TREE is not None and _GIS_PROPS is not None:
+            from shapely.geometry import Point
+            pt = Point(lng_f, lat_f)
+            res = _GIS_TREE.query(pt, predicate='intersects')
+            if len(res) > 0:
+                g_idx = res[0]
+                return _GIS_PROPS[g_idx]
+            else:
+                nearest = _GIS_TREE.query_nearest(pt)
+                if len(nearest) > 0:
+                    import numpy as np
+                    g_idx = nearest[0] if not isinstance(nearest[0], (list, tuple, np.ndarray)) else nearest[1][0]
+                    return _GIS_PROPS[g_idx]
     except Exception:
-        return "", "", ""
-
-    features, _, _ = _load_gis()
-    for feat in features:
-        props = feat.get("properties", {})
-        geom = feat.get("geometry", {})
-        if _check_geom(lng_f, lat_f, geom):
-            sd = props.get("tam_th") or props.get("subdistrict_th") or props.get("subdistrict") or ""
-            d = props.get("amp_th") or props.get("district_th") or props.get("district") or ""
-            p = props.get("pro_th") or props.get("province_th") or props.get("province") or ""
-            if p == "กรุงเทพมหานคร":
-                sd = sd.replace("ตำบล", "แขวง")
-                d = d.replace("อำเภอ", "เขต")
-            return sd, d, p
+        pass
 
     return "", "", ""
-
-def resolve_nayoo_location(title, zone, p_slug):
-    _, districts_by_prov, subdist_to_dist = _load_gis()
-    prov = PROVINCE_SLUG_MAP.get(str(p_slug).lower(), "")
-    subdist = str(zone).strip() if zone and zone != "None" else ""
-    dist = ""
-
-    if str(p_slug).lower() == "huahin":
-        prov = "ประจวบคีรีขันธ์"
-        dist = "หัวหิน"
-
-    combined = f"{title} {subdist}".replace("อำเภอ", " ").replace("เขต", " ")
-
-    # 1. Check direct regex in title
-    m_d = re.search(r'(?:ใน)?(?:อำเภอ|เขต)\s*([^\s,]+)', f"{title} {zone}")
-    if m_d:
-        d_cand = m_d.group(1).strip()
-        if prov and prov in districts_by_prov:
-            for real_d in districts_by_prov[prov]:
-                if real_d in d_cand or d_cand in real_d:
-                    dist = real_d
-                    break
-        if not dist:
-            dist = d_cand
-
-    m_sd = re.search(r'(?:ใน)?(?:ตำบล|แขวง)\s*([^\s,]+)', f"{title} {zone}")
-    if m_sd:
-        sd_cand = m_sd.group(1).strip()
-        subdist = sd_cand
-
-    # 2. Check if zone or title matches a known district in province
-    if prov and prov in districts_by_prov:
-        if not dist:
-            for real_d in sorted(districts_by_prov[prov], key=len, reverse=True):
-                if real_d in f"{title} {zone}":
-                    dist = real_d
-                    break
-
-        # 3. Check if zone or title matches a known subdistrict in province
-        for (p_k, sd_k), d_v in subdist_to_dist.items():
-            if p_k == prov and sd_k in f"{title} {zone}":
-                if not subdist or subdist == zone:
-                    subdist = sd_k
-                if not dist:
-                    dist = d_v
-                break
-
-    # 4. Fallback for "ในเมือง" or "ตัวเมือง"
-    if not dist and ("ในเมือง" in subdist or "ตัวเมือง" in subdist or "เซ็นทรัล" in subdist):
-        if prov:
-            dist = f"เมือง{prov}"
-
-    # Normalize Province
-    if not prov:
-        for p in PROVINCES:
-            if p in combined:
-                prov = "กรุงเทพมหานคร" if p == "กรุงเทพ" else p
-                break
-
-    if prov == "กรุงเทพ":
-        prov = "กรุงเทพมหานคร"
-
-    return subdist, dist, prov
 
 def normalize_prop_type(raw_type, title=""):
     combined = f"{raw_type} {title}".lower()
@@ -339,7 +265,7 @@ def fetch_nayoo_page(session, endpoint, page, per_page=36):
         logger.warning(f"Error fetching NaYoo {endpoint} p{page}: {e}")
     return None
 
-def process_nayoo_item(session, item):
+def fetch_and_process_item(session, item):
     pid = str(item.get("id") or item.get("uuid") or "").strip()
     if not pid or pid == "None":
         return None
@@ -387,49 +313,94 @@ def process_nayoo_item(session, item):
     funcs = item.get("functions", {}) or {}
     bed = funcs.get("bedrooms") if isinstance(funcs, dict) else None
     bath = funcs.get("bathrooms") if isinstance(funcs, dict) else None
+    parking = funcs.get("parking") if isinstance(funcs, dict) else None
     raw_land = funcs.get("land_area") if isinstance(funcs, dict) else ""
     raw_usable = funcs.get("usable_area") if isinstance(funcs, dict) else ""
 
+    # Fetch Detailed endpoint for Coordinates and Precise Location
+    detail_data = None
+    lat, lng = None, None
+    subdist, dist, prov = "", "", ""
+    post_date = ""
+
+    try:
+        r_det = session.get(f"{API_BASE}/api/listing/post/{pid}", headers=HEADERS, timeout=10)
+        if r_det.status_code == 200:
+            detail_data = r_det.json().get("data", {})
+    except Exception:
+        pass
+
+    if detail_data:
+        loc = detail_data.get("location", {})
+        coords = loc.get("coordinates")
+        if isinstance(coords, (list, tuple)) and len(coords) >= 2:
+            try:
+                c0 = float(coords[0])
+                c1 = float(coords[1])
+                if c0 != 0 or c1 != 0:
+                    lat, lng = c0, c1
+            except Exception:
+                pass
+
+        if lat and lng:
+            sd_geo, d_geo, p_geo = reverse_geocode_location(lat, lng)
+            if sd_geo: subdist = sd_geo
+            if d_geo: dist = d_geo
+            if p_geo: prov = p_geo
+
+        if not prov or not dist:
+            p_dict = loc.get("province", {})
+            if isinstance(p_dict, dict): prov = p_dict.get("name", {}).get("th", "")
+            d_dict = loc.get("district", {})
+            if isinstance(d_dict, dict): dist = d_dict.get("name", {}).get("th", "")
+            sd_dict = loc.get("sub_district", {})
+            if isinstance(sd_dict, dict): subdist = sd_dict.get("name", {}).get("th", "")
+
+        spec = detail_data.get("spec", {})
+        if isinstance(spec, dict):
+            if spec.get("parking") is not None:
+                parking = spec.get("parking")
+            if spec.get("bedroom") is not None:
+                bed = spec.get("bedroom")
+            if spec.get("bathroom") is not None:
+                bath = spec.get("bathroom")
+            if spec.get("usable_area") and float(spec.get("usable_area") or 0) > 1.0:
+                raw_usable = spec.get("usable_area")
+
+        pub_dt = detail_data.get("published_at") or detail_data.get("created_at") or detail_data.get("updated_at")
+        if pub_dt:
+            post_date = str(pub_dt)[:10]
+
+    # Fallback for location if detail was not reachable
+    if not prov:
+        p_obj = item.get("province", {})
+        p_slug = p_obj.get("slug", "") if isinstance(p_obj, dict) else str(p_obj)
+        prov = PROVINCE_SLUG_MAP.get(str(p_slug).lower(), "")
+
+    if not post_date:
+        dt_str = item.get("created_at") or item.get("updated_at") or ""
+        if dt_str:
+            post_date = str(dt_str)[:10]
+
+    # Clean location strings
+    if dist:
+        dist = dist.replace("อำเภอ", "").replace("เขต", "").strip()
+    if subdist:
+        subdist = subdist.replace("ตำบล", "").replace("แขวง", "").strip()
+    if prov == "กรุงเทพ":
+        prov = "กรุงเทพมหานคร"
+
     land_area, usable_area = parse_nayoo_areas(raw_land, raw_usable, title=title, prop_type=prop_type)
 
-    # Location & Coordinates
     p_obj = item.get("province", {})
     p_slug = p_obj.get("slug", "") if isinstance(p_obj, dict) else str(p_obj)
-    zone = item.get("zone", "") or ""
-
-    subdist, dist, prov = resolve_nayoo_location(title, zone, p_slug)
-
-    coords = item.get("coordinates")
-    lat, lng = None, None
-    if isinstance(coords, list) and len(coords) >= 2:
-        try:
-            lat = float(coords[0])
-            lng = float(coords[1])
-        except Exception:
-            pass
-
-    # Reverse Geocode with GIS if coordinates present
-    if lat and lng:
-        sd_geo, d_geo, p_geo = reverse_geocode_location(session, lat, lng)
-        if sd_geo: subdist = sd_geo
-        if d_geo: dist = d_geo
-        if p_geo: prov = p_geo
-
-    # Dates
-    post_date = ""
-    dt_str = item.get("created_at") or item.get("updated_at") or ""
-    if dt_str:
-        try:
-            post_date = str(dt_str)[:10]
-        except Exception:
-            pass
-
-    # URL Link
     item_slug = item.get("slug", "")
     if item_slug:
-        link = f"https://nayoo.co/property-for-sale/properties/{p_slug or 'khonkaen'}/{item_slug}"
+        link = f"https://nayoo.co/property-for-sale/properties/{p_slug or 'thailand'}/{item_slug}"
     else:
         link = f"https://nayoo.co/posts/{pid}"
+
+    pull_date = datetime.datetime.now().strftime("%Y-%m-%d")
 
     return {
         "บริษัท": COMPANY_NAME,
@@ -445,12 +416,14 @@ def process_nayoo_item(session, item):
         "ละติจูด": lat,
         "ลองจิจูด": lng,
         "ชื่อประกาศ": title,
+        "ลิงก์": link,
         "เนื้อที่ (ตร.ว.)": land_area,
         "พื้นที่ใช้สอย (ตร.ม.)": usable_area,
+        "วันที่ดึงข้อมูล": pull_date,
         "ห้องนอน": bed,
         "ห้องน้ำ": bath,
-        "วันที่ลงประกาศ": post_date,
-        "ลิงก์": link
+        "ที่จอดรถ": parking,
+        "วันประกาศ": post_date
     }
 
 def scrape_nayoo(progress_callback=None):
@@ -458,20 +431,21 @@ def scrape_nayoo(progress_callback=None):
     logger.info("🚀 Starting NaYoo (น่าอยู่) Monthly Scraper")
     logger.info("=" * 65)
 
-    session = requests.Session()
-    # Ensure GIS is pre-loaded
-    _load_gis()
+    _init_gis()
 
-    all_records = []
+    session = requests.Session()
+    adapter = requests.adapters.HTTPAdapter(pool_connections=50, pool_maxsize=50)
+    session.mount('https://', adapter)
+    session.mount('http://', adapter)
+
     endpoints = [
         ("/api/listing/search/secondhands", "Secondhands"),
         ("/api/listing/search/projects", "Projects")
     ]
 
-    total_tasks = 0
-    ep_configs = []
+    discovered_items = {}
 
-    # Determine pagination for both endpoints
+    # 1. Fetch pages and collect items
     for ep, ep_label in endpoints:
         res1 = fetch_nayoo_page(session, ep, page=1, per_page=36)
         if not res1 or not res1.get("success"):
@@ -487,41 +461,51 @@ def scrape_nayoo(progress_callback=None):
         
         posts1 = res1.get("data", {}).get("posts", []) or res1.get("data", {}).get("projects", []) or []
         for p in posts1:
-            rec = process_nayoo_item(session, p)
-            if rec: all_records.append(rec)
+            pid = p.get("id") or p.get("uuid")
+            if pid and pid not in discovered_items:
+                discovered_items[pid] = p
 
-        ep_configs.append((ep, ep_label, total_pages))
-        total_tasks += total_pages
+        # Concurrently fetch remaining pages for this endpoint
+        logger.info(f"⚡ Fetching remaining {total_pages - 1} pages for {ep_label}...")
+        with ThreadPoolExecutor(max_workers=20) as page_exec:
+            futures = {page_exec.submit(fetch_nayoo_page, session, ep, p_num, 36): p_num for p_num in range(2, total_pages + 1)}
+            for fut in as_completed(futures):
+                try:
+                    p_res = fut.result()
+                    if p_res and p_res.get("success"):
+                        p_posts = p_res.get("data", {}).get("posts", []) or p_res.get("data", {}).get("projects", []) or []
+                        for item in p_posts:
+                            pid = item.get("id") or item.get("uuid")
+                            if pid and pid not in discovered_items:
+                                discovered_items[pid] = item
+                except Exception as e:
+                    logger.warning(f"Error on {ep_label} page: {e}")
 
-    completed_pages = len(ep_configs)
-    logger.info(f"⚡ Concurrently fetching {total_tasks:,} pages across all endpoints...")
+    total_discovered = len(discovered_items)
+    logger.info(f"🎯 Total unique NaYoo listings discovered: {total_discovered:,}")
+    if progress_callback:
+        progress_callback(30, f"Discovered {total_discovered:,} listings")
 
-    with ThreadPoolExecutor(max_workers=15) as executor:
-        future_to_page = {}
-        for ep, ep_label, total_pages in ep_configs:
-            for p_num in range(2, total_pages + 1):
-                f = executor.submit(fetch_nayoo_page, session, ep, page=p_num, per_page=36)
-                future_to_page[f] = (ep_label, p_num)
-
-        for fut in as_completed(future_to_page):
-            ep_label, p_num = future_to_page[fut]
+    # 2. Concurrently fetch details and extract coordinates for all items
+    logger.info(f"⚡ Concurrently fetching details and coordinates for {total_discovered:,} listings...")
+    all_records = []
+    
+    with ThreadPoolExecutor(max_workers=35) as detail_exec:
+        futures = {detail_exec.submit(fetch_and_process_item, session, item): pid for pid, item in discovered_items.items()}
+        completed = 0
+        for fut in as_completed(futures):
             try:
-                p_res = fut.result()
-                if p_res and p_res.get("success"):
-                    p_posts = p_res.get("data", {}).get("posts", []) or p_res.get("data", {}).get("projects", []) or []
-                    for item in p_posts:
-                        rec = process_nayoo_item(session, item)
-                        if rec:
-                            all_records.append(rec)
+                rec = fut.result()
+                if rec:
+                    all_records.append(rec)
             except Exception as e:
-                logger.warning(f"Error on {ep_label} p{p_num}: {e}")
-
-            completed_pages += 1
-            if completed_pages % 25 == 0 or completed_pages == total_tasks:
-                pct = int((completed_pages / max(1, total_tasks)) * 100)
-                logger.info(f"  Processed {completed_pages}/{total_tasks} pages ({pct}%) - Records: {len(all_records):,}")
+                logger.warning(f"Error processing detail: {e}")
+            completed += 1
+            if completed % 500 == 0 or completed == total_discovered:
+                pct = 30 + int((completed / max(1, total_discovered)) * 70)
+                logger.info(f"  Processed {completed:,}/{total_discovered:,} items ({completed/total_discovered*100:.1f}%)")
                 if progress_callback:
-                    progress_callback(pct, f"Scraped {len(all_records):,} items")
+                    progress_callback(pct, f"Scraped {completed:,}/{total_discovered:,} items")
 
     # Convert to DataFrame
     df = pd.DataFrame(all_records)

@@ -40,6 +40,82 @@ COLUMNS = [
 ITEMS_PER_PAGE = 20
 THREAD_POOL_SIZE = 5
 
+# GIS Boundary Engine Cache
+_GIS_TREE = None
+_GIS_PROPS = None
+
+SPECIAL_TAM_CLEAN = {
+    'เทศบาลนครสมุทรปร': 'ปากน้ำ',
+    'เทศบาลบางปู': 'บางปูใหม่',
+    'เทศบาลบางเมือง': 'บางเมือง',
+    'เทศบาลเมืองพระปร': 'ตลาด',
+    'เทศบาลสำโรงใต้': 'สำโรงใต้',
+    'เขตการปกคองพิเศษ': 'เมืองพัทยา',
+    'ท่าเรือ (เทศบาลเมื': 'ท่าเรือ',
+    'เทศบาลเมืองทุ่งส': 'ปากแพรก'
+}
+
+def _init_gis():
+    global _GIS_TREE, _GIS_PROPS
+    if _GIS_TREE is not None:
+        return
+    try:
+        from shapely.geometry import shape
+        from shapely.strtree import STRtree
+        
+        geojson_path = os.path.join(_BASE_DIR, "subdistricts.geojson")
+        if not os.path.exists(geojson_path):
+            geojson_path = os.path.join(os.path.dirname(_BASE_DIR), "subdistricts.geojson")
+        
+        if os.path.exists(geojson_path):
+            with open(geojson_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            geoms = []
+            props = []
+            for feat in data.get("features", []):
+                geom = shape(feat["geometry"])
+                geoms.append(geom)
+                p = feat.get("properties", {})
+                tam = p.get("tam_th", "").strip()
+                amp = p.get("amp_th", "").strip()
+                pro = p.get("pro_th", "").strip()
+                if tam in SPECIAL_TAM_CLEAN:
+                    tam = SPECIAL_TAM_CLEAN[tam]
+                if "กรุงเทพ" in pro:
+                    pro = "กรุงเทพมหานคร"
+                props.append((tam, amp, pro))
+            _GIS_PROPS = props
+            _GIS_TREE = STRtree(geoms)
+            print(f"[{COMPANY_NAME}] 🗺️ Loaded {len(_GIS_PROPS):,} GIS subdistrict boundaries & built STRtree.", flush=True)
+    except Exception as e:
+        print_alert(f"Failed to load subdistricts.geojson: {e}", level="WARNING")
+
+def reverse_geocode_location(lat, lng):
+    if not lat or not lng:
+        return "", "", ""
+    try:
+        lat_f = float(lat)
+        lng_f = float(lng)
+        if not (5.0 < lat_f < 21.0 and 97.0 < lng_f < 106.0):
+            return "", "", ""
+        _init_gis()
+        if _GIS_TREE is not None and _GIS_PROPS is not None:
+            from shapely.geometry import Point
+            pt = Point(lng_f, lat_f)
+            res = _GIS_TREE.query(pt, predicate='intersects')
+            if len(res) > 0:
+                g_idx = res[0]
+                return _GIS_PROPS[g_idx]
+            else:
+                nearest = _GIS_TREE.query_nearest(pt)
+                if len(nearest) > 0:
+                    import numpy as np
+                    g_idx = nearest[0] if not isinstance(nearest[0], (list, tuple, np.ndarray)) else nearest[1][0]
+                    return _GIS_PROPS[g_idx]
+    except Exception:
+        pass
+    return "", "", ""
+
 def print_alert(msg: str, level: str = "ERROR"):
     border = "=" * 75
     if level == "CRITICAL":
@@ -170,48 +246,55 @@ def fetch_talad_detail(session, item):
             if lat_v and lng_v:
                 item["ละติจูด"] = lat_v
                 item["ลองจิจูด"] = lng_v
+                # 1.1 Primary Location: Reverse Geocode via GIS Polygon STRtree from Coordinates
+                tam_gis, amp_gis, pro_gis = reverse_geocode_location(lat_v, lng_v)
+                if pro_gis:
+                    item["ตำบล"] = tam_gis
+                    item["อำเภอ"] = amp_gis
+                    item["จังหวัด"] = pro_gis
                         
-            # 2. Location (subdistrict, district, province) from Breadcrumbs & Multiline Regex Fallback
-            bc_items = []
-            bc_ol = soup.find('ol', class_=re.compile(r'breadcrumb', re.I)) or soup.find(class_=re.compile(r'breadcrumb', re.I))
-            if bc_ol:
-                for li in bc_ol.find_all(['li', 'a']):
-                    t = clean_text(li.get_text())
-                    if t and t not in bc_items and not t.isdigit() and len(t) < 35:
-                        bc_items.append(t)
-                            
-            # Filter out breadcrumb navigation keywords AND the item ID itself
-            item_id_str = str(item.get("ID") or "").strip()
-            filtered_bc = [x for x in bc_items if x not in ["หน้าหลัก", "รายการทรัพย์", "Home", item_id_str] and not x.isdigit()]
-                
-            # Breadcrumbs structure: [ประเภททรัพย์, จังหวัด, อำเภอ, ตำบล]
-            if len(filtered_bc) >= 4:
-                item["จังหวัด"] = filtered_bc[1]
-                item["อำเภอ"] = filtered_bc[2]
-                item["ตำบล"] = filtered_bc[3]
-            elif len(filtered_bc) == 3:
-                item["จังหวัด"] = filtered_bc[1]
-                item["อำเภอ"] = filtered_bc[2]
-            elif len(filtered_bc) == 2:
-                item["จังหวัด"] = filtered_bc[1]
+            # 2. Location Fallback (from Breadcrumbs & Regex) if coordinates are missing or GIS unmapped
+            if not item.get("จังหวัด") or not item.get("อำเภอ"):
+                bc_items = []
+                bc_ol = soup.find('ol', class_=re.compile(r'breadcrumb', re.I)) or soup.find(class_=re.compile(r'breadcrumb', re.I))
+                if bc_ol:
+                    for li in bc_ol.find_all(['li', 'a']):
+                        t = clean_text(li.get_text())
+                        if t and t not in bc_items and not t.isdigit() and len(t) < 35:
+                            bc_items.append(t)
+                                
+                # Filter out breadcrumb navigation keywords AND the item ID itself
+                item_id_str = str(item.get("ID") or "").strip()
+                filtered_bc = [x for x in bc_items if x not in ["หน้าหลัก", "รายการทรัพย์", "Home", item_id_str] and not x.isdigit()]
                     
-            # Multiline Regex Fallback for Location if missing
-            if not item.get("ตำบล") or item.get("ตำบล") == item_id_str:
-                m_sd = re.search(r'(?:แขวง\s*/\s*ตำบล|ตำบล|แขวง)\s*[:\s]*[\n\r]*([^\n\r<"\|]{2,30})', main_text)
-                if m_sd and clean_text(m_sd.group(1)):
-                    item["ตำบล"] = clean_text(m_sd.group(1))
-                else:
-                    item["ตำบล"] = ""
-                    
-            if not item.get("อำเภอ") or item.get("อำเภอ") == item_id_str:
-                m_d = re.search(r'(?:เขต\s*/\s*อำเภอ|อำเภอ|เขต)\s*[:\s]*[\n\r]*([^\n\r<"\|]{2,30})', main_text)
-                if m_d and clean_text(m_d.group(1)):
-                    item["อำเภอ"] = clean_text(m_d.group(1))
-                    
-            if not item.get("จังหวัด") or item.get("จังหวัด") == item_id_str:
-                m_p = re.search(r'จังหวัด\s*[:\s]*[\n\r]*([^\n\r<"\|]{2,30})', main_text)
-                if m_p and clean_text(m_p.group(1)):
-                    item["จังหวัด"] = clean_text(m_p.group(1))
+                # Breadcrumbs structure: [ประเภททรัพย์, จังหวัด, อำเภอ, ตำบล]
+                if len(filtered_bc) >= 4:
+                    if not item.get("จังหวัด"): item["จังหวัด"] = filtered_bc[1]
+                    if not item.get("อำเภอ"): item["อำเภอ"] = filtered_bc[2]
+                    if not item.get("ตำบล"): item["ตำบล"] = filtered_bc[3]
+                elif len(filtered_bc) == 3:
+                    if not item.get("จังหวัด"): item["จังหวัด"] = filtered_bc[1]
+                    if not item.get("อำเภอ"): item["อำเภอ"] = filtered_bc[2]
+                elif len(filtered_bc) == 2:
+                    if not item.get("จังหวัด"): item["จังหวัด"] = filtered_bc[1]
+                        
+                # Multiline Regex Fallback for Location if missing
+                if not item.get("ตำบล") or item.get("ตำบล") == item_id_str:
+                    m_sd = re.search(r'(?:แขวง\s*/\s*ตำบล|ตำบล|แขวง)\s*[:\s]*[\n\r]*([^\n\r<"\|]{2,30})', main_text)
+                    if m_sd and clean_text(m_sd.group(1)):
+                        item["ตำบล"] = clean_text(m_sd.group(1))
+                    else:
+                        item["ตำบล"] = ""
+                        
+                if not item.get("อำเภอ") or item.get("อำเภอ") == item_id_str:
+                    m_d = re.search(r'(?:เขต\s*/\s*อำเภอ|อำเภอ|เขต)\s*[:\s]*[\n\r]*([^\n\r<"\|]{2,30})', main_text)
+                    if m_d and clean_text(m_d.group(1)):
+                        item["อำเภอ"] = clean_text(m_d.group(1))
+                        
+                if not item.get("จังหวัด") or item.get("จังหวัด") == item_id_str:
+                    m_p = re.search(r'จังหวัด\s*[:\s]*[\n\r]*([^\n\r<"\|]{2,30})', main_text)
+                    if m_p and clean_text(m_p.group(1)):
+                        item["จังหวัด"] = clean_text(m_p.group(1))
 
             # --- 2.5 Mapping ID & รหัสทรัพย์ ---
             # ในเว็บ: "รหัสทรัพย์" คือ ID จริงของเว็บ (เช่น ALPHA211228378981) -> ใส่ช่อง ID

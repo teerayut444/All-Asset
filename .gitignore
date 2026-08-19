@@ -1,30 +1,91 @@
-# Python Cache
+# ==============================================================================
+# Python Bytecode & Cache
+# ==============================================================================
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
+*.cpython-*
+.pytest_cache/
+.coverage
+htmlcov/
 
+# ==============================================================================
 # Virtual Environments
+# ==============================================================================
 .venv/
 venv/
 env/
 ENV/
+env.bak/
+venv.bak/
 
-# Data Files (หลีกเลี่ยงการดันไฟล์ขนาดใหญ่)
+# ==============================================================================
+# PyInstaller & Executable Builds
+# ==============================================================================
+build/
+dist/
+*.exe
+*.dll
+*.so
+*.dylib
+*.pyd
+
+# ==============================================================================
+# Temporary Scraper Outputs, State Files & Test Outputs
+# ==============================================================================
+Monthly all new/CSV_Output/
+Monthly all new/test output/
+.*_state_*.json
+*.csv.tmp
+*.csv.bak
+*.parquet.tmp
+scratch_*
+scratch/
+
+# ==============================================================================
+# Raw Data Files (Except reference geographic data & primary parquet)
+# ==============================================================================
+*.csv
 *.xlsx
 *.xls
-*.csv
 static/*.csv
 
-# Temporary and Backups
+# Whitelist reference tables needed for geographic lookups
+!references/thailand_provinces_districts_subdistricts.csv
+!references/thailand_provinces_districts_subdistricts.json
+!references/thailand_provinces_districts_subdistricts.xlsx
+
+# ==============================================================================
+# QA Checker Cache & Screenshots
+# ==============================================================================
+QA_Checker/cache/
+QA_Checker/cache/screenshots/
+
+# ==============================================================================
+# Backup, Scratch & Ad-hoc Test Scripts
+# ==============================================================================
 *backup*
+*BACKUP*
+*OLD*
 *restored*
 Backup/
 ttt/
 T Test.txt
 Co pilot.py
+app - *.py
+*.bak
+*.tmp
+*.log
+*.swp
+*~
 
-# VS Code specific
+# ==============================================================================
+# IDE, Editor & OS Specific Files
+# ==============================================================================
 .vscode/
+.idea/
 .history/
 .project
+.DS_Store
+Thumbs.db
+desktop.ini

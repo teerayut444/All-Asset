@@ -55,12 +55,12 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 MONTH_STR = datetime.datetime.now().strftime("%Y_%m")
 OUTPUT_CSV = os.path.join(OUTPUT_DIR, f"{COMPANY_NAME}_NPA_New_{MONTH_STR}.csv")
 
-# Standard 16 Columns
+# Standard 21 Columns
 COLUMNS = [
-    "บริษัท", "ID", "รหัสทรัพย์", "ชื่อโครงการ", "ประเภททรัพย์",
-    "ประเภทการขาย", "ราคา", "ตำบล", "อำเภอ", "จังหวัด",
-    "ละติจูด", "ลองจิจูด", "ชื่อประกาศ", "เนื้อที่ (ตร.ว.)",
-    "พื้นที่ใช้สอย (ตร.ม.)", "ห้องนอน", "ห้องน้ำ", "วันที่ลงประกาศ", "ลิงก์"
+    "บริษัท", "ID", "รหัสทรัพย์", "ชื่อโครงการ", "ประเภททรัพย์", "ประเภทการขาย", "ราคา",
+    "ตำบล", "อำเภอ", "จังหวัด", "ละติจูด", "ลองจิจูด", "ชื่อประกาศ", "ลิงก์",
+    "เนื้อที่ (ตร.ว.)", "พื้นที่ใช้สอย (ตร.ม.)", "วันที่ดึงข้อมูล",
+    "ห้องนอน", "ห้องน้ำ", "ที่จอดรถ", "วันประกาศ"
 ]
 
 # Thailand Provinces for fallback normalization
@@ -78,56 +78,54 @@ PROVINCES = [
 ]
 
 # GIS Boundary Engine Cache
-_GIS_SUBDISTRICTS = None
+_GIS_TREE = None
+_GIS_PROPS = None
 
-def _get_gis_features():
-    global _GIS_SUBDISTRICTS
-    if _GIS_SUBDISTRICTS is not None:
-        return _GIS_SUBDISTRICTS
-    
-    geojson_path = os.path.join(CURRENT_DIR, "subdistricts.geojson")
-    if not os.path.exists(geojson_path):
-        geojson_path = os.path.join(os.path.dirname(CURRENT_DIR), "Monthly all new", "subdistricts.geojson")
-    
-    if os.path.exists(geojson_path):
-        try:
+SPECIAL_TAM_CLEAN = {
+    'เทศบาลนครสมุทรปร': 'ปากน้ำ',
+    'เทศบาลบางปู': 'บางปูใหม่',
+    'เทศบาลบางเมือง': 'บางเมือง',
+    'เทศบาลเมืองพระปร': 'ตลาด',
+    'เทศบาลสำโรงใต้': 'สำโรงใต้',
+    'เขตการปกคองพิเศษ': 'เมืองพัทยา',
+    'ท่าเรือ (เทศบาลเมื': 'ท่าเรือ',
+    'เทศบาลเมืองทุ่งส': 'ปากแพรก'
+}
+
+def _init_gis():
+    global _GIS_TREE, _GIS_PROPS
+    if _GIS_TREE is not None:
+        return
+    try:
+        from shapely.geometry import shape, Point
+        from shapely.strtree import STRtree
+        
+        geojson_path = os.path.join(_BASE_DIR, "subdistricts.geojson")
+        if not os.path.exists(geojson_path):
+            geojson_path = os.path.join(os.path.dirname(_BASE_DIR), "subdistricts.geojson")
+        
+        if os.path.exists(geojson_path):
             with open(geojson_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                _GIS_SUBDISTRICTS = data.get("features", [])
-                logger.info(f"Loaded {len(_GIS_SUBDISTRICTS):,} GIS subdistrict boundaries.")
-                return _GIS_SUBDISTRICTS
-        except Exception as e:
-            logger.warning(f"Failed to load subdistricts.geojson: {e}")
-    _GIS_SUBDISTRICTS = []
-    return _GIS_SUBDISTRICTS
-
-def _point_in_poly(x, y, poly):
-    n = len(poly)
-    inside = False
-    p1x, p1y = poly[0]
-    for i in range(n + 1):
-        p2x, p2y = poly[i % n]
-        if y > min(p1y, p2y):
-            if y <= max(p1y, p2y):
-                if x <= max(p1x, p2x):
-                    if p1y != p2y:
-                        xinters = (y - p1y) * (p2x - p1x) / (p2y - p1y) + p1x
-                    if p1x == p2x or x <= xinters:
-                        inside = not inside
-        p1x, p1y = p2x, p2y
-    return inside
-
-def _check_geom(lng, lat, geom):
-    gtype = geom.get("type")
-    coords = geom.get("coordinates", [])
-    if gtype == "Polygon":
-        if coords and _point_in_poly(lng, lat, coords[0]):
-            return True
-    elif gtype == "MultiPolygon":
-        for poly in coords:
-            if poly and _point_in_poly(lng, lat, poly[0]):
-                return True
-    return False
+            geoms = []
+            props = []
+            for feat in data.get("features", []):
+                geom = shape(feat["geometry"])
+                geoms.append(geom)
+                p = feat.get("properties", {})
+                tam = p.get("tam_th", "").strip()
+                amp = p.get("amp_th", "").strip()
+                pro = p.get("pro_th", "").strip()
+                if tam in SPECIAL_TAM_CLEAN:
+                    tam = SPECIAL_TAM_CLEAN[tam]
+                if "กรุงเทพ" in pro:
+                    pro = "กรุงเทพมหานคร"
+                props.append((tam, amp, pro))
+            _GIS_PROPS = props
+            _GIS_TREE = STRtree(geoms)
+            logger.info(f"Loaded {len(_GIS_PROPS):,} GIS subdistrict boundaries & built STRtree.")
+    except Exception as e:
+        logger.warning(f"Failed to load subdistricts.geojson: {e}")
 
 def reverse_geocode_location(session, lat, lng):
     if not lat or not lng:
@@ -135,21 +133,24 @@ def reverse_geocode_location(session, lat, lng):
     try:
         lat_f = float(lat)
         lng_f = float(lng)
+        if not (5.0 < lat_f < 21.0 and 97.0 < lng_f < 106.0):
+            return "", "", ""
+        _init_gis()
+        if _GIS_TREE is not None and _GIS_PROPS is not None:
+            from shapely.geometry import Point
+            pt = Point(lng_f, lat_f)
+            res = _GIS_TREE.query(pt, predicate='intersects')
+            if len(res) > 0:
+                g_idx = res[0]
+                return _GIS_PROPS[g_idx]
+            else:
+                nearest = _GIS_TREE.query_nearest(pt)
+                if len(nearest) > 0:
+                    import numpy as np
+                    g_idx = nearest[0] if not isinstance(nearest[0], (list, tuple, np.ndarray)) else nearest[1][0]
+                    return _GIS_PROPS[g_idx]
     except Exception:
-        return "", "", ""
-
-    features = _get_gis_features()
-    for feat in features:
-        props = feat.get("properties", {})
-        geom = feat.get("geometry", {})
-        if _check_geom(lng_f, lat_f, geom):
-            sd = props.get("subdistrict_th") or props.get("name_th") or props.get("subdistrict") or ""
-            d = props.get("district_th") or props.get("district") or ""
-            p = props.get("province_th") or props.get("province") or ""
-            if p == "กรุงเทพมหานคร":
-                sd = sd.replace("ตำบล", "แขวง")
-                d = d.replace("อำเภอ", "เขต")
-            return sd, d, p
+        pass
 
     return "", "", ""
 
@@ -248,10 +249,22 @@ def fetch_chayo_detail(session, item_url, preview_data):
             title = preview_data.get("ชื่อโครงการ", "")
 
         code = preview_data.get("รหัสทรัพย์", "")
-        if not code:
-            m_code = re.search(r'รหัสทรัพย์(?:สิน)?\s*[:\s]*([A-Za-z0-9\-\/_]+)', full_text)
-            if m_code:
-                code = m_code.group(1).strip()
+        if not code or any(ord(c) >= 0x0E00 and ord(c) <= 0x0E7F for c in code):
+            # 1. Search for inner_label span with รหัสทรัพย์
+            for span in soup.find_all('span', class_=re.compile(r'inner_label', re.I)):
+                if 'รหัสทรัพย์' in span.get_text():
+                    parent = span.parent
+                    if parent:
+                        raw = parent.get_text().replace(span.get_text(), '').strip()
+                        clean = re.sub(r'[\u0E00-\u0E7F\s]', '', raw).strip()
+                        if clean:
+                            code = clean
+                            break
+            # 2. Regex fallback in HTML / full_text
+            if not code or any(ord(c) >= 0x0E00 and ord(c) <= 0x0E7F for c in code):
+                m_code = re.search(r'รหัสทรัพย์(?:สิน)?\s*(?:</span>)?\s*[\u0E00-\u0E7F\s]*([A-Za-z0-9\-\/_]+)', r.text) or re.search(r'รหัสทรัพย์(?:สิน)?\s*[:\s]*[\u0E00-\u0E7F\s]*([A-Za-z0-9\-\/_]+)', full_text)
+                if m_code:
+                    code = m_code.group(1).strip()
 
         price = preview_data.get("ราคา", None)
         m_price = re.search(r'ราคา(?:ขาย)?\s*[:\s]*฿?([\d,]+)', full_text)
@@ -298,20 +311,20 @@ def fetch_chayo_detail(session, item_url, preview_data):
             spec_prov = "กรุงเทพมหานคร"
 
         lat, lng = None, None
-        m_coord = re.search(r'(?:lat|latitude)[=:\s]+([\d\.-]+).*?(?:lng|longitude|lon)[=:\s]+([\d\.-]+)', r.text, re.I)
-        if m_coord:
+        m_map = re.search(r'(?:query|daddr|q|center|loc|ll)=([0-9\.]+),([0-9\.]+)', r.text)
+        if m_map:
             try:
-                lat = float(m_coord.group(1))
-                lng = float(m_coord.group(2))
+                lat = float(m_map.group(1))
+                lng = float(m_map.group(2))
             except Exception:
                 pass
 
         if not lat:
-            m_map = re.search(r'maps\.google\.com.*?q=([\d\.-]+),([\d\.-]+)', r.text)
-            if m_map:
+            m_coord = re.search(r'(?:lat|latitude)[=:\s]+([\d\.-]+).*?(?:lng|longitude|lon)[=:\s]+([\d\.-]+)', r.text, re.I)
+            if m_coord:
                 try:
-                    lat = float(m_map.group(1))
-                    lng = float(m_map.group(2))
+                    lat = float(m_coord.group(1))
+                    lng = float(m_coord.group(2))
                 except Exception:
                     pass
 
@@ -333,6 +346,18 @@ def fetch_chayo_detail(session, item_url, preview_data):
             try: bath = int(m_bath.group(1))
             except Exception: pass
 
+        parking = None
+        m_park = re.search(r'(\d+)\s*(?:ที่)?จอดรถ', full_text)
+        if m_park:
+            try: parking = int(m_park.group(1))
+            except Exception: pass
+
+        pull_date = datetime.datetime.now().strftime("%Y-%m-%d")
+        post_date = ""
+        m_date = re.search(r'(?:ประกาศเมื่อ|วันที่ลงประกาศ|สร้างเมื่อ)\s*[:\s]*(\d{1,2}[/\-\.]\d{1,2}[/\-\.]\d{2,4})', full_text)
+        if m_date:
+            post_date = m_date.group(1).strip()
+
         prop_type = normalize_prop_type(preview_data.get("ประเภททรัพย์", ""), title)
         land_area, usable_area = parse_chayo_areas(full_text, spec_land=spec_land, prop_type=prop_type)
 
@@ -350,12 +375,14 @@ def fetch_chayo_detail(session, item_url, preview_data):
             "ละติจูด": lat,
             "ลองจิจูด": lng,
             "ชื่อประกาศ": title,
+            "ลิงก์": item_url,
             "เนื้อที่ (ตร.ว.)": land_area,
             "พื้นที่ใช้สอย (ตร.ม.)": usable_area,
+            "วันที่ดึงข้อมูล": pull_date,
             "ห้องนอน": bed,
             "ห้องน้ำ": bath,
-            "วันที่ลงประกาศ": "",
-            "ลิงก์": item_url
+            "ที่จอดรถ": parking,
+            "วันประกาศ": post_date
         }
     except Exception as e:
         logger.warning(f"Error fetching detail {item_url}: {e}")

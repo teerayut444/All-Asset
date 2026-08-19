@@ -271,8 +271,8 @@ def fetch_zmyhome_detail(session, item):
                                     price_val = p_spec.get("price") if isinstance(p_spec, dict) else j_obj.get("price")
                                     if price_val:
                                         try:
-                                            p_f = float(price_val)
-                                            if not item.get("ราคา") or item["ราคา"] < 10000 or p_f != item["ราคา"]:
+                                            p_f = float(str(price_val).replace(',', '').strip())
+                                            if p_f > 0:
                                                 item["ราคา"] = p_f
                                         except Exception: pass
                                         
@@ -466,14 +466,13 @@ def parse_zmyhome_card(card):
         price_str = clean_text(price_tag.text) if price_tag else ""
         price = None
         if price_str:
-            is_million = any(w in price_str for w in ["ล้าน", "ลบ", "MB", "mb", "Mb", "M"])
+            # Strictly match million keywords, excluding rent indicators like /m, /month, sqm
+            is_million = bool(re.search(r'(?:ล้าน|ลบ\.?|\bmb\b)', price_str, re.I)) and not bool(re.search(r'/(?:เดือน|month|mo|m\b)', price_str, re.I))
             price_clean = re.sub(r"[^\d\.]", "", price_str.replace(",", ""))
             if price_clean:
                 try:
                     p_val = float(price_clean)
-                    if is_million and p_val < 10000:
-                        p_val = p_val * 1000000.0
-                    elif p_val < 500:  # anomalous low price e.g. 100.0 -> 100M
+                    if is_million and p_val < 1000:
                         p_val = p_val * 1000000.0
                     price = p_val
                 except ValueError:

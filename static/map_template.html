@@ -113,22 +113,44 @@
         border-top-color: rgba(255, 255, 255, 0.1) !important;
         color: #94a3b8 !important;
       }
+
+      /* Toast Notification */
+      .toast {
+        position: absolute;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%) translateY(40px);
+        background: #0f172a;
+        color: #ffffff;
+        padding: 10px 22px;
+        border-radius: 9999px;
+        font-family: 'Sarabun', sans-serif;
+        font-size: 13px;
+        font-weight: 600;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.15);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        z-index: 1001;
+        opacity: 0;
+        pointer-events: none;
+        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      .toast.show {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+      }
     </style>
   </head>
   <body class="BODY_CLASS_PLACEHOLDER">
     <div id="loader"><div class="spinner"></div> <span id="loader-text">กำลังโหลดและจัดเตรียมข้อมูลแผนที่...</span></div>
     <div id="map"></div>
     <div id="tooltip" class="tooltip"></div>
+    <div id="toast" class="toast"></div>
     
     <!-- Legend Overlay inside the Map -->
     <div id="map-legend">
-      <div style="font-weight: 600; font-size: 11px; text-transform: uppercase; color: #64748b; margin-bottom: 4px; letter-spacing: 0.5px;">บริษัททรัพย์สิน</div>
-      <div class="legend-item"><span class="legend-color" style="background:#f59e0b;"></span>Baania (BAANIA_COUNT)</div>
-      <div class="legend-item"><span class="legend-color" style="background:#3b82f6;"></span>BAM (BAM_COUNT)</div>
-      <div class="legend-item"><span class="legend-color" style="background:#10b981;"></span>SAM (SAM_COUNT)</div>
-      <div class="legend-item"><span class="legend-color" style="background:#a855f7;"></span>DDproperty (DDPROPERTY_COUNT)</div>
-      <div class="legend-item"><span class="legend-color" style="background:#06b6d4;"></span>Taladnudbaan (TALADNUDBAAN_COUNT)</div>
-      <div class="legend-item"><span class="legend-color" style="background:#ec4899;"></span>ZmyHome (ZMYHOME_COUNT)</div>
+      LEGEND_ITEMS_PLACEHOLDER
       <div style="border-top: 1px solid #e2e8f0; margin-top: 6px; padding-top: 6px; font-size: 10px; color: #94a3b8;" id="points-count">📍 กำลังโหลด...</div>
     </div>
 
@@ -140,6 +162,34 @@
       const tooltip = document.getElementById('tooltip');
       const loader = document.getElementById('loader');
       const loaderText = document.getElementById('loader-text');
+      
+      let toastTimer = null;
+      function showToast(msg) {
+        const toast = document.getElementById('toast');
+        if (!toast) return;
+        toast.innerText = msg;
+        toast.classList.add('show');
+        if (toastTimer) clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => {
+          toast.classList.remove('show');
+        }, 2200);
+      }
+
+      function fallbackCopyText(text) {
+        const temp = document.createElement('textarea');
+        temp.value = text;
+        temp.style.position = 'fixed';
+        temp.style.opacity = '0';
+        document.body.appendChild(temp);
+        temp.select();
+        try {
+          document.execCommand('copy');
+          showToast(`📋 คัดลอกรหัสทรัพย์: ${text} แล้ว`);
+        } catch (e) {
+          showToast(`❌ ไม่สามารถคัดลอกได้`);
+        }
+        document.body.removeChild(temp);
+      }
       
       const csvBase64 = "CSV_BASE64_PLACEHOLDER";
       
@@ -225,6 +275,20 @@
                 pickable: true,
                 autoHighlight: true,
                 highlightColor: [239, 68, 68, 220],
+                onClick: info => {
+                  if (info.object && info.object._id && info.object._id !== '-') {
+                    const code = info.object._id;
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                      navigator.clipboard.writeText(code).then(() => {
+                        showToast(`📋 คัดลอกรหัสทรัพย์: ${code} แล้ว`);
+                      }).catch(() => {
+                        fallbackCopyText(code);
+                      });
+                    } else {
+                      fallbackCopyText(code);
+                    }
+                  }
+                },
                 onHover: info => {
                   if (info.object) {
                     tooltip.style.left = (info.x + 15) + 'px';
@@ -233,10 +297,11 @@
                     tooltip.innerHTML = `
                       <div style="font-weight: 700; font-size: 13px; margin-bottom: 4px; color: #f8fafc;">${info.object._title || 'ไม่มีชื่อ'}</div>
                       <div><span style="color: #94a3b8;">🏢 บริษัท:</span> <b>${info.object._company || '-'}</b></div>
-                      <div><span style="color: #94a3b8;">🔑 รหัสทรัพย์:</span> ${info.object._id || '-'}</div>
+                      <div><span style="color: #94a3b8;">🔑 รหัสทรัพย์:</span> <b>${info.object._id || '-'}</b></div>
                       <div><span style="color: #38bdf8; font-weight: 600;">💰 ราคา:</span> ${info.object._price_str || 'ไม่ระบุ'}</div>
                       <div><span style="color: #94a3b8;">📍 จังหวัด:</span> ${info.object._prov || '-'}</div>
                       <div><span style="color: #94a3b8;">🏠 ประเภท:</span> ${info.object._type || '-'}</div>
+                      <div style="margin-top: 6px; padding-top: 4px; border-top: 1px dashed rgba(255,255,255,0.15); font-size: 10px; color: #38bdf8;">💡 คลิกที่จุดเพื่อคัดลอกรหัสทรัพย์</div>
                     `;
                   } else {
                     tooltip.style.display = 'none';
