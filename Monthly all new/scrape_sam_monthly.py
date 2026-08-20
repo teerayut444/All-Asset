@@ -4,6 +4,7 @@ import pandas as pd
 import re
 import os
 import time
+import random
 from datetime import datetime
 import concurrent.futures
 import threading
@@ -23,7 +24,7 @@ OUTPUT_DIR = os.path.join(_BASE_DIR, "CSV_Output")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 OUTPUT_CSV = os.path.join(OUTPUT_DIR, f"SAM_NPA_New_{MONTH_STR}.csv")
 
-THREAD_POOL_SIZE = 12
+THREAD_POOL_SIZE = 4
 
 COLUMNS = [
     "บริษัท", "ID", "รหัสทรัพย์", "ชื่อโครงการ", "ประเภททรัพย์", "ประเภทการขาย", "ราคา",
@@ -231,8 +232,19 @@ def parse_property_detail(prop_id, html):
         except Exception:
             pass
             
-    title = clean_text(soup.title.text) if soup.title else ""
-    title = re.sub(r'\s*-\s*SAM.*$', '', title, flags=re.IGNORECASE).strip()
+    # Compose clean, rich title
+    loc_parts = [x for x in [sub_district, district, province] if x]
+    loc_str_title = " ".join(loc_parts)
+    
+    if project_name:
+        clean_title = f"{prop_type} {project_name} {loc_str_title}".strip()
+    elif loc_str_title:
+        clean_title = f"{prop_type} {loc_str_title}".strip()
+    else:
+        clean_title = f"{prop_type} SAM ({code or prop_id})".strip()
+        
+    if code and f"({code})" not in clean_title:
+        clean_title = f"{clean_title} ({code})".strip()
     
     land_area = ""
     usable_area = ""
@@ -279,7 +291,7 @@ def parse_property_detail(prop_id, html):
         "จังหวัด": province,
         "ละติจูด": lat,
         "ลองจิจูด": lng,
-        "ชื่อประกาศ": title or project_name or code,
+        "ชื่อประกาศ": clean_title,
         "เนื้อที่ (ตร.ว.)": convert_to_rai_ngan_wah(land_area),
         "พื้นที่ใช้สอย (ตร.ม.)": usable_area,
         "วันประกาศ": post_date,
@@ -296,6 +308,7 @@ def fetch_detail_worker(prop_item, total_count, results_list, saved_milestones):
     html = ""
     for attempt in range(3):
         try:
+            time.sleep(random.uniform(0.25, 0.55))
             r = requests.get(url, headers=headers, timeout=15, verify=False)
             if r.status_code == 200:
                 html = r.content.decode('utf-8', errors='replace')
@@ -387,7 +400,7 @@ def main():
         save_to_csv(existing_records, OUTPUT_CSV)
         return
         
-    scrape_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    scrape_date = datetime.now().strftime('%Y-%m-%d')
     base_properties = []
     
     for blog in blogs:

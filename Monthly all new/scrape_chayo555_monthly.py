@@ -68,6 +68,7 @@ import time
 import json
 import logging
 import datetime
+import random
 import urllib.parse
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -286,6 +287,7 @@ def parse_chayo_areas(full_text, spec_land="", spec_usable="", prop_type=""):
 
 def fetch_chayo_detail(session, item_url, preview_data):
     try:
+        time.sleep(random.uniform(0.3, 0.6))
         r = session.get(item_url, headers=HEADERS, verify=False, timeout=20)
         if r.status_code != 200:
             return preview_data
@@ -485,6 +487,7 @@ def scrape_chayo555(progress_callback=None):
                             }
         except Exception as e:
             logger.warning(f"Error checking category {cat_id}: {e}")
+        time.sleep(random.uniform(0.2, 0.4))
         completed_tasks += 1
         if progress_callback:
             progress_callback(int((completed_tasks / total_tasks) * 30), f"Scanning listings ({len(discovered_items)} found)")
@@ -515,6 +518,7 @@ def scrape_chayo555(progress_callback=None):
                             }
         except Exception as e:
             logger.warning(f"Error checking widget {w_id}: {e}")
+        time.sleep(random.uniform(0.2, 0.4))
         completed_tasks += 1
         if progress_callback:
             progress_callback(int((completed_tasks / total_tasks) * 30), f"Scanning listings ({len(discovered_items)} found)")
@@ -525,7 +529,7 @@ def scrape_chayo555(progress_callback=None):
     records = []
     logger.info(f"⚡ Fetching {total_discovered} property detail pages with ThreadPoolExecutor...")
     
-    with ThreadPoolExecutor(max_workers=10) as executor:
+    with ThreadPoolExecutor(max_workers=3) as executor:
         futures = {
             executor.submit(fetch_chayo_detail, session, url, data): url
             for url, data in discovered_items.items()

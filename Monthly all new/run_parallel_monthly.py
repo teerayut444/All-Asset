@@ -45,7 +45,7 @@ def draw_fixed_dashboard():
         # Move cursor to top-left home position
         sys.stdout.write("\033[H")
         sys.stdout.write(f"{BORDER_LINE}\n")
-        sys.stdout.write("🚀 Live Dashboard: Scraper Monthly ขนาน 11 บริษัท / ธนาคาร (Fixed Screen Aligned Mode)\n")
+        sys.stdout.write("🚀 Live Dashboard: Scraper Monthly ขนาน 12 บริษัท / ธนาคาร (Fixed Screen Aligned Mode)\n")
         sys.stdout.write(f"{BORDER_LINE}\n")
         for s in SCRAPERS:
             name = s["name"]
@@ -121,7 +121,7 @@ def main():
     os.system('cls' if os.name == 'nt' else 'clear')
     
     with lock:
-        add_log("เริ่มต้นระบบ Scraper Monthly แบบขนาน 6 บริษัท")
+        add_log("เริ่มต้นระบบ Scraper Monthly แบบขนาน 12 บริษัท / ธนาคาร")
     
     ui_thread = threading.Thread(target=ui_refresh_loop)
     ui_thread.daemon = True
@@ -194,7 +194,7 @@ def main():
 
     print("\n" + BORDER_LINE, flush=True)
     print("🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔", flush=True)
-    print("🎉🎉🎉 [FINISHED] ทั้ง 8 บริษัท สแครปและรวมไฟล์เสร็จสมบูรณ์ 100% เรียบร้อยแล้ว! 🎉🎉🎉", flush=True)
+    print("🎉🎉🎉 [FINISHED] ทั้ง 12 บริษัท / ธนาคาร สแครปและรวมไฟล์เสร็จสมบูรณ์ 100% เรียบร้อยแล้ว! 🎉🎉🎉", flush=True)
     print("🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔🔔", flush=True)
     print(f"⏱️ รวมเวลาที่ใช้ในการรันขนานทั้งหมด: {elapsed/60:.2f} นาที", flush=True)
     print(BORDER_LINE, flush=True)
@@ -217,14 +217,22 @@ if __name__ == "__main__":
             import scrape_zmyhome_monthly; scrape_zmyhome_monthly.main()
         elif worker == "SAM":
             import scrape_sam_monthly; scrape_sam_monthly.main()
-        elif worker == "DDproperty":
-            import scrape_ddproperty_monthly; scrape_ddproperty_monthly.main()
         elif worker == "Taladnudbaan":
             import scrape_taladnudbaan_monthly; scrape_taladnudbaan_monthly.main()
         elif worker == "Chayo555":
             import scrape_chayo555_monthly; scrape_chayo555_monthly.main()
         elif worker == "NaYoo":
-            import scrape_nayoo_monthly; scrape_nayoo_monthly.main()
+            import scrape_nayoo_monthly; scrape_nayoo_monthly.scrape_nayoo()
+        elif worker == "GHB":
+            import scrape_ghb_monthly; scrape_ghb_monthly.main()
+        elif worker == "KBANK":
+            import scrape_kbank_monthly; scrape_kbank_monthly.main()
+        elif worker == "KTB":
+            import scrape_ktb_monthly; scrape_ktb_monthly.main()
+        elif worker == "SCB":
+            import scrape_scb_monthly; scrape_scb_monthly.main()
+        elif worker == "GSB":
+            import scrape_gsb_monthly; scrape_gsb_monthly.main()
         sys.exit(0)
     else:
         main()

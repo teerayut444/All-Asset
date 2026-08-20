@@ -39,7 +39,7 @@ COLUMNS = [
 ]
 
 ITEMS_PER_PAGE = 35
-THREAD_POOL_SIZE = 10
+THREAD_POOL_SIZE = 4
 
 def print_alert(msg: str, level: str = "ERROR"):
     border = "=" * 75
@@ -267,6 +267,7 @@ def fetch_zmyhome_detail(session, item):
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
     for attempt in range(3):
         try:
+            time.sleep(random.uniform(0.25, 0.5))
             r = session.get(link, headers=headers, timeout=12)
             if r.status_code == 200:
                 html = r.text

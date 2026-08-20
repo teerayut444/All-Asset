@@ -4,6 +4,7 @@ import pandas as pd
 import re
 import os
 import time
+import random
 from datetime import datetime
 import concurrent.futures
 import threading
@@ -20,8 +21,8 @@ OUTPUT_DIR = os.path.join(_BASE_DIR, "CSV_Output")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 OUTPUT_CSV = os.path.join(OUTPUT_DIR, f"GHB_NPA_New_{MONTH_STR}.csv")
 
-PAGE_WORKERS = 4
-DETAIL_WORKERS = 8
+PAGE_WORKERS = 2
+DETAIL_WORKERS = 4
 
 COLUMNS = [
     "บริษัท", "ID", "รหัสทรัพย์", "ชื่อโครงการ", "ประเภททรัพย์", "ประเภทการขาย", "ราคา",
@@ -179,6 +180,7 @@ def fetch_detail_coords(item):
     session = requests.Session(impersonate="chrome120")
     for attempt in range(3):
         try:
+            time.sleep(random.uniform(0.3, 0.7))
             resp = session.get(f"https://www.ghbhomecenter.com/property-{pid}", timeout=10)
             if resp.status_code == 200:
                 m_lat = re.search(r'var\s+geoLat\s*=\s*([0-9\.\-]+)', resp.text)
@@ -210,6 +212,7 @@ def fetch_page_items(page_no, today_str):
     session = requests.Session(impersonate="chrome120")
     for attempt in range(5):
         try:
+            time.sleep(random.uniform(0.5, 1.0))
             r = session.get(url, timeout=15)
             if r.status_code == 200:
                 soup = BeautifulSoup(r.text, 'html.parser')

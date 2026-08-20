@@ -392,7 +392,7 @@ def main():
                 print(f"\n💾 [{COMPANY_NAME}] ครบ Milestone {target_pct}% ({page}/{total_pages} หน้า) -> บันทึกสำรองลง {OUTPUT_CSV}...", flush=True)
                 save_to_csv(all_records, OUTPUT_CSV)
                 
-        time.sleep(0.7 + random.uniform(0.1, 0.4))
+        time.sleep(random.uniform(1.0, 1.8))
         
     print("", flush=True)
     save_to_csv(all_records, OUTPUT_CSV)

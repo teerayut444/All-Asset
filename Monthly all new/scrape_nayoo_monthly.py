@@ -68,6 +68,7 @@ import time
 import json
 import logging
 import datetime
+import random
 import urllib.parse
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -311,6 +312,7 @@ def parse_nayoo_areas(raw_land, raw_usable, title="", prop_type=""):
 def fetch_nayoo_page(session, endpoint, page, per_page=36):
     url = f"{API_BASE}{endpoint}"
     params = {"page": page, "per_page": per_page}
+    time.sleep(random.uniform(0.1, 0.25))
     try:
         r = session.get(url, headers=HEADERS, params=params, timeout=25)
         if r.status_code == 200:
@@ -394,6 +396,7 @@ def fetch_and_process_item(session, item):
     post_date = ""
 
     try:
+        time.sleep(random.uniform(0.15, 0.35))
         r_det = session.get(f"{API_BASE}/api/listing/post/{pid}", headers=HEADERS, timeout=10)
         if r_det.status_code == 200:
             detail_data = r_det.json().get("data", {})
@@ -579,7 +582,7 @@ def scrape_nayoo(progress_callback=None):
 
         # Concurrently fetch remaining pages for this endpoint
         logger.info(f"⚡ Fetching remaining {total_pages - 1} pages for {ep_label}...")
-        with ThreadPoolExecutor(max_workers=20) as page_exec:
+        with ThreadPoolExecutor(max_workers=6) as page_exec:
             futures = {page_exec.submit(fetch_nayoo_page, session, ep, p_num, 36): p_num for p_num in range(2, total_pages + 1)}
             for fut in as_completed(futures):
                 try:
@@ -602,7 +605,7 @@ def scrape_nayoo(progress_callback=None):
     logger.info(f"⚡ Concurrently fetching details and coordinates for {total_discovered:,} listings...")
     all_records = []
     
-    with ThreadPoolExecutor(max_workers=35) as detail_exec:
+    with ThreadPoolExecutor(max_workers=8) as detail_exec:
         futures = {detail_exec.submit(fetch_and_process_item, session, item): pid for pid, item in discovered_items.items()}
         completed = 0
         for fut in as_completed(futures):

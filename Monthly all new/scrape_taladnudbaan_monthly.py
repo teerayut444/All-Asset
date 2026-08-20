@@ -38,7 +38,7 @@ COLUMNS = [
 ]
 
 ITEMS_PER_PAGE = 20
-THREAD_POOL_SIZE = 5
+THREAD_POOL_SIZE = 3
 
 # GIS Boundary Engine Cache
 _GIS_TREE = None
@@ -262,6 +262,7 @@ def fetch_talad_detail(session, item):
     max_retries = 5
     for attempt in range(max_retries):
         try:
+            time.sleep(random.uniform(0.3, 0.6))
             r = session.get(link, headers=headers, timeout=30)
             if r.status_code == 429 or r.status_code == 503:
                 sleep_time = (2 ** attempt) + random.uniform(2.0, 5.0)

@@ -4,6 +4,7 @@ import re
 import os
 import json
 import time
+import random
 from datetime import datetime
 import threading
 import sys
@@ -367,6 +368,8 @@ def main():
         if page_no % 10 == 0 or page_no == total_pages:
             df = pd.DataFrame(records, columns=COLUMNS)
             df.to_csv(OUTPUT_CSV, index=False, encoding="utf-8-sig")
+
+        time.sleep(random.uniform(1.2, 2.0))
 
     print(f"\n[{COMPANY_NAME}] ✅ ดึงข้อมูลเสร็จสิ้น! บันทึกไฟล์ที่: {OUTPUT_CSV} รวม {len(records):,} รายการ", flush=True)
 

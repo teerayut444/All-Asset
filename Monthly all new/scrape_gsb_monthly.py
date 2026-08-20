@@ -3,6 +3,7 @@ import sys
 import json
 import re
 import time
+import random
 import subprocess
 import threading
 import pandas as pd
@@ -350,7 +351,7 @@ def main():
             if not rows and page > 1:
                 break
             page += 1
-            time.sleep(0.1)
+            time.sleep(random.uniform(0.8, 1.5))
             
         print()
 

@@ -4,6 +4,7 @@ import re
 import os
 import sys
 import time
+import random
 from datetime import datetime
 import pandas as pd
 from bs4 import BeautifulSoup
@@ -222,6 +223,7 @@ def check_link_health(session):
 
 def fetch_item_detail(session, item_id):
     if not item_id: return "", "", "", None, None, None
+    time.sleep(random.uniform(0.2, 0.45))
     url = f"https://www.bam.co.th/th/npa/property/{item_id}"
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
     subdist, dist, prov, lat, lng, price = "", "", "", None, None, None
@@ -314,7 +316,7 @@ def fetch_bam_page(session, page_num):
             records = []
             now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             
-            with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
                 detail_futures = {executor.submit(fetch_item_detail, session, item.get("id") or item.get("propertyCode")): item for item in items}
                 detail_results = {}
                 for future in concurrent.futures.as_completed(detail_futures):
