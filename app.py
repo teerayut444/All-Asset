@@ -11,6 +11,7 @@ import math
 import ast
 import io
 import datetime
+import time
 from pathlib import Path
 import base64
 
@@ -2461,7 +2462,6 @@ with tab1:
                 
                 # Step 6: Finish (100%)
                 progress_bar.progress(100, text="เรนเดอร์แผนที่สำเร็จแล้ว (100%)")
-                time.sleep(0.1)
                 progress_bar.empty()
                 
                 map_rendered = False
