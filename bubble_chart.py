@@ -133,7 +133,7 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
             "id": "taladnudbaan",
             "name": "Taladnudbaan",
             "label": "Taladnudbaan NPA",
-            "base_cx": 560, "base_cy": 330,
+            "base_cx": 560, "base_cy": 345,
             "scraped_grad": "taladnudbaan-outer-grad",
             "float_dur": "7s",
             "color_hex": "#06b6d4",
@@ -143,7 +143,7 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
             "id": "zmyhome",
             "name": "ZmyHome",
             "label": "ZmyHome NPA",
-            "base_cx": 160, "base_cy": 200,
+            "base_cx": 155, "base_cy": 195,
             "scraped_grad": "zmyhome-scraped",
             "float_dur": "8s",
             "color_hex": "#ec4899",
@@ -153,7 +153,7 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
             "id": "bam",
             "name": "BAM",
             "label": "BAM NPA",
-            "base_cx": 170, "base_cy": 470,
+            "base_cx": 155, "base_cy": 475,
             "scraped_grad": "bam-scraped",
             "float_dur": "6s",
             "color_hex": "#3b82f6",
@@ -163,17 +163,37 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
             "id": "kbank",
             "name": "KBANK",
             "label": "KBANK NPA",
-            "base_cx": 360, "base_cy": 110,
+            "base_cx": 345, "base_cy": 105,
             "scraped_grad": "kbank-scraped",
             "float_dur": "7.2s",
             "color_hex": "#059669",
             "is_tnb": False
         },
         {
+            "id": "gsb",
+            "name": "GSB",
+            "label": "GSB NPA",
+            "base_cx": 560, "base_cy": 85,
+            "scraped_grad": "gsb-scraped",
+            "float_dur": "7.4s",
+            "color_hex": "#eb1985",
+            "is_tnb": False
+        },
+        {
+            "id": "ghb",
+            "name": "GHB",
+            "label": "GHB NPA",
+            "base_cx": 775, "base_cy": 105,
+            "scraped_grad": "ghb-scraped",
+            "float_dur": "6.8s",
+            "color_hex": "#ca8a04",
+            "is_tnb": False
+        },
+        {
             "id": "nayoo",
             "name": "NaYoo",
             "label": "NaYoo NPA",
-            "base_cx": 950, "base_cy": 180,
+            "base_cx": 965, "base_cy": 175,
             "scraped_grad": "nayoo-scraped",
             "float_dur": "6.5s",
             "color_hex": "#8b5cf6",
@@ -183,7 +203,7 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
             "id": "baania",
             "name": "Baania",
             "label": "Baania NPA",
-            "base_cx": 860, "base_cy": 490,
+            "base_cx": 840, "base_cy": 535,
             "scraped_grad": "baania-scraped",
             "float_dur": "7.5s",
             "color_hex": "#f59e0b",
@@ -193,7 +213,7 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
             "id": "sam",
             "name": "SAM",
             "label": "SAM NPA",
-            "base_cx": 1070, "base_cy": 330,
+            "base_cx": 1095, "base_cy": 330,
             "scraped_grad": "sam-scraped",
             "float_dur": "8.5s",
             "color_hex": "#10b981",
@@ -203,27 +223,17 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
             "id": "chayo555",
             "name": "Chayo555",
             "label": "Chayo555 NPA",
-            "base_cx": 1040, "base_cy": 500,
+            "base_cx": 1055, "base_cy": 505,
             "scraped_grad": "chayo555-scraped",
             "float_dur": "7.8s",
             "color_hex": "#f97316",
             "is_tnb": False
         },
         {
-            "id": "ghb",
-            "name": "GHB",
-            "label": "GHB NPA",
-            "base_cx": 740, "base_cy": 110,
-            "scraped_grad": "ghb-scraped",
-            "float_dur": "6.8s",
-            "color_hex": "#ca8a04",
-            "is_tnb": False
-        },
-        {
             "id": "scb",
             "name": "SCB",
             "label": "SCB NPA",
-            "base_cx": 930, "base_cy": 350,
+            "base_cx": 945, "base_cy": 355,
             "scraped_grad": "scb-scraped",
             "float_dur": "7.0s",
             "color_hex": "#7e22ce",
@@ -233,20 +243,10 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
             "id": "ktb",
             "name": "KTB",
             "label": "KTB NPA",
-            "base_cx": 370, "base_cy": 530,
+            "base_cx": 345, "base_cy": 540,
             "scraped_grad": "ktb-scraped",
             "float_dur": "6.2s",
             "color_hex": "#0284c7",
-            "is_tnb": False
-        },
-        {
-            "id": "gsb",
-            "name": "GSB",
-            "label": "GSB NPA",
-            "base_cx": 610, "base_cy": 540,
-            "scraped_grad": "gsb-scraped",
-            "float_dur": "7.4s",
-            "color_hex": "#eb1985",
             "is_tnb": False
         }
     ]
@@ -468,7 +468,7 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
         """)
 
     svg_content = f"""
-    <svg viewBox="0 0 1180 650" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="background-color: transparent;">
+    <svg viewBox="0 0 1200 660" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="background-color: transparent;">
       <defs>
         <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
           <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#0f172a" flood-opacity="{'0.35' if is_dark_mode else '0.15'}"/>
