@@ -106,7 +106,7 @@ HEADERS = {
 
 # Output directories
 _BASE_DIR = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__))
-OUTPUT_DIR = os.path.join(_BASE_DIR, "CSV_Output")
+OUTPUT_DIR = os.path.join(_BASE_DIR, "CSV_Output", MONTH_STR)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 MONTH_STR = datetime.datetime.now().strftime("%Y_%m")

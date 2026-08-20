@@ -5,20 +5,17 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 import pydeck as pdk
-import sys
 import re
 import json
 import math
-import subprocess
 import ast
 import io
+import datetime
 from pathlib import Path
 import base64
-import time
 
 from dashboard_metrics import build_kpi_summary_text
 from bubble_chart import generate_3d_glossy_bubble_chart_html
-import importlib
 import sam_analytics
 from sam_analytics import render_same_project_comparison
 
@@ -252,7 +249,7 @@ def haversine_distance_vectorized(lat1, lon1, lats, lons):
     dlon = lons_rad - lon1_rad
     
     a = np.sin(dlat / 2.0) ** 2 + np.cos(lat1_rad) * np.cos(lats_rad) * np.sin(dlon / 2.0) ** 2
-    c = 2.0 * np.arcsin(np.sqrt(a))
+    c = 2.0 * np.arcsin(np.sqrt(np.clip(a, 0.0, 1.0)))
     return R * c
 
 def sanitize_session_state(key, valid_options, default_val=None):
@@ -1534,6 +1531,7 @@ with st.sidebar:
         # Price Filter - อิงราคาจริงที่มีในฐานข้อมูล
         valid_prices = df_by_company['ราคา'].dropna()
         valid_prices = valid_prices[valid_prices > 0]
+        min_p, max_p = 0.0, 100000000.0
         if not valid_prices.empty:
             min_p = float(valid_prices.min())
             max_p = float(valid_prices.max())
@@ -1552,18 +1550,55 @@ with st.sidebar:
             else:
                 step_p = 10000.0
 
+            # Quick Price Preset Buttons / Pills
+            price_presets = ["ทั้งหมด", "< 1M", "1M - 3M", "3M - 5M", "5M - 10M", "> 10M"]
+            
+            if "prev_sidebar_price_preset" not in st.session_state:
+                st.session_state["prev_sidebar_price_preset"] = "ทั้งหมด"
+            if "sidebar_price_preset" not in st.session_state:
+                st.session_state["sidebar_price_preset"] = "ทั้งหมด"
+
+            selected_preset = st.pills(
+                "⚡ กดเลือกช่วงราคาด่วน",
+                options=price_presets,
+                default="ทั้งหมด",
+                key="sidebar_price_preset"
+            )
+
+            # Detect preset click and synchronize slider value
+            if selected_preset != st.session_state.get("prev_sidebar_price_preset"):
+                st.session_state["prev_sidebar_price_preset"] = selected_preset
+                if selected_preset == "< 1M":
+                    st.session_state["sidebar_price_slider"] = (min_p, min(1000000.0, max_p))
+                elif selected_preset == "1M - 3M":
+                    st.session_state["sidebar_price_slider"] = (max(min_p, 1000000.0), min(3000000.0, max_p))
+                elif selected_preset == "3M - 5M":
+                    st.session_state["sidebar_price_slider"] = (max(min_p, 3000000.0), min(5000000.0, max_p))
+                elif selected_preset == "5M - 10M":
+                    st.session_state["sidebar_price_slider"] = (max(min_p, 5000000.0), min(10000000.0, max_p))
+                elif selected_preset == "> 10M":
+                    st.session_state["sidebar_price_slider"] = (max(min_p, 10000000.0), max_p)
+                elif selected_preset == "ทั้งหมด" or selected_preset is None:
+                    st.session_state["sidebar_price_slider"] = (min_p, max_p)
+
+            # Ensure slider value is within current min_p and max_p bounds
             if "sidebar_price_slider" in st.session_state:
                 curr_val = st.session_state["sidebar_price_slider"]
                 if isinstance(curr_val, (list, tuple)) and len(curr_val) == 2:
                     c_low, c_high = curr_val
-                    if c_low < min_p or c_high > max_p or c_low > c_high:
-                        st.session_state["sidebar_price_slider"] = (min_p, max_p)
+                    c_low = max(min_p, min(c_low, max_p))
+                    c_high = min(max_p, max(c_high, min_p))
+                    if c_low > c_high:
+                        c_low, c_high = min_p, max_p
+                    st.session_state["sidebar_price_slider"] = (c_low, c_high)
+            else:
+                st.session_state["sidebar_price_slider"] = (min_p, max_p)
 
             price_range = st.slider(
                 "ช่วงราคาขาย (บาท)",
                 min_value=min_p,
                 max_value=max_p,
-                value=(min_p, max_p),
+                value=st.session_state["sidebar_price_slider"],
                 step=step_p,
                 format="%,d",
                 key="sidebar_price_slider"
@@ -2025,48 +2060,7 @@ div[data-baseweb="tab-panel"], div[data-testid="stTabPanel"] {
     gap: 12px !important;
 }
 
-.floating-card {
-    background: var(--card-bg) !important;
-    backdrop-filter: blur(12px) !important;
-    -webkit-backdrop-filter: blur(12px) !important;
-    border: 1px solid var(--card-border) !important;
-    border-radius: 14px !important;
-    padding: 12px 18px !important;
-    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05) !important;
-    flex: 1;
-    transition: transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
-}
 
-.floating-card:hover {
-    transform: translateY(-2px);
-    background: var(--card-bg) !important;
-    border-color: rgba(99, 102, 241, 0.4) !important;
-    box-shadow: 0 12px 30px rgba(99, 102, 241, 0.15), 0 2px 10px rgba(6, 182, 212, 0.1) !important;
-}
-
-.floating-card-title {
-    font-size: 0.72rem;
-    color: var(--card-subtext) !important;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-bottom: 4px;
-}
-
-.floating-card-value {
-    font-size: 1.45rem;
-    font-weight: 800;
-    background: linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%); 
-    -webkit-background-clip: text; 
-    -webkit-text-fill-color: transparent;
-}
-
-.floating-card-sub {
-    font-size: 0.68rem;
-    color: var(--card-subtext) !important;
-    margin-top: 2px;
-    font-weight: 500;
-}
 
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
@@ -2315,7 +2309,7 @@ with tab1:
                 import streamlit.components.v1 as stc
                 stc.html(bubble_html, height=640)
             except Exception:
-                st.html(bubble_html, unsafe_allow_javascript=True)
+                st.html(bubble_html)
                 
         else:
             with c_mode2:
@@ -2343,12 +2337,8 @@ with tab1:
             if not map_data.empty:
                 # Step 2: Format prices (40%)
                 progress_bar.progress(40, text="กำลังจัดรูปแบบราคาและชื่อประกาศ (40%)...")
-                prices = map_data['ราคา']
-                map_data['ราคาขาย'] = np.where(
-                    prices.notna() & (prices > 0),
-                    '฿' + prices.map('{:,.0f}'.format) + ' บาท',
-                    'ไม่ระบุ'
-                )
+                prices = pd.to_numeric(map_data['ราคา'], errors='coerce')
+                map_data['ราคาขาย'] = prices.apply(lambda p: f"฿{p:,.0f} บาท" if pd.notna(p) and p > 0 else "ไม่ระบุ")
                 
             if map_data.empty:
                 progress_bar.empty()
@@ -2431,8 +2421,9 @@ with tab1:
                     legend_items_html = ['<div style="font-weight: 600; font-size: 11px; text-transform: uppercase; color: #64748b; margin-bottom: 4px; letter-spacing: 0.5px;">บริษัททรัพย์สิน</div>']
                     for co_name, co_rgb in COMPANY_COLORS.items():
                         c_cnt = co_counts.get(co_name, 0)
-                        hex_c = f"rgb({co_rgb[0]},{co_rgb[1]},{co_rgb[2]})"
-                        legend_items_html.append(f'<div class="legend-item"><span class="legend-color" style="background:{hex_c};"></span>{co_name} ({c_cnt:,})</div>')
+                        if c_cnt > 0:
+                            hex_c = f"rgb({co_rgb[0]},{co_rgb[1]},{co_rgb[2]})"
+                            legend_items_html.append(f'<div class="legend-item"><span class="legend-color" style="background:{hex_c};"></span>{co_name} ({c_cnt:,})</div>')
                     
                     other_co_cnt = sum(cnt for co, cnt in co_counts.items() if co not in COMPANY_COLORS)
                     if other_co_cnt > 0:
@@ -2518,7 +2509,7 @@ with tab2:
                     y='จำนวนทรัพย์สิน',
                     color='บริษัท',
                     title='จำนวนรายการทรัพย์สินเปรียบเทียบแต่ละบริษัท',
-                    color_discrete_map={"SAM": "#10b981", "BAM": "#3b82f6", "Chayo555": "#f97316", "Baania": "#f59e0b", "NaYoo": "#8b5cf6", "Taladnudbaan": "#06b6d4", "ZmyHome": "#ec4899", "KBANK": "#059669", "GHB": "#ca8a04", "SCB": "#7e22ce", "KTB": "#0284c7"},
+                    color_discrete_map={"SAM": "#10b981", "BAM": "#3b82f6", "Chayo555": "#f97316", "Baania": "#f59e0b", "NaYoo": "#8b5cf6", "Taladnudbaan": "#06b6d4", "ZmyHome": "#ec4899", "KBANK": "#059669", "GHB": "#ca8a04", "SCB": "#7e22ce", "KTB": "#0284c7", "GSB": "#eb1985"},
                     template=plotly_template
                 )
                 fig_comp.update_layout(title_font=dict(size=14, family="Outfit"))
@@ -2553,7 +2544,7 @@ with tab2:
                     y='ราคากลาง Median (บาท)',
                     color='บริษัท',
                     title='ราคากลาง (Median) จำแนกตามบริษัททรัพย์สิน',
-                    color_discrete_map={"SAM": "#10b981", "BAM": "#3b82f6", "Chayo555": "#f97316", "Baania": "#f59e0b", "NaYoo": "#8b5cf6", "Taladnudbaan": "#06b6d4", "ZmyHome": "#ec4899", "KBANK": "#059669", "GHB": "#ca8a04", "SCB": "#7e22ce", "KTB": "#0284c7"},
+                    color_discrete_map={"SAM": "#10b981", "BAM": "#3b82f6", "Chayo555": "#f97316", "Baania": "#f59e0b", "NaYoo": "#8b5cf6", "Taladnudbaan": "#06b6d4", "ZmyHome": "#ec4899", "KBANK": "#059669", "GHB": "#ca8a04", "SCB": "#7e22ce", "KTB": "#0284c7", "GSB": "#eb1985"},
                     template=plotly_template
                 )
                 fig_avg_p.update_layout(title_font=dict(size=14, family="Outfit"))
@@ -2573,7 +2564,7 @@ with tab2:
                     color_continuous_scale="Viridis",
                     template=plotly_template
                 )
-                fig_prov.update_layout(title_font=dict(size=14, family="Outfit"), coloraxis_showscale=False)
+                fig_prov.update_layout(yaxis=dict(autorange="reversed"), title_font=dict(size=14, family="Outfit"), coloraxis_showscale=False)
                 st.plotly_chart(style_plotly_fig(fig_prov), width="stretch", theme=None)
                 
             st.markdown("---")
@@ -2596,17 +2587,16 @@ with tab2:
                         return 'ทาวน์เฮ้าส์'
                     return np.nan
                 
-                df_price_capped['ประเภททรัพย์ '] = df_price_capped['ประเภททรัพย์'].apply(map_simplified_type)
-                df_price_capped = df_price_capped[df_price_capped['ประเภททรัพย์ '].notna()]
+                df_price_capped['ประเภททรัพย์_กลุ่ม'] = df_price_capped['ประเภททรัพย์'].apply(map_simplified_type)
+                df_price_capped = df_price_capped[df_price_capped['ประเภททรัพย์_กลุ่ม'].notna()]
                 
                 # Optimize by subsetting and sampling to 50k rows to prevent browser crash
-                df_hist_data = df_price_capped[['ราคา', 'ประเภททรัพย์ ']]
+                df_hist_data = df_price_capped[['ราคา', 'ประเภททรัพย์_กลุ่ม']]
                 if len(df_hist_data) > 50000:
                     df_hist_data = df_hist_data.sample(n=50000, random_state=42)
                 
                 color_map_dist = {
                     "ที่ดินเปล่า": "#56B4E9",
-                    "ที่ดินเปล่า": "#56B4E9", 
                     "บ้านเดี่ยว": "#CC79A7", 
                     "ห้องชุดพักอาศัย": "#E69F00",
                     "คอนโด": "#E69F00", 
@@ -2616,10 +2606,10 @@ with tab2:
                 fig_price_dist = px.histogram(
                     df_hist_data,
                     x='ราคา',
-                    color='ประเภททรัพย์ ',
+                    color='ประเภททรัพย์_กลุ่ม',
                     nbins=40,
                     title='การกระจายตัวของราคาทรัพย์สิน (ไม่เกิน 25 ล้านบาท)',
-                    labels={'ราคา': 'ราคาเริ่มต้น (บาท)', 'ประเภททรัพย์ ': 'ประเภททรัพย์'},
+                    labels={'ราคา': 'ราคาเริ่มต้น (บาท)', 'ประเภททรัพย์_กลุ่ม': 'ประเภททรัพย์'},
                     color_discrete_map=color_map_dist,
                     template=plotly_template,
                     marginal="box",
@@ -3058,49 +3048,6 @@ with tab3:
                             pass
                 return np.nan
 
-            # Helper to calculate Median Price per Sq.Wah for a specific local area (Subdistrict/District/Province)
-            def get_location_median_sqwah(df, prov, dist, subdist=None):
-                if df is None or df.empty:
-                    return np.nan, "ไม่มีข้อมูล"
-                
-                loc_df = pd.DataFrame()
-                loc_label = ""
-                # 1. Try exact Subdistrict first
-                if subdist and pd.notna(subdist) and str(subdist).strip() not in ['', '-', 'nan']:
-                    loc_df = df[(df['จังหวัด'] == prov) & (df['ตำบล'] == subdist)]
-                    loc_label = f"ย่าน ต.{subdist} อ.{dist}"
-                
-                # 2. Fallback to District if < 3 properties
-                if loc_df.empty or len(loc_df) < 3:
-                    if dist and pd.notna(dist) and str(dist).strip() not in ['', '-', 'nan']:
-                        loc_df = df[(df['จังหวัด'] == prov) & (df['อำเภอ'] == dist)]
-                        loc_label = f"ย่าน อ.{dist} จ.{prov}"
-                
-                # 3. Fallback to Province
-                if loc_df.empty or len(loc_df) < 3:
-                    if prov and pd.notna(prov) and str(prov).strip() not in ['', '-', 'nan']:
-                        loc_df = df[df['จังหวัด'] == prov]
-                        loc_label = f"ย่าน จ.{prov}"
-                        
-                if loc_df.empty:
-                    return np.nan, "ไม่มีข้อมูล"
-                    
-                if 'ราคาต่อตารางวา' in loc_df.columns:
-                    valid_u = loc_df['ราคาต่อตารางวา'].dropna()
-                    valid_u = valid_u[valid_u > 0]
-                elif 'พื้นที่_ตารางวา' in loc_df.columns:
-                    valid_mask = (loc_df['พื้นที่_ตารางวา'] > 0) & (loc_df['ราคา'] > 0)
-                    valid_u = (loc_df.loc[valid_mask, 'ราคา'] / loc_df.loc[valid_mask, 'พื้นที่_ตารางวา']).dropna()
-                else:
-                    sqwah = loc_df.apply(parse_land_sqwah, axis=1)
-                    valid_u = np.where((sqwah.notna()) & (sqwah > 0) & (loc_df['ราคา'] > 0), loc_df['ราคา'] / sqwah, np.nan)
-                    valid_u = pd.Series(valid_u).dropna()
-                    
-                if valid_u.empty:
-                    return np.nan, loc_label
-                    
-                return float(valid_u.median()), f"{loc_label} ({len(valid_u):,} รายการ)"
-
             # Initialize variables
             inp_name = ""
             inp_lat = 0.0
@@ -3513,6 +3460,8 @@ with tab3:
                     st.session_state["prev_clk_lng"] = c_lng
                     st.session_state["manual_map_clicked_lat"] = c_lat
                     st.session_state["manual_map_clicked_lng"] = c_lng
+                    st.session_state["comp_manual_lat"] = c_lat
+                    st.session_state["comp_manual_lng"] = c_lng
                     st.rerun()
 
         st.markdown("<br/>", unsafe_allow_html=True)
@@ -3533,7 +3482,7 @@ with tab3:
                         nearby_df = nearby_df[nearby_df['บริษัท'].isin(compare_companies)]
 
                     # Apply price range filter
-                    if not valid_prices.empty:
+                    if compare_price_range is not None and len(compare_price_range) == 2:
                         nearby_df = nearby_df[
                             (nearby_df['ราคา'].isna()) |
                             ((nearby_df['ราคา'] >= compare_price_range[0]) & (nearby_df['ราคา'] <= compare_price_range[1]))
@@ -3810,10 +3759,10 @@ with tab3:
 
                         # Col 3: Raw Land Price per Sq.Wah (Median)
                         if has_raw_land:
-                            rl_val_html = f"฿{median_raw_land:,.0f} <span style='font-size:0.85rem; font-weight:normal; color:#475569;'>/ตร.ว</span>"
+                            rl_val_html = f"฿{median_raw_land:,.0f} <span style='font-size:0.85rem; font-weight:normal; color:#475569;'>/ตร.ว.</span>"
                             rl_sub_html = f"""
                             <div style='margin-top: 6px; line-height: 1.55; font-size: 0.82rem; color: #334155;'>
-                                <div>📊 <b>ช่วงราคา:</b> ฿{min_raw_land:,.0f} - ฿{max_raw_land:,.0f} /ตร.ว</div>
+                                <div>📊 <b>ช่วงราคา:</b> ฿{min_raw_land:,.0f} - ฿{max_raw_land:,.0f} /ตร.ว.</div>
                                 <div>📦 <b>จำนวน:</b> {count_raw_land:,} รายการในรัศมี {search_radius:.1f} กม.</div>
                                 <div style='color: #64748b; font-size: 0.76rem; margin-top: 2px;'>📐 คำนวณจากเนื้อที่ (ตารางวา)</div>
                             </div>
@@ -3976,25 +3925,25 @@ with tab3:
 
 # ----- TAB 4: PROPERTY LISTING -----
 with tab4:
-    st.markdown(f"### 📋 รายการทรัพย์สินที่ค้นพบ ({total_count:,} รายการ)")
+    st.markdown(f"### 📋 รายการทรัพย์สินที่ค้นพบ ({len(df_filtered):,} รายการ)")
     
     if df_filtered.empty:
         st.warning("⚠️ ไม่พบข้อมูลตามเงื่อนไข")
     else:
-        # Search Box to filter Tab 3 Property Listing table
-        tab3_search_query = st.text_input(
+        # Search Box to filter Tab 4 Property Listing table
+        tab4_search_query = st.text_input(
             "🔍 ค้นหา ชื่อโครงการ / รหัสทรัพย์ / ชื่อประกาศ",
             value="",
             placeholder="พิมพ์ชื่อโครงการ, รหัสทรัพย์, หรือชื่อประกาศเพื่อกรองข้อมูลในตาราง...",
-            key="tab3_property_listing_search"
+            key="tab4_property_listing_search"
         )
 
         df_table_source = df_filtered.copy()
-        if tab3_search_query:
-            q_tab3 = tab3_search_query.strip().lower()
-            cond_title = df_table_source['ชื่อประกาศ'].astype(str).str.lower().str.contains(q_tab3, na=False)
-            cond_code = df_table_source['รหัสทรัพย์'].astype(str).str.lower().str.contains(q_tab3, na=False)
-            cond_proj = df_table_source['ชื่อโครงการ'].astype(str).str.lower().str.contains(q_tab3, na=False) if 'ชื่อโครงการ' in df_table_source.columns else False
+        if tab4_search_query:
+            q_tab4 = tab4_search_query.strip().lower()
+            cond_title = df_table_source['ชื่อประกาศ'].astype(str).str.lower().str.contains(q_tab4, na=False) if 'ชื่อประกาศ' in df_table_source.columns else False
+            cond_code = df_table_source['รหัสทรัพย์'].astype(str).str.lower().str.contains(q_tab4, na=False) if 'รหัสทรัพย์' in df_table_source.columns else False
+            cond_proj = df_table_source['ชื่อโครงการ'].astype(str).str.lower().str.contains(q_tab4, na=False) if 'ชื่อโครงการ' in df_table_source.columns else False
             df_table_source = df_table_source[cond_title | cond_code | cond_proj]
 
         # Show top 5,000 rows in the interactive table for performance
@@ -4012,6 +3961,12 @@ with tab4:
             "วันที่ดึงข้อมูล", "ห้องนอน", "ห้องน้ำ", "ที่จอดรถ", "วันประกาศ"
         ]
         df_table_show = df_table[[c for c in cols_table_raw if c in df_table.columns]].copy()
+        
+        # Coerce numeric columns for reliable sorting and formatted display
+        for num_col in ['พื้นที่ใช้สอย (ตร.ม.)', 'เนื้อที่ (ตร.ว.)', 'ละติจูด', 'ลองจิจูด']:
+            if num_col in df_table_show.columns:
+                df_table_show[num_col] = pd.to_numeric(df_table_show[num_col], errors='coerce')
+                
         if 'ราคา' in df_table_show.columns:
             df_table_show['ราคาขาย (บาท)'] = pd.to_numeric(df_table_show['ราคา'], errors='coerce')
             p_idx = list(df_table_show.columns).index('ราคา')
@@ -4030,4 +3985,4 @@ with tab4:
                 "ลิงก์": st.column_config.LinkColumn("ลิงก์ประกาศ", display_text="🔗 เปิดดูทรัพย์")
             }
         )
-        render_import_export_section(df_table_source, filename_prefix="npa_property_listing", key_suffix="tab3")
+        render_import_export_section(df_table_source, filename_prefix="npa_property_listing", key_suffix="tab4")

@@ -17,7 +17,7 @@ COMPANY_NAME = "BAM"
 MONTH_STR = datetime.now().strftime("%Y_%m")
 
 _BASE_DIR = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__))
-OUTPUT_DIR = os.path.join(_BASE_DIR, "CSV_Output")
+OUTPUT_DIR = os.path.join(_BASE_DIR, "CSV_Output", MONTH_STR)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 OUTPUT_CSV = os.path.join(OUTPUT_DIR, f"BAM_NPA_New_{MONTH_STR}.csv")
 

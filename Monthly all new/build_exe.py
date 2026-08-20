@@ -32,17 +32,22 @@ args = [
     "--name", "Scraper_Monthly_Parallel",
     "--hidden-import=pandas",
     "--hidden-import=requests",
+    "--hidden-import=curl_cffi",
     "--hidden-import=bs4",
     "--hidden-import=openpyxl",
     "--hidden-import=pyarrow",
     "--hidden-import=scrape_baania_monthly",
     "--hidden-import=scrape_bam_monthly",
-    "--hidden-import=scrape_ddproperty_monthly",
+    "--hidden-import=scrape_chayo555_monthly",
+    "--hidden-import=scrape_ghb_monthly",
+    "--hidden-import=scrape_gsb_monthly",
+    "--hidden-import=scrape_kbank_monthly",
+    "--hidden-import=scrape_ktb_monthly",
+    "--hidden-import=scrape_nayoo_monthly",
     "--hidden-import=scrape_sam_monthly",
+    "--hidden-import=scrape_scb_monthly",
     "--hidden-import=scrape_taladnudbaan_monthly",
     "--hidden-import=scrape_zmyhome_monthly",
-    "--hidden-import=scrape_chayo555_monthly",
-    "--hidden-import=scrape_nayoo_monthly",
     "--hidden-import=merge_csv_monthly"
 ]
 
@@ -61,4 +66,5 @@ try:
 except Exception as e:
     print(f"\n❌ เกิดข้อผิดพลาดในการสร้าง EXE: {e}")
 
-input("\nกด Enter เพื่อปิดหน้าต่างนี้...")
+if sys.stdin.isatty():
+    input("\nกด Enter เพื่อปิดหน้าต่างนี้...")

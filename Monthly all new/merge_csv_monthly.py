@@ -12,7 +12,9 @@ if hasattr(sys.stdout, 'reconfigure'):
 
 _BASE_DIR = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__))
 BASE_DIR = _BASE_DIR
-CSV_DIR = os.path.join(BASE_DIR, "CSV_Output")
+CURRENT_YM = datetime.now().strftime("%Y_%m")
+MONTHLY_DIR = os.path.join(BASE_DIR, "CSV_Output", CURRENT_YM)
+CSV_DIR = MONTHLY_DIR if os.path.exists(MONTHLY_DIR) else os.path.join(BASE_DIR, "CSV_Output")
 CURRENT_YM = datetime.now().strftime("%Y_%m")
 CURRENT_YM_DISPLAY = datetime.now().strftime("%Y-%m")
 

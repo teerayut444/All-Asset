@@ -238,6 +238,16 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
             "float_dur": "6.2s",
             "color_hex": "#0284c7",
             "is_tnb": False
+        },
+        {
+            "id": "gsb",
+            "name": "GSB",
+            "label": "GSB NPA",
+            "base_cx": 610, "base_cy": 540,
+            "scraped_grad": "gsb-scraped",
+            "float_dur": "7.4s",
+            "color_hex": "#eb1985",
+            "is_tnb": False
         }
     ]
 
@@ -576,6 +586,13 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
           <stop offset="0%" stop-color="#f0f9ff"/>
           <stop offset="45%" stop-color="#38bdf8"/>
           <stop offset="100%" stop-color="#0284c7"/>
+        </radialGradient>
+
+        <!-- GSB Standalone Gradient (Vivid Pink) -->
+        <radialGradient id="gsb-scraped" cx="50%" cy="50%" r="50%" fx="35%" fy="30%">
+          <stop offset="0%" stop-color="#fdf2f8"/>
+          <stop offset="45%" stop-color="#f472b6"/>
+          <stop offset="100%" stop-color="#db2777"/>
         </radialGradient>
       </defs>
       

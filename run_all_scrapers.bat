@@ -1,34 +1,39 @@
 @echo off
-title All Asset NPA Scrapers Runner (Monthly All New)
+setlocal
+title All Asset NPA Scrapers Runner (12 Sources)
+cd /d "%~dp0"
+
 echo ======================================================================
-echo   All Asset NPA Scrapers Runner
-echo   [ BAM / SAM / Chayo555 / Baania / NaYoo / Taladnudbaan / ZmyHome ]
+echo   All Asset NPA Scrapers Runner (12 Sources)
+echo   SAM / BAM / KBANK / SCB / KTB / GHB / GSB / Chayo555 / NaYoo / Baania / ZmyHome / Taladnudbaan
 echo   Source Folder: Monthly all new
 echo ======================================================================
 echo.
 
-if exist ".venv\Scripts\activate.bat" (
-    echo [Info] Found virtual environment in .venv folder. Activating...
-    call ".venv\Scripts\activate.bat"
-    goto run
+if exist ".venv\Scripts\python.exe" (
+    echo [Info] Found virtual environment in .venv
+    set "PYTHON_EXE=.venv\Scripts\python.exe"
+    goto :run
 )
 
-if exist "..\.venv\Scripts\activate.bat" (
-    echo [Info] Found virtual environment in parent folder. Activating...
-    call "..\.venv\Scripts\activate.bat"
-    goto run
+if exist "..\.venv\Scripts\python.exe" (
+    echo [Info] Found virtual environment in parent folder
+    set "PYTHON_EXE=..\.venv\Scripts\python.exe"
+    goto :run
 )
 
-echo [Info] Using global python environment.
+set "PYTHON_EXE=python"
+echo [Info] Using system python: %PYTHON_EXE%
 
 :run
 echo.
-echo [Launch] Starting scrapers from 'Monthly all new' and generating all_assets.parquet...
+echo [Launch] Starting scrapers for 12 NPA sources and generating all_assets.parquet...
 echo.
-python run_all_scrapers.py --parallel
-if %errorlevel% neq 0 (
+"%PYTHON_EXE%" run_all_scrapers.py --parallel
+if errorlevel 1 (
     echo.
-    echo [Error] Failed to run scrapers. Please verify python dependencies.
+    echo [Error] Scraper execution encountered an error. Please check dependencies or network.
 )
 
+echo.
 pause

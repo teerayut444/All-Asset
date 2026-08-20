@@ -1,50 +1,52 @@
 @echo off
-setlocal enabledelayedexpansion
-title All Asset NPA Dashboard Launcher (6 Companies)
+setlocal
+title All Asset NPA Intelligence Dashboard (12 Sources)
 
-:: Change directory to the folder where this batch file is located
 cd /d "%~dp0"
 
 echo ======================================================================
-echo   All Asset NPA Dashboard Launcher - 6 Companies
-echo   [ Baania / BAM / SAM / ZmyHome / DDproperty / Taladnudbaan ]
+echo   All Asset NPA Intelligence Dashboard - 12 Sources
+echo   SAM / BAM / KBANK / SCB / KTB / GHB / GSB / Chayo555 / NaYoo / Baania / ZmyHome / Taladnudbaan
 echo ======================================================================
 echo.
 
-:: Check local virtual environment executable directly
 if exist ".venv\Scripts\python.exe" (
-    echo [Info] Found local virtual environment in .venv folder.
+    echo [Info] Found virtual environment in .venv
     set "PYTHON_EXE=.venv\Scripts\python.exe"
-    goto launch
+    goto :launch
 )
 
-:: Check parent virtual environment
 if exist "..\.venv\Scripts\python.exe" (
-    echo [Info] Found parent virtual environment.
+    echo [Info] Found virtual environment in parent folder
     set "PYTHON_EXE=..\.venv\Scripts\python.exe"
-    goto launch
+    goto :launch
 )
 
-:: Fallback to system python
 set "PYTHON_EXE=python"
 echo [Info] Using system python: %PYTHON_EXE%
 
 :launch
 echo.
-echo [Launch] Starting Streamlit Dashboard for 6 Companies...
+echo [Launch] Starting Streamlit Dashboard for 12 NPA Sources...
 echo [Path] Using Python: %PYTHON_EXE%
+echo [URL]  http://localhost:8501
 echo.
 
-"%PYTHON_EXE%" -m streamlit run app.py
+"%PYTHON_EXE%" -m streamlit run app.py --server.maxUploadSize=500 --browser.gatherUsageStats=false
 
-if %errorlevel% neq 0 (
+if errorlevel 1 (
     echo.
     echo [Warning] Streamlit exited or encountered an error.
-    echo [Info] Attempting to install / verify required dependencies...
-    "%PYTHON_EXE%" -m pip install streamlit pandas openpyxl plotly bs4 requests pyarrow
+    echo [Info] Checking and updating required dependencies...
+    if exist "requirements.txt" (
+        "%PYTHON_EXE%" -m pip install -r requirements.txt
+    ) else (
+        "%PYTHON_EXE%" -m pip install streamlit pandas openpyxl plotly pydeck pillow requests pyarrow
+    )
     echo.
     echo [Launch] Retrying Streamlit Dashboard...
-    "%PYTHON_EXE%" -m streamlit run app.py
+    "%PYTHON_EXE%" -m streamlit run app.py --server.maxUploadSize=500 --browser.gatherUsageStats=false
 )
 
+echo.
 pause
