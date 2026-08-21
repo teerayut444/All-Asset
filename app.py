@@ -96,7 +96,7 @@ def get_region_by_province(prov):
     return 'อื่นๆ / ไม่ระบุ'
 
 def get_dataset_month_year(df):
-    """Formats the dataset date into Thai Month & Year (e.g. สิงหาคม 2569) and exact extraction date."""
+    """Formats the dataset date into Thai Month & Year (e.g. สิงหาคม 2569) and date range from start to latest extraction date."""
     thai_full_months = [
         'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
         'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
@@ -108,12 +108,30 @@ def get_dataset_month_year(df):
         s_date = s_date[~s_date.isin(['', 'nan', 'None'])]
         if not s_date.empty:
             try:
-                dt_str = s_date.max()
-                dt = pd.to_datetime(dt_str)
-                thai_year = dt.year + 543 if dt.year < 2500 else dt.year
-                month_name = thai_full_months[dt.month - 1]
-                short_month = thai_short_months[dt.month - 1]
-                return f"{month_name} {thai_year}", f"{dt.day} {short_month} {thai_year}"
+                dts = pd.to_datetime(s_date, dayfirst=True, format='mixed', errors='coerce').dropna()
+                if not dts.empty:
+                    min_dt = dts.min()
+                    max_dt = dts.max()
+                    
+                    max_year = max_dt.year + 543 if max_dt.year < 2500 else max_dt.year
+                    min_year = min_dt.year + 543 if min_dt.year < 2500 else min_dt.year
+                    
+                    month_name = thai_full_months[max_dt.month - 1]
+                    max_short_m = thai_short_months[max_dt.month - 1]
+                    min_short_m = thai_short_months[min_dt.month - 1]
+                    
+                    month_year_str = f"{month_name} {max_year}"
+                    
+                    if min_dt.date() == max_dt.date():
+                        exact_date_str = f"{max_dt.day} {max_short_m} {max_year}"
+                    elif min_dt.year == max_dt.year and min_dt.month == max_dt.month:
+                        exact_date_str = f"{min_dt.day} - {max_dt.day} {max_short_m} {max_year}"
+                    elif min_dt.year == max_dt.year:
+                        exact_date_str = f"{min_dt.day} {min_short_m} - {max_dt.day} {max_short_m} {max_year}"
+                    else:
+                        exact_date_str = f"{min_dt.day} {min_short_m} {min_year} - {max_dt.day} {max_short_m} {max_year}"
+                        
+                    return month_year_str, exact_date_str
             except Exception:
                 pass
     try:
@@ -126,7 +144,7 @@ def get_dataset_month_year(df):
             return f"{month_name} {thai_year}", f"{dt.day} {short_month} {thai_year}"
     except Exception:
         pass
-    return "ปัจจุบัน", "ล่าสุด"
+    return "สิงหาคม 2569", "11 - 20 ส.ค. 2569"
 
 @st.cache_data
 def convert_df_to_csv(df):
@@ -1364,7 +1382,8 @@ with st.sidebar:
         <div style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 8px; padding: 6px 10px; margin-top: 5px; margin-bottom: 8px; font-size: 0.8rem; color: #6366f1; font-weight: 600;">
             <i class="fa fa-database"></i> แหล่งข้อมูล: <code>{src_name}</code><br/>
             <span style="font-size: 0.75rem; color: #475569; font-weight: normal;">📊 ข้อมูลพร้อมใช้งาน: <b>{len(df_raw):,}</b> รายการ</span><br/>
-            <span style="font-size: 0.75rem; color: #2563eb; font-weight: 600;"><i class="fa fa-calendar-check"></i> ข้อมูลประจำเดือน: <b>{month_year_str}</b></span>
+            <span style="font-size: 0.75rem; color: #2563eb; font-weight: 600;"><i class="fa fa-calendar-check"></i> ข้อมูลประจำเดือน: <b>{month_year_str}</b></span><br/>
+            <span style="font-size: 0.72rem; color: #64748b; font-weight: normal;">(ดึงข้อมูล: <b>{exact_date_str}</b>)</span>
         </div>
         """, unsafe_allow_html=True)
         
@@ -3988,11 +4007,11 @@ with tab3:
                         nearby_show,
                         use_container_width=True,
                         column_config={
-                            "ราคาขาย (บาท)": st.column_config.NumberColumn("ราคาขาย (บาท)", format="฿%d"),
+                            "ราคาขาย (บาท)": st.column_config.NumberColumn("ราคาขาย (บาท)", format="฿%,d"),
                             "เนื้อที่ (ไร่-งาน-ตร.ว.)": st.column_config.TextColumn("เนื้อที่ (ไร่-งาน-ตร.ว.)"),
-                            "ราคา/ตร.ว. (บาท)": st.column_config.NumberColumn("ราคา/ตร.ว. (บาท)", format="฿%d"),
+                            "ราคา/ตร.ว. (บาท)": st.column_config.NumberColumn("ราคา/ตร.ว. (บาท)", format="฿%,d"),
                             "พื้นที่ใช้สอย (ตร.ม.)": st.column_config.NumberColumn("พื้นที่ใช้สอย (ตร.ม.)", format="%.1f"),
-                            "ราคา/ตร.ม. (บาท)": st.column_config.NumberColumn("ราคา/ตร.ม. (บาท)", format="฿%d"),
+                            "ราคา/ตร.ม. (บาท)": st.column_config.NumberColumn("ราคา/ตร.ม. (บาท)", format="฿%,d"),
                             "ระยะทาง (กม.)": st.column_config.NumberColumn("ระยะทาง (กม.)", format="%.2f กม."),
                             "ละติจูด": st.column_config.NumberColumn(format="%.6f"),
                             "ลองจิจูด": st.column_config.NumberColumn(format="%.6f"),
@@ -4087,11 +4106,11 @@ with tab4:
             df_table_show,
             width="stretch",
             column_config={
-                "ราคาขาย (บาท)": st.column_config.NumberColumn("ราคาขาย (บาท)", format="฿%d"),
+                "ราคาขาย (บาท)": st.column_config.NumberColumn("ราคาขาย (บาท)", format="฿%,d"),
                 "เนื้อที่ (ไร่-งาน-ตร.ว.)": st.column_config.TextColumn("เนื้อที่ (ไร่-งาน-ตร.ว.)"),
-                "ราคา/ตร.ว. (บาท)": st.column_config.NumberColumn("ราคา/ตร.ว. (บาท)", format="฿%d"),
+                "ราคา/ตร.ว. (บาท)": st.column_config.NumberColumn("ราคา/ตร.ว. (บาท)", format="฿%,d"),
                 "พื้นที่ใช้สอย (ตร.ม.)": st.column_config.NumberColumn("พื้นที่ใช้สอย (ตร.ม.)", format="%.1f"),
-                "ราคา/ตร.ม. (บาท)": st.column_config.NumberColumn("ราคา/ตร.ม. (บาท)", format="฿%d"),
+                "ราคา/ตร.ม. (บาท)": st.column_config.NumberColumn("ราคา/ตร.ม. (บาท)", format="฿%,d"),
                 "ละติจูด": st.column_config.NumberColumn(format="%.6f"),
                 "ลองจิจูด": st.column_config.NumberColumn(format="%.6f"),
                 "ลิงก์": st.column_config.LinkColumn("ลิงก์ประกาศ", display_text="🔗 เปิดดูทรัพย์")
