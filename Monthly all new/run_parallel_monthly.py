@@ -34,9 +34,25 @@ recent_logs = collections.deque(maxlen=7)
 lock = threading.Lock()
 running = True
 
+LOG_FILE_PATHS = [
+    Path(__file__).parent.resolve() / "scraping.log",
+    Path(__file__).parent.parent.resolve() / "scraping.log"
+]
+
 def add_log(msg):
-    time_str = datetime.now().strftime("%H:%M:%S")
+    now = datetime.now()
+    time_str = now.strftime("%H:%M:%S")
+    full_timestamp = now.strftime("%Y-%m-%d %H:%M:%S")
     recent_logs.appendleft(f"[{time_str}] {msg}")
+    
+    # Continuously append to scraping.log
+    log_entry = f"[{full_timestamp}] {msg}\n"
+    for lp in LOG_FILE_PATHS:
+        try:
+            with open(lp, "a", encoding="utf-8") as f:
+                f.write(log_entry)
+        except Exception:
+            pass
 
 BORDER_LINE = "=" * 120
 

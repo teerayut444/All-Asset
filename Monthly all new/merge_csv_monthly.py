@@ -365,6 +365,20 @@ def merge_monthly_csv():
     except Exception as e:
         print(f"⚠️ เตือน: ไม่สามารถบันทึก Parquet ได้: {e}", flush=True)
         
+    # Append merge summary to scraping.log
+    try:
+        log_paths = [
+            os.path.join(ROOT_DIR, "scraping.log"),
+            os.path.join(MONTHLY_DIR, "scraping.log")
+        ]
+        time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        merge_msg = f"[{time_str}] [MERGE] Auto-merged {len(combined_df):,} records into {os.path.basename(MASTER_CSV_TIMED)} and {os.path.basename(ROOT_PARQUET)}\n"
+        for lp in log_paths:
+            with open(lp, "a", encoding="utf-8") as f:
+                f.write(merge_msg)
+    except Exception:
+        pass
+
     print("==========================================================================", flush=True)
     print(f"🎉 รวมข้อมูลเสร็จสมบูรณ์! ข้อมูลสุทธิทั้งหมด {len(combined_df):,} รายการ (บันทึกเฉพาะไฟล์: {os.path.basename(MASTER_CSV_TIMED)})", flush=True)
     print("==========================================================================", flush=True)

@@ -1772,7 +1772,7 @@ def render_sam_tab(df_raw, df_filtered, is_dark_mode=False, plotly_template="plo
                     <div><b>ประเภท:</b> {ประเภททรัพย์} ({ประเภทการขาย})</div>
                     <div><b>ราคา:</b> <span style="color:#fbbf24; font-weight:bold;">{ราคา_fmt}</span></div>
                     <div><b>ทำเล:</b> {อำเภอ}, {จังหวัด}</div>
-                    <div><b>ขนาดพื้นที่:</b> {ขนาด_fmt}</div>
+                    <div><b>เนื้อที่:</b> {ขนาด_fmt}</div>
                 </div>
                 """,
                 "style": {"backgroundColor": "transparent", "color": "white"}

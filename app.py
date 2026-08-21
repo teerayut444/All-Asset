@@ -395,6 +395,56 @@ def parse_area_to_sqwah(area_str):
         
     return np.nan
 
+def to_float_sqwah(val):
+    """Converts any value (numeric or string like '2-0-57', '1 ไร่ 2 งาน', '50.5') to float square wah."""
+    if pd.isna(val):
+        return np.nan
+    if isinstance(val, (int, float, np.number)):
+        return float(val) if float(val) > 0 else np.nan
+    val_str = str(val).strip()
+    if not val_str or val_str in ['nan', 'None', '-', '']:
+        return np.nan
+    try:
+        f = float(val_str)
+        return f if f > 0 else np.nan
+    except (ValueError, TypeError):
+        return parse_area_to_sqwah(val_str)
+
+def to_float_sqm(val):
+    """Converts any usable area value to float square meters."""
+    if pd.isna(val):
+        return np.nan
+    if isinstance(val, (int, float, np.number)):
+        return float(val) if float(val) > 0 else np.nan
+    val_str = str(val).strip()
+    if not val_str or val_str in ['nan', 'None', '-', '']:
+        return np.nan
+    try:
+        val_clean = re.sub(r'[^\d.]', '', val_str)
+        f = float(val_clean)
+        return f if f > 0 else np.nan
+    except (ValueError, TypeError):
+        return np.nan
+
+def format_to_rai_ngan_wah(val):
+    """Formats any land area value (sqwah float or text like '0-0-67' or '1 ไร่ 2 งาน') to 'X-Y-Z' (ไร่-งาน-ตร.ว.)"""
+    if pd.isna(val):
+        return "-"
+    val_str = str(val).strip()
+    if not val_str or val_str in ['nan', 'None', '-', '0', '0-0-0', '0-0-0.0']:
+        return "-"
+    if re.match(r'^\d+-\d+-\d+(?:\.\d+)?$', val_str):
+        return "-" if val_str in ['0-0-0', '0-0-0.0'] else val_str
+    sqwah = to_float_sqwah(val)
+    if pd.isna(sqwah) or sqwah <= 0:
+        return "-"
+    rai = int(sqwah // 400)
+    rem = sqwah % 400
+    ngan = int(rem // 100)
+    wah = rem % 100
+    wah_str = str(int(wah)) if wah == int(wah) else f"{wah:.1f}"
+    return f"{rai}-{ngan}-{wah_str}"
+
 
 # Configure Streamlit page layout
 st.set_page_config(
@@ -1033,8 +1083,8 @@ def render_tab3_radius_leaflet_map_html(inp_lat, inp_lng, search_radius_km, near
                     '  </div>' +
                     '</div>' +
                     '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 3px 8px; font-size: 11px; color:#cbd5e1; margin-bottom: 5px;">' +
-                    '   <div>📐 เนื้อที่: <b>' + (p.land_area || '-') + '</b></div>' +
-                    '   <div>🏢 ใช้สอย: <b>' + (p.usable_area || '-') + '</b></div>' +
+                    '   <div>📐 เนื้อที่: <b>' + (p.land_area || '-') + '</b>' + (p.price_per_wah ? '<br/><span style="color:#38bdf8; font-size:10px;">(' + p.price_per_wah + ')</span>' : '') + '</div>' +
+                    '   <div>🏢 ใช้สอย: <b>' + (p.usable_area || '-') + '</b>' + (p.price_per_sqm ? '<br/><span style="color:#38bdf8; font-size:10px;">(' + p.price_per_sqm + ')</span>' : '') + '</div>' +
                     '</div>' +
                     (locStr ? '<div style="font-size: 11px; color: #94a3b8; margin-bottom: 5px;">📍 <span style="color: #e2e8f0;">' + locStr + '</span></div>' : '') +
                     (p.link && p.link !== '-' && p.link !== '' ? '<div style="margin-top: 4px; text-align: right;"><a href="' + p.link + '" target="_blank" style="display: inline-block; background: #3b82f6; color: white; padding: 3px 8px; border-radius: 6px; text-decoration: none; font-size: 11px; font-weight: 600;">🔗 ดูประกาศ ↗</a></div>' : '') +
@@ -2346,12 +2396,12 @@ with tab1:
                 st.warning("⚠️ ไม่พบพิกัดตำแหน่ง ละติจูด/ลองจิจูด ในรายการทรัพย์สินที่คุณเลือกค้นหา")
             else:
                 title_col = 'ชื่อประกาศ' if 'ชื่อประกาศ' in map_data.columns else ('ชื่อโครงการ' if 'ชื่อโครงการ' in map_data.columns else 'รหัสทรัพย์')
-                titles = map_data[title_col].astype(object).fillna('ไม่มีชื่อ').astype(str).str[:30].values
-                ids = map_data['รหัสทรัพย์'].astype(object).fillna('-').astype(str).str[:15].values
-                provs = map_data['จังหวัด'].astype(object).fillna('-').astype(str).values
-                types = map_data['ประเภททรัพย์'].astype(object).fillna('-').astype(str).values
-                companies = map_data['บริษัท'].astype(object).fillna('-').astype(str).values
-                prices = map_data['ราคาขาย'].astype(str).values
+                titles = [str(x)[:30] for x in map_data[title_col].fillna('ไม่มีชื่อ').astype(str)]
+                ids = [str(x)[:15] for x in map_data['รหัสทรัพย์'].fillna('-').astype(str)]
+                provs = [str(x) for x in map_data['จังหวัด'].fillna('-').astype(str)]
+                types = [str(x) for x in map_data['ประเภททรัพย์'].fillna('-').astype(str)]
+                companies = [str(x) for x in map_data['บริษัท'].fillna('-').astype(str)]
+                prices = [str(x) for x in map_data['ราคาขาย'].astype(str)]
 
                 r_vals, g_vals, b_vals = [], [], []
                 
@@ -2996,7 +3046,7 @@ with tab3:
                         pass
                     
                 # 3. Parse text format e.g. "1-2-50" or "1 ไร่ 2 งาน 50 ตารางวา"
-                txt = str(r.get('พื้นที่ (ไร่-งาน-วา)', r.get('พื้นที่ดิน', ''))).strip()
+                txt = str(r.get('เนื้อที่ (ตร.ว.)', r.get('เนื้อที่', ''))).strip()
                 if txt and txt not in ['nan', 'None', '-', '']:
                     rai_m = re.search(r'(\d+)\s*ไร่', txt)
                     ngan_m = re.search(r'(\d+)\s*งาน', txt)
@@ -3157,12 +3207,12 @@ with tab3:
                             area_items = []
                             if pd.notna(inp_land_area) and inp_land_area > 0:
                                 u_land_str = f" <span style='color:#64748b; font-size:0.8rem;'>(฿{inp_price/inp_land_area:,.0f}/ตร.ว.)</span>" if inp_price > 0 else ""
-                                area_items.append(f"🌾 <b>เนื้อที่ดิน:</b> {inp_land_area:,.1f} ตร.ว.{u_land_str}")
+                                area_items.append(f"🌾 <b>เนื้อที่:</b> {inp_land_area:,.1f} ตร.ว.{u_land_str}")
                             if pd.notna(inp_use_area) and inp_use_area > 0:
                                 u_sqm_str = f" <span style='color:#64748b; font-size:0.8rem;'>(฿{inp_price/inp_use_area:,.0f}/ตร.ม.)</span>" if inp_price > 0 else ""
                                 area_items.append(f"🏢 <b>พื้นที่ใช้สอย:</b> {inp_use_area:,.1f} ตร.ม.{u_sqm_str}")
                             if not area_items:
-                                area_items.append("📐 <b>ขนาดพื้นที่:</b> ไม่ระบุ")
+                                area_items.append("📐 <b>เนื้อที่ / พื้นที่ใช้สอย:</b> ไม่ระบุ")
                             area_html = "</div><div>".join(area_items)
 
                             # Specs
@@ -3528,27 +3578,28 @@ with tab3:
                         is_condo = any(kw in p_type for kw in ['คอนโด', 'ห้องชุด'])
                         price = r.get('ราคา')
                         if pd.isna(price) or float(price) <= 0:
-                            return np.nan, "-", "-", "-"
+                            return np.nan, "-", "-"
                             
                         if is_condo:
-                            sqm = r.get('พื้นที่ใช้สอย (ตร.ม.)')
+                            sqm = to_float_sqm(r.get('พื้นที่ใช้สอย (ตร.ม.)'))
                             if pd.notna(sqm) and float(sqm) > 0:
                                 u_price = float(price) / float(sqm)
-                                return u_price, "ตร.ม.", f"{float(sqm):,.1f} ตร.ม.", "พื้นที่ใช้สอย"
+                                return u_price, "ตร.ม.", "พื้นที่ใช้สอย"
                         else:
-                            sqwah = r.get('พื้นที่_ตารางวา')
+                            sqwah = to_float_sqwah(r.get('เนื้อที่ (ตร.ว.)'))
+                            if pd.isna(sqwah) or float(sqwah or 0) <= 0:
+                                sqwah = to_float_sqwah(r.get('พื้นที่_ตารางวา'))
                             if pd.isna(sqwah) or float(sqwah or 0) <= 0:
                                 sqwah = parse_land_sqwah(r)
                             if pd.notna(sqwah) and float(sqwah) > 0:
                                 u_price = float(price) / float(sqwah)
-                                return u_price, "วา", f"{float(sqwah):,.1f} วา", "พื้นที่ดิน"
-                        return np.nan, "-", "-", "-"
+                                return u_price, "ตร.ว.", "เนื้อที่"
+                        return np.nan, "-", "-"
 
                     unit_results = nearby_df.apply(get_unit_info, axis=1)
                     nearby_df['ราคาต่อหน่วย'] = [res[0] for res in unit_results]
                     nearby_df['หน่วยวัด'] = [res[1] for res in unit_results]
-                    nearby_df['ขนาดพื้นที่'] = [res[2] for res in unit_results]
-                    nearby_df['ฐานพื้นที่คำนวณ'] = [res[3] for res in unit_results]
+                    nearby_df['ฐานพื้นที่คำนวณ'] = [res[2] for res in unit_results]
 
                     nearby_df['ราคาต่อหน่วย (แสดงผล)'] = nearby_df.apply(
                         lambda r: f"฿{r['ราคาต่อหน่วย']:,.0f} /{r['หน่วยวัด']} ({r['ฐานพื้นที่คำนวณ']})" if pd.notna(r['ราคาต่อหน่วย']) else "-", axis=1
@@ -3822,8 +3873,22 @@ with tab3:
                             sale_type_val = str(r.get('ประเภทการขาย', 'ขาย'))
                             
                             # Areas
-                            land_area_val = str(r.get('เนื้อที่ (ตร.ว.)', r.get('ขนาดพื้นที่', '-')))
-                            usable_area_val = f"{float(r['พื้นที่ใช้สอย (ตร.ม.)']):,.1f} ตร.ม." if pd.notna(r.get('พื้นที่ใช้สอย (ตร.ม.)')) and float(r.get('พื้นที่ใช้สอย (ตร.ม.)', 0)) > 0 else "-"
+                            land_sqwah = to_float_sqwah(r.get('เนื้อที่ (ตร.ว.)'))
+                            if pd.isna(land_sqwah) or land_sqwah <= 0:
+                                land_sqwah = to_float_sqwah(r.get('พื้นที่_ตารางวา'))
+                                
+                            land_area_val = format_to_rai_ngan_wah(r.get('เนื้อที่ (ตร.ว.)'))
+                            if land_area_val == '-':
+                                land_area_val = format_to_rai_ngan_wah(land_sqwah)
+                            if land_area_val != '-' and pd.notna(land_sqwah) and land_sqwah > 0:
+                                land_area_val += f" ({land_sqwah:,.1f} ตร.ว.)"
+                            
+                            sqm_val = to_float_sqm(r.get('พื้นที่ใช้สอย (ตร.ม.)'))
+                            usable_area_val = f"{sqm_val:,.1f} ตร.ม." if pd.notna(sqm_val) and sqm_val > 0 else "-"
+                            
+                            price_num = pd.to_numeric(r.get('ราคา'), errors='coerce')
+                            price_per_wah_str = f"฿{price_num/land_sqwah:,.0f}/ตร.ว." if (pd.notna(price_num) and pd.notna(land_sqwah) and land_sqwah > 0 and price_num > 0) else ""
+                            price_per_sqm_str = f"฿{price_num/sqm_val:,.0f}/ตร.ม." if (pd.notna(price_num) and pd.notna(sqm_val) and sqm_val > 0 and price_num > 0) else ""
                             u_price_val = str(r.get('ราคาต่อหน่วย (แสดงผล)', '-'))
                             
                             # Building Specs
@@ -3850,6 +3915,8 @@ with tab3:
                                 "company": company_name_val,
                                 "land_area": land_area_val,
                                 "usable_area": usable_area_val,
+                                "price_per_wah": price_per_wah_str,
+                                "price_per_sqm": price_per_sqm_str,
                                 "unit_price": u_price_val,
                                 "bed": bed_val,
                                 "bath": bath_val,
@@ -3880,33 +3947,53 @@ with tab3:
                     nearby_show = nearby_df.sort_values("ระยะทาง (กม.)").copy()
                     if 'ราคา' in nearby_show.columns:
                         nearby_show['ราคาขาย (บาท)'] = pd.to_numeric(nearby_show['ราคา'], errors='coerce')
-                    if 'พื้นที่ใช้สอย (ตร.ม.)' in nearby_show.columns:
-                        nearby_show['พื้นที่ใช้สอย (ตร.ม.)'] = pd.to_numeric(nearby_show['พื้นที่ใช้สอย (ตร.ม.)'], errors='coerce')
-                    if 'เนื้อที่ (ตร.ว.)' in nearby_show.columns:
-                        nearby_show['เนื้อที่ (ตร.ว.)'] = pd.to_numeric(nearby_show['เนื้อที่ (ตร.ว.)'], errors='coerce')
+                    
+                    # Calculate square wah numeric for division
+                    sqwah_col = nearby_show['เนื้อที่ (ตร.ว.)'].apply(to_float_sqwah) if 'เนื้อที่ (ตร.ว.)' in nearby_show.columns else pd.Series(np.nan, index=nearby_show.index)
+                    if 'พื้นที่_ตารางวา' in nearby_show.columns:
+                        sqwah_col = sqwah_col.fillna(nearby_show['พื้นที่_ตารางวา'].apply(to_float_sqwah))
+                    nearby_show['sqwah_calc'] = sqwah_col
+                    
+                    # Display format as ไร่-งาน-ตร.ว.
+                    nearby_show['เนื้อที่ (ไร่-งาน-ตร.ว.)'] = nearby_show['เนื้อที่ (ตร.ว.)'].apply(format_to_rai_ngan_wah) if 'เนื้อที่ (ตร.ว.)' in nearby_show.columns else nearby_show['sqwah_calc'].apply(format_to_rai_ngan_wah)
 
-                    # CSV Standard Column Ordering with Radius Metrics
+                    if 'พื้นที่ใช้สอย (ตร.ม.)' in nearby_show.columns:
+                        nearby_show['พื้นที่ใช้สอย (ตร.ม.)'] = nearby_show['พื้นที่ใช้สอย (ตร.ม.)'].apply(to_float_sqm)
+
+                    # 1. ราคา/ตร.ว. (บาท) = ราคาขาย / sqwah_calc
+                    nearby_show['ราคา/ตร.ว. (บาท)'] = nearby_show.apply(
+                        lambda r: round(r['ราคาขาย (บาท)'] / r['sqwah_calc']) if (pd.notna(r.get('ราคาขาย (บาท)')) and pd.notna(r.get('sqwah_calc')) and float(r.get('sqwah_calc', 0)) > 0 and float(r.get('ราคาขาย (บาท)', 0)) > 0) else np.nan,
+                        axis=1
+                    )
+                    
+                    # 2. ราคา/ตร.ม. (บาท) = ราคาขาย / พื้นที่ใช้สอย (ตร.ม.)
+                    nearby_show['ราคา/ตร.ม. (บาท)'] = nearby_show.apply(
+                        lambda r: round(r['ราคาขาย (บาท)'] / r['พื้นที่ใช้สอย (ตร.ม.)']) if (pd.notna(r.get('ราคาขาย (บาท)')) and pd.notna(r.get('พื้นที่ใช้สอย (ตร.ม.)')) and float(r.get('พื้นที่ใช้สอย (ตร.ม.)', 0)) > 0 and float(r.get('ราคาขาย (บาท)', 0)) > 0) else np.nan,
+                        axis=1
+                    )
+
+                    # Standard Column Ordering: Price and Areas front and center!
                     cols_nearby_order = [
-                        "บริษัท", "ID", "รหัสทรัพย์", "ชื่อโครงการ", "ประเภททรัพย์", "ประเภทการขาย", 
-                        "ราคาขาย (บาท)", "ราคาต่อหน่วย (แสดงผล)", "ตำบล", "อำเภอ", "จังหวัด", "ระยะทาง (กม.)",
-                        "ละติจูด", "ลองจิจูด", "ชื่อประกาศ", "ลิงก์", "เนื้อที่ (ตร.ว.)", 
-                        "ขนาดพื้นที่", "พื้นที่ (ไร่-งาน-วา)", "พื้นที่ใช้สอย (ตร.ม.)", 
-                        "วันที่ดึงข้อมูล", "ห้องนอน", "ห้องน้ำ", "ที่จอดรถ", "วันประกาศ"
+                        "บริษัท", "รหัสทรัพย์", "ชื่อโครงการ", "ประเภททรัพย์", "ประเภทการขาย", 
+                        "ราคาขาย (บาท)", "เนื้อที่ (ไร่-งาน-ตร.ว.)", "ราคา/ตร.ว. (บาท)", "พื้นที่ใช้สอย (ตร.ม.)", "ราคา/ตร.ม. (บาท)",
+                        "ระยะทาง (กม.)", "ตำบล", "อำเภอ", "จังหวัด", "ชื่อประกาศ", "ลิงก์", 
+                        "ห้องนอน", "ห้องน้ำ", "ที่จอดรถ", "ID", "ละติจูด", "ลองจิจูด", "วันที่ดึงข้อมูล", "วันประกาศ"
                     ]
                     cols_present = [c for c in cols_nearby_order if c in nearby_show.columns]
-                    # Also include any other columns in nearby_show that weren't in the explicit list
-                    extra_cols = [c for c in nearby_show.columns if c not in cols_present and c != 'ราคา']
+                    # Also include any other columns in nearby_show that weren't in the explicit list (excluding helper columns)
+                    extra_cols = [c for c in nearby_show.columns if c not in cols_present and c not in ['ราคา', 'ขนาดพื้นที่', 'ฐานพื้นที่คำนวณ', 'หน่วยวัด', 'ราคาต่อหน่วย', 'ราคาต่อหน่วย (แสดงผล)', 'พื้นที่_ตารางวา', 'เนื้อที่ (ตร.ว.)', 'sqwah_calc']]
                     nearby_show = nearby_show[cols_present + extra_cols]
 
                     st.dataframe(
                         nearby_show,
                         use_container_width=True,
                         column_config={
-                            "ราคาขาย (บาท)": st.column_config.NumberColumn("ราคาขาย (บาท)", format="%,d"),
-                            "ราคาต่อหน่วย (แสดงผล)": st.column_config.TextColumn("ราคาต่อหน่วย (บาท/วา หรือ บาท/ตร.ม.)"),
+                            "ราคาขาย (บาท)": st.column_config.NumberColumn("ราคาขาย (บาท)", format="฿%d"),
+                            "เนื้อที่ (ไร่-งาน-ตร.ว.)": st.column_config.TextColumn("เนื้อที่ (ไร่-งาน-ตร.ว.)"),
+                            "ราคา/ตร.ว. (บาท)": st.column_config.NumberColumn("ราคา/ตร.ว. (บาท)", format="฿%d"),
+                            "พื้นที่ใช้สอย (ตร.ม.)": st.column_config.NumberColumn("พื้นที่ใช้สอย (ตร.ม.)", format="%.1f"),
+                            "ราคา/ตร.ม. (บาท)": st.column_config.NumberColumn("ราคา/ตร.ม. (บาท)", format="฿%d"),
                             "ระยะทาง (กม.)": st.column_config.NumberColumn("ระยะทาง (กม.)", format="%.2f กม."),
-                            "พื้นที่ใช้สอย (ตร.ม.)": st.column_config.NumberColumn("พื้นที่ใช้สอย (ตร.ม.)", format="%.1f ตร.ม."),
-                            "เนื้อที่ (ตร.ว.)": st.column_config.NumberColumn("เนื้อที่ (ตร.ว.)", format="%.1f"),
                             "ละติจูด": st.column_config.NumberColumn(format="%.6f"),
                             "ลองจิจูด": st.column_config.NumberColumn(format="%.6f"),
                             "ลิงก์": st.column_config.LinkColumn("ลิงก์ประกาศ", display_text="🔗 เปิดดูทรัพย์")
@@ -3954,32 +4041,57 @@ with tab4:
         else:
             df_table = df_table_source
             
-        cols_table_raw = [
-            "บริษัท", "ID", "รหัสทรัพย์", "ชื่อโครงการ", "ประเภททรัพย์", "ประเภทการขาย", 
-            "ราคา", "ตำบล", "อำเภอ", "จังหวัด", "ละติจูด", "ลองจิจูด", 
-            "ชื่อประกาศ", "ลิงก์", "เนื้อที่ (ตร.ว.)", "พื้นที่ (ไร่-งาน-วา)", "พื้นที่ใช้สอย (ตร.ม.)", 
-            "วันที่ดึงข้อมูล", "ห้องนอน", "ห้องน้ำ", "ที่จอดรถ", "วันประกาศ"
-        ]
-        df_table_show = df_table[[c for c in cols_table_raw if c in df_table.columns]].copy()
+        df_table_show = df_table.copy()
         
-        # Coerce numeric columns for reliable sorting and formatted display
-        for num_col in ['พื้นที่ใช้สอย (ตร.ม.)', 'เนื้อที่ (ตร.ว.)', 'ละติจูด', 'ลองจิจูด']:
-            if num_col in df_table_show.columns:
-                df_table_show[num_col] = pd.to_numeric(df_table_show[num_col], errors='coerce')
-                
+        # Prepare clean numeric columns
         if 'ราคา' in df_table_show.columns:
             df_table_show['ราคาขาย (บาท)'] = pd.to_numeric(df_table_show['ราคา'], errors='coerce')
-            p_idx = list(df_table_show.columns).index('ราคา')
-            df_table_show = df_table_show.drop(columns=['ราคา'])
-            df_table_show.insert(p_idx, 'ราคาขาย (บาท)', df_table_show.pop('ราคาขาย (บาท)'))
+        
+        sqwah_t4 = df_table_show['เนื้อที่ (ตร.ว.)'].apply(to_float_sqwah) if 'เนื้อที่ (ตร.ว.)' in df_table_show.columns else pd.Series(np.nan, index=df_table_show.index)
+        if 'พื้นที่_ตารางวา' in df_table_show.columns:
+            sqwah_t4 = sqwah_t4.fillna(df_table_show['พื้นที่_ตารางวา'].apply(to_float_sqwah))
+        df_table_show['sqwah_calc'] = sqwah_t4
+        
+        df_table_show['เนื้อที่ (ไร่-งาน-ตร.ว.)'] = df_table_show['เนื้อที่ (ตร.ว.)'].apply(format_to_rai_ngan_wah) if 'เนื้อที่ (ตร.ว.)' in df_table_show.columns else df_table_show['sqwah_calc'].apply(format_to_rai_ngan_wah)
+            
+        if 'พื้นที่ใช้สอย (ตร.ม.)' in df_table_show.columns:
+            df_table_show['พื้นที่ใช้สอย (ตร.ม.)'] = df_table_show['พื้นที่ใช้สอย (ตร.ม.)'].apply(to_float_sqm)
+
+        # 1. ราคา/ตร.ว. (บาท) = ราคาขาย / sqwah_calc
+        df_table_show['ราคา/ตร.ว. (บาท)'] = df_table_show.apply(
+            lambda r: round(r['ราคาขาย (บาท)'] / r['sqwah_calc']) if (pd.notna(r.get('ราคาขาย (บาท)')) and pd.notna(r.get('sqwah_calc')) and float(r.get('sqwah_calc', 0)) > 0 and float(r.get('ราคาขาย (บาท)', 0)) > 0) else np.nan,
+            axis=1
+        )
+        
+        # 2. ราคา/ตร.ม. (บาท) = ราคาขาย / พื้นที่ใช้สอย (ตร.ม.)
+        df_table_show['ราคา/ตร.ม. (บาท)'] = df_table_show.apply(
+            lambda r: round(r['ราคาขาย (บาท)'] / r['พื้นที่ใช้สอย (ตร.ม.)']) if (pd.notna(r.get('ราคาขาย (บาท)')) and pd.notna(r.get('พื้นที่ใช้สอย (ตร.ม.)')) and float(r.get('พื้นที่ใช้สอย (ตร.ม.)', 0)) > 0 and float(r.get('ราคาขาย (บาท)', 0)) > 0) else np.nan,
+            axis=1
+        )
+
+        for num_col in ['ละติจูด', 'ลองจิจูด']:
+            if num_col in df_table_show.columns:
+                df_table_show[num_col] = pd.to_numeric(df_table_show[num_col], errors='coerce')
+
+        cols_table_raw = [
+            "บริษัท", "รหัสทรัพย์", "ชื่อโครงการ", "ประเภททรัพย์", "ประเภทการขาย", 
+            "ราคาขาย (บาท)", "เนื้อที่ (ไร่-งาน-ตร.ว.)", "ราคา/ตร.ว. (บาท)", "พื้นที่ใช้สอย (ตร.ม.)", "ราคา/ตร.ม. (บาท)",
+            "ตำบล", "อำเภอ", "จังหวัด", "ชื่อประกาศ", "ลิงก์", 
+            "ห้องนอน", "ห้องน้ำ", "ที่จอดรถ", "ID", "ละติจูด", "ลองจิจูด", "วันที่ดึงข้อมูล", "วันประกาศ"
+        ]
+        cols_present = [c for c in cols_table_raw if c in df_table_show.columns]
+        extra_cols = [c for c in df_table_show.columns if c not in cols_present and c not in ['ราคา', 'พื้นที่_ตารางวา', 'เนื้อที่ (ตร.ว.)', 'sqwah_calc']]
+        df_table_show = df_table_show[cols_present + extra_cols]
 
         st.dataframe(
             df_table_show,
             width="stretch",
             column_config={
-                "ราคาขาย (บาท)": st.column_config.NumberColumn("ราคาขาย (บาท)", format="%,d"),
-                "พื้นที่ใช้สอย (ตร.ม.)": st.column_config.NumberColumn(format="%.1f"),
-                "เนื้อที่ (ตร.ว.)": st.column_config.NumberColumn(format="%.1f"),
+                "ราคาขาย (บาท)": st.column_config.NumberColumn("ราคาขาย (บาท)", format="฿%d"),
+                "เนื้อที่ (ไร่-งาน-ตร.ว.)": st.column_config.TextColumn("เนื้อที่ (ไร่-งาน-ตร.ว.)"),
+                "ราคา/ตร.ว. (บาท)": st.column_config.NumberColumn("ราคา/ตร.ว. (บาท)", format="฿%d"),
+                "พื้นที่ใช้สอย (ตร.ม.)": st.column_config.NumberColumn("พื้นที่ใช้สอย (ตร.ม.)", format="%.1f"),
+                "ราคา/ตร.ม. (บาท)": st.column_config.NumberColumn("ราคา/ตร.ม. (บาท)", format="฿%d"),
                 "ละติจูด": st.column_config.NumberColumn(format="%.6f"),
                 "ลองจิจูด": st.column_config.NumberColumn(format="%.6f"),
                 "ลิงก์": st.column_config.LinkColumn("ลิงก์ประกาศ", display_text="🔗 เปิดดูทรัพย์")

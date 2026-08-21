@@ -8,24 +8,6 @@
       body:not(.dark-theme) { background-color: #f8fafc; }
       #map { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; background-color: #0f172a; }
       body:not(.dark-theme) #map { background-color: #e2e8f0; }
-      
-      .tooltip {
-        position: absolute;
-        pointer-events: none;
-        background: rgba(15, 23, 42, 0.95);
-        backdrop-filter: blur(6px);
-        color: white;
-        font-family: 'Sarabun', sans-serif;
-        font-size: 12px;
-        padding: 10px 14px;
-        border-radius: 8px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        display: none;
-        z-index: 999;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-        max-width: 280px;
-        line-height: 1.5;
-      }
 
       #loader {
         position: absolute;
@@ -205,7 +187,6 @@
   <body class="BODY_CLASS_PLACEHOLDER">
     <div id="loader"><div class="spinner"></div> <span id="loader-text">กำลังโหลดและจัดเตรียมข้อมูลแผนที่...</span></div>
     <div id="map"></div>
-    <div id="tooltip" class="tooltip"></div>
     <div id="toast" class="toast"></div>
 
     <!-- Basemap Style Switcher Controls -->
@@ -226,7 +207,6 @@
     <script src="https://unpkg.com/deck.gl@9.0.16/dist.min.js"></script>
 
     <script>
-      const tooltip = document.getElementById('tooltip');
       const loader = document.getElementById('loader');
       const loaderText = document.getElementById('loader-text');
       
@@ -277,7 +257,6 @@
             'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
           ];
         } else {
-          // voyager / standard road map
           return [
             'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
             'https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
@@ -298,12 +277,8 @@
         }
       }
 
-      function setBasemapStyle(styleName) {
-        currentStyle = styleName;
-        updateActiveButtons(styleName);
-        if (!deckglInstance || !cachedData) return;
-
-        const basemapLayer = new deck.TileLayer({
+      function createBasemapLayer(styleName) {
+        return new deck.TileLayer({
           id: `basemap-tile-layer-${styleName}`,
           data: getTileUrls(styleName),
           minZoom: 0,
@@ -318,19 +293,97 @@
             });
           }
         });
+      }
 
-        const scatterLayer = new deck.ScatterplotLayer({
+      function handlePointClick(info) {
+        if (info.object && info.object._id && info.object._id !== '-') {
+          const code = info.object._id;
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(code).then(() => {
+              showToast(`📋 คัดลอกรหัสทรัพย์: ${code} แล้ว`);
+            }).catch(() => {
+              fallbackCopyText(code);
+            });
+          } else {
+            fallbackCopyText(code);
+          }
+        }
+      }
+
+      function getMapTooltip(info) {
+        if (!info || !info.object) {
+          return null;
+        }
+        const d = info.object;
+        const title = d._title || 'ไม่มีชื่อประกาศ';
+        const company = d._company || '-';
+        const id = d._id || '-';
+        const price = d._price_str || 'ไม่ระบุราคา';
+        const prov = d._prov || '-';
+        const type = d._type || '-';
+
+        return {
+          html: `
+            <div style="font-family: 'Sarabun', 'Outfit', sans-serif; font-size: 12px; line-height: 1.5; color: #f8fafc; padding: 2px;">
+              <div style="font-weight: 700; font-size: 13px; margin-bottom: 5px; color: #ffffff; border-bottom: 1px solid rgba(255,255,255,0.15); padding-bottom: 4px;">
+                ${title}
+              </div>
+              <div style="display: grid; grid-template-columns: auto 1fr; gap: 3px 8px; margin-top: 4px;">
+                <span style="color: #94a3b8;">🏢 บริษัท:</span>
+                <b style="color: #ffffff;">${company}</b>
+                <span style="color: #94a3b8;">🔑 รหัสทรัพย์:</span>
+                <b style="color: #ffffff;">${id}</b>
+                <span style="color: #38bdf8; font-weight: 600;">💰 ราคา:</span>
+                <b style="color: #38bdf8;">${price}</b>
+                <span style="color: #94a3b8;">📍 จังหวัด:</span>
+                <span style="color: #e2e8f0;">${prov}</span>
+                <span style="color: #94a3b8;">🏠 ประเภท:</span>
+                <span style="color: #e2e8f0;">${type}</span>
+              </div>
+              <div style="margin-top: 7px; padding-top: 5px; border-top: 1px dashed rgba(255,255,255,0.2); font-size: 10.5px; color: #38bdf8;">
+                💡 คลิกที่จุดเพื่อคัดลอกรหัสทรัพย์
+              </div>
+            </div>
+          `,
+          style: {
+            backgroundColor: 'rgba(15, 23, 42, 0.96)',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
+            color: '#ffffff',
+            borderRadius: '10px',
+            border: '1px solid rgba(255, 255, 255, 0.18)',
+            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.45)',
+            padding: '10px 14px',
+            maxWidth: '320px',
+            zIndex: '999999',
+            pointerEvents: 'none'
+          }
+        };
+      }
+
+      function createScatterLayer(data) {
+        return new deck.ScatterplotLayer({
           id: 'scatterplot-layer',
-          data: cachedData,
+          data: data,
           getPosition: d => [d.lon, d.lat],
-          getColor: d => [d.r, d.g, d.b, 185],
+          getColor: d => [d.r, d.g, d.b, 200],
           getRadius: 300,
           radiusMinPixels: 2.5,
           radiusMaxPixels: 12,
           pickable: true,
           autoHighlight: true,
-          highlightColor: [239, 68, 68, 220]
+          highlightColor: [239, 68, 68, 230],
+          onClick: handlePointClick
         });
+      }
+
+      function setBasemapStyle(styleName) {
+        currentStyle = styleName;
+        updateActiveButtons(styleName);
+        if (!deckglInstance || !cachedData) return;
+
+        const basemapLayer = createBasemapLayer(styleName);
+        const scatterLayer = createScatterLayer(cachedData);
 
         deckglInstance.setProps({
           layers: [basemapLayer, scatterLayer]
@@ -340,7 +393,7 @@
       async function initMap() {
         try {
           loaderText.innerText = "กำลังแปลงรหัสข้อมูลพิกัด (Base64)...";
-          await new Promise(r => setTimeout(r, 10));
+          await new Promise(r => setTimeout(r, 5));
           
           const binaryString = atob(csvBase64);
           const bytes = new Uint8Array(binaryString.length);
@@ -349,15 +402,15 @@
           }
           
           loaderText.innerText = "กำลังถอดรหัสข้อความภาษาไทย (UTF-8)...";
-          await new Promise(r => setTimeout(r, 10));
+          await new Promise(r => setTimeout(r, 5));
           const csvText = new TextDecoder("utf-8").decode(bytes);
           
           loaderText.innerText = "กำลังประมวลผลตารางพิกัด (Parsing CSV)...";
-          await new Promise(r => setTimeout(r, 10));
+          await new Promise(r => setTimeout(r, 5));
           const data = d3.csvParse(csvText);
           
           loaderText.innerText = "กำลังจัดเตรียมจุดแสดงผลพิกัด...";
-          await new Promise(r => setTimeout(r, 10));
+          await new Promise(r => setTimeout(r, 5));
           data.forEach(d => {
             d.lon = +d.lon;
             d.lat = +d.lat;
@@ -369,29 +422,15 @@
           cachedData = data;
 
           loaderText.innerText = "กำลังเรนเดอร์จุดแผนที่ (WebGL)...";
-          await new Promise(r => setTimeout(r, 10));
+          await new Promise(r => setTimeout(r, 5));
           
           // Update points count in legend overlay dynamically
           document.getElementById('points-count').innerText = `📍 แสดงจุดพิกัดทั้งหมด ${data.length.toLocaleString()} จุด`;
 
           updateActiveButtons(currentStyle);
 
-          // Render Basemap using CartoDB tile layer with high reliability
-          const basemapLayer = new deck.TileLayer({
-            id: `basemap-tile-layer-${currentStyle}`,
-            data: getTileUrls(currentStyle),
-            minZoom: 0,
-            maxZoom: 19,
-            tileSize: 256,
-            renderSubLayers: props => {
-              const { bbox: {west, south, east, north} } = props.tile;
-              return new deck.BitmapLayer(props, {
-                data: null,
-                image: props.tile.data,
-                bounds: [west, south, east, north]
-              });
-            }
-          });
+          const basemapLayer = createBasemapLayer(currentStyle);
+          const scatterLayer = createScatterLayer(cachedData);
 
           deckglInstance = new deck.DeckGL({
             container: 'map',
@@ -403,52 +442,10 @@
               maxZoom: 18
             },
             controller: true,
+            getTooltip: getMapTooltip,
             layers: [
               basemapLayer,
-              new deck.ScatterplotLayer({
-                id: 'scatterplot-layer',
-                data: cachedData,
-                getPosition: d => [d.lon, d.lat],
-                getColor: d => [d.r, d.g, d.b, 185],
-                getRadius: 300,
-                radiusMinPixels: 2.5,
-                radiusMaxPixels: 12,
-                pickable: true,
-                autoHighlight: true,
-                highlightColor: [239, 68, 68, 220],
-                onClick: info => {
-                  if (info.object && info.object._id && info.object._id !== '-') {
-                    const code = info.object._id;
-                    if (navigator.clipboard && navigator.clipboard.writeText) {
-                      navigator.clipboard.writeText(code).then(() => {
-                        showToast(`📋 คัดลอกรหัสทรัพย์: ${code} แล้ว`);
-                      }).catch(() => {
-                        fallbackCopyText(code);
-                      });
-                    } else {
-                      fallbackCopyText(code);
-                    }
-                  }
-                },
-                onHover: info => {
-                  if (info.object) {
-                    tooltip.style.left = (info.x + 15) + 'px';
-                    tooltip.style.top = (info.y + 15) + 'px';
-                    tooltip.style.display = 'block';
-                    tooltip.innerHTML = `
-                      <div style="font-weight: 700; font-size: 13px; margin-bottom: 4px; color: #f8fafc;">${info.object._title || 'ไม่มีชื่อ'}</div>
-                      <div><span style="color: #94a3b8;">🏢 บริษัท:</span> <b>${info.object._company || '-'}</b></div>
-                      <div><span style="color: #94a3b8;">🔑 รหัสทรัพย์:</span> <b>${info.object._id || '-'}</b></div>
-                      <div><span style="color: #38bdf8; font-weight: 600;">💰 ราคา:</span> ${info.object._price_str || 'ไม่ระบุ'}</div>
-                      <div><span style="color: #94a3b8;">📍 จังหวัด:</span> ${info.object._prov || '-'}</div>
-                      <div><span style="color: #94a3b8;">🏠 ประเภท:</span> ${info.object._type || '-'}</div>
-                      <div style="margin-top: 6px; padding-top: 4px; border-top: 1px dashed rgba(255,255,255,0.15); font-size: 10px; color: #38bdf8;">💡 คลิกที่จุดเพื่อคัดลอกรหัสทรัพย์</div>
-                    `;
-                  } else {
-                    tooltip.style.display = 'none';
-                  }
-                }
-              })
+              scatterLayer
             ]
           });
           
