@@ -633,7 +633,7 @@ def render_same_project_comparison(df_all_source, is_dark_mode=False, plotly_tem
     with c_chart1:
         proj_sorted = proj_units.sort_values('ราคา', ascending=True).copy()
         proj_sorted['label'] = proj_sorted.apply(
-            lambda r: f"[{r['บริษัท']}] {str(r.get('รหัสทรัพย์', ''))[:10]}", axis=1
+            lambda r: f"[{r['บริษัท']}] {str(r.get('รหัสทรัพย์', '')).strip()}", axis=1
         )
         proj_sorted['price_million'] = proj_sorted['ราคา'] / 1e6
         

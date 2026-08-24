@@ -2415,8 +2415,8 @@ with tab1:
                 st.warning("⚠️ ไม่พบพิกัดตำแหน่ง ละติจูด/ลองจิจูด ในรายการทรัพย์สินที่คุณเลือกค้นหา")
             else:
                 title_col = 'ชื่อประกาศ' if 'ชื่อประกาศ' in map_data.columns else ('ชื่อโครงการ' if 'ชื่อโครงการ' in map_data.columns else 'รหัสทรัพย์')
-                titles = [str(x)[:30] for x in map_data[title_col].fillna('ไม่มีชื่อ').astype(str)]
-                ids = [str(x)[:15] for x in map_data['รหัสทรัพย์'].fillna('-').astype(str)]
+                titles = [str(x).strip()[:80] for x in map_data[title_col].fillna('ไม่มีชื่อ').astype(str)]
+                ids = [str(x).strip() for x in map_data['รหัสทรัพย์'].fillna('-').astype(str)]
                 provs = [str(x) for x in map_data['จังหวัด'].fillna('-').astype(str)]
                 types = [str(x) for x in map_data['ประเภททรัพย์'].fillna('-').astype(str)]
                 companies = [str(x) for x in map_data['บริษัท'].fillna('-').astype(str)]
