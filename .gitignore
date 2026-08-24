@@ -1,5 +1,5 @@
 # ==============================================================================
-# Python Bytecode & Cache
+# Python Bytecode, Caches & Environments
 # ==============================================================================
 __pycache__/
 *.py[cod]
@@ -8,19 +8,18 @@ __pycache__/
 .pytest_cache/
 .coverage
 htmlcov/
-
-# ==============================================================================
-# Virtual Environments
-# ==============================================================================
 .venv/
 venv/
 env/
 ENV/
-env.bak/
-venv.bak/
+*.log
+*.tmp
+*.bak
+*.swp
+*~
 
 # ==============================================================================
-# PyInstaller & Executable Builds
+# PyInstaller, Executables & Build Artifacts
 # ==============================================================================
 build/
 dist/
@@ -29,55 +28,47 @@ dist/
 *.so
 *.dylib
 *.pyd
+*.spec
 
 # ==============================================================================
-# Temporary Scraper Outputs, State Files & Test Outputs
+# Web Scrapers & Scraper Utilities (Keep repository strictly for Dashboard)
 # ==============================================================================
-Monthly all new/CSV_Output/
-Monthly all new/test output/
+Monthly all new/
+QA_Checker/
+CSV_Output/
+py/
+run_all_scrapers.*
+scraping*.log
 .*_state_*.json
-*.csv.tmp
-*.csv.bak
-*.parquet.tmp
-scratch_*
-scratch/
+scratch*
 
 # ==============================================================================
-# Raw Data Files (Except reference geographic data & primary parquet)
+# Raw Data Files & Large Reports (Dashboard uses all_assets.parquet)
 # ==============================================================================
 *.csv
 *.xlsx
 *.xls
+*.pdf
 static/*.csv
 
-# Whitelist reference tables needed for geographic lookups
+# Whitelist reference tables needed for geographic lookups & dashboard data
 !references/thailand_provinces_districts_subdistricts.csv
 !references/thailand_provinces_districts_subdistricts.json
 !references/thailand_provinces_districts_subdistricts.xlsx
+!all_assets.parquet
 
 # ==============================================================================
-# QA Checker Cache & Screenshots
-# ==============================================================================
-QA_Checker/cache/
-QA_Checker/cache/screenshots/
-
-# ==============================================================================
-# Backup, Scratch & Ad-hoc Test Scripts
+# Backups & Scratch Scripts
 # ==============================================================================
 *backup*
 *BACKUP*
 *OLD*
 *restored*
+backups/
 Backup/
 ttt/
-T Test.txt
 Co pilot.py
 app - *.py
-*.bak
-*.tmp
-*.log
-*.swp
-*~
 
 # ==============================================================================
 # IDE, Editor & OS Specific Files
