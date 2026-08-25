@@ -2377,7 +2377,7 @@ with tab1:
             
             try:
                 import streamlit.components.v1 as stc
-                stc.html(bubble_html, height=640)
+                stc.html(bubble_html, height=720)
             except Exception:
                 st.html(bubble_html)
                 
@@ -2562,7 +2562,7 @@ with tab2:
         sub_tab1, sub_tab2, sub_tab3 = st.tabs([
             "📊 ภาพรวมตลาด (Market Overview)",
             "🏢 สัดส่วนสินค้าคู่แข่ง (Asset Type Focus)",
-            "🏛️ การกระจายตัวพอร์ตโฟลิโอ SAM (SAM Portfolio)"
+            "🏛️ การกระจายตัวพอร์ตโฟลิโอรายบริษัท (Portfolio Deep Dive)"
         ])
         
         with sub_tab1:
@@ -2868,18 +2868,62 @@ with tab2:
                 st.plotly_chart(style_plotly_fig(fig_asset_focus), width="stretch", theme=None)
 
         # -----------------------------------------------------------------
-        # SUB-TAB 3: การกระจายตัวพอร์ตโฟลิโอ SAM (SAM Portfolio Deep Dive)
+        # SUB-TAB 3: การกระจายตัวพอร์ตโฟลิโอรายบริษัท (Company Portfolio Deep Dive)
         # -----------------------------------------------------------------
         with sub_tab3:
-            st.markdown("#### 📊 การกระจายตัวเชิงลึกของพอร์ตโฟลิโอ SAM")
-            st.caption("วิเคราะห์การกระจายตัวตามช่วงราคา และการกระจายราคาของ 6 ประเภททรัพย์หลักของ SAM")
+            col_head1, col_head2 = st.columns([3, 2])
+            with col_head1:
+                st.markdown("#### 📊 การกระจายตัวเชิงลึกของพอร์ตโฟลิโอรายบริษัท")
+                st.caption("วิเคราะห์การกระจายตัวตามช่วงราคา และการกระจายราคาของ 6 ประเภททรัพย์หลักของบริษัทที่เลือก")
+            
+            # Extract list of available companies
+            comp_list_avail = []
+            if not df_filtered.empty:
+                comp_list_avail = list(df_filtered['บริษัท'].dropna().unique())
+            elif df_raw is not None and not df_raw.empty:
+                comp_list_avail = list(df_raw['บริษัท'].dropna().unique())
+                
+            PREFERRED_COMPANY_ORDER = ["SAM", "BAM", "Chayo555", "Chayo", "Chayo NPA", "Baania", "NaYoo", "Taladnudbaan", "ZmyHome", "KBANK", "GHB", "SCB", "KTB", "GSB"]
+            comp_options = sorted(
+                comp_list_avail, 
+                key=lambda c: (PREFERRED_COMPANY_ORDER.index(c) if c in PREFERRED_COMPANY_ORDER else 999, c)
+            )
+            
+            default_idx = comp_options.index("SAM") if "SAM" in comp_options else 0
+            
+            with col_head2:
+                selected_company = st.selectbox(
+                    "🏢 เลือกบริษัทเพื่อวิเคราะห์พอร์ตโฟลิโอ:",
+                    options=comp_options,
+                    index=default_idx,
+                    key="tab2_subtab3_selected_company"
+                )
+                
+            # Color map matching company standard
+            COMP_BRAND_COLORS = {
+                "SAM": "#10b981", 
+                "BAM": "#3b82f6", 
+                "Chayo555": "#f97316", 
+                "Chayo": "#f97316", 
+                "Chayo NPA": "#f97316", 
+                "Baania": "#f59e0b", 
+                "NaYoo": "#8b5cf6", 
+                "Taladnudbaan": "#06b6d4", 
+                "ZmyHome": "#ec4899", 
+                "KBANK": "#059669", 
+                "GHB": "#ca8a04", 
+                "SCB": "#7e22ce", 
+                "KTB": "#0284c7", 
+                "GSB": "#eb1985"
+            }
+            comp_bar_color = COMP_BRAND_COLORS.get(selected_company, "#10b981")
 
-            sam_df_tab2 = df_filtered[df_filtered['บริษัท'] == 'SAM'].copy() if not df_filtered.empty else pd.DataFrame()
-            if sam_df_tab2.empty and df_raw is not None:
-                sam_df_tab2 = df_raw[df_raw['บริษัท'] == 'SAM'].copy()
+            comp_df_tab2 = df_filtered[df_filtered['บริษัท'] == selected_company].copy() if not df_filtered.empty else pd.DataFrame()
+            if comp_df_tab2.empty and df_raw is not None:
+                comp_df_tab2 = df_raw[df_raw['บริษัท'] == selected_company].copy()
 
-            if sam_df_tab2.empty:
-                st.warning("⚠️ ไม่พบข้อมูลทรัพย์สินของ SAM ในตัวกรองปัจจุบัน")
+            if comp_df_tab2.empty:
+                st.warning(f"⚠️ ไม่พบข้อมูลทรัพย์สินของ {selected_company} ในตัวกรองปัจจุบัน")
             else:
                 PRICE_TIER_ORDER = [
                     "< 1 ล้านบาท",
@@ -2905,12 +2949,12 @@ with tab2:
                     else:
                         return "> 20 ล้านบาท"
 
-                sam_df_tab2['Price_Tier'] = sam_df_tab2['ราคา'].apply(get_price_tier)
+                comp_df_tab2['Price_Tier'] = comp_df_tab2['ราคา'].apply(get_price_tier)
 
                 col_s1, col_s2 = st.columns(2)
                 with col_s1:
-                    tier_df = sam_df_tab2.groupby('Price_Tier', observed=False).agg(
-                        count=('รหัสทรัพย์', 'count') if 'รหัสทรัพย์' in sam_df_tab2.columns else ('ราคา', 'count'),
+                    tier_df = comp_df_tab2.groupby('Price_Tier', observed=False).agg(
+                        count=('รหัสทรัพย์', 'count') if 'รหัสทรัพย์' in comp_df_tab2.columns else ('ราคา', 'count'),
                         total_val=('ราคา', 'sum')
                     ).reindex(PRICE_TIER_ORDER).reset_index()
                     tier_df['count'] = tier_df['count'].fillna(0)
@@ -2921,7 +2965,7 @@ with tab2:
                         x=tier_df['Price_Tier'],
                         y=tier_df['count'],
                         name='จำนวนทรัพย์ (รายการ)',
-                        marker_color='#10b981',
+                        marker_color=comp_bar_color,
                         yaxis='y',
                         text=tier_df['count'].astype(int),
                         textposition='auto'
@@ -2938,7 +2982,7 @@ with tab2:
                         line=dict(width=3, color='#3b82f6')
                     ))
                     fig_tier.update_layout(
-                        title=dict(text='🏷️ การกระจายตัวตามช่วงราคา SAM (Price Tier Pyramid)', font=dict(size=14, family="Outfit")),
+                        title=dict(text=f'🏷️ การกระจายตัวตามช่วงราคา {selected_company} (Price Tier Pyramid)', font=dict(size=14, family="Outfit")),
                         yaxis=dict(title='จำนวนทรัพย์ (รายการ)', showgrid=False),
                         yaxis2=dict(title='มูลค่ารวม (ล้านบาท)', overlaying='y', side='right', showgrid=False),
                         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
@@ -2949,8 +2993,8 @@ with tab2:
                     st.plotly_chart(style_plotly_fig(fig_tier), width="stretch", theme=None)
 
                 with col_s2:
-                    top_types = sam_df_tab2['ประเภททรัพย์'].value_counts().head(6).index.tolist()
-                    box_data = sam_df_tab2[sam_df_tab2['ประเภททรัพย์'].isin(top_types) & (sam_df_tab2['ราคา'] > 0)].copy()
+                    top_types = comp_df_tab2['ประเภททรัพย์'].value_counts().head(6).index.tolist()
+                    box_data = comp_df_tab2[comp_df_tab2['ประเภททรัพย์'].isin(top_types) & (comp_df_tab2['ราคา'] > 0)].copy()
                     box_data['val_million'] = box_data['ราคา'] / 1e6
                     
                     fig_box = px.box(
@@ -2958,7 +3002,7 @@ with tab2:
                         x='ประเภททรัพย์',
                         y='val_million',
                         color='ประเภททรัพย์',
-                        title='📦 การกระจายราคาของ 6 ประเภททรัพย์หลัก SAM (Box Plot - ล้านบาท)',
+                        title=f'📦 การกระจายราคาของ 6 ประเภททรัพย์หลัก {selected_company} (Box Plot - ล้านบาท)',
                         template=plotly_template,
                         points=False
                     )
