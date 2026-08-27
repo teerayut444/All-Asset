@@ -173,7 +173,7 @@
         display: flex;
         align-items: center;
         gap: 8px;
-        z-index: 1001;
+        z-index: 100001;
         opacity: 0;
         pointer-events: none;
         transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
@@ -182,12 +182,220 @@
         transform: translateX(-50%) translateY(0);
         opacity: 1;
       }
+
+      /* Interactive Property Detail Card (Popup Modal) */
+      #property-card {
+        position: absolute;
+        bottom: 20px;
+        left: 20px;
+        width: 360px;
+        max-width: calc(100vw - 40px);
+        background: rgba(255, 255, 255, 0.96);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        border-radius: 16px;
+        box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.25), 0 1px 3px rgba(0, 0, 0, 0.05);
+        padding: 16px 18px;
+        z-index: 100000;
+        display: none;
+        transform: translateY(20px);
+        opacity: 0;
+        transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
+        font-family: 'Sarabun', 'Outfit', sans-serif;
+        box-sizing: border-box;
+      }
+      #property-card.show {
+        display: block;
+        transform: translateY(0);
+        opacity: 1;
+      }
+      body.dark-theme #property-card {
+        background: rgba(15, 23, 42, 0.95);
+        border-color: rgba(255, 255, 255, 0.15);
+        color: #f8fafc;
+        box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.6);
+      }
+      .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+      .card-badge {
+        font-size: 11px;
+        font-weight: 700;
+        padding: 2px 10px;
+        border-radius: 9999px;
+        background: #2563eb;
+        color: #ffffff;
+        letter-spacing: 0.3px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .card-close-btn {
+        background: transparent;
+        border: none;
+        color: #94a3b8;
+        font-size: 18px;
+        font-weight: 700;
+        cursor: pointer;
+        padding: 2px 6px;
+        border-radius: 6px;
+        line-height: 1;
+        transition: all 0.15s ease;
+      }
+      .card-close-btn:hover {
+        background: rgba(0, 0, 0, 0.08);
+        color: #0f172a;
+      }
+      body.dark-theme .card-close-btn:hover {
+        background: rgba(255, 255, 255, 0.12);
+        color: #ffffff;
+      }
+      .card-title {
+        font-size: 13.5px;
+        font-weight: 700;
+        color: #0f172a;
+        line-height: 1.35;
+        margin-bottom: 6px;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+      body.dark-theme .card-title {
+        color: #f8fafc;
+      }
+      .card-price {
+        font-size: 16px;
+        font-weight: 800;
+        color: #2563eb;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: baseline;
+        gap: 4px;
+      }
+      body.dark-theme .card-price {
+        color: #38bdf8;
+      }
+      .card-grid {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 4px 10px;
+        font-size: 12px;
+        background: rgba(241, 245, 249, 0.7);
+        padding: 8px 12px;
+        border-radius: 10px;
+        margin-bottom: 12px;
+        border: 1px solid rgba(226, 232, 240, 0.8);
+      }
+      body.dark-theme .card-grid {
+        background: rgba(30, 41, 59, 0.6);
+        border-color: rgba(51, 65, 85, 0.8);
+      }
+      .card-grid-label {
+        color: #64748b;
+        font-weight: 500;
+      }
+      body.dark-theme .card-grid-label {
+        color: #94a3b8;
+      }
+      .card-grid-val {
+        color: #1e293b;
+        font-weight: 600;
+      }
+      body.dark-theme .card-grid-val {
+        color: #f1f5f9;
+      }
+      .card-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .btn-primary-link {
+        flex: 1 1 auto;
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        color: #ffffff !important;
+        border: none;
+        border-radius: 8px;
+        padding: 8px 14px;
+        font-size: 12.5px;
+        font-weight: 700;
+        font-family: inherit;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        text-decoration: none;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+        transition: all 0.2s ease;
+      }
+      .btn-primary-link:hover {
+        background: linear-gradient(135deg, #1d4ed8, #1e40af);
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px rgba(37, 99, 235, 0.45);
+      }
+      .btn-secondary-action {
+        background: rgba(241, 245, 249, 0.9);
+        color: #334155;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        padding: 8px 12px;
+        font-size: 12px;
+        font-weight: 600;
+        font-family: inherit;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        transition: all 0.2s ease;
+      }
+      .btn-secondary-action:hover {
+        background: #e2e8f0;
+        color: #0f172a;
+      }
+      body.dark-theme .btn-secondary-action {
+        background: rgba(30, 41, 59, 0.8);
+        color: #cbd5e1;
+        border-color: #475569;
+      }
+      body.dark-theme .btn-secondary-action:hover {
+        background: #334155;
+        color: #ffffff;
+      }
     </style>
   </head>
   <body class="BODY_CLASS_PLACEHOLDER">
     <div id="loader"><div class="spinner"></div> <span id="loader-text">กำลังโหลดและจัดเตรียมข้อมูลแผนที่...</span></div>
     <div id="map"></div>
     <div id="toast" class="toast"></div>
+
+    <!-- Interactive Property Detail Card Popup -->
+    <div id="property-card">
+      <div class="card-header">
+        <div id="card-badge" class="card-badge">🏢 SAM</div>
+        <button class="card-close-btn" onclick="closePropertyCard()" title="ปิดหน้าต่าง">✕</button>
+      </div>
+      <div id="card-title" class="card-title">ชื่อประกาศทรัพย์สิน</div>
+      <div id="card-price" class="card-price">฿0 บาท</div>
+      <div class="card-grid">
+        <span class="card-grid-label">🔑 รหัสทรัพย์:</span>
+        <span id="card-id" class="card-grid-val">-</span>
+        <span class="card-grid-label">🏠 ประเภท:</span>
+        <span id="card-type" class="card-grid-val">-</span>
+        <span class="card-grid-label">📍 จังหวัด:</span>
+        <span id="card-prov" class="card-grid-val">-</span>
+      </div>
+      <div class="card-actions">
+        <button id="btn-open-link" class="btn-primary-link" onclick="openPropertyLink()">🔗 เปิดดูทรัพย์สิน (เว็บไซต์)</button>
+        <button id="btn-copy-id" class="btn-secondary-action" onclick="copyCardId()">📋 รหัส</button>
+        <button id="btn-gmap" class="btn-secondary-action" onclick="openGoogleMaps()">🗺️ แผนที่</button>
+      </div>
+    </div>
 
     <!-- Basemap Style Switcher Controls -->
     <div id="map-style-controls">
@@ -213,6 +421,7 @@
       let deckglInstance = null;
       let cachedData = [];
       let currentStyle = document.body.classList.contains('dark-theme') ? 'dark' : 'voyager';
+      let activePropertyData = null;
 
       let toastTimer = null;
       function showToast(msg) {
@@ -240,6 +449,93 @@
           showToast(`❌ ไม่สามารถคัดลอกได้`);
         }
         document.body.removeChild(temp);
+      }
+
+      function closePropertyCard() {
+        const card = document.getElementById('property-card');
+        if (card) {
+          card.classList.remove('show');
+        }
+      }
+
+      function showPropertyCard(d) {
+        activePropertyData = d;
+        const card = document.getElementById('property-card');
+        if (!card) return;
+
+        const badge = document.getElementById('card-badge');
+        const title = document.getElementById('card-title');
+        const price = document.getElementById('card-price');
+        const id = document.getElementById('card-id');
+        const type = document.getElementById('card-type');
+        const prov = document.getElementById('card-prov');
+        const btnLink = document.getElementById('btn-open-link');
+
+        const companyName = d._company || 'ไม่ระบุ';
+        badge.innerText = companyName;
+        
+        // Dynamic badge color matching company theme
+        if (d.r !== undefined && d.g !== undefined && d.b !== undefined) {
+          badge.style.background = `rgb(${d.r}, ${d.g}, ${d.b})`;
+        } else {
+          badge.style.background = '#2563eb';
+        }
+
+        title.innerText = d._title || 'ไม่มีชื่อประกาศ';
+        price.innerText = d._price_str || 'ไม่ระบุราคา';
+        id.innerText = d._id || '-';
+        type.innerText = d._type || '-';
+        prov.innerText = d._prov || '-';
+
+        const link = (d._link || '').trim();
+        if (link && link !== '-' && link !== 'nan' && link !== 'None') {
+          btnLink.style.display = 'inline-flex';
+          btnLink.innerText = '🔗 เปิดดูทรัพย์สิน (เว็บไซต์)';
+          btnLink.disabled = false;
+          btnLink.style.opacity = '1';
+          btnLink.style.cursor = 'pointer';
+        } else {
+          btnLink.style.display = 'inline-flex';
+          btnLink.innerText = '🔗 ไม่มีลิงก์ประกาศ';
+          btnLink.disabled = true;
+          btnLink.style.opacity = '0.5';
+          btnLink.style.cursor = 'not-allowed';
+        }
+
+        card.classList.add('show');
+      }
+
+      function openPropertyLink() {
+        if (!activePropertyData) return;
+        const link = (activePropertyData._link || '').trim();
+        if (link && link !== '-' && link !== 'nan' && link !== 'None') {
+          window.open(link, '_blank');
+        } else {
+          showToast('⚠️ ไม่พบลิงก์ประกาศสำหรับทรัพย์สินนี้');
+        }
+      }
+
+      function copyCardId() {
+        if (!activePropertyData || !activePropertyData._id || activePropertyData._id === '-') {
+          showToast('⚠️ ไม่พบรหัสทรัพย์');
+          return;
+        }
+        const code = activePropertyData._id;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(code).then(() => {
+            showToast(`📋 คัดลอกรหัสทรัพย์: ${code} แล้ว`);
+          }).catch(() => {
+            fallbackCopyText(code);
+          });
+        } else {
+          fallbackCopyText(code);
+        }
+      }
+
+      function openGoogleMaps() {
+        if (!activePropertyData || !activePropertyData.lat || !activePropertyData.lon) return;
+        const url = `https://www.google.com/maps/search/?api=1&query=${activePropertyData.lat},${activePropertyData.lon}`;
+        window.open(url, '_blank');
       }
       
       const csvBase64 = "CSV_BASE64_PLACEHOLDER";
@@ -296,17 +592,8 @@
       }
 
       function handlePointClick(info) {
-        if (info.object && info.object._id && info.object._id !== '-') {
-          const code = info.object._id;
-          if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(code).then(() => {
-              showToast(`📋 คัดลอกรหัสทรัพย์: ${code} แล้ว`);
-            }).catch(() => {
-              fallbackCopyText(code);
-            });
-          } else {
-            fallbackCopyText(code);
-          }
+        if (info.object) {
+          showPropertyCard(info.object);
         }
       }
 
@@ -340,8 +627,8 @@
                 <span style="color: #94a3b8;">🏠 ประเภท:</span>
                 <span style="color: #e2e8f0;">${type}</span>
               </div>
-              <div style="margin-top: 7px; padding-top: 5px; border-top: 1px dashed rgba(255,255,255,0.2); font-size: 10.5px; color: #38bdf8;">
-                💡 คลิกที่จุดเพื่อคัดลอกรหัสทรัพย์
+              <div style="margin-top: 7px; padding-top: 5px; border-top: 1px dashed rgba(255,255,255,0.2); font-size: 10.5px; color: #38bdf8; font-weight: 600;">
+                👉 คลิกที่จุดเพื่อดูรายละเอียดและเปิดลิงก์ประกาศ
               </div>
             </div>
           `,

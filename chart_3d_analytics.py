@@ -10,20 +10,22 @@ import plotly.express as px
 
 # Curated Company Color Palette matching Dashboard Standard
 COMPANY_COLORS_3D = {
+    "LED": "#0891b2",
     "SAM": "#10b981",
     "BAM": "#3b82f6",
     "Chayo555": "#f97316",
     "Chayo": "#f97316",
     "Chayo NPA": "#f97316",
-    "Baania": "#f59e0b",
-    "NaYoo": "#8b5cf6",
-    "Taladnudbaan": "#06b6d4",
-    "ZmyHome": "#ec4899",
-    "KBANK": "#059669",
     "GHB": "#ca8a04",
-    "SCB": "#7e22ce",
+    "KBANK": "#059669",
     "KTB": "#0284c7",
-    "GSB": "#eb1985"
+    "SCB": "#7e22ce",
+    "GSB": "#eb1985",
+    "DDproperty": "#a855f7",
+    "Livinginsider": "#14b8a6",
+    "NaYoo": "#8b5cf6",
+    "ZmyHome": "#ec4899",
+    "Baania": "#f59e0b"
 }
 
 TYPE_COLORS_3D = {
@@ -32,9 +34,19 @@ TYPE_COLORS_3D = {
     "ห้องชุดพักอาศัย": "#f59e0b",
     "คอนโด": "#f59e0b",
     "ที่ดินเปล่า": "#06b6d4",
+    "ที่ดินพร้อมสิ่งปลูกสร้าง": "#059669",
     "อาคารพาณิชย์": "#8b5cf6",
     "โรงงาน/โกดัง": "#ec4899",
     "บ้านแฝด": "#14b8a6",
+    "อพาร์ทเมนท์": "#a855f7",
+    "อาคารสำนักงาน": "#64748b",
+    "โรงแรม/รีสอร์ท": "#eab308",
+    "ห้องชุดพาณิชยกรรม/สำนักงาน": "#0ea5e9",
+    "ปั๊มน้ำมัน": "#d97706",
+    "โชว์รูม": "#f97316",
+    "โฮมออฟฟิศ": "#4f46e5",
+    "วิลล่า": "#f43f5e",
+    "สังหาริมทรัพย์": "#78716c",
     "อื่นๆ": "#94a3b8"
 }
 
@@ -399,7 +411,7 @@ def render_3d_company_asset_matrix(comp_type_df, value_col, is_val_metric=False,
     if comp_type_df.empty:
         return None
 
-    PREFERRED_COMPANY_ORDER = ["SAM", "BAM", "Chayo555", "Chayo", "Chayo NPA", "Baania", "NaYoo", "Taladnudbaan", "ZmyHome", "KBANK", "GHB", "SCB", "KTB"]
+    PREFERRED_COMPANY_ORDER = ["LED", "SAM", "BAM", "Chayo555", "Chayo", "Chayo NPA", "GHB", "KBANK", "KTB", "SCB", "GSB", "DDproperty", "Livinginsider", "NaYoo", "ZmyHome", "Baania"]
     TOP_TYPES = ['บ้านเดี่ยว', 'ห้องชุดพักอาศัย', 'ทาวน์เฮ้าส์', 'ที่ดินเปล่า', 'อาคารพาณิชย์', 'โรงงาน/โกดัง', 'บ้านแฝด']
 
     df_matrix = comp_type_df.copy()

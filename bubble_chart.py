@@ -17,13 +17,7 @@ def format_price_thai(val):
 
 def get_company_logo_data_uri(comp_id):
     """Loads base64 Data URI of official original logo from assets/logos/ fresh from disk."""
-    alias_map = {
-        'sub-led': 'led',
-        'sub-est': 'taladnudbaan',
-        'sub-jam': 'bay',
-        'sub-others': 'bay'
-    }
-    target = alias_map.get(comp_id, comp_id).lower()
+    target = comp_id.lower()
     
     # Priority order for file extensions
     for ext in ['.png', '.svg', '.webp', '.jpg', '.jpeg']:
@@ -41,233 +35,162 @@ def get_company_logo_data_uri(comp_id):
     fallback = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiIgcj0iMTAiIGZpbGw9IiM2NDc0OGIiLz48L3N2Zz4="
     return fallback
 
-def get_tnb_subinstitutions(df_tnb):
-    """Extracts and summarizes sub-companies / institutions inside Taladnudbaan with accurately computed sub-circles."""
-    if df_tnb is None or df_tnb.empty:
-        return []
-    
-    def parse_inst(u):
-        if pd.isna(u): return "อื่นๆ"
-        parts = str(u).split('/')
-        if len(parts) >= 6:
-            code = parts[5].strip().upper()
-            mapping = {
-                "LED": "LED",
-                "EST": "EST",
-                "JAM": "JAM",
-                "BAY": "BAY",
-                "TTB": "TTB",
-                "SWP": "SWP",
-                "ALPHA": "ALPHA",
-                "PAMCO": "PAMCO",
-                "GSB": "GSB",
-                "IBANK": "IBANK",
-                "IAM": "IAM",
-                "SME": "SME"
-            }
-            return mapping.get(code, code)
-        return "อื่นๆ"
-    
-    inst_series = df_tnb['ลิงก์'].apply(parse_inst)
-    counts = inst_series.value_counts()
-    total = len(df_tnb)
-    
-    c_led = counts.get("LED", 0)
-    c_est = counts.get("EST", 0)
-    c_jam = counts.get("JAM", 0)
-    c_others = total - (c_led + c_est + c_jam)
-    if c_others < 0: c_others = 0
-    
-    sub_data = [
-        {
-            "id": "sub-led",
-            "name": "LED",
-            "sub": "กรมบังคับคดี",
-            "count": c_led,
-            "pct": (c_led / total * 100) if total > 0 else 0,
-            "rel_x": -52, "rel_y": 20, "r": 74,
-            "grad": "sub-led-grad",
-            "border": "#0891b2"
-        },
-        {
-            "id": "sub-est",
-            "name": "EST",
-            "sub": "อสังหาฯ",
-            "count": c_est,
-            "pct": (c_est / total * 100) if total > 0 else 0,
-            "rel_x": 60, "rel_y": -50, "r": 46,
-            "grad": "sub-est-grad",
-            "border": "#059669"
-        },
-        {
-            "id": "sub-others",
-            "name": "อื่นๆ",
-            "sub": "BAY/AMC",
-            "count": c_others,
-            "pct": (c_others / total * 100) if total > 0 else 0,
-            "rel_x": -16, "rel_y": -90, "r": 42,
-            "grad": "sub-others-grad",
-            "border": "#d97706"
-        },
-        {
-            "id": "sub-jam",
-            "name": "JAM",
-            "sub": "เจ เอ็ม ที",
-            "count": c_jam,
-            "pct": (c_jam / total * 100) if total > 0 else 0,
-            "rel_x": 58, "rel_y": 50, "r": 42,
-            "grad": "sub-jam-grad",
-            "border": "#7c3aed"
-        }
-    ]
-    return sub_data
-
 def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัดส่วนตามจำนวนทรัพย์สิน (Asset Count)", is_dark_mode=False):
     """
     Generates an interactive, responsive 3D Glossy Bubble Chart HTML component
-    strictly divided into 3 distinct sectors with wide horizontal expansion:
+    strictly divided into 4 distinct sectors across a 1680px canvas:
     1. บริษัทบริหารสินทรัพย์ (Asset Management Companies / AMC)
     2. สถาบันการเงิน / ธนาคาร (Financial Institutions / Banks)
     3. เว็บไซต์ / แพลตฟอร์มอสังหาริมทรัพย์ (Portals & Marketplaces)
+    4. หน่วยงานภาครัฐ / ขายทอดตลาด (Government & Public Auction / LED)
     """
     companies_meta = [
-        # ================= SECTOR 1: AMC (บริษัทบริหารสินทรัพย์) =================
-        # SAM is on top, BAM is below SAM, Chayo555 is on the right
+        # ================= SECTOR 1: GOVERNMENT (หน่วยงานภาครัฐ / ทอดตลาด) =================
+        {
+            "id": "led",
+            "name": "LED",
+            "label": "LED กรมบังคับคดี",
+            "sector": "gov",
+            "base_cx": 185, "base_cy": 365,
+            "scraped_grad": "led-scraped",
+            "float_dur": "7.0s",
+            "color_hex": "#0891b2"
+        },
+
+        # ================= SECTOR 2: AMC (บริษัทบริหารสินทรัพย์) =================
         {
             "id": "sam",
             "name": "SAM",
             "label": "SAM NPA",
             "sector": "amc",
-            "base_cx": 210, "base_cy": 250,
+            "base_cx": 495, "base_cy": 250,
             "scraped_grad": "sam-scraped",
             "float_dur": "8.2s",
-            "color_hex": "#10b981",
-            "is_tnb": False
+            "color_hex": "#10b981"
         },
         {
             "id": "bam",
             "name": "BAM",
             "label": "BAM NPA",
             "sector": "amc",
-            "base_cx": 210, "base_cy": 490,
+            "base_cx": 495, "base_cy": 485,
             "scraped_grad": "bam-scraped",
             "float_dur": "6.0s",
-            "color_hex": "#3b82f6",
-            "is_tnb": False
+            "color_hex": "#3b82f6"
         },
         {
             "id": "chayo555",
             "name": "Chayo555",
             "label": "Chayo555 NPA",
             "sector": "amc",
-            "base_cx": 370, "base_cy": 370,
+            "base_cx": 645, "base_cy": 365,
             "scraped_grad": "chayo555-scraped",
             "float_dur": "7.5s",
-            "color_hex": "#f97316",
-            "is_tnb": False
+            "color_hex": "#f97316"
         },
 
-        # ================= SECTOR 2: BANKS (สถาบันการเงิน / ธนาคาร) =================
+        # ================= SECTOR 3: BANKS (สถาบันการเงิน / ธนาคาร) =================
         {
             "id": "kbank",
             "name": "KBANK",
             "label": "KBANK NPA",
             "sector": "bank",
-            "base_cx": 640, "base_cy": 240,
+            "base_cx": 885, "base_cy": 240,
             "scraped_grad": "kbank-scraped",
             "float_dur": "7.2s",
-            "color_hex": "#059669",
-            "is_tnb": False
+            "color_hex": "#059669"
         },
         {
             "id": "gsb",
             "name": "GSB",
             "label": "GSB NPA",
             "sector": "bank",
-            "base_cx": 920, "base_cy": 240,
+            "base_cx": 1135, "base_cy": 240,
             "scraped_grad": "gsb-scraped",
             "float_dur": "7.4s",
-            "color_hex": "#eb1985",
-            "is_tnb": False
+            "color_hex": "#eb1985"
         },
         {
             "id": "ghb",
             "name": "GHB",
             "label": "GHB NPA",
             "sector": "bank",
-            "base_cx": 780, "base_cy": 375,
+            "base_cx": 1010, "base_cy": 365,
             "scraped_grad": "ghb-scraped",
             "float_dur": "6.8s",
-            "color_hex": "#ca8a04",
-            "is_tnb": False
+            "color_hex": "#ca8a04"
         },
         {
             "id": "scb",
             "name": "SCB",
             "label": "SCB NPA",
             "sector": "bank",
-            "base_cx": 640, "base_cy": 510,
+            "base_cx": 885, "base_cy": 490,
             "scraped_grad": "scb-scraped",
             "float_dur": "7.0s",
-            "color_hex": "#7e22ce",
-            "is_tnb": False
+            "color_hex": "#7e22ce"
         },
         {
             "id": "ktb",
             "name": "KTB",
             "label": "KTB NPA",
             "sector": "bank",
-            "base_cx": 920, "base_cy": 510,
+            "base_cx": 1135, "base_cy": 490,
             "scraped_grad": "ktb-scraped",
             "float_dur": "6.2s",
-            "color_hex": "#0284c7",
-            "is_tnb": False
+            "color_hex": "#0284c7"
         },
 
-        # ================= SECTOR 3: PORTALS (เว็บไซต์ / แพลตฟอร์ม) =================
-        {
-            "id": "taladnudbaan",
-            "name": "Taladnudbaan",
-            "label": "Taladnudbaan NPA",
-            "sector": "portal",
-            "base_cx": 1310, "base_cy": 375,
-            "scraped_grad": "taladnudbaan-outer-grad",
-            "float_dur": "7.0s",
-            "color_hex": "#06b6d4",
-            "is_tnb": True
-        },
+        # ================= SECTOR 4: PORTALS (เว็บไซต์ / แพลตฟอร์ม) =================
         {
             "id": "zmyhome",
             "name": "ZmyHome",
             "label": "ZmyHome NPA",
             "sector": "portal",
-            "base_cx": 1140, "base_cy": 240,
+            "base_cx": 1360, "base_cy": 220,
             "scraped_grad": "zmyhome-scraped",
             "float_dur": "8.0s",
-            "color_hex": "#ec4899",
-            "is_tnb": False
-        },
-        {
-            "id": "nayoo",
-            "name": "NaYoo",
-            "label": "NaYoo NPA",
-            "sector": "portal",
-            "base_cx": 1480, "base_cy": 240,
-            "scraped_grad": "nayoo-scraped",
-            "float_dur": "6.5s",
-            "color_hex": "#8b5cf6",
-            "is_tnb": False
+            "color_hex": "#ec4899"
         },
         {
             "id": "baania",
             "name": "Baania",
             "label": "Baania NPA",
             "sector": "portal",
-            "base_cx": 1140, "base_cy": 510,
+            "base_cx": 1360, "base_cy": 480,
             "scraped_grad": "baania-scraped",
             "float_dur": "7.5s",
-            "color_hex": "#f59e0b",
-            "is_tnb": False
+            "color_hex": "#f59e0b"
+        },
+        {
+            "id": "nayoo",
+            "name": "NaYoo",
+            "label": "NaYoo NPA",
+            "sector": "portal",
+            "base_cx": 1560, "base_cy": 220,
+            "scraped_grad": "nayoo-scraped",
+            "float_dur": "6.5s",
+            "color_hex": "#8b5cf6"
+        },
+        {
+            "id": "ddproperty",
+            "name": "DDproperty",
+            "label": "DDproperty",
+            "sector": "portal",
+            "base_cx": 1560, "base_cy": 480,
+            "scraped_grad": "ddproperty-scraped",
+            "float_dur": "7.2s",
+            "color_hex": "#a855f7"
+        },
+        {
+            "id": "livinginsider",
+            "name": "Livinginsider",
+            "label": "Livinginsider",
+            "sector": "portal",
+            "base_cx": 1460, "base_cy": 350,
+            "scraped_grad": "livinginsider-scraped",
+            "float_dur": "6.8s",
+            "color_hex": "#14b8a6"
         }
     ]
 
@@ -277,8 +200,19 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
 
     is_count_metric = ("จำนวน" in str(bubble_metric))
 
-    # Calculate sector-level aggregates with wide horizontal space and proper vertical headroom
+    # Calculate 4 sector-level aggregates with Government on the leftmost position
     sector_meta = {
+        "gov": {
+            "title": "หน่วยงานภาครัฐ",
+            "subtitle": "Government & Public Auction",
+            "icon": "⚖️",
+            "color": "#0891b2",
+            "glow": "rgba(8, 145, 178, 0.25)",
+            "bg_border": "rgba(8, 145, 178, 0.35)",
+            "bg_tint": "rgba(8, 145, 178, 0.04)" if not is_dark_mode else "rgba(8, 145, 178, 0.08)",
+            "x": 20, "y": 75, "w": 330, "h": 580,
+            "count": 0, "val": 0.0
+        },
         "amc": {
             "title": "บริษัทบริหารสินทรัพย์",
             "subtitle": "Asset Management (AMC)",
@@ -287,7 +221,7 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
             "glow": "rgba(16, 185, 129, 0.25)",
             "bg_border": "rgba(16, 185, 129, 0.35)",
             "bg_tint": "rgba(16, 185, 129, 0.04)" if not is_dark_mode else "rgba(16, 185, 129, 0.08)",
-            "x": 20, "y": 80, "w": 480, "h": 570,
+            "x": 370, "y": 75, "w": 380, "h": 580,
             "count": 0, "val": 0.0
         },
         "bank": {
@@ -298,18 +232,18 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
             "glow": "rgba(59, 130, 246, 0.25)",
             "bg_border": "rgba(59, 130, 246, 0.35)",
             "bg_tint": "rgba(59, 130, 246, 0.04)" if not is_dark_mode else "rgba(59, 130, 246, 0.08)",
-            "x": 520, "y": 80, "w": 520, "h": 570,
+            "x": 770, "y": 75, "w": 480, "h": 580,
             "count": 0, "val": 0.0
         },
         "portal": {
             "title": "เว็บไซต์สื่อกลาง",
             "subtitle": "Portals & Marketplaces",
             "icon": "🌐",
-            "color": "#06b6d4",
-            "glow": "rgba(6, 182, 212, 0.25)",
-            "bg_border": "rgba(6, 182, 212, 0.35)",
-            "bg_tint": "rgba(6, 182, 212, 0.04)" if not is_dark_mode else "rgba(6, 182, 212, 0.08)",
-            "x": 1060, "y": 80, "w": 500, "h": 570,
+            "color": "#8b5cf6",
+            "glow": "rgba(139, 92, 246, 0.25)",
+            "bg_border": "rgba(139, 92, 246, 0.35)",
+            "bg_tint": "rgba(139, 92, 246, 0.04)" if not is_dark_mode else "rgba(139, 92, 246, 0.08)",
+            "x": 1270, "y": 75, "w": 390, "h": 580,
             "count": 0, "val": 0.0
         }
     }
@@ -353,20 +287,17 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
         active_pct = pct_count if is_count_metric else pct_val
         active_fraction = active_pct / 100.0
         
-        if comp.get("is_tnb"):
-            radius = 145
+        if active_fraction > 0:
+            radius = int(48 + 76 * math.sqrt(active_fraction))
+            radius = max(48, min(108, radius))
         else:
-            if active_fraction > 0:
-                radius = int(46 + 72 * math.sqrt(active_fraction))
-                radius = max(46, min(92, radius))
-            else:
-                radius = 44
+            radius = 48
 
         cx, cy = comp["base_cx"], comp["base_cy"]
         bubble_id = f"bubble-{comp['id']}"
 
         # Outer bubble slice & shadow
-        slices = f'<g filter="url(#shadow)"><circle cx="{cx}" cy="{cy}" r="{radius}" fill="url(#{comp["scraped_grad"]})" stroke="rgba(255, 255, 255, 0.65)" stroke-width="2.5" /></g>'
+        slices = f'<g filter="url(#shadow)"><circle cx="{cx}" cy="{cy}" r="{radius}" fill="url(#{comp["scraped_grad"]})" stroke="rgba(255, 255, 255, 0.7)" stroke-width="2.5" /></g>'
         sheen = f'<circle cx="{cx}" cy="{cy}" r="{radius}" fill="none" stroke="rgba(255, 255, 255, 0.45)" stroke-width="2.5" />'
         
         hcx = cx - radius * 0.35
@@ -376,7 +307,7 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
         highlight = f'<ellipse cx="{hcx}" cy="{hcy}" rx="{hrx}" ry="{hry}" fill="url(#highlight-grad)" transform="rotate(-30, {hcx}, {hcy})" />'
         
         # Logo badge size
-        logo_badge_sz = max(34, min(56, int(radius * 0.52)))
+        logo_badge_sz = max(34, min(62, int(radius * 0.52)))
         logo_data_uri = get_company_logo_data_uri(comp["id"])
 
         title_size = max(10.5, int(radius * 0.125))
@@ -385,139 +316,43 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
         badge_gap = "2px"
         margin_bottom = "2px" if radius > 60 else "1px"
 
-        card_bg_color = "rgba(15, 23, 42, 0.60)" if is_dark_mode else "rgba(255, 255, 255, 0.65)"
+        card_bg_color = "rgba(15, 23, 42, 0.60)" if is_dark_mode else "rgba(255, 255, 255, 0.7)"
         text_title_color = "#f8fafc" if is_dark_mode else "#0f172a"
         text_sub_color = "#94a3b8" if is_dark_mode else "#475569"
         text_val_color = "#ffffff" if is_dark_mode else "#0f172a"
 
-        # If this is Taladnudbaan, build tightly packed large 3D sub-bubbles inside
-        if comp.get("is_tnb") and c_count > 0:
-            tnb_subs = get_tnb_subinstitutions(comp_df)
-            
-            nested_circles_svg = []
-            for sub in tnb_subs:
-                scx = cx + sub['rel_x']
-                scy = cy + sub['rel_y']
-                sr = sub['r']
-                
-                # 3D Glossy Sub-Circle
-                s_slice = f'<g filter="url(#sub-shadow)"><circle cx="{scx}" cy="{scy}" r="{sr}" fill="url(#{sub["grad"]})" stroke="{sub["border"]}" stroke-width="1.8" /></g>'
-                s_sheen = f'<circle cx="{scx}" cy="{scy}" r="{sr}" fill="none" stroke="rgba(255, 255, 255, 0.7)" stroke-width="1.8" />'
-                
-                shcx = scx - sr * 0.35
-                shcy = scy - sr * 0.35
-                shrx = sr * 0.4
-                shry = sr * 0.25
-                s_highlight = f'<ellipse cx="{shcx}" cy="{shcy}" rx="{shrx}" ry="{shry}" fill="url(#highlight-grad)" transform="rotate(-30, {shcx}, {shcy})" />'
-                
-                sub_badge_sz = max(22, min(40, int(sr * 0.46)))
-                sub_logo_data = get_company_logo_data_uri(sub["id"])
-
-                # Sub-circle typography
-                if sr >= 68:
-                    s_title_sz = 12
-                    s_sub_sz = 8.5
-                    s_badge_sz = 10.5
-                    s_pct_sz = 9.5
-                elif sr >= 45:
-                    s_title_sz = 10
-                    s_sub_sz = 7.5
-                    s_badge_sz = 9
-                    s_pct_sz = 8
-                else:
-                    s_title_sz = 9
-                    s_sub_sz = 6.8
-                    s_badge_sz = 8
-                    s_pct_sz = 7
-                
-                s_text = f"""
-                <foreignObject x="{scx - sr}" y="{scy - sr}" width="{2*sr}" height="{2*sr}">
-                    <div style="width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; font-family: 'Outfit', 'Sarabun', sans-serif; pointer-events: none; box-sizing: border-box; line-height: 1.12; padding: 2px;">
-                        <div style="background: rgba(255, 255, 255, 0.96); border-radius: 50%; width: {sub_badge_sz}px; height: {sub_badge_sz}px; display: flex; justify-content: center; align-items: center; box-shadow: 0 2px 6px rgba(0,0,0,0.18); border: 1.5px solid #ffffff; margin-bottom: 1.5px; overflow: hidden; padding: 1.5px; box-sizing: border-box;">
-                            <img src="{sub_logo_data}" style="max-width: 90%; max-height: 90%; width: 90%; height: 90%; object-fit: contain;" alt="{sub['name']}" />
+        bubble_body = f"""
+            <g class="bubble-group sector-bubble sector-{comp['sector']}" id="{bubble_id}">
+                {slices}
+                {sheen}
+                {highlight}
+                <foreignObject x="{cx - radius}" y="{cy - radius}" width="{2*radius}" height="{2*radius}">
+                    <div style="width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; font-family: 'Outfit', 'Sarabun', sans-serif; pointer-events: none; box-sizing: border-box; padding: 3px; line-height: 1.15; will-change: transform;">
+                        <!-- Crisp White Circular Badge Background -->
+                        <div style="background: rgba(255, 255, 255, 0.96); border-radius: 50%; width: {logo_badge_sz}px; height: {logo_badge_sz}px; display: flex; justify-content: center; align-items: center; box-shadow: 0 3px 10px rgba(0,0,0,0.18), 0 1px 3px rgba(0,0,0,0.1); border: 2px solid #ffffff; margin-bottom: 2px; overflow: hidden; padding: 2px; box-sizing: border-box;">
+                            <img src="{logo_data_uri}" style="max-width: 90%; max-height: 90%; width: 90%; height: 90%; object-fit: contain;" alt="{comp['name']}" />
                         </div>
-                        <div style="font-weight: 800; font-size: {s_title_sz}px; color: #0f172a; text-transform: uppercase; letter-spacing: -0.3px;">
-                            {sub['name']}
+                        
+                        <!-- Title -->
+                        <div style="font-weight: 800; font-size: {title_size}px; color: {text_title_color}; letter-spacing: -0.3px; margin-bottom: 2px; text-transform: uppercase;">
+                            {comp['name']}
                         </div>
-                        <div style="font-size: {s_sub_sz}px; color: #334155; font-weight: 600; margin-bottom: 1px;">
-                            {sub['sub']}
+                        
+                        <!-- Stats: จำนวนทรัพย์ -->
+                        <div style="background: {card_bg_color}; backdrop-filter: blur(4px); border-radius: 18px; padding: {badge_padding}; display: inline-flex; align-items: center; gap: {badge_gap}; margin-bottom: {margin_bottom}; border: 1px solid rgba(255, 255, 255, 0.4); box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);">
+                            <span style="font-size: {text_size - 1.2}px; color: {text_sub_color}; font-weight: 600;">ทรัพย์สิน</span>
+                            <span style="font-size: {text_size}px; color: {text_val_color}; font-weight: 800;">{c_count:,} <span style="color: #6366f1; font-weight: 700;">({pct_count:.1f}%)</span></span>
                         </div>
-                        <div style="background: rgba(255,255,255,0.9); backdrop-filter: blur(2px); border-radius: 10px; padding: 1px 5px; font-weight: 800; font-size: {s_badge_sz}px; color: #0f172a; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid rgba(255,255,255,0.9);">
-                            {sub['count']:,}
-                        </div>
-                        <div style="font-size: {s_pct_sz}px; color: #0284c7; font-weight: 800; margin-top: 1px;">
-                            ({sub['pct']:.1f}%)
+                        
+                        <!-- Stats: มูลค่ารวม -->
+                        <div style="background: {card_bg_color}; backdrop-filter: blur(4px); border-radius: 18px; padding: {badge_padding}; display: inline-flex; align-items: center; gap: {badge_gap}; border: 1px solid rgba(255, 255, 255, 0.4); box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);">
+                            <span style="font-size: {text_size - 1.2}px; color: {text_sub_color}; font-weight: 600;">มูลค่า</span>
+                            <span style="font-size: {text_size}px; color: {text_val_color}; font-weight: 800;">{format_price_thai(c_val)}</span>
                         </div>
                     </div>
                 </foreignObject>
-                """
-                
-                nested_circles_svg.append(f"""
-                <g class="nested-sub-bubble">
-                    {s_slice}
-                    {s_sheen}
-                    {s_highlight}
-                    {s_text}
-                </g>
-                """)
-            
-            tnb_logo = get_company_logo_data_uri('taladnudbaan')
-            bubble_body = f"""
-                <g class="bubble-group sector-bubble sector-{comp['sector']}" id="{bubble_id}">
-                    {slices}
-                    {sheen}
-                    {highlight}
-                    
-                    <!-- 4 Nested Sub-Circles -->
-                    {''.join(nested_circles_svg)}
-                    
-                    <!-- Floating Tag for Taladnudbaan -->
-                    <foreignObject x="{cx - 100}" y="{cy + radius - 22}" width="200" height="26">
-                        <div style="width: 100%; display: flex; justify-content: center; align-items: center; text-align: center; font-family: 'Outfit', 'Sarabun', sans-serif; pointer-events: none;">
-                            <div style="background: rgba(15, 23, 42, 0.90); backdrop-filter: blur(6px); color: #ffffff; border-radius: 20px; padding: 2px 12px; font-size: 10.5px; font-weight: 800; border: 1px solid rgba(255,255,255,0.3); box-shadow: 0 2px 6px rgba(0,0,0,0.25); display: inline-flex; align-items: center; gap: 6px;">
-                                <div style="background: #ffffff; border-radius: 50%; width: 16px; height: 16px; display: flex; justify-content: center; align-items: center; overflow: hidden; padding: 1px; box-sizing: border-box;">
-                                    <img src="{tnb_logo}" style="width: 100%; height: 100%; object-fit: contain;" alt="TNB" />
-                                </div>
-                                TALADNUDBAAN: {c_count:,}
-                            </div>
-                        </div>
-                    </foreignObject>
-                </g>
-            """
-        else:
-            # Standard single provider bubble layout
-            bubble_body = f"""
-                <g class="bubble-group sector-bubble sector-{comp['sector']}" id="{bubble_id}">
-                    {slices}
-                    {sheen}
-                    {highlight}
-                    <foreignObject x="{cx - radius}" y="{cy - radius}" width="{2*radius}" height="{2*radius}">
-                        <div style="width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; font-family: 'Outfit', 'Sarabun', sans-serif; pointer-events: none; box-sizing: border-box; padding: 3px; line-height: 1.15; will-change: transform;">
-                            <!-- Crisp White Circular Badge Background -->
-                            <div style="background: rgba(255, 255, 255, 0.96); border-radius: 50%; width: {logo_badge_sz}px; height: {logo_badge_sz}px; display: flex; justify-content: center; align-items: center; box-shadow: 0 3px 10px rgba(0,0,0,0.18), 0 1px 3px rgba(0,0,0,0.1); border: 2px solid #ffffff; margin-bottom: 2px; overflow: hidden; padding: 2px; box-sizing: border-box;">
-                                <img src="{logo_data_uri}" style="max-width: 90%; max-height: 90%; width: 90%; height: 90%; object-fit: contain;" alt="{comp['name']}" />
-                            </div>
-                            
-                            <!-- Title -->
-                            <div style="font-weight: 800; font-size: {title_size}px; color: {text_title_color}; letter-spacing: -0.3px; margin-bottom: 2px; text-transform: uppercase;">
-                                {comp['name']}
-                            </div>
-                            
-                            <!-- Stats: จำนวนทรัพย์ -->
-                            <div style="background: {card_bg_color}; backdrop-filter: blur(4px); border-radius: 18px; padding: {badge_padding}; display: inline-flex; align-items: center; gap: {badge_gap}; margin-bottom: {margin_bottom}; border: 1px solid rgba(255, 255, 255, 0.4); box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);">
-                                <span style="font-size: {text_size - 1.2}px; color: {text_sub_color}; font-weight: 600;">ทรัพย์สิน</span>
-                                <span style="font-size: {text_size}px; color: {text_val_color}; font-weight: 800;">{c_count:,} <span style="color: #6366f1; font-weight: 700;">({pct_count:.1f}%)</span></span>
-                            </div>
-                            
-                            <!-- Stats: มูลค่ารวม -->
-                            <div style="background: {card_bg_color}; backdrop-filter: blur(4px); border-radius: 18px; padding: {badge_padding}; display: inline-flex; align-items: center; gap: {badge_gap}; border: 1px solid rgba(255, 255, 255, 0.4); box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);">
-                                <span style="font-size: {text_size - 1.2}px; color: {text_sub_color}; font-weight: 600;">มูลค่า</span>
-                                <span style="font-size: {text_size}px; color: {text_val_color}; font-weight: 800;">{format_price_thai(c_val)}</span>
-                            </div>
-                        </div>
-                    </foreignObject>
-                </g>
-            """
+            </g>
+        """
 
         bubbles_html_list.append(f"""
         <g class="float-wrapper float-{bubble_id}">
@@ -528,7 +363,7 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
         hover_classes_list.append(f"#{bubble_id} {{ transform-origin: {cx}px {cy}px; }}")
         
         anim_name = f"float-{comp['id']}-anim"
-        dx = 3 if comp["base_cx"] > 600 else -3
+        dx = 3 if comp["base_cx"] > 800 else -3
         dy = -5 if comp["base_cy"] > 350 else 5
         keyframes_list.append(f"""
         @keyframes {anim_name} {{
@@ -541,7 +376,7 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
         }}
         """)
 
-    # Build 3 Sector Backdrop Panels (Pods)
+    # Build 4 Sector Backdrop Panels (Pods)
     sector_pods_svg = []
     for s_key, s_data in sector_meta.items():
         s_cnt = s_data["count"]
@@ -553,7 +388,6 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
         
         bg_card = "rgba(30, 41, 59, 0.45)" if is_dark_mode else "rgba(255, 255, 255, 0.65)"
         title_c = "#f8fafc" if is_dark_mode else "#0f172a"
-        sub_c = "#94a3b8" if is_dark_mode else "#64748b"
         border_c = s_data["bg_border"]
         
         pod_svg = f"""
@@ -583,13 +417,10 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
         sector_pods_svg.append(pod_svg)
 
     svg_content = f"""
-    <svg viewBox="0 0 1580 680" width="100%" height="100%" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" style="background-color: transparent; max-width: 100%; height: auto;">
+    <svg viewBox="0 0 1680 680" width="100%" height="100%" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" style="background-color: transparent; max-width: 100%; height: auto;">
       <defs>
         <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
           <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#0f172a" flood-opacity="{'0.35' if is_dark_mode else '0.15'}"/>
-        </filter>
-        <filter id="sub-shadow" x="-30%" y="-30%" width="160%" height="160%">
-          <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#0f172a" flood-opacity="0.2"/>
         </filter>
         
         <linearGradient id="highlight-grad" x1="0" y1="0" x2="0" y2="1">
@@ -597,42 +428,13 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
           <stop offset="100%" stop-color="rgba(255, 255, 255, 0)"/>
         </linearGradient>
         
-        <!-- Taladnudbaan Outer Background Gradient -->
-        <radialGradient id="taladnudbaan-outer-grad" cx="50%" cy="50%" r="50%" fx="35%" fy="30%">
-          <stop offset="0%" stop-color="#f0fdfa"/>
-          <stop offset="60%" stop-color="#ccfbf1"/>
-          <stop offset="100%" stop-color="#99f6e4"/>
-        </radialGradient>
-
-        <!-- Nested Sub-Gradients for Taladnudbaan (Vivid 3D) -->
-        <!-- LED (Teal/Cyan) -->
-        <radialGradient id="sub-led-grad" cx="50%" cy="50%" r="50%" fx="35%" fy="30%">
-          <stop offset="0%" stop-color="#ffffff"/>
-          <stop offset="40%" stop-color="#67e8f9"/>
+        <!-- LED Radial Gradient (Cyan/Teal) -->
+        <radialGradient id="led-scraped" cx="50%" cy="50%" r="50%" fx="35%" fy="30%">
+          <stop offset="0%" stop-color="#ecfeff"/>
+          <stop offset="45%" stop-color="#22d3ee"/>
           <stop offset="100%" stop-color="#0891b2"/>
         </radialGradient>
-        
-        <!-- EST (Emerald/Green) -->
-        <radialGradient id="sub-est-grad" cx="50%" cy="50%" r="50%" fx="35%" fy="30%">
-          <stop offset="0%" stop-color="#ffffff"/>
-          <stop offset="40%" stop-color="#a7f3d0"/>
-          <stop offset="100%" stop-color="#059669"/>
-        </radialGradient>
-        
-        <!-- Others (Amber/Gold) -->
-        <radialGradient id="sub-others-grad" cx="50%" cy="50%" r="50%" fx="35%" fy="30%">
-          <stop offset="0%" stop-color="#ffffff"/>
-          <stop offset="40%" stop-color="#fed7aa"/>
-          <stop offset="100%" stop-color="#d97706"/>
-        </radialGradient>
-        
-        <!-- JAM (Purple/Violet) -->
-        <radialGradient id="sub-jam-grad" cx="50%" cy="50%" r="50%" fx="35%" fy="30%">
-          <stop offset="0%" stop-color="#ffffff"/>
-          <stop offset="40%" stop-color="#ddd6fe"/>
-          <stop offset="100%" stop-color="#7c3aed"/>
-        </radialGradient>
-        
+
         <!-- NaYoo Radial Gradients (Purple/Violet) -->
         <radialGradient id="nayoo-scraped" cx="50%" cy="50%" r="50%" fx="35%" fy="30%">
           <stop offset="0%" stop-color="#faf5ff"/>
@@ -709,9 +511,23 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
           <stop offset="45%" stop-color="#f472b6"/>
           <stop offset="100%" stop-color="#db2777"/>
         </radialGradient>
+
+        <!-- DDproperty Standalone Gradient (Purple/Violet) -->
+        <radialGradient id="ddproperty-scraped" cx="50%" cy="50%" r="50%" fx="35%" fy="30%">
+          <stop offset="0%" stop-color="#faf5ff"/>
+          <stop offset="45%" stop-color="#c084fc"/>
+          <stop offset="100%" stop-color="#9333ea"/>
+        </radialGradient>
+
+        <!-- Livinginsider Standalone Gradient (Teal) -->
+        <radialGradient id="livinginsider-scraped" cx="50%" cy="50%" r="50%" fx="35%" fy="30%">
+          <stop offset="0%" stop-color="#f0fdfa"/>
+          <stop offset="45%" stop-color="#2dd4bf"/>
+          <stop offset="100%" stop-color="#0d9488"/>
+        </radialGradient>
       </defs>
       
-      <!-- 3 Sector Glass Pods in Background -->
+      <!-- 4 Sector Glass Pods in Background -->
       {''.join(sector_pods_svg)}
 
       <!-- 3D Bubbles on Top of Pods -->
@@ -722,10 +538,11 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
     hover_css = "\n".join(hover_classes_list)
     keyframes_css = "\n".join(keyframes_list)
 
-    # Sector Filter Bar HTML for instantaneous interactive switching
+    # Sector Filter Bar HTML for instantaneous interactive switching (4 sectors)
     filter_bar_html = f"""
     <div class="sector-filter-nav">
         <button class="nav-btn active" onclick="filterSector('all')">🏛️ แสดงทุกกลุ่ม ({total_market_count:,})</button>
+        <button class="nav-btn btn-gov" onclick="filterSector('gov')">⚖️ หน่วยงานภาครัฐ ({sector_meta['gov']['count']:,})</button>
         <button class="nav-btn btn-amc" onclick="filterSector('amc')">🏢 บริษัทบริหารสินทรัพย์ AMC ({sector_meta['amc']['count']:,})</button>
         <button class="nav-btn btn-bank" onclick="filterSector('bank')">🏦 สถาบันการเงิน / ธนาคาร ({sector_meta['bank']['count']:,})</button>
         <button class="nav-btn btn-portal" onclick="filterSector('portal')">🌐 เว็บไซต์ / แพลตฟอร์ม ({sector_meta['portal']['count']:,})</button>
@@ -799,9 +616,14 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
             box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
         }}
         .nav-btn.btn-portal.active {{
-            background: #06b6d4;
-            border-color: #06b6d4;
-            box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3);
+            background: #8b5cf6;
+            border-color: #8b5cf6;
+            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+        }}
+        .nav-btn.btn-gov.active {{
+            background: #0891b2;
+            border-color: #0891b2;
+            box-shadow: 0 4px 12px rgba(8, 145, 178, 0.3);
         }}
         .chart-container {{
             width: 100%;
@@ -824,14 +646,6 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
         .bubble-group:hover {{
             transform: scale(1.08);
             filter: brightness(1.08) drop-shadow(0 15px 25px rgba(0,0,0,0.25));
-        }}
-        .nested-sub-bubble {{
-            cursor: pointer;
-            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.25s ease;
-        }}
-        .nested-sub-bubble:hover {{
-            transform: scale(1.12);
-            filter: brightness(1.12) drop-shadow(0 6px 12px rgba(0,0,0,0.2));
         }}
         .sector-pod-group {{
             transition: opacity 0.35s ease, transform 0.35s ease;

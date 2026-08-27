@@ -34,17 +34,18 @@ SAM_PURPLE = "#8b5cf6"
 SAM_CYAN = "#06b6d4"
 
 COMPANY_COLORS = {
+    "LED": "#0891b2",
     "SAM": "#10b981",
     "BAM": "#3b82f6",
     "Chayo555": "#f97316",
-    "Baania": "#f59e0b",
-    "NaYoo": "#8b5cf6",
-    "Taladnudbaan": "#06b6d4",
-    "ZmyHome": "#ec4899",
-    "KBANK": "#059669",
     "GHB": "#ca8a04",
+    "KBANK": "#059669",
+    "KTB": "#0284c7",
     "SCB": "#7e22ce",
-    "KTB": "#0284c7"
+    "GSB": "#eb1985",
+    "NaYoo": "#8b5cf6",
+    "ZmyHome": "#ec4899",
+    "Baania": "#f59e0b"
 }
 
 ASSET_CLASS_MAP = {
@@ -56,6 +57,7 @@ ASSET_CLASS_MAP = {
     
     # Land (ที่ดิน)
     "ที่ดินเปล่า": "🌾 ที่ดินเปล่า (Land Plots)",
+    "ที่ดินพร้อมสิ่งปลูกสร้าง": "🌾 ที่ดินเปล่า (Land Plots)",
     
     # Commercial (พาณิชยกรรม)
     "อาคารพาณิชย์": "🏢 อาคารและพาณิชยกรรม (Commercial)",
@@ -216,10 +218,11 @@ def render_same_project_leaflet_map_html(proj_units, proj_name, is_dark_mode=Fal
         'nayoo': 'nayoo.png',
         'baania': 'baania.png',
         'zmyhome': 'zmyhome.png',
-        'taladnudbaan': 'taladnudbaan.png',
-        'led': 'LED.png'
+        'led': 'LED.png',
+        'ddproperty': 'ddproperty.png',
+        'livinginsider': 'livinginsider.png'
     }
-    companies = ['BAM', 'SAM', 'KBANK', 'SCB', 'KTB', 'GHB', 'GSB', 'Chayo555', 'NaYoo', 'Baania', 'ZmyHome', 'Taladnudbaan', 'LED']
+    companies = ['LED', 'BAM', 'SAM', 'KBANK', 'SCB', 'KTB', 'GHB', 'GSB', 'Chayo555', 'DDproperty', 'Livinginsider', 'NaYoo', 'Baania', 'ZmyHome']
     logo_dict = {}
     for c in companies:
         comp_key = c.lower()
@@ -1534,7 +1537,7 @@ def render_sam_tab(df_raw, df_filtered, is_dark_mode=False, plotly_template="plo
     total_sam_val = sam_all['ราคา'].dropna().sum()
     mean_sam_price = sam_all['ราคา'].dropna().mean()
     median_sam_price = sam_all['ราคา'].dropna().median()
-    auction_count = len(sam_all[sam_all['ประเภทการขาย'].astype(str).str.contains('ประมูล', na=False)])
+    auction_count = len(sam_all[sam_all['ประเภทการขาย'].astype(str).str.contains('ทอดตลาด|ประมูล', na=False)])
     large_land_count = len(sam_all[(sam_all['ประเภททรัพย์'] == 'ที่ดินเปล่า') & (sam_all['พื้นที่_ตารางวา'] >= 4000)]) # >= 10 ไร่
     mega_assets_count = len(sam_all[sam_all['ราคา'] >= 50_000_000])
 
@@ -1585,7 +1588,7 @@ def render_sam_tab(df_raw, df_filtered, is_dark_mode=False, plotly_template="plo
             sel_zone = st.selectbox("โซนเศรษฐกิจ / ภูมิภาค", options=all_zones, index=0, key="sam_filter_zone")
             
         with f_col3:
-            all_sales = ["ทั้งหมด", "ขาย (ทั่วไป)", "ประมูล (Auction)", "รอประกาศราคา"]
+            all_sales = ["ทั้งหมด", "ขาย (ทั่วไป)", "ขายทอดตลาด / ประมูล", "รอประกาศราคา"]
             sel_sale = st.selectbox("รูปแบบการขาย", options=all_sales, index=0, key="sam_filter_sale")
             
         with f_col4:
@@ -1599,9 +1602,9 @@ def render_sam_tab(df_raw, df_filtered, is_dark_mode=False, plotly_template="plo
     if sel_zone != "ทั้งหมด":
         sam_filtered = sam_filtered[sam_filtered['Economic_Zone'] == sel_zone]
     if sel_sale == "ขาย (ทั่วไป)":
-        sam_filtered = sam_filtered[sam_filtered['ประเภทการขาย'].astype(str).str.contains('ขาย', na=False) & ~sam_filtered['ประเภทการขาย'].astype(str).str.contains('ประมูล', na=False)]
-    elif sel_sale == "ประมูล (Auction)":
-        sam_filtered = sam_filtered[sam_filtered['ประเภทการขาย'].astype(str).str.contains('ประมูล', na=False)]
+        sam_filtered = sam_filtered[sam_filtered['ประเภทการขาย'].astype(str).str.strip() == 'ขาย']
+    elif sel_sale == "ขายทอดตลาด / ประมูล":
+        sam_filtered = sam_filtered[sam_filtered['ประเภทการขาย'].astype(str).str.contains('ทอดตลาด|ประมูล', na=False)]
     elif sel_sale == "รอประกาศราคา":
         sam_filtered = sam_filtered[sam_filtered['ประเภทการขาย'].astype(str).str.contains('รอประกาศราคา', na=False) | sam_filtered['ราคา'].isna()]
     if sel_provs:
@@ -1612,7 +1615,7 @@ def render_sam_tab(df_raw, df_filtered, is_dark_mode=False, plotly_template="plo
     kpi_count = len(sam_filtered)
     kpi_med = sam_filtered['ราคา'].dropna().median() if not sam_filtered['ราคา'].dropna().empty else 0
     kpi_mean = sam_filtered['ราคา'].dropna().mean() if not sam_filtered['ราคา'].dropna().empty else 0
-    kpi_auction = len(sam_filtered[sam_filtered['ประเภทการขาย'].astype(str).str.contains('ประมูล', na=False)])
+    kpi_auction = len(sam_filtered[sam_filtered['ประเภทการขาย'].astype(str).str.contains('ทอดตลาด|ประมูล', na=False)])
     kpi_large_land = len(sam_filtered[(sam_filtered['ประเภททรัพย์'] == 'ที่ดินเปล่า') & (sam_filtered['พื้นที่_ตารางวา'] >= 4000)])
 
     kpi_html = f"""
@@ -1915,7 +1918,7 @@ def render_sam_tab(df_raw, df_filtered, is_dark_mode=False, plotly_template="plo
         if not df_sqw.empty:
             sqw_agg = df_sqw.groupby(['จังหวัด', 'บริษัท'])['ราคาต่อตารางวา'].median().reset_index()
             sqw_agg.columns = ['จังหวัด', 'บริษัท', 'price_per_sqw']
-            sqw_agg_major = sqw_agg[sqw_agg['บริษัท'].isin(["SAM", "BAM", "KBANK", "GHB", "Taladnudbaan"])]
+            sqw_agg_major = sqw_agg[sqw_agg['บริษัท'].isin(["LED", "SAM", "BAM", "KBANK", "GHB", "KTB", "SCB"])]
 
             fig_sqw = px.bar(
                 sqw_agg_major,
@@ -2064,8 +2067,8 @@ def render_sam_tab(df_raw, df_filtered, is_dark_mode=False, plotly_template="plo
             )
 
         else:
-            st.markdown("##### 🔨 รายการทรัพย์ประมูลของ SAM (Auction Watchlist)")
-            auc_df = sam_all[sam_all['ประเภทการขาย'].astype(str).str.contains('ประมูล', na=False)].copy().sort_values('ราคา', ascending=False)
+            st.markdown("##### 🔨 รายการทรัพย์ขายทอดตลาด / ประมูลของ SAM (Auction Watchlist)")
+            auc_df = sam_all[sam_all['ประเภทการขาย'].astype(str).str.contains('ทอดตลาด|ประมูล', na=False)].copy().sort_values('ราคา', ascending=False)
             
             st.warning(f"🔨 มีทรัพย์สินที่ต้องเข้าประมูลทั้งหมด **{len(auc_df):,}** รายการ มูลค่ารวม **฿{auc_df['ราคา'].sum()/1e6:,.1f} ล้านบาท**")
             

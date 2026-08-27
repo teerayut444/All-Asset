@@ -19,6 +19,7 @@ from dashboard_metrics import build_kpi_summary_text
 from bubble_chart import generate_3d_glossy_bubble_chart_html
 import sam_analytics
 from sam_analytics import render_same_project_comparison
+from monthly_comparison import render_monthly_comparison
 
 def make_clean_dropdown_label(row, show_company=True):
     """Creates clean, highly informative dropdown labels with company, property type, name/project, code, location, and price."""
@@ -105,10 +106,18 @@ def get_dataset_month_year(df):
     
     if df is not None and not df.empty and 'วันที่ดึงข้อมูล' in df.columns:
         s_date = df['วันที่ดึงข้อมูล'].dropna().astype(str).str.strip()
-        s_date = s_date[~s_date.isin(['', 'nan', 'None'])]
+        s_date = s_date[~s_date.isin(['', 'nan', 'None', '-'])]
         if not s_date.empty:
             try:
-                dts = pd.to_datetime(s_date, dayfirst=True, format='mixed', errors='coerce').dropna()
+                # Distinguish ISO YYYY-MM-DD from Slash DD/MM/YYYY to avoid swapping month and day
+                is_iso = s_date.str.match(r'^\d{4}[-/]\d{1,2}[-/]\d{1,2}')
+                dts = pd.Series(index=s_date.index, dtype='datetime64[ns]')
+                if is_iso.any():
+                    dts.loc[is_iso] = pd.to_datetime(s_date[is_iso], format='mixed', dayfirst=False, errors='coerce')
+                if (~is_iso).any():
+                    dts.loc[~is_iso] = pd.to_datetime(s_date[~is_iso], format='mixed', dayfirst=True, errors='coerce')
+                dts = dts.dropna()
+                
                 if not dts.empty:
                     min_dt = dts.min()
                     max_dt = dts.max()
@@ -732,8 +741,8 @@ def get_map_icon_atlas_and_mapping(icon_size=96):
         return _CACHED_ATLAS_URI, _CACHED_ICON_MAPPING
         
     companies = [
-        "BAM", "SAM", "KBANK", "SCB", "KTB", "GHB", "GSB",
-        "Chayo555", "NaYoo", "Baania", "ZmyHome", "Taladnudbaan", "จุดอ้างอิง"
+        "LED", "SAM", "BAM", "Chayo555", "GHB", "KBANK", "KTB", "SCB", "GSB",
+        "DDproperty", "Livinginsider", "NaYoo", "ZmyHome", "Baania", "จุดอ้างอิง"
     ]
     
     atlas_width = len(companies) * icon_size
@@ -746,6 +755,7 @@ def get_map_icon_atlas_and_mapping(icon_size=96):
         atlas = Image.new("RGBA", (atlas_width, atlas_height), (0, 0, 0, 0))
         
         alias_map = {
+            'led': 'led.png',
             'bam': 'bam.png',
             'sam': 'sam.png',
             'kbank': 'kbank.png',
@@ -757,8 +767,8 @@ def get_map_icon_atlas_and_mapping(icon_size=96):
             'nayoo': 'nayoo.svg',
             'baania': 'baania.png',
             'zmyhome': 'zmyhome.png',
-            'taladnudbaan': 'taladnudbaan.png',
-            'led': 'led.png'
+            'ddproperty': 'ddproperty.png',
+            'livinginsider': 'livinginsider.png'
         }
         
         icon_mapping = {}
@@ -778,13 +788,19 @@ def get_map_icon_atlas_and_mapping(icon_size=96):
                 # White circular badge with slate border
                 draw.ellipse([margin, margin, icon_size - margin, icon_size - margin], fill=(255, 255, 255, 250), outline=(203, 213, 225, 255), width=2)
                 
-                comp_key = name.lower()
-                fname = alias_map.get(comp_key, f"{comp_key}.png")
-                p = os.path.join("assets", "logos", fname)
+                logo_path = None
+                for base in [name, name.lower(), name.upper(), name.capitalize(), name.title()]:
+                    for ext in ['.png', '.jpg', '.jpeg', '.webp']:
+                        p = os.path.join("assets", "logos", f"{base}{ext}")
+                        if os.path.exists(p):
+                            logo_path = p
+                            break
+                    if logo_path:
+                        break
                 
-                if os.path.exists(p) and not fname.endswith(".svg"):
+                if logo_path:
                     try:
-                        logo = Image.open(p).convert("RGBA")
+                        logo = Image.open(logo_path).convert("RGBA")
                         inner_max = int((icon_size - margin * 2) * 0.76)
                         logo.thumbnail((inner_max, inner_max), Image.Resampling.LANCZOS)
                         
@@ -854,24 +870,31 @@ def get_leaflet_logo_dict(size=72):
         'nayoo': 'nayoo.png',
         'baania': 'baania.png',
         'zmyhome': 'zmyhome.png',
-        'taladnudbaan': 'taladnudbaan.png',
-        'led': 'led.png'
+        'led': 'led.png',
+        'ddproperty': 'ddproperty.png',
+        'livinginsider': 'livinginsider.png'
     }
     
-    companies = ['BAM', 'SAM', 'KBANK', 'SCB', 'KTB', 'GHB', 'GSB', 'Chayo555', 'NaYoo', 'Baania', 'ZmyHome', 'Taladnudbaan', 'LED']
+    companies = ['LED', 'SAM', 'BAM', 'Chayo555', 'GHB', 'KBANK', 'KTB', 'SCB', 'GSB', 'DDproperty', 'Livinginsider', 'NaYoo', 'ZmyHome', 'Baania']
     logo_dict = {}
     
     from PIL import Image
     import io, base64
     
     for c in companies:
-        comp_key = c.lower()
-        fname = alias_map.get(comp_key, f"{comp_key}.png")
-        p = os.path.join("assets", "logos", fname)
+        logo_path = None
+        for base in [c, c.lower(), c.upper(), c.capitalize(), c.title()]:
+            for ext in ['.png', '.jpg', '.jpeg', '.webp']:
+                p = os.path.join("assets", "logos", f"{base}{ext}")
+                if os.path.exists(p):
+                    logo_path = p
+                    break
+            if logo_path:
+                break
         
-        if os.path.exists(p):
+        if logo_path:
             try:
-                im = Image.open(p).convert("RGBA")
+                im = Image.open(logo_path).convert("RGBA")
                 # Tight crop + center in square canvas
                 bbox = im.getbbox()
                 if bbox:
@@ -1253,7 +1276,20 @@ def load_properties_data(data_version=0):
 
         if 'ประเภทการขาย' in df.columns:
             df = df[df['ประเภทการขาย'].astype(str).str.strip() != 'ให้เช่า']
+            df = df[~df['ประเภทการขาย'].astype(str).str.contains('NPL', case=False, na=False)]
             sale_map = {
+                # ขายทอดตลาด (ปลอดจำนอง)
+                'ปลอดการจำนอง': 'ขายทอดตลาด (ปลอดจำนอง)',
+                'ไม่มีภาระจำนอง': 'ขายทอดตลาด (ปลอดจำนอง)',
+                'ปลอดภาระผูกพัน': 'ขายทอดตลาด (ปลอดจำนอง)',
+                'ไม่มีภาระจำนำ': 'ขายทอดตลาด (ปลอดจำนอง)',
+                'ประมูล': 'ขายทอดตลาด (ปลอดจำนอง)',
+                
+                # ขายทอดตลาด (จำนองติดไป)
+                'การจำนองติดไป': 'ขายทอดตลาด (จำนองติดไป)',
+                'การจำนำติดไป': 'ขายทอดตลาด (จำนองติดไป)',
+                
+                # ขายตรง
                 'ซื้อตรง': 'ขาย',
                 'ทรัพย์ธนาคาร': 'ขาย',
                 'ทรัพย์โปรโมชั่นราคาพิเศษ': 'ขาย',
@@ -1282,6 +1318,7 @@ def load_properties_data(data_version=0):
 
         if 'ราคา' in df.columns:
             df['ราคา'] = pd.to_numeric(df['ราคา'], errors='coerce')
+            df.loc[df['ราคา'] < 1000, 'ราคา'] = np.nan
         else:
             df['ราคา'] = np.nan
 
@@ -1323,9 +1360,6 @@ def load_properties_data(data_version=0):
 
     try:
         df = pd.read_parquet(parquet_file)
-        # Exclude Livinginsider
-        if 'บริษัท' in df.columns:
-            df = df[df['บริษัท'] != 'Livinginsider'].copy()
         df = ensure_derived_cols(df)
         df.attrs['source'] = 'all_assets.parquet'
         return df
@@ -1410,16 +1444,16 @@ with st.sidebar:
     if df_raw is not None and not df_raw.empty:
         search_query = ""
         
-        # Company Filter (Pills) with dynamic list from data (Prioritize SAM, BAM, Chayo555 first)
+        # Company Filter (Pills) with dynamic list from data (Prioritize LED, SAM, BAM, Chayo555 first)
         co_counts = df_raw['บริษัท'].value_counts()
         raw_comps = [str(c) for c in df_raw['บริษัท'].dropna().unique() if str(c).strip() not in ['', 'nan', 'None']]
-        COMPANY_PRIORITY = ["SAM", "BAM", "Chayo555", "Chayo", "Baania", "NaYoo", "Taladnudbaan", "ZmyHome", "KBANK", "GHB", "SCB", "KTB"]
+        COMPANY_PRIORITY = ["LED", "SAM", "BAM", "Chayo555", "Chayo", "GHB", "KBANK", "KTB", "SCB", "GSB", "DDproperty", "Livinginsider", "NaYoo", "ZmyHome", "Baania"]
         companies_list = sorted(
             raw_comps,
             key=lambda c: (COMPANY_PRIORITY.index(c) if c in COMPANY_PRIORITY else 999, c)
         )
         if not companies_list:
-            companies_list = ["SAM", "BAM", "Chayo555", "Baania", "NaYoo", "Taladnudbaan", "ZmyHome", "KBANK", "GHB", "SCB", "KTB"]
+            companies_list = ["LED", "SAM", "BAM", "Chayo555", "GHB", "KBANK", "KTB", "SCB", "GSB", "DDproperty", "Livinginsider", "NaYoo", "ZmyHome", "Baania"]
         
         # Ensure session state automatically includes all available companies
         if "filter_companies" not in st.session_state or not st.session_state["filter_companies"]:
@@ -1451,8 +1485,8 @@ with st.sidebar:
         # Group property types into prominent common pills and rare (เพิ่มเติม)
         PROMINENT_TYPES = [
             "บ้านเดี่ยว", "ห้องชุดพักอาศัย", "ทาวน์เฮ้าส์", "ที่ดินเปล่า",
-            "อาคารพาณิชย์", "วิลล่า", "โรงงาน/โกดัง", "บ้านแฝด",
-            "อพาร์ทเมนท์", "อาคารสำนักงาน", "โรงแรม/รีสอร์ท"
+            "ที่ดินพร้อมสิ่งปลูกสร้าง", "อาคารพาณิชย์", "วิลล่า", "โรงงาน/โกดัง", "บ้านแฝด",
+            "อพาร์ทเมนท์", "อาคารสำนักงาน", "โรงแรม/รีสอร์ท", "ห้องชุดพาณิชยกรรม/สำนักงาน"
         ]
         type_counts = df_by_company['ประเภททรัพย์'].value_counts()
         common_types = [t for t in PROMINENT_TYPES if t in type_counts]
@@ -2336,11 +2370,12 @@ floating_kpi_html = f"""
 st.markdown(floating_kpi_html, unsafe_allow_html=True)
 
 # ----------------- TABS CREATION -----------------
-tab1, tab2, tab3, tab4 = st.tabs([
+tab1, tab2, tab3, tab4, tab_monthly = st.tabs([
     "🔮 ภาพรวม & แผนที่ (Bubble & Map)", 
     "📈 สถิติ & วิเคราะห์ (Analytics)", 
     "🔍 เปรียบเทียบตำแหน่ง (Comparison)",
-    "📋 รายการทรัพย์สิน (Property Listing)"
+    "📋 รายการทรัพย์สิน (Property Listing)",
+    "📊 ติดตามการเปลี่ยนแปลง (Period Tracking / Inflow-Outflow)"
 ])
 
 # ----- TAB 1: BUBBLE & MAP -----
@@ -2431,7 +2466,8 @@ with tab1:
                         "บ้านเดี่ยว": [37, 99, 235],       # Royal Blue (#2563eb)
                         "ห้องชุดพักอาศัย": [139, 92, 246], # Purple (#8b5cf6)
                         "ทาวน์เฮ้าส์": [245, 158, 11],     # Amber (#f59e0b)
-                        "ที่ดินเปล่า": [16, 185, 129],          # Emerald (#10b981)
+                        "ที่ดินเปล่า": [16, 185, 129],     # Emerald (#10b981)
+                        "ที่ดินพร้อมสิ่งปลูกสร้าง": [5, 150, 105], # Dark Emerald (#059669)
                         "อาคารพาณิชย์": [244, 63, 94],     # Rose/Coral (#f43f5e)
                         "วิลล่า": [236, 72, 153],          # Pink (#ec4899)
                         "โรงงาน/โกดัง": [6, 182, 212],     # Cyan (#06b6d4)
@@ -2439,6 +2475,11 @@ with tab1:
                         "อพาร์ทเมนท์": [168, 85, 247],     # Violet (#a855f7)
                         "อาคารสำนักงาน": [100, 116, 139],  # Slate (#64748b)
                         "โรงแรม/รีสอร์ท": [234, 179, 8],   # Gold (#eab308)
+                        "ห้องชุดพาณิชยกรรม/สำนักงาน": [14, 165, 233], # Sky Blue (#0ea5e9)
+                        "ปั๊มน้ำมัน": [217, 119, 6],       # Amber/Orange (#d97706)
+                        "โชว์รูม": [249, 115, 22],         # Orange (#f97316)
+                        "โฮมออฟฟิศ": [79, 70, 229],        # Deep Indigo (#4f46e5)
+                        "สังหาริมทรัพย์": [120, 113, 108]   # Stone (#78716c)
                     }
                     DEFAULT_PROP_COLOR = [148, 163, 184]
                     
@@ -2465,18 +2506,20 @@ with tab1:
                 else:
                     progress_bar.progress(60, text="กำลังจัดเตรียมสีตามบริษัทคู่แข่ง (60%)...")
                     COMPANY_COLORS = {
-                        "SAM": [16, 185, 129],
-                        "BAM": [59, 130, 246],
-                        "Chayo555": [249, 115, 22],
-                        "Baania": [245, 158, 11],
-                        "NaYoo": [139, 92, 246],
-                        "Taladnudbaan": [6, 182, 212],
-                        "ZmyHome": [236, 72, 153],
-                        "KBANK": [5, 150, 105],
-                        "GHB": [202, 138, 4],
-                        "SCB": [126, 34, 206],
-                        "KTB": [2, 132, 199],
-                        "GSB": [235, 25, 133]
+                        "LED": [8, 145, 178],          # Cyan/Teal (#0891b2) - กรมบังคับคดี
+                        "SAM": [16, 185, 129],         # Emerald (#10b981)
+                        "BAM": [59, 130, 246],         # Royal Blue (#3b82f6)
+                        "Chayo555": [249, 115, 22],    # Orange (#f97316)
+                        "GHB": [202, 138, 4],          # Gold/Amber (#ca8a04)
+                        "KBANK": [5, 150, 105],        # Green (#059669)
+                        "KTB": [2, 132, 199],          # Sky Blue (#0284c7)
+                        "SCB": [126, 34, 206],         # Purple (#7e22ce)
+                        "GSB": [235, 25, 133],         # Pink (#eb1985)
+                        "DDproperty": [168, 85, 247],   # Violet (#a855f7)
+                        "Livinginsider": [20, 184, 166],# Teal (#14b8a6)
+                        "NaYoo": [139, 92, 246],       # Violet (#8b5cf6)
+                        "ZmyHome": [236, 72, 153],     # Rose (#ec4899)
+                        "Baania": [245, 158, 11]       # Amber (#f59e0b)
                     }
                     DEFAULT_COLOR = [148, 163, 184]
                     
@@ -2501,6 +2544,8 @@ with tab1:
                         
                     legend_content = "\n".join(legend_items_html)
                     
+                links = [str(x).strip() if pd.notna(x) and str(x).strip() not in ['', 'nan', 'None', '-'] else '' for x in map_data['ลิงก์'].astype(str)] if 'ลิงก์' in map_data.columns else [''] * len(map_data)
+                
                 # Step 4: CSV conversion & Base64 encoding (80%)
                 progress_bar.progress(80, text="กำลังแปลงข้อมูลเป็น Base64 Payload (80%)...")
                 csv_df = pd.DataFrame({
@@ -2515,6 +2560,7 @@ with tab1:
                     '_type': types,
                     '_company': companies,
                     '_price_str': prices,
+                    '_link': links,
                 })
                 
                 csv_str = csv_df.to_csv(index=False)
@@ -2578,7 +2624,7 @@ with tab2:
                     y='จำนวนทรัพย์สิน',
                     color='บริษัท',
                     title='จำนวนรายการทรัพย์สินเปรียบเทียบแต่ละบริษัท',
-                    color_discrete_map={"SAM": "#10b981", "BAM": "#3b82f6", "Chayo555": "#f97316", "Baania": "#f59e0b", "NaYoo": "#8b5cf6", "Taladnudbaan": "#06b6d4", "ZmyHome": "#ec4899", "KBANK": "#059669", "GHB": "#ca8a04", "SCB": "#7e22ce", "KTB": "#0284c7", "GSB": "#eb1985"},
+                    color_discrete_map={"LED": "#0891b2", "SAM": "#10b981", "BAM": "#3b82f6", "Chayo555": "#f97316", "GHB": "#ca8a04", "KBANK": "#059669", "KTB": "#0284c7", "SCB": "#7e22ce", "GSB": "#eb1985", "DDproperty": "#a855f7", "Livinginsider": "#14b8a6", "NaYoo": "#8b5cf6", "ZmyHome": "#ec4899", "Baania": "#f59e0b"},
                     template=plotly_template
                 )
                 fig_comp.update_layout(title_font=dict(size=14, family="Outfit"))
@@ -2613,7 +2659,7 @@ with tab2:
                     y='ราคากลาง Median (บาท)',
                     color='บริษัท',
                     title='ราคากลาง (Median) จำแนกตามบริษัททรัพย์สิน',
-                    color_discrete_map={"SAM": "#10b981", "BAM": "#3b82f6", "Chayo555": "#f97316", "Baania": "#f59e0b", "NaYoo": "#8b5cf6", "Taladnudbaan": "#06b6d4", "ZmyHome": "#ec4899", "KBANK": "#059669", "GHB": "#ca8a04", "SCB": "#7e22ce", "KTB": "#0284c7", "GSB": "#eb1985"},
+                    color_discrete_map={"LED": "#0891b2", "SAM": "#10b981", "BAM": "#3b82f6", "Chayo555": "#f97316", "GHB": "#ca8a04", "KBANK": "#059669", "KTB": "#0284c7", "SCB": "#7e22ce", "GSB": "#eb1985", "DDproperty": "#a855f7", "Livinginsider": "#14b8a6", "NaYoo": "#8b5cf6", "ZmyHome": "#ec4899", "Baania": "#f59e0b"},
                     template=plotly_template
                 )
                 fig_avg_p.update_layout(title_font=dict(size=14, family="Outfit"))
@@ -2786,8 +2832,8 @@ with tab2:
                 comp_type_df = df_filtered.groupby(['บริษัท', 'ประเภททรัพย์']).size().reset_index(name=value_col)
                 hover_tmpl = "<b>%{label}</b><br>จำนวน: %{value:,} รายการ<br>สัดส่วน: %{percent}<extra>%{name}</extra>"
                 
-            # Sort with SAM, BAM, Chayo555 / Chayo prioritized in the top row (3 columns)
-            PREFERRED_COMPANY_ORDER = ["SAM", "BAM", "Chayo555", "Chayo", "Chayo NPA", "Baania", "NaYoo", "Taladnudbaan", "ZmyHome", "KBANK", "GHB", "SCB", "KTB"]
+            # Sort with LED, SAM, BAM, Chayo555 / Chayo prioritized in the top row (3 columns)
+            PREFERRED_COMPANY_ORDER = ["LED", "SAM", "BAM", "Chayo555", "Chayo", "Chayo NPA", "GHB", "KBANK", "KTB", "SCB", "GSB", "DDproperty", "Livinginsider", "NaYoo", "ZmyHome", "Baania"]
             all_comps = list(comp_type_df['บริษัท'].unique())
             companies = sorted(
                 all_comps, 
@@ -2883,7 +2929,7 @@ with tab2:
             elif df_raw is not None and not df_raw.empty:
                 comp_list_avail = list(df_raw['บริษัท'].dropna().unique())
                 
-            PREFERRED_COMPANY_ORDER = ["SAM", "BAM", "Chayo555", "Chayo", "Chayo NPA", "Baania", "NaYoo", "Taladnudbaan", "ZmyHome", "KBANK", "GHB", "SCB", "KTB", "GSB"]
+            PREFERRED_COMPANY_ORDER = ["LED", "SAM", "BAM", "Chayo555", "Chayo", "Chayo NPA", "GHB", "KBANK", "KTB", "SCB", "GSB", "DDproperty", "Livinginsider", "NaYoo", "ZmyHome", "Baania"]
             comp_options = sorted(
                 comp_list_avail, 
                 key=lambda c: (PREFERRED_COMPANY_ORDER.index(c) if c in PREFERRED_COMPANY_ORDER else 999, c)
@@ -2901,20 +2947,22 @@ with tab2:
                 
             # Color map matching company standard
             COMP_BRAND_COLORS = {
+                "LED": "#0891b2",
                 "SAM": "#10b981", 
                 "BAM": "#3b82f6", 
                 "Chayo555": "#f97316", 
                 "Chayo": "#f97316", 
                 "Chayo NPA": "#f97316", 
-                "Baania": "#f59e0b", 
-                "NaYoo": "#8b5cf6", 
-                "Taladnudbaan": "#06b6d4", 
-                "ZmyHome": "#ec4899", 
-                "KBANK": "#059669", 
                 "GHB": "#ca8a04", 
-                "SCB": "#7e22ce", 
+                "KBANK": "#059669", 
                 "KTB": "#0284c7", 
-                "GSB": "#eb1985"
+                "SCB": "#7e22ce", 
+                "GSB": "#eb1985",
+                "DDproperty": "#a855f7",
+                "Livinginsider": "#14b8a6",
+                "NaYoo": "#8b5cf6", 
+                "ZmyHome": "#ec4899",
+                "Baania": "#f59e0b"
             }
             comp_bar_color = COMP_BRAND_COLORS.get(selected_company, "#10b981")
 
@@ -3433,7 +3481,12 @@ with tab3:
             search_radius = st.slider("รัศมีการค้นหา (กิโลเมตร)", min_value=0.5, max_value=10.0, value=5.0, step=0.5)
 
             # Company Filter for Comparison (Pills)
-            all_comp_list = sorted([str(c) for c in df_raw['บริษัท'].dropna().unique()]) if df_raw is not None else ["Baania", "BAM", "SAM", "DDproperty", "Taladnudbaan", "ZmyHome"]
+            PREFERRED_COMPANY_ORDER = ["LED", "SAM", "BAM", "Chayo555", "Chayo", "Chayo NPA", "GHB", "KBANK", "KTB", "SCB", "GSB", "DDproperty", "Livinginsider", "NaYoo", "ZmyHome", "Baania"]
+            raw_comps = [str(c) for c in df_raw['บริษัท'].dropna().unique() if str(c).strip() not in ['', 'nan', 'None']] if df_raw is not None else PREFERRED_COMPANY_ORDER
+            all_comp_list = sorted(
+                raw_comps,
+                key=lambda c: (PREFERRED_COMPANY_ORDER.index(c) if c in PREFERRED_COMPANY_ORDER else 999, c)
+            )
             compare_companies = st.pills(
                 "บริษัททรัพย์สิน (เปรียบเทียบ)",
                 options=all_comp_list,
@@ -4120,30 +4173,18 @@ with tab4:
         if 'พื้นที่ใช้สอย (ตร.ม.)' in df_table_show.columns:
             df_table_show['พื้นที่ใช้สอย (ตร.ม.)'] = df_table_show['พื้นที่ใช้สอย (ตร.ม.)'].apply(to_float_sqm)
 
-        # 1. ราคา/ตร.ว. (บาท) = ราคาขาย / sqwah_calc
-        df_table_show['ราคา/ตร.ว. (บาท)'] = df_table_show.apply(
-            lambda r: round(r['ราคาขาย (บาท)'] / r['sqwah_calc']) if (pd.notna(r.get('ราคาขาย (บาท)')) and pd.notna(r.get('sqwah_calc')) and float(r.get('sqwah_calc', 0)) > 0 and float(r.get('ราคาขาย (บาท)', 0)) > 0) else np.nan,
-            axis=1
-        )
-        
-        # 2. ราคา/ตร.ม. (บาท) = ราคาขาย / พื้นที่ใช้สอย (ตร.ม.)
-        df_table_show['ราคา/ตร.ม. (บาท)'] = df_table_show.apply(
-            lambda r: round(r['ราคาขาย (บาท)'] / r['พื้นที่ใช้สอย (ตร.ม.)']) if (pd.notna(r.get('ราคาขาย (บาท)')) and pd.notna(r.get('พื้นที่ใช้สอย (ตร.ม.)')) and float(r.get('พื้นที่ใช้สอย (ตร.ม.)', 0)) > 0 and float(r.get('ราคาขาย (บาท)', 0)) > 0) else np.nan,
-            axis=1
-        )
-
         for num_col in ['ละติจูด', 'ลองจิจูด']:
             if num_col in df_table_show.columns:
                 df_table_show[num_col] = pd.to_numeric(df_table_show[num_col], errors='coerce')
 
         cols_table_raw = [
             "บริษัท", "รหัสทรัพย์", "ชื่อโครงการ", "ประเภททรัพย์", "ประเภทการขาย", 
-            "ราคาขาย (บาท)", "เนื้อที่ (ไร่-งาน-ตร.ว.)", "ราคา/ตร.ว. (บาท)", "พื้นที่ใช้สอย (ตร.ม.)", "ราคา/ตร.ม. (บาท)",
+            "ราคาขาย (บาท)", "เนื้อที่ (ไร่-งาน-ตร.ว.)", "พื้นที่ใช้สอย (ตร.ม.)",
             "ตำบล", "อำเภอ", "จังหวัด", "ชื่อประกาศ", "ลิงก์", 
             "ห้องนอน", "ห้องน้ำ", "ที่จอดรถ", "ID", "ละติจูด", "ลองจิจูด", "วันที่ดึงข้อมูล", "วันประกาศ"
         ]
         cols_present = [c for c in cols_table_raw if c in df_table_show.columns]
-        extra_cols = [c for c in df_table_show.columns if c not in cols_present and c not in ['ราคา', 'พื้นที่_ตารางวา', 'เนื้อที่ (ตร.ว.)', 'sqwah_calc']]
+        extra_cols = [c for c in df_table_show.columns if c not in cols_present and c not in ['ราคา', 'พื้นที่_ตารางวา', 'เนื้อที่ (ตร.ว.)', 'sqwah_calc', 'ราคา/ตร.ว. (บาท)', 'ราคา/ตร.ม. (บาท)', 'ราคาต่อตารางวา', 'ราคาต่อตารางเมตร']]
         df_table_show = df_table_show[cols_present + extra_cols]
 
         st.dataframe(
@@ -4152,12 +4193,19 @@ with tab4:
             column_config={
                 "ราคาขาย (บาท)": st.column_config.NumberColumn("ราคาขาย (บาท)", format="฿%,d"),
                 "เนื้อที่ (ไร่-งาน-ตร.ว.)": st.column_config.TextColumn("เนื้อที่ (ไร่-งาน-ตร.ว.)"),
-                "ราคา/ตร.ว. (บาท)": st.column_config.NumberColumn("ราคา/ตร.ว. (บาท)", format="฿%,d"),
                 "พื้นที่ใช้สอย (ตร.ม.)": st.column_config.NumberColumn("พื้นที่ใช้สอย (ตร.ม.)", format="%.1f"),
-                "ราคา/ตร.ม. (บาท)": st.column_config.NumberColumn("ราคา/ตร.ม. (บาท)", format="฿%,d"),
                 "ละติจูด": st.column_config.NumberColumn(format="%.6f"),
                 "ลองจิจูด": st.column_config.NumberColumn(format="%.6f"),
                 "ลิงก์": st.column_config.LinkColumn("ลิงก์ประกาศ", display_text="🔗 เปิดดูทรัพย์")
             }
         )
         render_import_export_section(df_table_source, filename_prefix="npa_property_listing", key_suffix="tab4")
+
+# ----- TAB 5 (MONTHLY): MONTHLY COMPARISON & AUDIT -----
+with tab_monthly:
+    render_monthly_comparison(
+        df_raw=df_raw,
+        is_dark_mode=is_dark_mode,
+        plotly_template=plotly_template,
+        style_plotly_fig=style_plotly_fig
+    )
