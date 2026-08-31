@@ -58,15 +58,19 @@ def format_thai_date(dt: datetime.datetime, include_time: bool = False) -> str:
         return f"{dt.day} {month_name} {thai_year} ({dt.strftime('%H:%M น.')})"
     return f"{dt.day} {month_name} {thai_year}"
 
-def parse_date_safely(date_series: pd.Series) -> pd.Series:
-    """Parse dates in mixed formats cleanly (ISO YYYY-MM-DD vs Thai/Slash DD/MM/YYYY)."""
-    clean_series = date_series.dropna().astype(str).str.strip()
+def parse_date_safely(date_series: Any) -> pd.Series:
+    """Parse dates in mixed formats cleanly and fast."""
+    if date_series is None:
+        return pd.Series(dtype='datetime64[ns]')
+    if isinstance(date_series, (list, np.ndarray, set)):
+        clean_series = pd.Series(list(date_series)).dropna().astype(str).str.strip()
+    else:
+        clean_series = pd.Series(date_series.dropna().unique()).astype(str).str.strip()
     clean_series = clean_series[~clean_series.isin(['', 'nan', 'None', '-'])]
     if clean_series.empty:
         return pd.Series(dtype='datetime64[ns]')
     
     try:
-        # Distinguish ISO YYYY-MM-DD from Slash DD/MM/YYYY to avoid swapping month and day
         is_iso = clean_series.str.match(r'^\d{4}[-/]\d{1,2}[-/]\d{1,2}')
         res = pd.Series(index=clean_series.index, dtype='datetime64[ns]')
         if is_iso.any():
@@ -152,19 +156,20 @@ def scan_available_snapshots(base_csv_dir: str = "CSV_Output") -> List[Dict[str,
                 
     return snapshots
 
-def get_company_scraping_metadata(df: Optional[pd.DataFrame], csv_dir: str = "CSV_Output/2026_08") -> pd.DataFrame:
+@st.cache_data(ttl=3600, show_spinner=False)
+def get_company_scraping_metadata(_df: Optional[pd.DataFrame], csv_dir: str = "CSV_Output/2026_08") -> pd.DataFrame:
     """
     Extracts scraping audit details per company:
     - Latest extraction date (วันที่ดึงข้อมูลล่าสุด)
     - Date range (ช่วงวันที่ดึงข้อมูล: Min - Max)
     - Total asset count
-    - Freshness status (🟢 สดใหม่ / 🟡 ปานกลาง / 🔴 ควรดึงใหม่)
+    - Freshness status (🟢 สดใหม่ / ปานกลาง / ควรดึงใหม่)
     - Data completeness score (% GPS, % Price, % Area)
     - Corresponding CSV file name and size
     """
     records = []
     
-    if df is None or df.empty or 'บริษัท' not in df.columns:
+    if _df is None or _df.empty or 'บริษัท' not in _df.columns:
         return pd.DataFrame()
         
     # Also check physical CSV files in the folder
@@ -185,7 +190,7 @@ def get_company_scraping_metadata(df: Optional[pd.DataFrame], csv_dir: str = "CS
                     
     now = datetime.datetime.now()
     
-    for comp, group in df.groupby('บริษัท'):
+    for comp, group in _df.groupby('บริษัท'):
         comp_str = str(comp).strip()
         if not comp_str or comp_str in ['nan', 'None', 'Taladnudbaan', 'ตลาดนัด']:
             continue
@@ -199,7 +204,8 @@ def get_company_scraping_metadata(df: Optional[pd.DataFrame], csv_dir: str = "CS
         days_ago = None
         
         if 'วันที่ดึงข้อมูล' in group.columns:
-            dts = parse_date_safely(group['วันที่ดึงข้อมูล'])
+            u_dates = group['วันที่ดึงข้อมูล'].dropna().unique()
+            dts = parse_date_safely(u_dates)
             if not dts.empty:
                 latest_dt = dts.max()
                 earliest_dt = dts.min()
@@ -219,16 +225,16 @@ def get_company_scraping_metadata(df: Optional[pd.DataFrame], csv_dir: str = "CS
         # 2. Freshness Status badge
         if days_ago is not None:
             if days_ago <= 7:
-                freshness_badge = "🟢 สดใหม่ล่าสุด"
+                freshness_badge = "สดใหม่ล่าสุด"
                 freshness_status = "Fresh"
             elif days_ago <= 15:
-                freshness_badge = f"🟡 ปานกลาง ({days_ago} วันก่อน)"
+                freshness_badge = f"ปานกลาง ({days_ago} วันก่อน)"
                 freshness_status = "Moderate"
             else:
-                freshness_badge = f"🔴 ควรดึงใหม่ ({days_ago} วันก่อน)"
+                freshness_badge = f"ควรดึงใหม่ ({days_ago} วันก่อน)"
                 freshness_status = "Stale"
         else:
-            freshness_badge = "⚪ ไม่ระบุวันที่"
+            freshness_badge = "ไม่ระบุวันที่"
             freshness_status = "Unknown"
             
         # 3. Data Completeness Metrics
@@ -338,7 +344,8 @@ def load_snapshot_dataset(snapshot_item: Dict[str, Any]) -> Optional[pd.DataFram
 # ==============================================================================
 # CORE MONTH-OVER-MONTH COMPUTATION ENGINE
 # ==============================================================================
-def compute_mom_comparison(df_base: pd.DataFrame, df_target: pd.DataFrame) -> Dict[str, Any]:
+@st.cache_data(ttl=3600, show_spinner="กำลังคำนวณการเปรียบเทียบข้อมูลย้อนหลัง (MoM)...")
+def compute_mom_comparison(_df_base: pd.DataFrame, _df_target: pd.DataFrame) -> Dict[str, Any]:
     """
     Computes comprehensive comparison metrics between base (earlier) and target (later) datasets:
     1. Overall KPI Deltas (Count, Market Value, Median Price, Mean Price)
@@ -349,27 +356,28 @@ def compute_mom_comparison(df_base: pd.DataFrame, df_target: pd.DataFrame) -> Di
        - Delisted / Sold (ปิดการขาย/หายไป)
        - Price Adjustments (ปรับราคาขึ้น/ลง)
     """
-    if df_base is None or df_base.empty or df_target is None or df_target.empty:
+    if _df_base is None or _df_base.empty or _df_target is None or _df_target.empty:
         return {}
         
     def make_asset_key(df_in: pd.DataFrame) -> pd.Series:
         comp = df_in['บริษัท'].fillna('').astype(str).str.strip().str.upper()
         code = df_in['รหัสทรัพย์'].fillna('').astype(str).str.strip()
-        invalid_set = {'', 'nan', '-', 'None'}
         
-        # Fallback to ID or Title if code is missing/blank
-        if 'ID' in df_in.columns:
+        # Vectorized fallback
+        invalid_mask = code.isin({'', 'nan', '-', 'None'})
+        if invalid_mask.any() and 'ID' in df_in.columns:
             id_col = df_in['ID'].fillna('').astype(str).str.strip()
-            mask_code_invalid = code.isin(invalid_set)
-            code = code.where(~mask_code_invalid, id_col)
+            code = code.mask(invalid_mask, id_col)
+            invalid_mask = code.isin({'', 'nan', '-', 'None'})
             
-        title = df_in['ชื่อประกาศ'].fillna('').astype(str).str.strip() if 'ชื่อประกาศ' in df_in.columns else pd.Series('', index=df_in.index)
-        mask_still_invalid = code.isin(invalid_set)
-        code = code.where(~mask_still_invalid, title)
+        if invalid_mask.any() and 'ชื่อประกาศ' in df_in.columns:
+            title = df_in['ชื่อประกาศ'].fillna('').astype(str).str.strip()
+            code = code.mask(invalid_mask, title)
+            
         return comp + "___" + code
         
-    df_base_clean = df_base.copy()
-    df_target_clean = df_target.copy()
+    df_base_clean = _df_base.copy()
+    df_target_clean = _df_target.copy()
     
     df_base_clean['_match_key'] = make_asset_key(df_base_clean)
     df_target_clean['_match_key'] = make_asset_key(df_target_clean)
@@ -475,7 +483,7 @@ def compute_mom_comparison(df_base: pd.DataFrame, df_target: pd.DataFrame) -> Di
         df_price_changed['ส่วนต่างราคา (บาท)'] = df_price_changed['ราคา'] - df_price_changed['ราคา_ก่อนหน้า']
         df_price_changed['% เปลี่ยนแปลงราคา'] = (df_price_changed['ส่วนต่างราคา (บาท)'] / df_price_changed['ราคา_ก่อนหน้า']) * 100.0
         df_price_changed['สถานะการปรับราคา'] = np.where(
-            df_price_changed['ส่วนต่างราคา (บาท)'] < 0, "🔻 ลดราคา (Price Drop)", "🔺 ปรับราคาขึ้น (Price Hike)"
+            df_price_changed['ส่วนต่างราคา (บาท)'] < 0, "ลดราคา (Price Drop)", "ปรับราคาขึ้น (Price Hike)"
         )
     
     return {
@@ -516,7 +524,7 @@ def render_download_buttons(df: pd.DataFrame, filename_prefix: str, key_suffix: 
     with c1:
         csv_data = df.to_csv(index=False).encode('utf-8-sig')
         st.download_button(
-            label="📄 ดาวน์โหลด CSV (.csv) ⚡",
+            label="ดาวน์โหลด CSV (.csv)",
             data=csv_data,
             file_name=f"{filename_prefix}.csv",
             mime="text/csv",
@@ -528,7 +536,7 @@ def render_download_buttons(df: pd.DataFrame, filename_prefix: str, key_suffix: 
         with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
             df.to_excel(writer, index=False, sheet_name='Comparison')
         st.download_button(
-            label="📊 ดาวน์โหลด Excel (.xlsx)",
+            label="ดาวน์โหลด Excel (.xlsx)",
             data=excel_buffer.getvalue(),
             file_name=f"{filename_prefix}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -544,7 +552,8 @@ def extract_company_date_str(df_comp: Optional[pd.DataFrame]) -> str:
     if df_comp is None or df_comp.empty:
         return "-"
     if 'วันที่ดึงข้อมูล' in df_comp.columns:
-        dts = parse_date_safely(df_comp['วันที่ดึงข้อมูล'])
+        u_dates = df_comp['วันที่ดึงข้อมูล'].dropna().unique()
+        dts = parse_date_safely(u_dates)
         if not dts.empty:
             max_dt = dts.max()
             min_dt = dts.min()
@@ -937,7 +946,7 @@ def render_monthly_comparison(
     # -------------------------------------------------------------------------
     available_snapshots = scan_available_snapshots("CSV_Output")
     if not available_snapshots:
-        st.warning("⚠️ ยังไม่พบชุดข้อมูลสำหรับเปรียบเทียบในระบบ กรุณาตรวจสอบโฟลเดอร์ CSV_Output")
+        st.warning("ยังไม่พบชุดข้อมูลสำหรับเปรียบเทียบในระบบ กรุณาตรวจสอบโฟลเดอร์ CSV_Output")
         return
 
     snapshot_labels = [s["label"] for s in available_snapshots]
@@ -945,7 +954,7 @@ def render_monthly_comparison(
     col_target, col_base, col_sort = st.columns([0.38, 0.38, 0.24])
     with col_target:
         selected_target_label = st.selectbox(
-            "📅 ชุดข้อมูลปัจจุบัน (Target Period)",
+            "ชุดข้อมูลปัจจุบัน (Target Period)",
             options=snapshot_labels,
             index=0,
             key="mom_target_snapshot_selector",
@@ -956,7 +965,7 @@ def render_monthly_comparison(
     with col_base:
         base_idx = 1 if len(available_snapshots) > 1 else 0
         selected_base_label = st.selectbox(
-            "🗓️ ชุดข้อมูลเปรียบเทียบ (Baseline Period)",
+            "ชุดข้อมูลเปรียบเทียบ (Baseline Period)",
             options=snapshot_labels,
             index=base_idx,
             key="mom_base_snapshot_selector",
@@ -966,7 +975,7 @@ def render_monthly_comparison(
         
     with col_sort:
         sort_opt = st.selectbox(
-            "🔽 จัดเรียงตาม",
+            "จัดเรียงตาม",
             options=[
                 "ลำดับมาตรฐาน (LED, SAM, BAM, Chayo...)",
                 "จำนวนทรัพย์ปัจจุบันสูงสุด",
@@ -989,7 +998,7 @@ def render_monthly_comparison(
         df_base_loaded = df_raw
 
     if df_base_loaded is None or df_target_loaded is None or df_base_loaded.empty or df_target_loaded.empty:
-        st.warning("⚠️ ยังไม่สามารถโหลดชุดข้อมูลเพื่อเปรียบเทียบได้ กรุณาตรวจสอบไฟล์ในโฟลเดอร์ CSV_Output")
+        st.warning("ยังไม่สามารถโหลดชุดข้อมูลเพื่อเปรียบเทียบได้ กรุณาตรวจสอบไฟล์ในโฟลเดอร์ CSV_Output")
         return
 
     # Compute Comparison

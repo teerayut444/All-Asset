@@ -129,12 +129,12 @@ def render_3d_scatter_price_area(df_filtered, is_dark_mode=False):
 
         hover_txt = [
             f"<b>{row.get('ชื่อประกาศ', '')}</b><br>"
-            f"🏢 บริษัท: <b>{row.get('บริษัท', '')}</b><br>"
-            f"🏠 ประเภท: {ptype}<br>"
-            f"📍 ทำเล: {row.get('อำเภอ', '')}, {row.get('จังหวัด', '')}<br>"
-            f"📐 เนื้อที่: <b>{row['พื้นที่_ตารางวา']:,.1f} ตร.ว.</b><br>"
-            f"💰 ราคา: <b>฿{row['ราคา']:,.0f} บาท</b> ({row['ราคา_ล้านบาท']:.2f} ล้าน)<br>"
-            f"⚡ ราคา/ตร.ว.: <b>฿{row['ราคาต่อ_ตรว']:,.0f} บาท</b>"
+            f"บริษัท: <b>{row.get('บริษัท', '')}</b><br>"
+            f"ประเภท: {ptype}<br>"
+            f"ทำเล: {row.get('อำเภอ', '')}, {row.get('จังหวัด', '')}<br>"
+            f"เนื้อที่: <b>{row['พื้นที่_ตารางวา']:,.1f} ตร.ว.</b><br>"
+            f"ราคา: <b>฿{row['ราคา']:,.0f} บาท</b> ({row['ราคา_ล้านบาท']:.2f} ล้าน)<br>"
+            f"ราคา/ตร.ว.: <b>฿{row['ราคาต่อ_ตรว']:,.0f} บาท</b>"
             for _, row in sub.iterrows()
         ]
 
@@ -163,7 +163,7 @@ def render_3d_scatter_price_area(df_filtered, is_dark_mode=False):
 
     fig.update_layout(
         title=dict(
-            text='🌐 แผนภูมิ 3 มิติ: เนื้อที่ (ตร.ว.) x ราคาเริ่มต้น x ราคาเฉลี่ยต่อ ตร.ว.',
+            text='แผนภูมิ 3 มิติ: เนื้อที่ (ตร.ว.) x ราคาเริ่มต้น x ราคาเฉลี่ยต่อ ตร.ว.',
             font=dict(size=14, family="Outfit, Sarabun, sans-serif")
         ),
         scene=scene,
@@ -247,7 +247,7 @@ def render_3d_market_surface(df_filtered, is_dark_mode=False):
 
     fig.update_layout(
         title=dict(
-            text='🏔️ ภูมิประเทศ 3 มิติ: ความหนาแน่นของราคาทรัพย์สินในตลาด (3D Price Surface)',
+            text='ภูมิประเทศ 3 มิติ: ความหนาแน่นของราคาทรัพย์สินในตลาด (3D Price Surface)',
             font=dict(size=14, family="Outfit, Sarabun, sans-serif")
         ),
         scene=scene,
@@ -281,11 +281,11 @@ def render_3d_company_assets_bars(comp_counts_df, is_dark_mode=False):
         text=[f"<b>{v:,}</b>" for v in counts],
         textposition='outside',
         textfont=dict(size=12, family="Outfit, Sarabun", color="#f8fafc" if is_dark_mode else "#0f172a"),
-        hovertemplate="🏢 <b>%{x}</b><br>จำนวนทรัพย์สิน: <b>%{y:,} รายการ</b><extra></extra>"
+        hovertemplate="<b>%{x}</b><br>จำนวนทรัพย์สิน: <b>%{y:,} รายการ</b><extra></extra>"
     ))
 
     fig.update_layout(
-        title=dict(text='🏛️ แผนภูมิเปรียบเทียบจำนวนรายการทรัพย์สินแต่ละบริษัท (3D Styled Volume)', font=dict(size=14, family="Outfit, Sarabun")),
+        title=dict(text='แผนภูมิเปรียบเทียบจำนวนรายการทรัพย์สินแต่ละบริษัท (3D Styled Volume)', font=dict(size=14, family="Outfit, Sarabun")),
         xaxis=dict(title='บริษัท', tickfont=dict(family="Outfit, Sarabun", size=11), showgrid=False),
         yaxis=dict(title='จำนวนทรัพย์สิน (รายการ)', showgrid=True, gridcolor='rgba(148,163,184,0.15)'),
         height=420,
@@ -315,11 +315,11 @@ def render_3d_property_type_donut(type_counts_df, is_dark_mode=False):
         textinfo='label+percent',
         textposition='outside',
         textfont=dict(size=11, family="Outfit, Sarabun", color="#f8fafc" if is_dark_mode else "#0f172a"),
-        hovertemplate="🏠 <b>%{label}</b><br>จำนวนประกาศ: <b>%{value:,}</b> (%{percent})<extra></extra>"
+        hovertemplate="<b>%{label}</b><br>จำนวนประกาศ: <b>%{value:,}</b> (%{percent})<extra></extra>"
     )])
 
     fig.update_layout(
-        title=dict(text='🍩 สัดส่วนประเภททรัพย์สินหลัก (3D Isometric Donut)', font=dict(size=14, family="Outfit, Sarabun")),
+        title=dict(text='สัดส่วนประเภททรัพย์สินหลัก (3D Isometric Donut)', font=dict(size=14, family="Outfit, Sarabun")),
         showlegend=False,
         height=420,
         margin=dict(l=30, r=30, t=50, b=30),
@@ -347,11 +347,11 @@ def render_3d_median_price_bars(median_price_df, is_dark_mode=False):
         text=[f"฿{v/1e6:.1f}M" if v >= 1e6 else f"฿{v/1e3:.0f}k" for v in prices],
         textposition='outside',
         textfont=dict(size=11, family="Outfit, Sarabun", color="#f8fafc" if is_dark_mode else "#0f172a"),
-        hovertemplate="🏢 <b>%{x}</b><br>ราคากลาง Median: <b>฿%{y:,.0f} บาท</b><extra></extra>"
+        hovertemplate="<b>%{x}</b><br>ราคากลาง Median: <b>฿%{y:,.0f} บาท</b><extra></extra>"
     ))
 
     fig.update_layout(
-        title=dict(text='💰 ราคากลาง (Median) จำแนกตามบริษัททรัพย์สิน (3D Elevation)', font=dict(size=14, family="Outfit, Sarabun")),
+        title=dict(text='ราคากลาง (Median) จำแนกตามบริษัททรัพย์สิน (3D Elevation)', font=dict(size=14, family="Outfit, Sarabun")),
         xaxis=dict(title='บริษัท', tickfont=dict(family="Outfit, Sarabun", size=11), showgrid=False),
         yaxis=dict(title='ราคากลาง (บาท)', showgrid=True, gridcolor='rgba(148,163,184,0.15)'),
         height=420,
@@ -384,11 +384,11 @@ def render_3d_top_provinces(top_prov_df, is_dark_mode=False):
         text=[f"<b>{c:,}</b>" for c in counts],
         textposition='outside',
         textfont=dict(size=11, family="Outfit, Sarabun", color="#f8fafc" if is_dark_mode else "#0f172a"),
-        hovertemplate="📍 <b>%{y}</b><br>จำนวนทรัพย์: <b>%{x:,} รายการ</b><extra></extra>"
+        hovertemplate="<b>%{y}</b><br>จำนวนทรัพย์: <b>%{x:,} รายการ</b><extra></extra>"
     ))
 
     fig.update_layout(
-        title=dict(text='📍 10 อันดับจังหวัดที่มีทรัพย์สินเยอะที่สุด (3D Provincial Elevation)', font=dict(size=14, family="Outfit, Sarabun")),
+        title=dict(text='10 อันดับจังหวัดที่มีทรัพย์สินเยอะที่สุด (3D Provincial Elevation)', font=dict(size=14, family="Outfit, Sarabun")),
         xaxis=dict(title='จำนวนทรัพย์ (รายการ)', showgrid=True, gridcolor='rgba(148,163,184,0.15)'),
         yaxis=dict(autorange="reversed", tickfont=dict(family="Outfit, Sarabun", size=11)),
         height=420,
@@ -463,9 +463,9 @@ def render_3d_company_asset_matrix(comp_type_df, value_col, is_val_metric=False,
 
             val_str = f"฿{v:,.0f} บาท ({v/1e6:,.1f}M)" if is_val_metric else f"{v:,} รายการ"
             hover_txt.append(
-                f"🏢 บริษัท: <b>{comp}</b><br>"
-                f"🏠 ประเภททรัพย์: <b>{ptype}</b><br>"
-                f"{'💰 มูลค่ารวม' if is_val_metric else '👥 จำนวนทรัพย์'}: <b>{val_str}</b>"
+                f"บริษัท: <b>{comp}</b><br>"
+                f"ประเภททรัพย์: <b>{ptype}</b><br>"
+                f"{'มูลค่ารวม' if is_val_metric else 'จำนวนทรัพย์'}: <b>{val_str}</b>"
             )
 
         # 3D scatter towers for each company
@@ -496,7 +496,7 @@ def render_3d_company_asset_matrix(comp_type_df, value_col, is_val_metric=False,
 
     fig.update_layout(
         title=dict(
-            text=f'📊 3D Market Matrix: สัดส่วนความเชี่ยวชาญสินค้าของแต่ละบริษัท ({z_label})',
+            text=f'3D Market Matrix: สัดส่วนความเชี่ยวชาญสินค้าของแต่ละบริษัท ({z_label})',
             font=dict(size=14, family="Outfit, Sarabun, sans-serif")
         ),
         scene=scene,
@@ -556,7 +556,7 @@ def render_3d_sam_price_pyramid(tier_df, is_dark_mode=False):
     ))
 
     fig.update_layout(
-        title=dict(text='🏛️ การกระจายตัวตามช่วงราคา SAM (3D Price Tier Pyramid)', font=dict(size=14, family="Outfit, Sarabun")),
+        title=dict(text='การกระจายตัวตามช่วงราคา SAM (3D Price Tier Pyramid)', font=dict(size=14, family="Outfit, Sarabun")),
         yaxis=dict(title='จำนวนทรัพย์ (รายการ)', showgrid=False),
         yaxis2=dict(title='มูลค่ารวม (ล้านบาท)', overlaying='y', side='right', showgrid=False),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
@@ -579,7 +579,7 @@ def render_3d_sam_price_dispersion(box_data, is_dark_mode=False):
         x='ประเภททรัพย์',
         y='val_million',
         color='ประเภททรัพย์',
-        title='📦 การกระจายราคา 6 ประเภททรัพย์หลัก SAM (3D Dispersion Plot)',
+        title='การกระจายราคา 6 ประเภททรัพย์หลัก SAM (3D Dispersion Plot)',
         points=False,
         color_discrete_sequence=px.colors.qualitative.Pastel
     )

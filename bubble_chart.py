@@ -1,6 +1,7 @@
 import os
 import math
 import base64
+import functools
 import pandas as pd
 import numpy as np
 
@@ -15,6 +16,7 @@ def format_price_thai(val):
         return f"฿{val / 1_000:,.0f} พัน"
     return f"฿{val:,.0f} บาท"
 
+@functools.lru_cache(maxsize=64)
 def get_company_logo_data_uri(comp_id):
     """Loads base64 Data URI of official original logo from assets/logos/ fresh from disk."""
     target = comp_id.lower()
@@ -205,7 +207,7 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
         "gov": {
             "title": "หน่วยงานภาครัฐ",
             "subtitle": "Government & Public Auction",
-            "icon": "⚖️",
+            "icon": "",
             "color": "#0891b2",
             "glow": "rgba(8, 145, 178, 0.25)",
             "bg_border": "rgba(8, 145, 178, 0.35)",
@@ -216,7 +218,7 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
         "amc": {
             "title": "บริษัทบริหารสินทรัพย์",
             "subtitle": "Asset Management (AMC)",
-            "icon": "🏢",
+            "icon": "",
             "color": "#10b981",
             "glow": "rgba(16, 185, 129, 0.25)",
             "bg_border": "rgba(16, 185, 129, 0.35)",
@@ -227,7 +229,7 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
         "bank": {
             "title": "สถาบันการเงิน",
             "subtitle": "Banks & Financial Institutions",
-            "icon": "🏦",
+            "icon": "",
             "color": "#3b82f6",
             "glow": "rgba(59, 130, 246, 0.25)",
             "bg_border": "rgba(59, 130, 246, 0.35)",
@@ -238,7 +240,7 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
         "portal": {
             "title": "เว็บไซต์สื่อกลาง",
             "subtitle": "Portals & Marketplaces",
-            "icon": "🌐",
+            "icon": "",
             "color": "#8b5cf6",
             "glow": "rgba(139, 92, 246, 0.25)",
             "bg_border": "rgba(139, 92, 246, 0.35)",
@@ -248,19 +250,23 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
         }
     }
 
-    # Aggregate company stats
+    # Aggregate company stats in one fast vectorized pass
     comp_stats = {}
+    if df_filtered is not None and not df_filtered.empty:
+        co_grp = df_filtered.groupby('บริษัท')
+        co_counts_map = co_grp.size().to_dict()
+        co_sums_map = co_grp['ราคา'].sum().to_dict()
+    else:
+        co_counts_map, co_sums_map = {}, {}
+
     for comp in companies_meta:
         comp_name = comp["name"]
-        comp_df = df_filtered[df_filtered['บริษัท'] == comp_name] if df_filtered is not None and not df_filtered.empty else pd.DataFrame()
-        c_count = len(comp_df)
-        c_prices = comp_df['ราคา'].dropna() if not comp_df.empty else pd.Series()
-        c_val = c_prices.sum() if not c_prices.empty else 0.0
+        c_count = co_counts_map.get(comp_name, 0)
+        c_val = co_sums_map.get(comp_name, 0.0)
         
         comp_stats[comp["id"]] = {
             "count": c_count,
-            "val": c_val,
-            "df": comp_df
+            "val": c_val
         }
         
         sec = comp["sector"]
@@ -273,13 +279,12 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
     hover_classes_list = []
 
     for comp in companies_meta:
-        st = comp_stats.get(comp["id"], {"count": 0, "val": 0.0, "df": pd.DataFrame()})
-        c_count = st["count"]
+        st_data = comp_stats.get(comp["id"], {"count": 0, "val": 0.0})
+        c_count = st_data["count"]
         if c_count == 0:
             continue
 
-        c_val = st["val"]
-        comp_df = st["df"]
+        c_val = st_data["val"]
         
         pct_count = (c_count / total_market_count * 100) if total_market_count > 0 else 0.0
         pct_val = (c_val / total_market_val * 100) if total_market_val > 0 else 0.0
@@ -541,11 +546,11 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
     # Sector Filter Bar HTML for instantaneous interactive switching (4 sectors)
     filter_bar_html = f"""
     <div class="sector-filter-nav">
-        <button class="nav-btn active" onclick="filterSector('all')">🏛️ แสดงทุกกลุ่ม ({total_market_count:,})</button>
-        <button class="nav-btn btn-gov" onclick="filterSector('gov')">⚖️ หน่วยงานภาครัฐ ({sector_meta['gov']['count']:,})</button>
-        <button class="nav-btn btn-amc" onclick="filterSector('amc')">🏢 บริษัทบริหารสินทรัพย์ AMC ({sector_meta['amc']['count']:,})</button>
-        <button class="nav-btn btn-bank" onclick="filterSector('bank')">🏦 สถาบันการเงิน / ธนาคาร ({sector_meta['bank']['count']:,})</button>
-        <button class="nav-btn btn-portal" onclick="filterSector('portal')">🌐 เว็บไซต์ / แพลตฟอร์ม ({sector_meta['portal']['count']:,})</button>
+        <button class="nav-btn active" onclick="filterSector('all')">แสดงทุกกลุ่ม ({total_market_count:,})</button>
+        <button class="nav-btn btn-gov" onclick="filterSector('gov')">หน่วยงานภาครัฐ ({sector_meta['gov']['count']:,})</button>
+        <button class="nav-btn btn-amc" onclick="filterSector('amc')">บริษัทบริหารสินทรัพย์ AMC ({sector_meta['amc']['count']:,})</button>
+        <button class="nav-btn btn-bank" onclick="filterSector('bank')">สถาบันการเงิน / ธนาคาร ({sector_meta['bank']['count']:,})</button>
+        <button class="nav-btn btn-portal" onclick="filterSector('portal')">เว็บไซต์ / แพลตฟอร์ม ({sector_meta['portal']['count']:,})</button>
     </div>
     """
 

@@ -18,7 +18,7 @@ import base64
 from dashboard_metrics import build_kpi_summary_text
 from bubble_chart import generate_3d_glossy_bubble_chart_html
 import sam_analytics
-from sam_analytics import render_same_project_comparison
+from sam_analytics import render_same_project_comparison, clean_project_name
 from monthly_comparison import render_monthly_comparison
 
 def make_clean_dropdown_label(row, show_company=True):
@@ -88,15 +88,13 @@ REGION_PROVINCES = {
     ]
 }
 
-def get_region_by_province(prov):
-    p_str = str(prov).strip()
-    for region, p_list in REGION_PROVINCES.items():
-        for p in p_list:
-            if p in p_str:
-                return region
-    return 'อื่นๆ / ไม่ระบุ'
+PROVINCE_TO_REGION = {p: r for r, plist in REGION_PROVINCES.items() for p in plist}
 
-def get_dataset_month_year(df):
+def get_region_by_province(prov):
+    return PROVINCE_TO_REGION.get(str(prov).strip(), 'อื่นๆ / ไม่ระบุ')
+
+@st.cache_data(show_spinner=False)
+def get_dataset_month_year(_df):
     """Formats the dataset date into Thai Month & Year (e.g. สิงหาคม 2569) and date range from start to latest extraction date."""
     thai_full_months = [
         'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
@@ -104,8 +102,8 @@ def get_dataset_month_year(df):
     ]
     thai_short_months = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.']
     
-    if df is not None and not df.empty and 'วันที่ดึงข้อมูล' in df.columns:
-        s_date = df['วันที่ดึงข้อมูล'].dropna().astype(str).str.strip()
+    if _df is not None and not _df.empty and 'วันที่ดึงข้อมูล' in _df.columns:
+        s_date = _df['วันที่ดึงข้อมูล'].dropna().astype(str).str.strip()
         s_date = s_date[~s_date.isin(['', 'nan', 'None', '-'])]
         if not s_date.empty:
             try:
@@ -156,20 +154,20 @@ def get_dataset_month_year(df):
     return "สิงหาคม 2569", "11 - 20 ส.ค. 2569"
 
 @st.cache_data
-def convert_df_to_csv(df):
+def convert_df_to_csv(_df):
     """Cached CSV generator to prevent blocking rerun loops."""
-    if df is None or df.empty:
+    if _df is None or _df.empty:
         return b""
-    return df.to_csv(index=False).encode('utf-8-sig')
+    return _df.to_csv(index=False).encode('utf-8-sig')
 
 @st.cache_data
-def convert_df_to_excel(df):
+def convert_df_to_excel(_df):
     """Cached Excel generator to prevent blocking rerun loops."""
-    if df is None or df.empty:
+    if _df is None or _df.empty:
         return b""
     excel_buffer = io.BytesIO()
     with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
-        df.to_excel(writer, index=False, sheet_name='Assets')
+        _df.to_excel(writer, index=False, sheet_name='Assets')
     return excel_buffer.getvalue()
 
 def render_import_export_section(df_to_export, filename_prefix="npa_data", key_suffix=""):
@@ -218,15 +216,35 @@ def render_import_export_section(df_to_export, filename_prefix="npa_data", key_s
             
             c_exp1, c_exp2 = st.columns(2)
             with c_exp1:
-                st.download_button(
-                    label="📄 ส่งออก CSV (.csv) ⚡",
-                    data=convert_df_to_csv(df_to_export),
-                    file_name=f"{filename_prefix}.csv",
-                    mime="text/csv",
-                    use_container_width=True,
-                    key=f"btn_export_csv_{key_suffix}",
-                    help="ดาวน์โหลดทันที (เสี้ยววินาที) รองรับภาษาไทย UTF-8 เปิดใน Microsoft Excel ได้โดยตรง"
-                )
+                csv_key = f"csv_data_{key_suffix}"
+                csv_rows_key = f"csv_rows_{key_suffix}"
+                if n_rows <= 10000:
+                    st.download_button(
+                        label="📄 ส่งออก CSV (.csv)",
+                        data=convert_df_to_csv(df_to_export),
+                        file_name=f"{filename_prefix}.csv",
+                        mime="text/csv",
+                        use_container_width=True,
+                        key=f"btn_export_csv_{key_suffix}",
+                        help="ดาวน์โหลดทันที รองรับภาษาไทย UTF-8"
+                    )
+                else:
+                    if st.session_state.get(csv_rows_key) == n_rows and csv_key in st.session_state:
+                        st.download_button(
+                            label=f"📄 ดาวน์โหลด CSV ({n_rows:,} รายการ)",
+                            data=st.session_state[csv_key],
+                            file_name=f"{filename_prefix}.csv",
+                            mime="text/csv",
+                            use_container_width=True,
+                            key=f"btn_export_csv_{key_suffix}"
+                        )
+                    else:
+                        if st.button("📄 สร้างไฟล์ CSV (.csv)", key=f"btn_prep_csv_{key_suffix}", use_container_width=True, help="คลิกเพื่อสร้างไฟล์ CSV สำหรับดาวน์โหลด"):
+                            with st.spinner(f"⏳ กำลังแปลงข้อมูล {n_rows:,} รายการเป็นไฟล์ CSV..."):
+                                csv_bytes = convert_df_to_csv(df_to_export)
+                                st.session_state[csv_key] = csv_bytes
+                                st.session_state[csv_rows_key] = n_rows
+                                st.rerun()
             with c_exp2:
                 excel_key = f"excel_data_{key_suffix}"
                 excel_rows_key = f"excel_rows_{key_suffix}"
@@ -249,7 +267,7 @@ def render_import_export_section(df_to_export, filename_prefix="npa_data", key_s
                             st.session_state[excel_rows_key] = n_rows
                             st.rerun()
                     if n_rows > 10000:
-                        st.caption("💡 แนะนำ **CSV** สำหรับไฟล์ขนาดใหญ่ จะดาวน์โหลดได้ทันที")
+                        st.caption("💡 แนะนำ **CSV** สำหรับไฟล์ขนาดใหญ่ จะสร้างไฟล์และดาวน์โหลดได้เร็วที่สุด")
         else:
             st.info("ไม่มีข้อมูลสำหรับส่งออก")
 
@@ -917,15 +935,31 @@ def get_leaflet_logo_dict(size=72):
     _LEAFLET_LOGO_CACHE = logo_dict
     return logo_dict
 
-def render_tab3_radius_leaflet_map_html(inp_lat, inp_lng, search_radius_km, nearby_props, is_dark_mode=False):
-    """Renders complete Leaflet map HTML with genuine company logo markers, rich property detail cards, and controls."""
+def render_tab3_radius_leaflet_map_html(inp_lat, inp_lng, search_radius_km, nearby_props, is_dark_mode=False, color_mode="🏢 จำแนกตามบริษัท (By Company)", tile_style="🗺️ มาตรฐาน (Street Map)"):
+    """Renders complete Leaflet map HTML with genuine company logo markers, property type colors, price tier colors, layer switcher, and dynamic legend."""
     import json
     
-    tiles_url = "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" if not is_dark_mode else "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
     logo_dict = get_leaflet_logo_dict()
-    
     props_json = json.dumps(nearby_props, ensure_ascii=False)
     logos_json = json.dumps(logo_dict, ensure_ascii=False)
+    
+    # Selected base tile URL based on tile_style parameter
+    if "ดาวเทียม" in tile_style or "satellite" in tile_style.lower():
+        default_base = "satellite"
+    elif "มืด" in tile_style or "dark" in tile_style.lower():
+        default_base = "dark"
+    elif "สว่าง" in tile_style or "light" in tile_style.lower():
+        default_base = "light"
+    else:
+        default_base = "street"
+        
+    # Determine active color mode code
+    if "ประเภททรัพย์" in color_mode:
+        active_color_mode_code = "property_type"
+    elif "ราคา" in color_mode:
+        active_color_mode_code = "price_level"
+    else:
+        active_color_mode_code = "company"
     
     html = f"""
     <!DOCTYPE html>
@@ -955,8 +989,8 @@ def render_tab3_radius_leaflet_map_html(inp_lat, inp_lng, search_radius_km, near
                 height: 34px;
                 background: #ffffff;
                 border-radius: 50%;
-                border: 2px solid #ffffff;
-                box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
+                border: 2.5px solid #3b82f6;
+                box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
                 transition: transform 0.2s ease, box-shadow 0.2s ease;
                 cursor: pointer;
                 overflow: hidden;
@@ -965,7 +999,7 @@ def render_tab3_radius_leaflet_map_html(inp_lat, inp_lng, search_radius_km, near
             }}
             .logo-marker-pin:hover {{
                 transform: scale(1.3);
-                box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+                box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
                 z-index: 1000 !important;
             }}
             .logo-marker-pin img {{
@@ -976,7 +1010,26 @@ def render_tab3_radius_leaflet_map_html(inp_lat, inp_lng, search_radius_km, near
                 object-fit: contain;
                 display: block;
                 margin: 0 auto;
-                transform: translateY(-1px);
+            }}
+            .type-marker-pin {{
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                width: 32px;
+                height: 32px;
+                border-radius: 50%;
+                border: 2px solid #ffffff;
+                box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
+                transition: transform 0.2s ease;
+                cursor: pointer;
+                font-size: 15px;
+                box-sizing: border-box;
+                color: #ffffff;
+            }}
+            .type-marker-pin:hover {{
+                transform: scale(1.35);
+                box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+                z-index: 1000 !important;
             }}
             .ref-marker-pin {{
                 display: flex;
@@ -1031,28 +1084,53 @@ def render_tab3_radius_leaflet_map_html(inp_lat, inp_lng, search_radius_km, near
             .leaflet-tooltip-top:before {{
                 border-top-color: rgba(15, 23, 42, 0.96) !important;
             }}
-            .prop-badge {{
-                display: inline-block;
-                padding: 2px 7px;
-                border-radius: 6px;
-                font-size: 11px;
-                font-weight: 700;
-                letter-spacing: 0.02em;
+            .map-legend-box {{
+                background: rgba(15, 23, 42, 0.88);
+                backdrop-filter: blur(10px);
+                border: 1px solid rgba(255, 255, 255, 0.18);
+                color: #ffffff;
+                padding: 10px 14px;
+                border-radius: 12px;
+                font-size: 11.5px;
+                box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+                max-height: 240px;
+                overflow-y: auto;
+                line-height: 1.5;
             }}
-            .prop-badge-co {{
-                background: rgba(99, 102, 241, 0.25);
-                color: #a5b4fc;
-                border: 1px solid rgba(99, 102, 241, 0.4);
+            .map-legend-title {{
+                font-weight: 800;
+                font-size: 12px;
+                margin-bottom: 6px;
+                color: #38bdf8;
+                border-bottom: 1px solid rgba(255,255,255,0.15);
+                padding-bottom: 4px;
             }}
-            .prop-badge-sale {{
-                background: rgba(16, 185, 129, 0.2);
-                color: #6ee7b7;
-                border: 1px solid rgba(16, 185, 129, 0.35);
+            .map-legend-item {{
+                display: flex;
+                align-items: center;
+                gap: 7px;
+                margin-bottom: 3px;
             }}
-            .prop-badge-dist {{
-                background: rgba(244, 63, 94, 0.2);
-                color: #fda4af;
-                border: 1px solid rgba(244, 63, 94, 0.35);
+            .map-legend-color {{
+                width: 13px;
+                height: 13px;
+                border-radius: 50%;
+                border: 1.5px solid #ffffff;
+                flex-shrink: 0;
+            }}
+            .leaflet-control-layers {{
+                background: rgba(15, 23, 42, 0.88) !important;
+                backdrop-filter: blur(10px) !important;
+                border: 1px solid rgba(255, 255, 255, 0.2) !important;
+                color: #ffffff !important;
+                border-radius: 10px !important;
+                font-family: 'Sarabun', 'Outfit', sans-serif !important;
+                font-size: 12px !important;
+            }}
+            .leaflet-control-layers-base label {{
+                color: #ffffff !important;
+                margin-bottom: 3px !important;
+                cursor: pointer !important;
             }}
         </style>
     </head>
@@ -1064,12 +1142,73 @@ def render_tab3_radius_leaflet_map_html(inp_lat, inp_lng, search_radius_km, near
                 attributionControl: false
             }}).setView([{inp_lat}, {inp_lng}], 13);
 
-            L.tileLayer('{tiles_url}', {{
-                maxZoom: 19
-            }}).addTo(map);
+            // Base Tile Layers
+            var streetLayer = L.tileLayer('https://{{s}}.basemaps.cartocdn.com/rastertiles/voyager/{{z}}/{{x}}/{{y}}{{r}}.png', {{ maxZoom: 19 }});
+            var osmLayer = L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{ maxZoom: 19 }});
+            var satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{{z}}/{{y}}/{{x}}', {{ maxZoom: 19 }});
+            var darkLayer = L.tileLayer('https://{{s}}.basemaps.cartocdn.com/dark_all/{{z}}/{{x}}/{{y}}{{r}}.png', {{ maxZoom: 19 }});
+            var lightLayer = L.tileLayer('https://{{s}}.basemaps.cartocdn.com/light_all/{{z}}/{{x}}/{{y}}{{r}}.png', {{ maxZoom: 19 }});
+
+            // Set default base layer
+            var defaultBaseKey = "{default_base}";
+            if (defaultBaseKey === "satellite") {{
+                satLayer.addTo(map);
+            }} else if (defaultBaseKey === "dark") {{
+                darkLayer.addTo(map);
+            }} else if (defaultBaseKey === "light") {{
+                lightLayer.addTo(map);
+            }} else {{
+                streetLayer.addTo(map);
+            }}
+
+            // Add Leaflet Layer Switcher Control
+            var baseMaps = {{
+                "🗺️ แผนที่มาตรฐาน (Street)": streetLayer,
+                "🌐 OpenStreetMap": osmLayer,
+                "🛰️ ภาพถ่ายดาวเทียม (Satellite)": satLayer,
+                "🌙 โหมดมืด (Dark Canvas)": darkLayer,
+                "☀️ โหมดสว่าง (Light Canvas)": lightLayer
+            }};
+            L.control.layers(baseMaps, null, {{ position: 'topright' }}).addTo(map);
 
             var logos = {logos_json};
             var properties = {props_json};
+            var colorMode = "{active_color_mode_code}";
+
+            // Color Palettes
+            var companyColors = {{
+                "LED": "#0891b2", "SAM": "#10b981", "BAM": "#3b82f6", "Chayo555": "#f97316", "Chayo": "#f97316",
+                "GHB": "#ca8a04", "KBANK": "#059669", "KTB": "#0284c7", "SCB": "#7e22ce", "GSB": "#eb1985",
+                "DDproperty": "#a855f7", "Livinginsider": "#14b8a6", "NaYoo": "#8b5cf6", "ZmyHome": "#ec4899", "Baania": "#f59e0b"
+            }};
+
+            var propTypeColors = {{
+                "บ้านเดี่ยว": "#3b82f6", "ห้องชุดพักอาศัย": "#eab308", "คอนโด": "#eab308", "คอนโดมิเนียม": "#eab308",
+                "ทาวน์เฮ้าส์": "#10b981", "ทาวน์โฮม": "#10b981", "ที่ดินเปล่า": "#06b6d4", "ที่ดิน": "#06b6d4",
+                "อาคารพาณิชย์": "#a855f7", "โรงงาน/โกดัง": "#f97316", "อพาร์ทเมนท์": "#ec4899", "บ้านแฝด": "#6366f1"
+            }};
+
+            var propTypeIcons = {{
+                "บ้านเดี่ยว": "🏡", "ห้องชุดพักอาศัย": "🏢", "คอนโด": "🏢", "คอนโดมิเนียม": "🏢",
+                "ทาวน์เฮ้าส์": "🏘️", "ทาวน์โฮม": "🏘️", "ที่ดินเปล่า": "🏞️", "ที่ดิน": "🏞️",
+                "อาคารพาณิชย์": "🏬", "โรงงาน/โกดัง": "🏭", "อพาร์ทเมนท์": "🏨", "บ้านแฝด": "🏡"
+            }};
+
+            function getPriceColor(priceNum) {{
+                if (!priceNum || priceNum <= 0) return "#64748b";
+                if (priceNum < 1000000) return "#10b981";       // < 1M: Green
+                if (priceNum < 3000000) return "#06b6d4";       // 1M-3M: Cyan
+                if (priceNum < 5000000) return "#3b82f6";       // 3M-5M: Blue
+                if (priceNum < 10000000) return "#f59e0b";      // 5M-10M: Amber
+                if (priceNum < 20000000) return "#f97316";      // 10M-20M: Orange
+                return "#ef4444";                                // > 20M: Red
+            }}
+
+            function parseRawPrice(priceStr) {{
+                if (!priceStr) return 0;
+                var num = parseFloat(priceStr.toString().replace(/[^0-9.]/g, ''));
+                return isNaN(num) ? 0 : num;
+            }}
 
             // 1. Search Radius Buffer Circle
             var radiusCircle = L.circle([{inp_lat}, {inp_lng}], {{
@@ -1093,21 +1232,58 @@ def render_tab3_radius_leaflet_map_html(inp_lat, inp_lng, search_radius_km, near
             refMarker.bindPopup('<div style="font-size:14px; font-weight:800; color:#ef4444; margin-bottom:3px;">🎯 จุดอ้างอิงของคุณ</div><div style="font-size:12px; color:#94a3b8;">📍 จุดศูนย์กลางการค้นหารัศมี ({search_radius_km} กม.)</div><div style="font-size:11px; color:#cbd5e1; margin-top:3px;">🌐 พิกัด: {inp_lat:.5f}, {inp_lng:.5f}</div>');
             refMarker.bindTooltip('🎯 จุดอ้างอิง ({search_radius_km} กม.)', {{ direction: 'top', offset: [0, -22] }});
 
-            // 3. Company Logo Pins for each property found
+            // Counters for legend
+            var legendStats = {{}};
+
+            // 3. Property Pins with dynamic style
             properties.forEach(function(p) {{
                 if (!p.lat || !p.lon) return;
                 var comp = p.company || 'BAM';
-                var logoUrl = logos[comp] || logos[comp.toLowerCase()] || '';
-                
-                var logoHtml = logoUrl ? '<img src="' + logoUrl + '" alt="' + comp + '" />' : '<span style="font-weight:800; font-size:11px; color:#0f172a;">' + comp.substring(0,3) + '</span>';
-                
-                var customIcon = L.divIcon({{
-                    className: 'custom-logo-icon',
-                    html: '<div class="logo-marker-pin">' + logoHtml + '</div>',
-                    iconSize: [34, 34],
-                    iconAnchor: [17, 17],
-                    popupAnchor: [0, -17]
-                }});
+                var pType = p.type || 'อื่นๆ';
+                var rawP = parseRawPrice(p.price);
+                var compColor = companyColors[comp] || '#64748b';
+                var typeColor = propTypeColors[pType] || '#64748b';
+                var priceColor = getPriceColor(rawP);
+
+                var customIcon;
+
+                if (colorMode === "property_type") {{
+                    var iconEmoji = propTypeIcons[pType] || '📌';
+                    var htmlMarker = '<div class="type-marker-pin" style="background:' + typeColor + ';">' + iconEmoji + '</div>';
+                    customIcon = L.divIcon({{
+                        className: 'custom-type-icon',
+                        html: htmlMarker,
+                        iconSize: [32, 32],
+                        iconAnchor: [16, 16],
+                        popupAnchor: [0, -16]
+                    }});
+                    legendStats[pType] = (legendStats[pType] || 0) + 1;
+                }} else if (colorMode === "price_level") {{
+                    var priceTier = rawP < 1000000 ? "< 1M" : (rawP < 3000000 ? "1M - 3M" : (rawP < 5000000 ? "3M - 5M" : (rawP < 10000000 ? "5M - 10M" : (rawP < 20000000 ? "10M - 20M" : "> 20M"))));
+                    var htmlMarker = '<div class="type-marker-pin" style="background:' + priceColor + '; font-size:12px; font-weight:800;">฿</div>';
+                    customIcon = L.divIcon({{
+                        className: 'custom-price-icon',
+                        html: htmlMarker,
+                        iconSize: [32, 32],
+                        iconAnchor: [16, 16],
+                        popupAnchor: [0, -16]
+                    }});
+                    legendStats[priceTier] = (legendStats[priceTier] || 0) + 1;
+                }} else {{
+                    // Default: By Company Logo & Color
+                    var logoUrl = logos[comp] || logos[comp.toLowerCase()] || '';
+                    var logoHtml = logoUrl ? '<img src="' + logoUrl + '" alt="' + comp + '" />' : '<span style="font-weight:800; font-size:11px; color:#0f172a;">' + comp.substring(0,3) + '</span>';
+                    var htmlMarker = '<div class="logo-marker-pin" style="border-color:' + compColor + ';">' + logoHtml + '</div>';
+                    customIcon = L.divIcon({{
+                        className: 'custom-logo-icon',
+                        html: htmlMarker,
+                        iconSize: [34, 34],
+                        iconAnchor: [17, 17],
+                        popupAnchor: [0, -17]
+                    }});
+                    legendStats[comp] = (legendStats[comp] || 0) + 1;
+                }}
+
                 var locStr = [p.subdist, p.district, p.province].filter(Boolean).join(', ');
 
                 var popupContent = '<div style="font-size: 13px; padding: 2px; min-width: 230px;">' +
@@ -1142,6 +1318,37 @@ def render_tab3_radius_leaflet_map_html(inp_lat, inp_lng, search_radius_km, near
                 marker.bindPopup(popupContent);
                 marker.bindTooltip(tooltipContent, {{ direction: 'top', offset: [0, -17] }});
             }});
+
+            // 4. Add Dynamic Map Legend Control
+            var legendControl = L.control({{ position: 'bottomright' }});
+            legendControl.onAdd = function(map) {{
+                var div = L.DomUtil.create('div', 'map-legend-box');
+                var titleText = colorMode === "property_type" ? "🏠 ประเภททรัพย์" : (colorMode === "price_level" ? "💰 ระดับราคา" : "🏢 บริษัททรัพย์สิน");
+                var html = '<div class="map-legend-title">' + titleText + ' (พบในรัศมี)</div>';
+
+                var priceColorsMap = {{
+                    "< 1M": "#10b981", "1M - 3M": "#06b6d4", "3M - 5M": "#3b82f6",
+                    "5M - 10M": "#f59e0b", "10M - 20M": "#f97316", "> 20M": "#ef4444"
+                }};
+
+                for (var key in legendStats) {{
+                    var dotColor = "#64748b";
+                    if (colorMode === "property_type") {{
+                        dotColor = propTypeColors[key] || "#64748b";
+                    }} else if (colorMode === "price_level") {{
+                        dotColor = priceColorsMap[key] || "#64748b";
+                    }} else {{
+                        dotColor = companyColors[key] || "#64748b";
+                    }}
+                    html += '<div class="map-legend-item">' +
+                        '<span class="map-legend-color" style="background:' + dotColor + ';"></span>' +
+                        '<span><b>' + key + '</b> (' + legendStats[key] + ')</span>' +
+                        '</div>';
+                }}
+                div.innerHTML = html;
+                return div;
+            }};
+            legendControl.addTo(map);
 
             // Auto-fit view to radius circle with padding
             var group = new L.featureGroup([radiusCircle]);
@@ -1252,7 +1459,9 @@ def load_properties_data(data_version=0):
                 "โครงการที่พักอาศัย/พาณิชยกรรม": "อื่นๆ",
                 "อสังหาริมทรัพย์อื่นๆ": "อื่นๆ",
             }
-            df['ประเภททรัพย์'] = df['ประเภททรัพย์'].astype(str).str.strip().replace(prop_type_map)
+            u_types = df['ประเภททรัพย์'].dropna().unique()
+            type_lut = {t: prop_type_map.get(str(t).strip(), str(t).strip()) for t in u_types}
+            df['ประเภททรัพย์'] = df['ประเภททรัพย์'].map(type_lut).fillna('อื่นๆ')
             
             # Resolve any mixed types (e.g. บ้านเดี่ยว/ทาวน์เฮาส์) based on title/project name
             mixed_mask = df['ประเภททรัพย์'].astype(str).str.contains('บ้านเดี่ยว/ทาวน์', na=False)
@@ -1301,15 +1510,22 @@ def load_properties_data(data_version=0):
                 'ขายดาวน์': 'ขาย',
                 'ขาย/เช่า': 'ขาย',
             }
-            df['ประเภทการขาย'] = df['ประเภทการขาย'].astype(str).str.strip().replace(sale_map)
+            u_sales = df['ประเภทการขาย'].dropna().unique()
+            sale_lut = {s: sale_map.get(str(s).strip(), str(s).strip()) for s in u_sales}
+            df['ประเภทการขาย'] = df['ประเภทการขาย'].map(sale_lut).fillna('ขาย')
+
+        if 'ชื่อโครงการ' in df.columns:
+            u_proj = df['ชื่อโครงการ'].dropna().unique()
+            p_lut = {p: clean_project_name(p) for p in u_proj}
+            df['ชื่อโครงการ'] = df['ชื่อโครงการ'].map(p_lut)
 
         if 'ชื่อประกาศ' not in df.columns:
             if 'ชื่อโครงการ' in df.columns:
-                df['ชื่อประกาศ'] = df['ชื่อโครงการ'].astype(object).fillna('ไม่มีชื่อ').astype(str)
+                df['ชื่อประกาศ'] = df['ชื่อโครงการ'].fillna('ไม่มีชื่อ').astype(str)
             else:
-                df['ชื่อประกาศ'] = df['รหัสทรัพย์'].astype(object).fillna('ทรัพย์สิน NPA').astype(str)
+                df['ชื่อประกาศ'] = df['รหัสทรัพย์'].fillna('ทรัพย์สิน NPA').astype(str)
         else:
-            df['ชื่อประกาศ'] = df['ชื่อประกาศ'].astype(object).fillna('ไม่มีชื่อ').astype(str)
+            df['ชื่อประกาศ'] = df['ชื่อประกาศ'].fillna('ไม่มีชื่อ').astype(str)
 
         if 'ลิงก์' not in df.columns:
             df['ลิงก์'] = ""
@@ -1354,7 +1570,12 @@ def load_properties_data(data_version=0):
             df['ราคาต่อตารางเมตร'] = pd.to_numeric(df['ราคาต่อตารางเมตร'], errors='coerce')
 
         if 'จังหวัด' in df.columns:
-            df['ภาค'] = df['จังหวัด'].apply(get_region_by_province)
+            df['ภาค'] = df['จังหวัด'].map(PROVINCE_TO_REGION).fillna('อื่นๆ / ไม่ระบุ')
+
+        # Convert repeated string columns to category for 5x faster filtering and 70% less RAM
+        for col in ['บริษัท', 'ประเภททรัพย์', 'จังหวัด', 'ภาค', 'ประเภทการขาย']:
+            if col in df.columns:
+                df[col] = df[col].astype('category')
 
         return df
 
@@ -1366,6 +1587,104 @@ def load_properties_data(data_version=0):
     except Exception as e:
         st.error(f"❌ เกิดข้อผิดพลาดในการโหลดไฟล์ Parquet: {e}")
         return None
+
+@st.cache_data(show_spinner=False)
+def get_cached_sidebar_metadata(_df):
+    """Pre-computes and caches unique values for sidebar dropdowns and pills to prevent recalculation overhead."""
+    if _df is None or _df.empty:
+        return {}
+    
+    co_counts = _df['บริษัท'].value_counts().to_dict()
+    raw_comps = [str(c) for c in _df['บริษัท'].dropna().unique() if str(c).strip() not in ['', 'nan', 'None']]
+    COMPANY_PRIORITY = ["LED", "SAM", "BAM", "Chayo555", "Chayo", "GHB", "KBANK", "KTB", "SCB", "GSB", "DDproperty", "Livinginsider", "NaYoo", "ZmyHome", "Baania"]
+    companies_list = sorted(
+        raw_comps,
+        key=lambda c: (COMPANY_PRIORITY.index(c) if c in COMPANY_PRIORITY else 999, c)
+    )
+    if not companies_list:
+        companies_list = ["LED", "SAM", "BAM", "Chayo555", "GHB", "KBANK", "KTB", "SCB", "GSB", "DDproperty", "Livinginsider", "NaYoo", "ZmyHome", "Baania"]
+
+    PROMINENT_TYPES = [
+        "บ้านเดี่ยว", "ห้องชุดพักอาศัย", "ทาวน์เฮ้าส์", "ที่ดินเปล่า",
+        "ที่ดินพร้อมสิ่งปลูกสร้าง", "อาคารพาณิชย์", "วิลล่า", "โรงงาน/โกดัง", "บ้านแฝด",
+        "อพาร์ทเมนท์", "อาคารสำนักงาน", "โรงแรม/รีสอร์ท", "ห้องชุดพาณิชยกรรม/สำนักงาน"
+    ]
+    type_counts = _df['ประเภททรัพย์'].value_counts().to_dict()
+    common_types = [t for t in PROMINENT_TYPES if t in type_counts]
+    for t in type_counts:
+        if t not in common_types and type_counts[t] >= 80 and t != "อื่นๆ":
+            common_types.append(t)
+    rare_types = [t for t in type_counts if t not in common_types]
+
+    sale_type_counts = {}
+    if 'ประเภทการขาย' in _df.columns:
+        s_series = _df['ประเภทการขาย'].dropna().astype(str).str.strip()
+        sale_type_counts = s_series[~s_series.isin(["", "nan", "None"])].value_counts().to_dict()
+
+    region_counts = {}
+    if 'ภาค' in _df.columns:
+        r_series = _df['ภาค'].dropna().astype(str).str.strip()
+        region_counts = r_series.value_counts().to_dict()
+
+    provinces_pool = sorted([str(p) for p in _df['จังหวัด'].dropna().unique() if str(p).strip() not in ['', 'nan', 'None']])
+    if "ไม่ระบุ" in provinces_pool:
+        provinces_pool.remove("ไม่ระบุ")
+        provinces_pool.append("ไม่ระบุ")
+
+    # Pre-compute full district lookup (province -> sorted list of districts)
+    dist_cols = _df[['อำเภอ', 'จังหวัด']].drop_duplicates().dropna()
+    dist_cols = dist_cols[dist_cols['อำเภอ'].astype(str).str.strip() != ""]
+    district_by_province = {}
+    for a, p in zip(dist_cols['อำเภอ'], dist_cols['จังหวัด']):
+        p_str, a_str = str(p), str(a)
+        if p_str not in district_by_province:
+            district_by_province[p_str] = []
+        district_by_province[p_str].append(a_str)
+    for p_str in district_by_province:
+        district_by_province[p_str] = sorted(set(district_by_province[p_str]))
+
+    all_districts_formatted = sorted(
+        (dist_cols['อำเภอ'].astype(str) + " (" + dist_cols['จังหวัด'].astype(str) + ")").unique().tolist()
+    )
+
+    # Pre-compute subdistrict lookup per (province, district) key
+    sub_cols = _df[['ตำบล', 'อำเภอ', 'จังหวัด']].drop_duplicates().dropna()
+    sub_cols = sub_cols[sub_cols['ตำบล'].astype(str).str.strip() != ""]
+    sub_formatted = sub_cols['ตำบล'].astype(str) + " (" + sub_cols['อำเภอ'].astype(str) + ", " + sub_cols['จังหวัด'].astype(str) + ")"
+    sub_cols['formatted'] = sub_formatted
+
+    subdistrict_by_province = {}
+    for p, f in zip(sub_cols['จังหวัด'], sub_cols['formatted']):
+        p_str = str(p)
+        if p_str not in subdistrict_by_province:
+            subdistrict_by_province[p_str] = []
+        subdistrict_by_province[p_str].append(f)
+    for p_str in subdistrict_by_province:
+        subdistrict_by_province[p_str] = sorted(set(subdistrict_by_province[p_str]))
+
+    subdistrict_by_district = {}
+    for p, d, f in zip(sub_cols['จังหวัด'], sub_cols['อำเภอ'], sub_cols['formatted']):
+        k = (str(p), str(d))
+        if k not in subdistrict_by_district:
+            subdistrict_by_district[k] = []
+        subdistrict_by_district[k].append(f)
+    for k in subdistrict_by_district:
+        subdistrict_by_district[k] = sorted(set(subdistrict_by_district[k]))
+
+    return {
+        'co_counts': co_counts,
+        'companies_list': companies_list,
+        'common_types': common_types,
+        'rare_types': rare_types,
+        'type_counts': type_counts,
+        'sale_type_counts': sale_type_counts,
+        'region_counts': region_counts,
+        'unique_provinces': provinces_pool,
+        'district_by_province': district_by_province,
+        'all_districts_formatted': all_districts_formatted,
+        'subdistrict_by_province': subdistrict_by_province,
+        'subdistrict_by_district': subdistrict_by_district,
+    }
 
 def get_base_map_html():
     try:
@@ -1391,21 +1710,12 @@ if "imported_custom_df" in st.session_state and st.session_state["imported_custo
 with st.sidebar:
     col_side_title, col_side_theme = st.columns([0.72, 0.28])
     with col_side_title:
-        logo_path = Path("assets/logo.png")
-        if logo_path.exists():
-            with open(logo_path, "rb") as f:
-                side_logo_b64 = base64.b64encode(f.read()).decode("utf-8")
-            st.markdown(f'''
-            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 2px;">
-                <img src="data:image/png;base64,{side_logo_b64}" style="width: 58px; height: 58px; object-fit: contain; filter: drop-shadow(0 4px 12px rgba(37, 99, 235, 0.25));">
-                <div>
-                    <div style="font-size: 1.35rem; font-weight: 800; color: #2563eb; line-height: 1.1; letter-spacing: -0.5px;">All Asset</div>
-                    <div style="font-size: 0.68rem; font-weight: 700; color: #64748b; letter-spacing: 0.8px;">NPA DASHBOARD</div>
-                </div>
-            </div>
-            ''', unsafe_allow_html=True)
-        else:
-            st.markdown('<h3 style="color: #2563eb; margin: 0; padding-top: 4px;"><i class="fa fa-home"></i> All Asset</h3>', unsafe_allow_html=True)
+        st.markdown('''
+        <div style="margin-bottom: 2px; padding-top: 4px;">
+            <div style="font-size: 1.45rem; font-weight: 800; color: #2563eb; line-height: 1.1; letter-spacing: -0.5px;">All Asset</div>
+            <div style="font-size: 0.68rem; font-weight: 700; color: #64748b; letter-spacing: 0.8px;">NPA DASHBOARD</div>
+        </div>
+        ''', unsafe_allow_html=True)
     with col_side_theme:
         is_dark_mode = st.toggle("🌙 มืด", value=False, key="app_theme_mode", help="สลับระหว่างโหมดมืด (Dark Mode) และโหมดสว่าง (Light Mode)")
     
@@ -1444,64 +1754,34 @@ with st.sidebar:
     if df_raw is not None and not df_raw.empty:
         search_query = ""
         
-        # Company Filter (Pills) with dynamic list from data (Prioritize LED, SAM, BAM, Chayo555 first)
-        co_counts = df_raw['บริษัท'].value_counts()
-        raw_comps = [str(c) for c in df_raw['บริษัท'].dropna().unique() if str(c).strip() not in ['', 'nan', 'None']]
-        COMPANY_PRIORITY = ["LED", "SAM", "BAM", "Chayo555", "Chayo", "GHB", "KBANK", "KTB", "SCB", "GSB", "DDproperty", "Livinginsider", "NaYoo", "ZmyHome", "Baania"]
-        companies_list = sorted(
-            raw_comps,
-            key=lambda c: (COMPANY_PRIORITY.index(c) if c in COMPANY_PRIORITY else 999, c)
-        )
-        if not companies_list:
-            companies_list = ["LED", "SAM", "BAM", "Chayo555", "GHB", "KBANK", "KTB", "SCB", "GSB", "DDproperty", "Livinginsider", "NaYoo", "ZmyHome", "Baania"]
+        # Pre-cached metadata for instant zero-lag sidebar rendering
+        side_meta = get_cached_sidebar_metadata(df_raw)
+        co_counts = side_meta.get('co_counts', {})
+        companies_list = side_meta.get('companies_list', [])
         
-        # Ensure session state automatically includes all available companies
-        if "filter_companies" not in st.session_state or not st.session_state["filter_companies"]:
-            st.session_state["filter_companies"] = companies_list
-        else:
-            curr_sel = list(st.session_state["filter_companies"])
-            missing_new = [c for c in companies_list if c not in curr_sel]
-            if missing_new and len(curr_sel) >= len(companies_list) - len(missing_new):
-                st.session_state["filter_companies"] = [c for c in companies_list if c in curr_sel or c in missing_new]
-            else:
-                sanitize_session_state("filter_companies", companies_list)
+        sanitize_session_state("filter_companies", companies_list)
         selected_companies = st.pills(
             "บริษัททรัพย์สิน", 
             options=companies_list, 
             format_func=lambda x: f"{x} ({co_counts.get(x, 0):,})",
             selection_mode="multi", 
-            default=companies_list,
+            default=None,
             key="filter_companies"
         )
         if not selected_companies:
-            selected_companies = companies_list
+            selected_companies = []
         
-        # Property Type Filter
-        if selected_companies:
-            df_by_company = df_raw[df_raw['บริษัท'].isin(selected_companies)]
-        else:
-            df_by_company = df_raw
-            
-        # Group property types into prominent common pills and rare (เพิ่มเติม)
-        PROMINENT_TYPES = [
-            "บ้านเดี่ยว", "ห้องชุดพักอาศัย", "ทาวน์เฮ้าส์", "ที่ดินเปล่า",
-            "ที่ดินพร้อมสิ่งปลูกสร้าง", "อาคารพาณิชย์", "วิลล่า", "โรงงาน/โกดัง", "บ้านแฝด",
-            "อพาร์ทเมนท์", "อาคารสำนักงาน", "โรงแรม/รีสอร์ท", "ห้องชุดพาณิชยกรรม/สำนักงาน"
-        ]
-        type_counts = df_by_company['ประเภททรัพย์'].value_counts()
-        common_types = [t for t in PROMINENT_TYPES if t in type_counts]
-        for t in type_counts.index:
-            if t not in common_types and type_counts[t] >= 80 and t != "อื่นๆ":
-                common_types.append(t)
-                
-        rare_types = [t for t in type_counts.index if t not in common_types]
+        # Property Type Filter (using cached type distributions)
+        common_types = side_meta.get('common_types', [])
+        rare_types = side_meta.get('rare_types', [])
+        type_counts = side_meta.get('type_counts', {})
         
         display_type_keys = list(common_types)
         if len(rare_types) > 0:
             display_type_keys.append("เพิ่มเติม")
             
         sanitize_session_state("filter_types", display_type_keys)
-        rare_count_sum = sum(type_counts[t] for t in rare_types)
+        rare_count_sum = sum(type_counts.get(t, 0) for t in rare_types)
         selected_types = st.pills(
             "ประเภททรัพย์สิน", 
             options=display_type_keys, 
@@ -1517,7 +1797,7 @@ with st.sidebar:
         if "เพิ่มเติม" in selected_types:
             rare_types_sorted = list(rare_types)
             rare_types_sorted.sort()
-            rare_options = [f"{t} ({type_counts[t]:,})" for t in rare_types_sorted]
+            rare_options = [f"{t} ({type_counts.get(t, 0):,})" for t in rare_types_sorted]
             sanitize_session_state("selected_rare_types", rare_options)
             st.multiselect(
                 "เลือกประเภททรัพย์สินเพิ่มเติม",
@@ -1526,10 +1806,9 @@ with st.sidebar:
                 key="selected_rare_types"
             )
         
-        # Sale Type Filter (ประเภทการขาย) - แสดงทุกแบบที่มีในฐานข้อมูลแบบไดนามิก
-        sale_type_series = df_by_company['ประเภทการขาย'].dropna().astype(str).str.strip()
-        sale_type_counts = sale_type_series[~sale_type_series.isin(["", "nan", "None"])].value_counts()
-        available_sale_types = sale_type_counts.index.tolist()
+        # Sale Type Filter (ประเภทการขาย)
+        sale_type_counts = side_meta.get('sale_type_counts', {})
+        available_sale_types = list(sale_type_counts.keys())
         
         sanitize_session_state("filter_sale_types", available_sale_types)
         selected_sale_types = st.pills(
@@ -1544,11 +1823,10 @@ with st.sidebar:
             selected_sale_types = []
         
         # Region Filter (ภูมิภาค)
-        region_series = df_by_company['ภาค'].dropna().astype(str).str.strip() if 'ภาค' in df_by_company.columns else pd.Series(dtype=str)
-        region_counts = region_series.value_counts()
+        region_counts = side_meta.get('region_counts', {})
         all_ordered_regions = ["ภาคกลาง", "ภาคเหนือ", "ภาคตะวันออกเฉียงเหนือ", "ภาคตะวันออก", "ภาคตะวันตก", "ภาคใต้"]
         available_regions = [r for r in all_ordered_regions if r in region_counts]
-        for r in region_counts.index:
+        for r in region_counts:
             if r not in available_regions and r not in ['', 'nan', 'None', 'อื่นๆ / ไม่ระบุ']:
                 available_regions.append(r)
         if 'อื่นๆ / ไม่ระบุ' in region_counts:
@@ -1566,19 +1844,12 @@ with st.sidebar:
         
         # Province Filter (cascaded by selected regions if chosen)
         if selected_regions:
-            provinces_pool = (
-                df_by_company[df_by_company['ภาค'].isin(selected_regions)]['จังหวัด']
-                .dropna()
-                .unique()
-                .tolist()
-            )
+            provinces_pool = sorted([
+                str(p) for p in df_raw[df_raw['ภาค'].isin(selected_regions)]['จังหวัด'].dropna().unique()
+                if str(p).strip() not in ['', 'nan', 'None']
+            ])
         else:
-            provinces_pool = (
-                df_by_company['จังหวัด']
-                .dropna()
-                .unique()
-                .tolist()
-            )
+            provinces_pool = side_meta.get('unique_provinces', [])
         unique_provinces = sorted(provinces_pool)
         # Clean up province lists, removing "ไม่ระบุ" or blank
         if "ไม่ระบุ" in unique_provinces:
@@ -1587,20 +1858,28 @@ with st.sidebar:
         sanitize_session_state("selected_provinces", unique_provinces)
         selected_provinces = st.multiselect("จังหวัด", options=unique_provinces, default=[], key="selected_provinces", placeholder="เลือกจังหวัด...")
         
-        # District Filter (dynamically populate from selected provinces or regions)
+        # District Filter - use pre-cached lookup (zero recompute cost)
+        district_by_province = side_meta.get('district_by_province', {})
+        all_districts_formatted = side_meta.get('all_districts_formatted', [])
+        subdistrict_by_province = side_meta.get('subdistrict_by_province', {})
+        subdistrict_by_district = side_meta.get('subdistrict_by_district', {})
+
         if selected_provinces:
-            filtered_provinces_df = df_by_company[df_by_company['จังหวัด'].isin(selected_provinces)]
+            unique_districts_formatted = sorted(set(
+                d for prov in selected_provinces
+                for d in [f"{dist} ({prov})" for dist in district_by_province.get(prov, [])]
+            ))
         elif selected_regions:
-            filtered_provinces_df = df_by_company[df_by_company['ภาค'].isin(selected_regions)]
+            region_provs = [p for p in side_meta.get('unique_provinces', []) if get_region_by_province(p) in selected_regions]
+            unique_districts_formatted = sorted(set(
+                d for prov in region_provs
+                for d in [f"{dist} ({prov})" for dist in district_by_province.get(prov, [])]
+            ))
         else:
-            filtered_provinces_df = df_by_company
-            
-        dist_df = filtered_provinces_df[['อำเภอ', 'จังหวัด']].drop_duplicates().dropna()
-        dist_df = dist_df[dist_df['อำเภอ'].astype(str).str.strip() != ""]
-        unique_districts_formatted = (dist_df['อำเภอ'].astype(str) + " (" + dist_df['จังหวัด'].astype(str) + ")").tolist()
-        unique_districts_formatted.sort()
+            unique_districts_formatted = all_districts_formatted
+
         selected_districts_formatted = st.multiselect("อำเภอ / เขต", options=unique_districts_formatted, default=[], placeholder="เลือกอำเภอ / เขต...")
-        
+
         # Parse selected districts into tuples for subdistrict option filtering
         selected_districts_tuples = []
         for d_f in selected_districts_formatted:
@@ -1609,31 +1888,30 @@ with st.sidebar:
                 d_name = parts[0].strip()
                 p_name = parts[1].replace(")", "").strip()
                 selected_districts_tuples.append((d_name, p_name))
-        
-        # Subdistrict Filter (cascaded to prevent sending 17,000+ items to browser DOM)
+
+        # Subdistrict Filter - use pre-cached lookup (zero recompute cost)
         if selected_districts_tuples:
-            filtered_districts_df = filtered_provinces_df[filtered_provinces_df.set_index(['อำเภอ', 'จังหวัด']).index.isin(selected_districts_tuples)]
-            sub_df = filtered_districts_df[['ตำบล', 'อำเภอ', 'จังหวัด']].drop_duplicates().dropna()
-            sub_df = sub_df[sub_df['ตำบล'].astype(str).str.strip() != ""]
-            unique_subdistricts_formatted = (sub_df['ตำบล'].astype(str) + " (" + sub_df['อำเภอ'].astype(str) + ", " + sub_df['จังหวัด'].astype(str) + ")").tolist()
-            unique_subdistricts_formatted.sort()
+            unique_subdistricts_formatted = sorted(set(
+                s for (d_name, p_name) in selected_districts_tuples
+                for s in subdistrict_by_district.get((p_name, d_name), [])
+            ))
             selected_subdistricts_formatted = st.multiselect("ตำบล / แขวง", options=unique_subdistricts_formatted, default=[])
         elif selected_provinces:
-            sub_df = filtered_provinces_df[['ตำบล', 'อำเภอ', 'จังหวัด']].drop_duplicates().dropna()
-            sub_df = sub_df[sub_df['ตำบล'].astype(str).str.strip() != ""]
-            unique_subdistricts_formatted = (sub_df['ตำบล'].astype(str) + " (" + sub_df['อำเภอ'].astype(str) + ", " + sub_df['จังหวัด'].astype(str) + ")").tolist()
-            unique_subdistricts_formatted.sort()
+            unique_subdistricts_formatted = sorted(set(
+                s for prov in selected_provinces
+                for s in subdistrict_by_province.get(prov, [])
+            ))
             selected_subdistricts_formatted = st.multiselect("ตำบล / แขวง", options=unique_subdistricts_formatted, default=[], placeholder="เลือกตำบลในจังหวัดที่เลือก...")
         else:
             selected_subdistricts_formatted = st.multiselect(
-                "ตำบล / แขวง", 
-                options=[], 
-                default=[], 
-                placeholder="💡 เลือกจังหวัดหรืออำเภอก่อนเพื่อค้นหาตำบล"
+                "ตำบล / แขวง",
+                options=[],
+                default=[],
+                placeholder="เลือกจังหวัดหรืออำเภอก่อนเพื่อค้นหาตำบล"
             )
         
         # Price Filter - อิงราคาจริงที่มีในฐานข้อมูล
-        valid_prices = df_by_company['ราคา'].dropna()
+        valid_prices = df_raw['ราคา'].dropna()
         valid_prices = valid_prices[valid_prices > 0]
         min_p, max_p = 0.0, 100000000.0
         if not valid_prices.empty:
@@ -1663,9 +1941,8 @@ with st.sidebar:
                 st.session_state["sidebar_price_preset"] = "ทั้งหมด"
 
             selected_preset = st.pills(
-                "⚡ กดเลือกช่วงราคาด่วน",
+                "กดเลือกช่วงราคาด่วน",
                 options=price_presets,
-                default="ทั้งหมด",
                 key="sidebar_price_preset"
             )
 
@@ -2375,7 +2652,7 @@ tab1, tab2, tab3, tab4, tab_monthly = st.tabs([
     "📈 สถิติ & วิเคราะห์ (Analytics)", 
     "🔍 เปรียบเทียบตำแหน่ง (Comparison)",
     "📋 รายการทรัพย์สิน (Property Listing)",
-    "📊 ติดตามการเปลี่ยนแปลง (Period Tracking / Inflow-Outflow)"
+    "📊 ติดตามการเปลี่ยนแปลง (Period Tracking)"
 ])
 
 # ----- TAB 1: BUBBLE & MAP -----
@@ -2917,10 +3194,10 @@ with tab2:
         # SUB-TAB 3: การกระจายตัวพอร์ตโฟลิโอรายบริษัท (Company Portfolio Deep Dive)
         # -----------------------------------------------------------------
         with sub_tab3:
-            col_head1, col_head2 = st.columns([3, 2])
+            col_head1, col_head2, col_head3 = st.columns([1.8, 1.1, 1.1])
             with col_head1:
                 st.markdown("#### 📊 การกระจายตัวเชิงลึกของพอร์ตโฟลิโอรายบริษัท")
-                st.caption("วิเคราะห์การกระจายตัวตามช่วงราคา และการกระจายราคาของ 6 ประเภททรัพย์หลักของบริษัทที่เลือก")
+                st.caption("วิเคราะห์และเปรียบเทียบการกระจายตัวตามช่วงราคา และประเภททรัพย์สินหลักระหว่างบริษัท")
             
             # Extract list of available companies
             comp_list_avail = []
@@ -2935,14 +3212,32 @@ with tab2:
                 key=lambda c: (PREFERRED_COMPANY_ORDER.index(c) if c in PREFERRED_COMPANY_ORDER else 999, c)
             )
             
-            default_idx = comp_options.index("SAM") if "SAM" in comp_options else 0
+            default_idx1 = comp_options.index("SAM") if "SAM" in comp_options else 0
             
             with col_head2:
                 selected_company = st.selectbox(
-                    "🏢 เลือกบริษัทเพื่อวิเคราะห์พอร์ตโฟลิโอ:",
+                    "🏢 บริษัทหลัก (Company 1):",
                     options=comp_options,
-                    index=default_idx,
+                    index=default_idx1,
                     key="tab2_subtab3_selected_company"
+                )
+                
+            comp_2_options = ["(ไม่เปรียบเทียบ - ดูบริษัทเดียว)"] + [c for c in comp_options if c != selected_company]
+            if selected_company == "SAM" and "BAM" in comp_2_options:
+                def_idx2 = comp_2_options.index("BAM")
+            elif selected_company == "BAM" and "SAM" in comp_2_options:
+                def_idx2 = comp_2_options.index("SAM")
+            elif len(comp_2_options) > 1:
+                def_idx2 = 1
+            else:
+                def_idx2 = 0
+
+            with col_head3:
+                compare_company = st.selectbox(
+                    "🏢 เปรียบเทียบกับ (Company 2):",
+                    options=comp_2_options,
+                    index=def_idx2,
+                    key="tab2_subtab3_compare_company"
                 )
                 
             # Color map matching company standard
@@ -2965,38 +3260,228 @@ with tab2:
                 "Baania": "#f59e0b"
             }
             comp_bar_color = COMP_BRAND_COLORS.get(selected_company, "#10b981")
+            comp2_bar_color = COMP_BRAND_COLORS.get(compare_company, "#3b82f6")
 
             comp_df_tab2 = df_filtered[df_filtered['บริษัท'] == selected_company].copy() if not df_filtered.empty else pd.DataFrame()
             if comp_df_tab2.empty and df_raw is not None:
                 comp_df_tab2 = df_raw[df_raw['บริษัท'] == selected_company].copy()
 
-            if comp_df_tab2.empty:
-                st.warning(f"⚠️ ไม่พบข้อมูลทรัพย์สินของ {selected_company} ในตัวกรองปัจจุบัน")
-            else:
-                PRICE_TIER_ORDER = [
-                    "< 1 ล้านบาท",
-                    "1 - 3 ล้านบาท",
-                    "3 - 5 ล้านบาท",
-                    "5 - 10 ล้านบาท",
-                    "10 - 20 ล้านบาท",
-                    "> 20 ล้านบาท"
-                ]
-                def get_price_tier(price):
-                    if pd.isna(price) or price <= 0:
-                        return "ไม่ระบุราคา"
-                    if price < 1_000_000:
-                        return "< 1 ล้านบาท"
-                    elif price < 3_000_000:
-                        return "1 - 3 ล้านบาท"
-                    elif price < 5_000_000:
-                        return "3 - 5 ล้านบาท"
-                    elif price < 10_000_000:
-                        return "5 - 10 ล้านบาท"
-                    elif price < 20_000_000:
-                        return "10 - 20 ล้านบาท"
-                    else:
-                        return "> 20 ล้านบาท"
+            PRICE_TIER_ORDER = [
+                "< 1 ล้านบาท",
+                "1 - 3 ล้านบาท",
+                "3 - 5 ล้านบาท",
+                "5 - 10 ล้านบาท",
+                "10 - 20 ล้านบาท",
+                "> 20 ล้านบาท"
+            ]
+            def get_price_tier(price):
+                if pd.isna(price) or price <= 0:
+                    return "ไม่ระบุราคา"
+                if price < 1_000_000:
+                    return "< 1 ล้านบาท"
+                elif price < 3_000_000:
+                    return "1 - 3 ล้านบาท"
+                elif price < 5_000_000:
+                    return "3 - 5 ล้านบาท"
+                elif price < 10_000_000:
+                    return "5 - 10 ล้านบาท"
+                elif price < 20_000_000:
+                    return "10 - 20 ล้านบาท"
+                else:
+                    return "> 20 ล้านบาท"
 
+            # Check if comparison mode is active
+            is_comparing = (compare_company != "(ไม่เปรียบเทียบ - ดูบริษัทเดียว)")
+            comp_df_2 = pd.DataFrame()
+            if is_comparing:
+                comp_df_2 = df_filtered[df_filtered['บริษัท'] == compare_company].copy() if not df_filtered.empty else pd.DataFrame()
+                if comp_df_2.empty and df_raw is not None:
+                    comp_df_2 = df_raw[df_raw['บริษัท'] == compare_company].copy()
+
+            if comp_df_tab2.empty and (not is_comparing or comp_df_2.empty):
+                st.warning(f"⚠️ ไม่พบข้อมูลทรัพย์สินของ {selected_company} ในตัวกรองปัจจุบัน")
+            elif is_comparing and not comp_df_2.empty:
+                # ==========================================
+                # COMPARISON MODE: Company 1 vs Company 2
+                # ==========================================
+                comp_df_tab2['Price_Tier'] = comp_df_tab2['ราคา'].apply(get_price_tier)
+                comp_df_2['Price_Tier'] = comp_df_2['ราคา'].apply(get_price_tier)
+
+                # 1. Summary KPI Comparison Cards
+                c1_cnt, c2_cnt = len(comp_df_tab2), len(comp_df_2)
+                c1_val, c2_val = comp_df_tab2['ราคา'].sum() / 1e6, comp_df_2['ราคา'].sum() / 1e6
+                c1_avg, c2_avg = (comp_df_tab2['ราคา'].mean() / 1e6) if c1_cnt > 0 else 0, (comp_df_2['ราคา'].mean() / 1e6) if c2_cnt > 0 else 0
+                c1_med, c2_med = (comp_df_tab2['ราคา'].median() / 1e6) if c1_cnt > 0 else 0, (comp_df_2['ราคา'].median() / 1e6) if c2_cnt > 0 else 0
+
+                st.markdown(f"""
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 6px; margin-bottom: 16px;">
+                    <div style="background: {'rgba(15, 23, 42, 0.6)' if is_dark_mode else '#ffffff'}; border: 1px solid rgba(0,0,0,0.08); border-radius: 10px; padding: 12px 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                        <div style="font-size: 0.78rem; font-weight: 600; color: #64748b; margin-bottom: 4px;"><i class="fa fa-boxes"></i> จำนวนทรัพย์รวม (Units)</div>
+                        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-top: 4px;">
+                            <span style="font-size: 1rem; font-weight: 700; color: {comp_bar_color};">{selected_company}: <b>{c1_cnt:,}</b></span>
+                            <span style="font-size: 1rem; font-weight: 700; color: {comp2_bar_color};">{compare_company}: <b>{c2_cnt:,}</b></span>
+                        </div>
+                    </div>
+                    <div style="background: {'rgba(15, 23, 42, 0.6)' if is_dark_mode else '#ffffff'}; border: 1px solid rgba(0,0,0,0.08); border-radius: 10px; padding: 12px 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                        <div style="font-size: 0.78rem; font-weight: 600; color: #64748b; margin-bottom: 4px;"><i class="fa fa-coins"></i> มูลค่าพอร์ตโฟลิโอรวม (MB)</div>
+                        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-top: 4px;">
+                            <span style="font-size: 1rem; font-weight: 700; color: {comp_bar_color};">{selected_company}: <b>฿{c1_val:,.0f}M</b></span>
+                            <span style="font-size: 1rem; font-weight: 700; color: {comp2_bar_color};">{compare_company}: <b>฿{c2_val:,.0f}M</b></span>
+                        </div>
+                    </div>
+                    <div style="background: {'rgba(15, 23, 42, 0.6)' if is_dark_mode else '#ffffff'}; border: 1px solid rgba(0,0,0,0.08); border-radius: 10px; padding: 12px 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                        <div style="font-size: 0.78rem; font-weight: 600; color: #64748b; margin-bottom: 4px;"><i class="fa fa-tag"></i> ราคาเฉลี่ยต่อยูนิต (Avg Price)</div>
+                        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-top: 4px;">
+                            <span style="font-size: 1rem; font-weight: 700; color: {comp_bar_color};">{selected_company}: <b>฿{c1_avg:,.2f}M</b></span>
+                            <span style="font-size: 1rem; font-weight: 700; color: {comp2_bar_color};">{compare_company}: <b>฿{c2_avg:,.2f}M</b></span>
+                        </div>
+                    </div>
+                    <div style="background: {'rgba(15, 23, 42, 0.6)' if is_dark_mode else '#ffffff'}; border: 1px solid rgba(0,0,0,0.08); border-radius: 10px; padding: 12px 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                        <div style="font-size: 0.78rem; font-weight: 600; color: #64748b; margin-bottom: 4px;"><i class="fa fa-balance-scale"></i> ราคามัธยฐาน (Median Price)</div>
+                        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-top: 4px;">
+                            <span style="font-size: 1rem; font-weight: 700; color: {comp_bar_color};">{selected_company}: <b>฿{c1_med:,.2f}M</b></span>
+                            <span style="font-size: 1rem; font-weight: 700; color: {comp2_bar_color};">{compare_company}: <b>฿{c2_med:,.2f}M</b></span>
+                        </div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+                col_c1, col_c2 = st.columns(2)
+                with col_c1:
+                    # Chart 1: Grouped Price Tier Bar
+                    tier1 = comp_df_tab2.groupby('Price_Tier', observed=False).agg(count=('ราคา', 'count'), val=('ราคา', 'sum')).reindex(PRICE_TIER_ORDER).reset_index().fillna(0)
+                    tier2 = comp_df_2.groupby('Price_Tier', observed=False).agg(count=('ราคา', 'count'), val=('ราคา', 'sum')).reindex(PRICE_TIER_ORDER).reset_index().fillna(0)
+
+                    fig_tier_comp = go.Figure()
+                    fig_tier_comp.add_trace(go.Bar(
+                        x=tier1['Price_Tier'],
+                        y=tier1['count'],
+                        name=f'{selected_company} (รายการ)',
+                        marker_color=comp_bar_color,
+                        text=[f"{int(c):,}" for c in tier1['count']],
+                        textposition='auto'
+                    ))
+                    fig_tier_comp.add_trace(go.Bar(
+                        x=tier2['Price_Tier'],
+                        y=tier2['count'],
+                        name=f'{compare_company} (รายการ)',
+                        marker_color=comp2_bar_color,
+                        text=[f"{int(c):,}" for c in tier2['count']],
+                        textposition='auto'
+                    ))
+                    fig_tier_comp.update_layout(
+                        title=dict(text=f'🏷️ เปรียบเทียบจำนวนทรัพย์ตามช่วงราคา ({selected_company} vs {compare_company})', font=dict(size=14, family="Outfit")),
+                        barmode='group',
+                        yaxis=dict(title='จำนวนทรัพย์ (รายการ)', showgrid=False),
+                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                        height=450,
+                        margin=dict(t=40, b=10, l=10, r=10),
+                        template=plotly_template
+                    )
+                    st.plotly_chart(style_plotly_fig(fig_tier_comp), width="stretch", theme=None)
+
+                with col_c2:
+                    # Chart 2: Grouped Box Plot of Top Common Property Types
+                    top_types1 = comp_df_tab2['ประเภททรัพย์'].value_counts().head(6).index.tolist()
+                    top_types2 = comp_df_2['ประเภททรัพย์'].value_counts().head(6).index.tolist()
+                    combined_top = list(dict.fromkeys(top_types1 + top_types2))[:6]
+
+                    box_df = pd.concat([comp_df_tab2, comp_df_2], ignore_index=True)
+                    box_df = box_df[box_df['ประเภททรัพย์'].isin(combined_top) & (box_df['ราคา'] > 0)]
+                    box_df['val_million'] = box_df['ราคา'] / 1e6
+
+                    fig_box = px.box(
+                        box_df,
+                        x='ประเภททรัพย์',
+                        y='val_million',
+                        color='บริษัท',
+                        color_discrete_map={selected_company: comp_bar_color, compare_company: comp2_bar_color},
+                        title=f'📦 เปรียบเทียบการกระจายราคาของ 6 ประเภททรัพย์หลัก ({selected_company} vs {compare_company})',
+                        template=plotly_template,
+                        points=False
+                    )
+                    fig_box.update_layout(
+                        title_font=dict(size=14, family="Outfit"),
+                        height=450, 
+                        yaxis_type="log",
+                        yaxis_title="ราคา (ล้านบาท - สเกล Log)",
+                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                        margin=dict(t=40, b=10, l=10, r=10)
+                    )
+                    st.plotly_chart(style_plotly_fig(fig_box), width="stretch", theme=None)
+
+                col_c3, col_c4 = st.columns(2)
+                with col_c3:
+                    # Chart 3: Asset Type Share (%)
+                    t_share1 = comp_df_tab2['ประเภททรัพย์'].value_counts(normalize=True).head(6).reset_index()
+                    t_share1.columns = ['ประเภททรัพย์', 'pct']
+                    t_share1['pct'] = t_share1['pct'] * 100
+                    t_share1['บริษัท'] = selected_company
+
+                    t_share2 = comp_df_2['ประเภททรัพย์'].value_counts(normalize=True).head(6).reset_index()
+                    t_share2.columns = ['ประเภททรัพย์', 'pct']
+                    t_share2['pct'] = t_share2['pct'] * 100
+                    t_share2['บริษัท'] = compare_company
+
+                    share_df = pd.concat([t_share1, t_share2], ignore_index=True)
+                    fig_share = px.bar(
+                        share_df,
+                        x='pct',
+                        y='ประเภททรัพย์',
+                        color='บริษัท',
+                        barmode='group',
+                        orientation='h',
+                        color_discrete_map={selected_company: comp_bar_color, compare_company: comp2_bar_color},
+                        title=f'🥧 สัดส่วนประเภททรัพย์ในพอร์ตโฟลิโอ (% Share)',
+                        text_auto='.1f',
+                        template=plotly_template
+                    )
+                    fig_share.update_layout(
+                        title_font=dict(size=14, family="Outfit"),
+                        height=420,
+                        xaxis_title="สัดส่วนในพอร์ตโฟลิโอ (%)",
+                        yaxis_title="",
+                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                        margin=dict(t=40, b=10, l=10, r=10)
+                    )
+                    st.plotly_chart(style_plotly_fig(fig_share), width="stretch", theme=None)
+
+                with col_c4:
+                    # Chart 4: Region distribution
+                    if 'ภาค' in comp_df_tab2.columns and 'ภาค' in comp_df_2.columns:
+                        r_share1 = comp_df_tab2['ภาค'].value_counts().reset_index()
+                        r_share1.columns = ['ภาค', 'count']
+                        r_share1['บริษัท'] = selected_company
+                        
+                        r_share2 = comp_df_2['ภาค'].value_counts().reset_index()
+                        r_share2.columns = ['ภาค', 'count']
+                        r_share2['บริษัท'] = compare_company
+                        
+                        r_df = pd.concat([r_share1, r_share2], ignore_index=True)
+                        fig_region = px.bar(
+                            r_df,
+                            x='ภาค',
+                            y='count',
+                            color='บริษัท',
+                            barmode='group',
+                            color_discrete_map={selected_company: comp_bar_color, compare_company: comp2_bar_color},
+                            title=f'📍 เปรียบเทียบการกระจายตัวตามภูมิภาค ({selected_company} vs {compare_company})',
+                            text_auto=True,
+                            template=plotly_template
+                        )
+                        fig_region.update_layout(
+                            title_font=dict(size=14, family="Outfit"),
+                            height=420,
+                            xaxis_title="ภูมิภาค",
+                            yaxis_title="จำนวนทรัพย์ (รายการ)",
+                            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                            margin=dict(t=40, b=10, l=10, r=10)
+                        )
+                        st.plotly_chart(style_plotly_fig(fig_region), width="stretch", theme=None)
+            else:
+                # ==========================================
+                # SINGLE COMPANY MODE
+                # ==========================================
                 comp_df_tab2['Price_Tier'] = comp_df_tab2['ราคา'].apply(get_price_tier)
 
                 col_s1, col_s2 = st.columns(2)
@@ -4053,7 +4538,8 @@ with tab3:
                             deduped_list.append(item)
 
                     leaflet_html = render_tab3_radius_leaflet_map_html(
-                        float(inp_lat), float(inp_lng), float(search_radius), deduped_list, is_dark_mode=is_dark_mode
+                        float(inp_lat), float(inp_lng), float(search_radius), deduped_list, 
+                        is_dark_mode=is_dark_mode
                     )
                     st.components.v1.html(leaflet_html, height=640, scrolling=False)
 
@@ -4133,49 +4619,141 @@ with tab4:
     if df_filtered.empty:
         st.warning("⚠️ ไม่พบข้อมูลตามเงื่อนไข")
     else:
-        # Search Box to filter Tab 4 Property Listing table
-        tab4_search_query = st.text_input(
-            "🔍 ค้นหา ชื่อโครงการ / รหัสทรัพย์ / ชื่อประกาศ",
-            value="",
-            placeholder="พิมพ์ชื่อโครงการ, รหัสทรัพย์, หรือชื่อประกาศเพื่อกรองข้อมูลในตาราง...",
-            key="tab4_property_listing_search"
+        col_s1, col_s2 = st.columns([3, 2])
+        with col_s1:
+            # Search Box to filter Tab 4 Property Listing table (รหัสทรัพย์ / ชื่อโครงการ / ชื่อประกาศ)
+            tab4_search_query = st.text_input(
+                "🔍 ค้นหารหัสทรัพย์ / ชื่อโครงการ / ชื่อประกาศ",
+                value="",
+                placeholder="พิมพ์รหัสทรัพย์ (เช่น 12345), ชื่อโครงการ หรือชื่อประกาศ...",
+                key="tab4_property_listing_search"
+            )
+            
+        with col_s2:
+            display_limit = st.number_input(
+                "🔢 จำนวนรายการที่ต้องการแสดง (Rows)",
+                min_value=0,
+                max_value=100000,
+                value=0,
+                step=50,
+                key="tab4_direct_row_limit",
+                help="กรอกจำนวนแถวที่ต้องการแสดงในตาราง (ค่าเริ่มต้นคือ 0 เพื่อแสดงเฉพาะหัวข้อคอลัมน์เพื่อความรวดเร็ว)"
+            )
+            display_limit = int(display_limit)
+
+        # Quick Sort & Filter Presets (Clean & Smart)
+        quick_presets = [
+            "ค่าเริ่มต้น", 
+            "ราคาต่ำสุด (Top 100)", 
+            "ราคาสูงสุด (Top 100)", 
+            "฿/ตร.ว. ถูกสุด (Top 100)", 
+            "฿/ตร.ม. ถูกสุด (Top 100)", 
+            "อัปเดตล่าสุด (Top 100)", 
+            "พื้นที่ใหญ่สุด (Top 100)"
+        ]
+        selected_quick_sort = st.pills(
+            "กดดูด่วน (Quick Sort Presets):",
+            options=quick_presets,
+            default="ค่าเริ่มต้น",
+            key="tab4_quick_sort_preset"
         )
 
-        df_table_source = df_filtered.copy()
-        if tab4_search_query:
-            q_tab4 = tab4_search_query.strip().lower()
-            cond_title = df_table_source['ชื่อประกาศ'].astype(str).str.lower().str.contains(q_tab4, na=False) if 'ชื่อประกาศ' in df_table_source.columns else False
-            cond_code = df_table_source['รหัสทรัพย์'].astype(str).str.lower().str.contains(q_tab4, na=False) if 'รหัสทรัพย์' in df_table_source.columns else False
-            cond_proj = df_table_source['ชื่อโครงการ'].astype(str).str.lower().str.contains(q_tab4, na=False) if 'ชื่อโครงการ' in df_table_source.columns else False
-            df_table_source = df_table_source[cond_title | cond_code | cond_proj]
-
-        # Show top 5,000 rows in the interactive table for performance
-        display_limit = 5000
-        if len(df_table_source) > display_limit:
-            st.info(f"💡 แสดงผลตารางเฉพาะ {display_limit:,} รายการแรก จากที่ค้นพบ {len(df_table_source):,} รายการ เพื่อลดการใช้ข้อมูลหน้าเว็บและช่วยให้โหลดรวดเร็ว")
-            df_table = df_table_source.head(display_limit)
+        # Fast Tab 4 Data Pipeline
+        if display_limit == 0 and not tab4_search_query and selected_quick_sort == "ค่าเริ่มต้น":
+            df_table = df_filtered.head(0)
+            df_table_source = df_table
+            active_sort_label = ""
         else:
-            df_table = df_table_source
+            df_table_source = df_filtered
+            if tab4_search_query:
+                q_tab4 = tab4_search_query.strip()
+                cond_title = df_table_source['ชื่อประกาศ'].str.contains(q_tab4, case=False, na=False) if 'ชื่อประกาศ' in df_table_source.columns else False
+                cond_code = df_table_source['รหัสทรัพย์'].str.contains(q_tab4, case=False, na=False) if 'รหัสทรัพย์' in df_table_source.columns else False
+                cond_proj = df_table_source['ชื่อโครงการ'].str.contains(q_tab4, case=False, na=False) if 'ชื่อโครงการ' in df_table_source.columns else False
+                df_table_source = df_table_source[cond_title | cond_code | cond_proj]
+
+            # Apply Quick Sort logic
+            active_sort_label = ""
+            if selected_quick_sort == "ราคาต่ำสุด (Top 100)":
+                p_mask = df_table_source['ราคา'].notna() & (pd.to_numeric(df_table_source['ราคา'], errors='coerce') > 0)
+                df_table_source = df_table_source[p_mask].sort_values(by='ราคา', ascending=True)
+                if display_limit == 0:
+                    display_limit = 100
+                active_sort_label = "ราคาต่ำสุด (น้อยไปมาก)"
+            elif selected_quick_sort == "ราคาสูงสุด (Top 100)":
+                p_mask = df_table_source['ราคา'].notna() & (pd.to_numeric(df_table_source['ราคา'], errors='coerce') > 0)
+                df_table_source = df_table_source[p_mask].sort_values(by='ราคา', ascending=False)
+                if display_limit == 0:
+                    display_limit = 100
+                active_sort_label = "ราคาสูงสุด (มากไปน้อย)"
+            elif selected_quick_sort == "฿/ตร.ว. ถูกสุด (Top 100)":
+                if 'ราคาต่อตารางวา' in df_table_source.columns:
+                    p_mask = df_table_source['ราคาต่อตารางวา'].notna() & (pd.to_numeric(df_table_source['ราคาต่อตารางวา'], errors='coerce') > 0)
+                    df_table_source = df_table_source[p_mask].sort_values(by='ราคาต่อตารางวา', ascending=True)
+                if display_limit == 0:
+                    display_limit = 100
+                active_sort_label = "ราคาต่อตารางวาถูกที่สุด"
+            elif selected_quick_sort == "฿/ตร.ม. ถูกสุด (Top 100)":
+                if 'ราคาต่อตารางเมตร' in df_table_source.columns:
+                    p_mask = df_table_source['ราคาต่อตารางเมตร'].notna() & (pd.to_numeric(df_table_source['ราคาต่อตารางเมตร'], errors='coerce') > 0)
+                    df_table_source = df_table_source[p_mask].sort_values(by='ราคาต่อตารางเมตร', ascending=True)
+                if display_limit == 0:
+                    display_limit = 100
+                active_sort_label = "ราคาต่อตารางเมตรถูกที่สุด"
+            elif selected_quick_sort == "อัปเดตล่าสุด (Top 100)":
+                for dcol in ['วันที่ดึงข้อมูล', 'วันประกาศ']:
+                    if dcol in df_table_source.columns:
+                        df_table_source = df_table_source.sort_values(by=dcol, ascending=False, na_position='last')
+                        break
+                if display_limit == 0:
+                    display_limit = 100
+                active_sort_label = "วันที่อัปเดตล่าสุด"
+            elif selected_quick_sort == "พื้นที่ใหญ่สุด (Top 100)":
+                for acol in ['พื้นที่_ตารางวา', 'เนื้อที่ (ตร.ว.)']:
+                    if acol in df_table_source.columns:
+                        p_mask = df_table_source[acol].notna() & (pd.to_numeric(df_table_source[acol], errors='coerce') > 0)
+                        df_table_source = df_table_source[p_mask].sort_values(by=acol, ascending=False)
+                        break
+                if display_limit == 0:
+                    display_limit = 100
+                active_sort_label = "ขนาดพื้นที่ใหญ่ที่สุด"
+
+            # Slice the requested number of rows
+            if display_limit == 0:
+                df_table = df_table_source.head(0)
+            else:
+                df_table = df_table_source.head(display_limit)
+
+        # Status text
+        if display_limit == 0 and not tab4_search_query:
+            st.caption("ปัจจุบันแสดงเฉพาะ **หัวข้อคอลัมน์** เพื่อความเร็วสูงสุด (เลือกจำนวนแถวที่ต้องการแสดง หรือพิมพ์ค้นหารหัสทรัพย์)")
+        elif tab4_search_query and display_limit == 0:
+            st.caption(f"พบข้อมูลตรงกับการค้นหา **{len(df_table_source):,}** รายการ (เลือกจำนวนแถวด้านบนเพื่อเปิดดูข้อมูลในตาราง)")
+        else:
+            sort_info_str = f" | จัดเรียง: **{active_sort_label}**" if active_sort_label else ""
+            total_matches = len(df_table_source) if len(df_table_source) > 0 else len(df_filtered)
+            st.caption(f"แสดงข้อมูล **{len(df_table):,}** รายการ จากที่พบทั้งหมด **{total_matches:,}** รายการ{sort_info_str}")
             
         df_table_show = df_table.copy()
         
-        # Prepare clean numeric columns
-        if 'ราคา' in df_table_show.columns:
-            df_table_show['ราคาขาย (บาท)'] = pd.to_numeric(df_table_show['ราคา'], errors='coerce')
-        
-        sqwah_t4 = df_table_show['เนื้อที่ (ตร.ว.)'].apply(to_float_sqwah) if 'เนื้อที่ (ตร.ว.)' in df_table_show.columns else pd.Series(np.nan, index=df_table_show.index)
-        if 'พื้นที่_ตารางวา' in df_table_show.columns:
-            sqwah_t4 = sqwah_t4.fillna(df_table_show['พื้นที่_ตารางวา'].apply(to_float_sqwah))
-        df_table_show['sqwah_calc'] = sqwah_t4
-        
-        df_table_show['เนื้อที่ (ไร่-งาน-ตร.ว.)'] = df_table_show['เนื้อที่ (ตร.ว.)'].apply(format_to_rai_ngan_wah) if 'เนื้อที่ (ตร.ว.)' in df_table_show.columns else df_table_show['sqwah_calc'].apply(format_to_rai_ngan_wah)
+        # Prepare clean numeric columns on sliced subset only
+        if not df_table_show.empty:
+            if 'ราคา' in df_table_show.columns:
+                df_table_show['ราคาขาย (บาท)'] = pd.to_numeric(df_table_show['ราคา'], errors='coerce')
             
-        if 'พื้นที่ใช้สอย (ตร.ม.)' in df_table_show.columns:
-            df_table_show['พื้นที่ใช้สอย (ตร.ม.)'] = df_table_show['พื้นที่ใช้สอย (ตร.ม.)'].apply(to_float_sqm)
+            sqwah_t4 = df_table_show['เนื้อที่ (ตร.ว.)'].apply(to_float_sqwah) if 'เนื้อที่ (ตร.ว.)' in df_table_show.columns else pd.Series(np.nan, index=df_table_show.index)
+            if 'พื้นที่_ตารางวา' in df_table_show.columns:
+                sqwah_t4 = sqwah_t4.fillna(df_table_show['พื้นที่_ตารางวา'].apply(to_float_sqwah))
+            df_table_show['sqwah_calc'] = sqwah_t4
+            
+            df_table_show['เนื้อที่ (ไร่-งาน-ตร.ว.)'] = df_table_show['เนื้อที่ (ตร.ว.)'].apply(format_to_rai_ngan_wah) if 'เนื้อที่ (ตร.ว.)' in df_table_show.columns else df_table_show['sqwah_calc'].apply(format_to_rai_ngan_wah)
+                
+            if 'พื้นที่ใช้สอย (ตร.ม.)' in df_table_show.columns:
+                df_table_show['พื้นที่ใช้สอย (ตร.ม.)'] = df_table_show['พื้นที่ใช้สอย (ตร.ม.)'].apply(to_float_sqm)
 
-        for num_col in ['ละติจูด', 'ลองจิจูด']:
-            if num_col in df_table_show.columns:
-                df_table_show[num_col] = pd.to_numeric(df_table_show[num_col], errors='coerce')
+            for num_col in ['ละติจูด', 'ลองจิจูด']:
+                if num_col in df_table_show.columns:
+                    df_table_show[num_col] = pd.to_numeric(df_table_show[num_col], errors='coerce')
 
         cols_table_raw = [
             "บริษัท", "รหัสทรัพย์", "ชื่อโครงการ", "ประเภททรัพย์", "ประเภทการขาย", 
@@ -4196,10 +4774,11 @@ with tab4:
                 "พื้นที่ใช้สอย (ตร.ม.)": st.column_config.NumberColumn("พื้นที่ใช้สอย (ตร.ม.)", format="%.1f"),
                 "ละติจูด": st.column_config.NumberColumn(format="%.6f"),
                 "ลองจิจูด": st.column_config.NumberColumn(format="%.6f"),
-                "ลิงก์": st.column_config.LinkColumn("ลิงก์ประกาศ", display_text="🔗 เปิดดูทรัพย์")
+                "ลิงก์": st.column_config.LinkColumn("ลิงก์ประกาศ", display_text="เปิดดูทรัพย์")
             }
         )
-        render_import_export_section(df_table_source, filename_prefix="npa_property_listing", key_suffix="tab4")
+        with st.expander("📥 นำเข้าและส่งออกข้อมูล (Import & Export Data)", expanded=False):
+            render_import_export_section(df_table_source if not df_table_source.empty else df_filtered, filename_prefix="npa_property_listing", key_suffix="tab4")
 
 # ----- TAB 5 (MONTHLY): MONTHLY COMPARISON & AUDIT -----
 with tab_monthly:

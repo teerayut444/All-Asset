@@ -399,9 +399,10 @@
 
     <!-- Basemap Style Switcher Controls -->
     <div id="map-style-controls">
-      <button class="style-btn" id="btn-dark" onclick="setBasemapStyle('dark')">🌙 Dark Mode</button>
       <button class="style-btn" id="btn-voyager" onclick="setBasemapStyle('voyager')">🗺️ แผนที่ถนน</button>
+      <button class="style-btn" id="btn-osm" onclick="setBasemapStyle('osm')">🌐 OpenStreetMap</button>
       <button class="style-btn" id="btn-satellite" onclick="setBasemapStyle('satellite')">🛰️ ดาวเทียม</button>
+      <button class="style-btn" id="btn-dark" onclick="setBasemapStyle('dark')">🌙 โหมดมืด</button>
     </div>
     
     <!-- Legend Overlay inside the Map -->
@@ -552,6 +553,10 @@
           return [
             'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
           ];
+        } else if (styleName === 'osm') {
+          return [
+            'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
+          ];
         } else {
           return [
             'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
@@ -568,6 +573,8 @@
           document.getElementById('btn-dark')?.classList.add('active');
         } else if (styleName === 'satellite') {
           document.getElementById('btn-satellite')?.classList.add('active');
+        } else if (styleName === 'osm') {
+          document.getElementById('btn-osm')?.classList.add('active');
         } else {
           document.getElementById('btn-voyager')?.classList.add('active');
         }

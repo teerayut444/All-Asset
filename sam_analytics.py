@@ -50,39 +50,39 @@ COMPANY_COLORS = {
 
 ASSET_CLASS_MAP = {
     # Residential (ที่อยู่อาศัย)
-    "บ้านเดี่ยว": "🏠 ที่อยู่อาศัย (Residential)",
-    "ทาวน์เฮ้าส์": "🏠 ที่อยู่อาศัย (Residential)",
-    "ห้องชุดพักอาศัย": "🏠 ที่อยู่อาศัย (Residential)",
-    "บ้านแฝด": "🏠 ที่อยู่อาศัย (Residential)",
+    "บ้านเดี่ยว": "ที่อยู่อาศัย (Residential)",
+    "ทาวน์เฮ้าส์": "ที่อยู่อาศัย (Residential)",
+    "ห้องชุดพักอาศัย": "ที่อยู่อาศัย (Residential)",
+    "บ้านแฝด": "ที่อยู่อาศัย (Residential)",
     
     # Land (ที่ดิน)
-    "ที่ดินเปล่า": "🌾 ที่ดินเปล่า (Land Plots)",
-    "ที่ดินพร้อมสิ่งปลูกสร้าง": "🌾 ที่ดินเปล่า (Land Plots)",
+    "ที่ดินเปล่า": "ที่ดินเปล่า (Land Plots)",
+    "ที่ดินพร้อมสิ่งปลูกสร้าง": "ที่ดินเปล่า (Land Plots)",
     
     # Commercial (พาณิชยกรรม)
-    "อาคารพาณิชย์": "🏢 อาคารและพาณิชยกรรม (Commercial)",
-    "ห้องชุดพาณิชยกรรม/สำนักงาน": "🏢 อาคารและพาณิชยกรรม (Commercial)",
-    "อพาร์ทเมนท์": "🏢 อาคารและพาณิชยกรรม (Commercial)",
-    "อาคารสำนักงาน": "🏢 อาคารและพาณิชยกรรม (Commercial)",
-    "โชว์รูม": "🏢 อาคารและพาณิชยกรรม (Commercial)",
-    "โฮมออฟฟิศ": "🏢 อาคารและพาณิชยกรรม (Commercial)",
+    "อาคารพาณิชย์": "อาคารและพาณิชยกรรม (Commercial)",
+    "ห้องชุดพาณิชยกรรม/สำนักงาน": "อาคารและพาณิชยกรรม (Commercial)",
+    "อพาร์ทเมนท์": "อาคารและพาณิชยกรรม (Commercial)",
+    "อาคารสำนักงาน": "อาคารและพาณิชยกรรม (Commercial)",
+    "โชว์รูม": "อาคารและพาณิชยกรรม (Commercial)",
+    "โฮมออฟฟิศ": "อาคารและพาณิชยกรรม (Commercial)",
     
     # Industrial & Mega Commercial (อุตสาหกรรม & โครงการพิเศษ)
-    "โรงงาน/โกดัง": "🏭 อุตสาหกรรมและโครงการพิเศษ (Industrial & Mega)",
-    "โรงแรม/รีสอร์ท": "🏭 อุตสาหกรรมและโครงการพิเศษ (Industrial & Mega)",
-    "ปั๊มน้ำมัน": "🏭 อุตสาหกรรมและโครงการพิเศษ (Industrial & Mega)",
-    "โรงพยาบาล": "🏭 อุตสาหกรรมและโครงการพิเศษ (Industrial & Mega)",
-    "สวนน้ำ": "🏭 อุตสาหกรรมและโครงการพิเศษ (Industrial & Mega)",
-    "ศูนย์จำหน่ายสินค้า": "🏭 อุตสาหกรรมและโครงการพิเศษ (Industrial & Mega)",
-    "ห้างสรรพสินค้า": "🏭 อุตสาหกรรมและโครงการพิเศษ (Industrial & Mega)",
-    "โรงภาพยนต์": "🏭 อุตสาหกรรมและโครงการพิเศษ (Industrial & Mega)",
-    "ฟาร์มเลี้ยงสัตว์": "🏭 อุตสาหกรรมและโครงการพิเศษ (Industrial & Mega)",
-    "โครงการที่พักอาศัย/พาณิชยกรรม": "🏭 อุตสาหกรรมและโครงการพิเศษ (Industrial & Mega)",
+    "โรงงาน/โกดัง": "อุตสาหกรรมและโครงการพิเศษ (Industrial & Mega)",
+    "โรงแรม/รีสอร์ท": "อุตสาหกรรมและโครงการพิเศษ (Industrial & Mega)",
+    "ปั๊มน้ำมัน": "อุตสาหกรรมและโครงการพิเศษ (Industrial & Mega)",
+    "โรงพยาบาล": "อุตสาหกรรมและโครงการพิเศษ (Industrial & Mega)",
+    "สวนน้ำ": "อุตสาหกรรมและโครงการพิเศษ (Industrial & Mega)",
+    "ศูนย์จำหน่ายสินค้า": "อุตสาหกรรมและโครงการพิเศษ (Industrial & Mega)",
+    "ห้างสรรพสินค้า": "อุตสาหกรรมและโครงการพิเศษ (Industrial & Mega)",
+    "โรงภาพยนต์": "อุตสาหกรรมและโครงการพิเศษ (Industrial & Mega)",
+    "ฟาร์มเลี้ยงสัตว์": "อุตสาหกรรมและโครงการพิเศษ (Industrial & Mega)",
+    "โครงการที่พักอาศัย/พาณิชยกรรม": "อุตสาหกรรมและโครงการพิเศษ (Industrial & Mega)",
     
     # Others
-    "สังหาริมทรัพย์": "📦 อื่นๆ & สังหาริมทรัพย์ (Others)",
-    "อสังหาริมทรัพย์อื่นๆ": "📦 อื่นๆ & สังหาริมทรัพย์ (Others)",
-    "อื่นๆ": "📦 อื่นๆ & สังหาริมทรัพย์ (Others)"
+    "สังหาริมทรัพย์": "อื่นๆ และสังหาริมทรัพย์ (Others)",
+    "อสังหาริมทรัพย์อื่นๆ": "อื่นๆ และสังหาริมทรัพย์ (Others)",
+    "อื่นๆ": "อื่นๆ และสังหาริมทรัพย์ (Others)"
 }
 
 PRICE_TIER_ORDER = [
@@ -113,17 +113,17 @@ def classify_price_tier(price):
 def classify_economic_zone(prov):
     p = str(prov).strip()
     if p in ['ชลบุรี', 'ระยอง', 'ฉะเชิงเทรา']:
-        return "⚡ เขตเศรษฐกิจพิเศษ (EEC)"
+        return "เขตเศรษฐกิจพิเศษ (EEC)"
     elif p in ['กรุงเทพมหานคร', 'นนทบุรี', 'ปทุมธานี', 'สมุทรปราการ', 'สมุทรสาคร', 'นครปฐม']:
-        return "🌆 กรุงเทพฯ และปริมณฑล (BKK & Metro)"
+        return "กรุงเทพฯ และปริมณฑล (BKK & Metro)"
     elif p in ['เชียงใหม่', 'เชียงราย', 'ลำปาง', 'พิษณุโลก', 'น่าน', 'แพร่', 'พะเยา', 'แม่ฮ่องสอน', 'ลำพูน', 'สุโขทัย', 'อุตรดิตถ์', 'ตาก', 'กำแพงเพชร', 'พิจิตร', 'เพชรบูรณ์', 'นครสวรรค์', 'อุทัยธานี']:
-        return "🏞️ ภาคเหนือ (Northern)"
+        return "ภาคเหนือ (Northern)"
     elif p in ['นครราชสีมา', 'ขอนแก่น', 'อุดรธานี', 'อุบลราชธานี', 'บุรีรัมย์', 'ร้อยเอ็ด', 'สุรินทร์', 'ศรีสะเกษ', 'มหาสารคาม', 'ชัยภูมิ', 'กาฬสินธุ์', 'สกลนคร', 'นครพนม', 'มุกดาหาร', 'ยโสธร', 'อำนาจเจริญ', 'หนองคาย', 'เลย', 'หนองบัวลำภู', 'บึงกาฬ']:
-        return "🌾 ภาคตะวันออกเฉียงเหนือ (Northeast)"
+        return "ภาคตะวันออกเฉียงเหนือ (Northeast)"
     elif p in ['ภูเก็ต', 'สุราษฎร์ธานี', 'สงขลา', 'นครศรีธรรมราช', 'กระบี่', 'พังงา', 'ตรัง', 'ชุมพร', 'ระนอง', 'พัทลุง', 'สตูล', 'ปัตตานี', 'ยะลา', 'นราธิวาส']:
-        return "🏖️ ภาคใต้ (Southern)"
+        return "ภาคใต้ (Southern)"
     else:
-        return "🏛️ ภาคกลาง & ตะวันตก (Central & West)"
+        return "ภาคกลางและตะวันตก (Central & West)"
 
 def format_price_short(val):
     if pd.isna(val) or val is None:
@@ -409,28 +409,28 @@ def render_same_project_leaflet_map_html(proj_units, proj_name, is_dark_mode=Fal
                 var locStr = [p.subdist, p.district, p.province].filter(Boolean).join(', ');
 
                 var popupContent = '<div style="font-size: 13px; padding: 2px; min-width: 230px;">' +
-                    '<div style="font-weight: 800; font-size: 14px; color: #38bdf8; margin-bottom: 4px;">🏢 {proj_title_escaped}</div>' +
-                    '<div style="color: #94a3b8; font-size: 11.5px; margin-bottom: 6px;">🔑 รหัสทรัพย์: <b style="color: #ffffff;">' + (p.code || '-') + '</b></div>' +
+                    '<div style="font-weight: 800; font-size: 14px; color: #38bdf8; margin-bottom: 4px;">{proj_title_escaped}</div>' +
+                    '<div style="color: #94a3b8; font-size: 11.5px; margin-bottom: 6px;">รหัสทรัพย์: <b style="color: #ffffff;">' + (p.code || '-') + '</b></div>' +
                     '<div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:5px;">' +
-                    '  <span style="background:rgba(167,139,250,0.15); color:#a78bfa; padding:2px 6px; border-radius:4px; font-size:11px; font-weight:600;">🏢 ' + comp + '</span>' +
-                    '  <span style="background:rgba(252,211,77,0.15); color:#fcd34d; padding:2px 6px; border-radius:4px; font-size:11px; font-weight:600;">🏠 ' + (p.type || '-') + '</span>' +
+                    '  <span style="background:rgba(167,139,250,0.15); color:#a78bfa; padding:2px 6px; border-radius:4px; font-size:11px; font-weight:600;">' + comp + '</span>' +
+                    '  <span style="background:rgba(252,211,77,0.15); color:#fcd34d; padding:2px 6px; border-radius:4px; font-size:11px; font-weight:600;">' + (p.type || '-') + '</span>' +
                     '</div>' +
                     '<div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 6px; padding: 5px 8px; margin-bottom: 6px;">' +
                     '  <span style="font-size:10px; color:#a7f3d0;">ราคาเสนอขาย</span><br/><b style="font-size:14px; color:#34d399;">' + p.price + '</b>' +
                     '</div>' +
                     '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 3px 8px; font-size: 11px; color:#cbd5e1; margin-bottom: 5px;">' +
-                    '   <div>📐 เนื้อที่: <b>' + (p.land_area || '-') + '</b></div>' +
-                    '   <div>🏢 ใช้สอย: <b>' + (p.usable_area || '-') + '</b></div>' +
+                    '   <div>เนื้อที่: <b>' + (p.land_area || '-') + '</b></div>' +
+                    '   <div>พื้นที่ใช้สอย: <b>' + (p.usable_area || '-') + '</b></div>' +
                     '</div>' +
-                    (locStr ? '<div style="font-size: 11px; color: #94a3b8; margin-bottom: 5px;">📍 <span style="color: #e2e8f0;">' + locStr + '</span></div>' : '') +
-                    (p.link && p.link !== '-' && p.link !== '' ? '<div style="margin-top: 4px; text-align: right;"><a href="' + p.link + '" target="_blank" style="display: inline-block; background: #3b82f6; color: white; padding: 3px 8px; border-radius: 6px; text-decoration: none; font-size: 11px; font-weight: 600;">🔗 ดูประกาศ ↗</a></div>' : '') +
+                    (locStr ? '<div style="font-size: 11px; color: #94a3b8; margin-bottom: 5px;"><span style="color: #e2e8f0;">' + locStr + '</span></div>' : '') +
+                    (p.link && p.link !== '-' && p.link !== '' ? '<div style="margin-top: 4px; text-align: right;"><a href="' + p.link + '" target="_blank" style="display: inline-block; background: #3b82f6; color: white; padding: 3px 8px; border-radius: 6px; text-decoration: none; font-size: 11px; font-weight: 600;">เปิดดูประกาศ ↗</a></div>' : '') +
                     '</div>';
 
                 var tooltipContent = '<div style="font-size:12px; line-height:1.4;">' +
-                    '<b style="color:#38bdf8;">🏢 {proj_title_escaped}</b><br/>' +
-                    '🔑 [' + comp + '] ' + (p.code || '-') + ' | 🏠 ' + (p.type || '-') + '<br/>' +
-                    '💰 <b style="color:#34d399;">' + p.price + '</b>' +
-                    (locStr ? '<br/><span style="color:#94a3b8;">📍 ' + locStr + '</span>' : '') +
+                    '<b style="color:#38bdf8;">{proj_title_escaped}</b><br/>' +
+                    '[' + comp + '] ' + (p.code || '-') + ' | ' + (p.type || '-') + '<br/>' +
+                    '<b style="color:#34d399;">' + p.price + '</b>' +
+                    (locStr ? '<br/><span style="color:#94a3b8;">' + locStr + '</span>' : '') +
                     '</div>';
 
                 var marker = L.marker([p.lat, p.lon], {{ icon: customIcon }}).addTo(map);
@@ -452,76 +452,175 @@ def render_same_project_leaflet_map_html(proj_units, proj_name, is_dark_mode=Fal
     return html
 
 
+COMMON_PROJECT_PROVINCES = [
+    'กรุงเทพมหานคร', 'กรุงเทพ', 'กทม.', 'กทม', 'ชลบุรี', 'เชียงใหม่', 'นนทบุรี', 'ปทุมธานี', 
+    'สมุทรปราการ', 'ภูเก็ต', 'ระยอง', 'ประจวบคีรีขันธ์', 'ขอนแก่น', 'นครราชสีมา', 'สุราษฎร์ธานี',
+    'สงขลา', 'นครปฐม', 'พระนครศรีอยุธยา', 'เชียงราย', 'พิษณุโลก', 'อุดรธานี', 'หัวหิน', 'พัทยา'
+]
+
+GENERIC_TYPES_SET = {
+    'บ้าน', 'บ้านเดี่ยว', 'บ้านแฝด', 'คอนโด', 'คอนโดมิเนียม', 'ห้องชุด', 'ทาวน์เฮ้าส์', 'ทาวน์โฮม', 
+    'ที่ดิน', 'ที่ดินเปล่า', 'อาคารพาณิชย์', 'ตึกแถว', 'วิลล่า', 'โรงงาน', 'โกดัง', 'อพาร์ทเมนท์',
+    'โฮมออฟฟิศ', 'สำนักงาน', 'โรงแรม', 'รีสอร์ท', 'สิ่งปลูกสร้าง', 'อสังหาริมทรัพย์', 'ทรัพย์สิน'
+}
+
+BEDROOM_ONLY_REGEX = re.compile(
+    r'^(บ้าน|คอนโด|คอนโดมิเนียม|ห้องชุด|ทาวน์เฮ้าส์|ทาวน์โฮม|วิลล่า|อาคารพาณิชย์|ตึกแถว|อพาร์ทเมนท์)?\s*(\d+|\d+-\d+)?\s*(-)?\s*(ห้องนอน|ห้องน้ำ|bedroom|bed room|bathroom|ห้องนอน/|ห้องนอน-)(\s*\d*\s*(ห้องน้ำ|bathroom)?)?$',
+    re.IGNORECASE
+)
+
+STOREY_ONLY_REGEX = re.compile(
+    r'^(บ้าน|บ้านเดี่ยว|คอนโด|ห้องชุด|ทาวน์เฮ้าส์|ทาวน์โฮม|วิลล่า|อาคารพาณิชย์|ตึกแถว|อาคาร)?\s*\d+\s*ชั้น(\s*ครึ่ง)?$',
+    re.IGNORECASE
+)
+
+def clean_project_name(name):
+    """Standardizes project name, removes undefined/junk labels, bedroom/bathroom descriptors, and trailing province suffixes."""
+    if not name or pd.isna(name):
+        return None
+    n = str(name).strip()
+    nl = n.lower()
+    
+    # 1. Junk words
+    if nl in ['', 'nan', 'none', 'null', 'undefined', '-', '--', '---', '.', '..', '...', '?', '#name?', 'ไม่มีชื่อ', 'ไม่ระบุ', 'ไม่ระบุชื่อ', 'ทรัพย์สิน npa', 'ทรัพย์ npa', 'npa', 'โครงการ']:
+        return None
+    if nl.startswith('undefined') or nl.startswith('ไม่มีชื่อ') or nl.startswith('โครงการไม่มีชื่อ') or nl.startswith('ไม่ระบุ'):
+        return None
+    if nl in ['(ไม่มีชื่อ)', 'ม.ไม่มีชื่อ', 'ไม่มีชื่อโครงการ', 'ไม่มีชื่อโครงการ/สิ่งปลูกสร้าง', 'โครงการ']:
+        return None
+    if len(n) <= 1:
+        return None
+        
+    # 2. Trailing province suffix
+    if ',' in n:
+        for p in COMMON_PROJECT_PROVINCES:
+            if n.endswith(f', {p}') or n.endswith(f',{p}') or n.endswith(f' , {p}'):
+                n = n[:-len(p)-2].strip().rstrip(',')
+                break
+            
+    n = n.strip()
+    nl = n.lower()
+    
+    # 3. Exact generic property type match (e.g. "บ้าน", "คอนโด", "ที่ดินเปล่า")
+    if n in GENERIC_TYPES_SET or nl in ['house', 'condo', 'townhouse', 'villa', 'land', 'apartment']:
+        return None
+        
+    # 4. Bedroom descriptor only (e.g. "บ้าน 3-ห้องนอน", "บ้าน 4-ห้องนอน", "วิลล่า 3-ห้องนอน", "2-ห้องนอน", "3 ห้องนอน")
+    if 'ห้องนอน' in n or 'bedroom' in nl or 'ห้องน้ำ' in n:
+        if BEDROOM_ONLY_REGEX.match(n):
+            return None
+        if re.match(r'^\d+\s*(-)?\s*ห้องนอน', n) or re.match(r'^\d+\s*(-)?\s*bedroom', nl):
+            return None
+            
+    # 5. Storey descriptor only (e.g. "บ้าน 2 ชั้น", "ตึกแถว 3 ชั้น", "2 ชั้น")
+    if STOREY_ONLY_REGEX.match(n):
+        return None
+
+    return n if len(n) > 1 else None
+
+
 # ==============================================================================
 # SAME-PROJECT COMPARISON RENDERER (SHARED FUNCTION)
 # ==============================================================================
+@st.cache_data(show_spinner=False)
+def get_cached_project_catalog(_df):
+    """Pre-indexes project data, unique projects per province and type for instant zero-lag lookups."""
+    if _df is None or _df.empty or 'ชื่อโครงการ' not in _df.columns:
+        return {'p_meta': pd.DataFrame(), 'count_dict': {}, 'label_dict': {}, 'prov_list': [], 'type_list': []}
+    
+    needed = [c for c in ['ชื่อโครงการ', 'บริษัท', 'จังหวัด', 'ประเภททรัพย์', 'ID'] if c in _df.columns]
+    df_p = _df[needed].dropna(subset=['ชื่อโครงการ']).copy()
+    
+    # Clean project names (remove undefined, junk, and trailing province)
+    u_proj = df_p['ชื่อโครงการ'].dropna().unique()
+    p_lut = {p: clean_project_name(p) for p in u_proj}
+    df_p['proj_clean'] = df_p['ชื่อโครงการ'].map(p_lut)
+    df_p = df_p[df_p['proj_clean'].notna() & (df_p['proj_clean'] != '')]
+    
+    # Fast pure Python set accumulation (67x faster than pandas groupby apply)
+    proj_arr = df_p['proj_clean'].to_numpy()
+    co_arr = df_p['บริษัท'].to_numpy()
+    co_dict_raw = {}
+    for p, c in zip(proj_arr, co_arr):
+        if p in co_dict_raw:
+            co_dict_raw[p].add(str(c))
+        else:
+            co_dict_raw[p] = {str(c)}
+    co_dict = {p: ', '.join(sorted(cos)) for p, cos in co_dict_raw.items()}
+    
+    prov_first = df_p.drop_duplicates('proj_clean').set_index('proj_clean')['จังหวัด'].to_dict()
+    count_dict = df_p['proj_clean'].value_counts().to_dict()
+    
+    p_meta = df_p[['proj_clean', 'จังหวัด', 'ประเภททรัพย์']].drop_duplicates()
+    
+    label_dict = {
+        p: f"{p} ({count_dict[p]} ยูนิต - [{co_dict.get(p, '')}] - จ.{prov_first.get(p, '')})"
+        for p in count_dict
+    }
+    
+    prov_list = ["ทั้งหมด (ทุกจังหวัด)"] + sorted([str(p) for p in df_p['จังหวัด'].dropna().unique() if str(p).strip() not in ['', 'nan', 'None']])
+    type_list = ["ทั้งหมด (ทุกประเภท)"] + sorted([str(t) for t in df_p['ประเภททรัพย์'].dropna().unique() if str(t).strip() not in ['', 'nan', 'None']])
+    
+    return {
+        'p_meta': p_meta,
+        'count_dict': count_dict,
+        'label_dict': label_dict,
+        'prov_list': prov_list,
+        'type_list': type_list
+    }
+
+
 def render_same_project_comparison(df_all_source, is_dark_mode=False, plotly_template="plotly_white", style_plotly_fig=None, default_company_filter=None, key_prefix="same_proj"):
     """
     Renders a comprehensive Same-Project Comparison module.
     Allows comparing all units within a specific project across SAM or all companies.
     """
     if df_all_source is None or df_all_source.empty:
-        st.warning("⚠️ ไม่มีข้อมูลสำหรับการเปรียบเทียบในโครงการ")
+        st.warning("ไม่มีข้อมูลสำหรับการเปรียบเทียบในโครงการ")
         return
 
-    st.markdown("### 🏘️ เปรียบเทียบทรัพย์ในโครงการเดียวกัน (Same-Project Comparison)")
+    st.markdown("### เปรียบเทียบทรัพย์ในโครงการเดียวกัน (Same-Project Comparison)")
     st.write("ค้นหาและเปรียบเทียบยูนิตทั้งหมดที่ตั้งอยู่ในโครงการ/หมู่บ้าน/คอนโดเดียวกัน ทั้งราคา ขนาด และความคุ้มค่าเทียบระหว่างสถาบัน")
 
-    # Clean projects
-    df_p = df_all_source[df_all_source['ชื่อโครงการ'].notna()].copy()
-    df_p['proj_clean'] = df_p['ชื่อโครงการ'].astype(str).str.strip()
-    df_p = df_p[~df_p['proj_clean'].isin(['', 'nan', 'None', '-', 'ไม่มีชื่อ', 'ทรัพย์สิน NPA', '#NAME?'])]
+    catalog = get_cached_project_catalog(df_all_source)
+    p_meta = catalog.get('p_meta', pd.DataFrame())
+    count_dict = catalog.get('count_dict', {})
+    label_dict = catalog.get('label_dict', {})
+    prov_list = catalog.get('prov_list', ["ทั้งหมด (ทุกจังหวัด)"])
+    type_list = catalog.get('type_list', ["ทั้งหมด (ทุกประเภท)"])
 
-    if default_company_filter:
-        df_p_filtered_comp = df_p[df_p['บริษัท'] == default_company_filter]
-        valid_proj_list = df_p_filtered_comp['proj_clean'].unique().tolist()
-        df_p = df_p[df_p['proj_clean'].isin(valid_proj_list)]
-
-    if df_p.empty:
-        st.warning("⚠️ ไม่พบข้อมูลโครงการที่มีชื่อระบุชัดเจน")
+    if p_meta.empty or not count_dict:
+        st.warning("ไม่พบข้อมูลโครงการที่มีชื่อระบุชัดเจน")
         return
 
     # Filter Bar for selecting project
     col_f1, col_f2, col_f3 = st.columns([0.3, 0.3, 0.4])
     
     with col_f1:
-        prov_list = ["ทั้งหมด (ทุกจังหวัด)"] + sorted(df_p['จังหวัด'].dropna().unique().tolist())
         sel_prov = st.selectbox("กรองตามจังหวัด:", options=prov_list, index=0, key=f"{key_prefix}_sel_prov")
         
     with col_f2:
-        type_list = ["ทั้งหมด (ทุกประเภท)"] + sorted(df_p['ประเภททรัพย์'].dropna().unique().tolist())
         sel_type = st.selectbox("กรองตามประเภททรัพย์:", options=type_list, index=0, key=f"{key_prefix}_sel_type")
 
-    # Apply filters to find available projects
-    df_avail = df_p.copy()
+    # Fast filtered project options via pre-cached index
+    filtered_meta = p_meta
     if sel_prov != "ทั้งหมด (ทุกจังหวัด)":
-        df_avail = df_avail[df_avail['จังหวัด'] == sel_prov]
+        filtered_meta = filtered_meta[filtered_meta['จังหวัด'] == sel_prov]
     if sel_type != "ทั้งหมด (ทุกประเภท)":
-        df_avail = df_avail[df_avail['ประเภททรัพย์'] == sel_type]
+        filtered_meta = filtered_meta[filtered_meta['ประเภททรัพย์'] == sel_type]
 
-    # Group projects with count and company info
-    proj_counts = df_avail.groupby('proj_clean').agg(
-        count=('ID', 'count'),
-        companies=('บริษัท', lambda x: ', '.join(sorted(x.unique()))),
-        province=('จังหวัด', 'first')
-    ).sort_values('count', ascending=False)
+    valid_set = set(filtered_meta['proj_clean'])
+    proj_options = [p for p in count_dict if p in valid_set]
 
-    if proj_counts.empty:
-        st.info("💡 ไม่พบโครงการที่ตรงกับเงื่อนไขจังหวัดหรือประเภททรัพย์ที่เลือก")
+    if not proj_options:
+        st.info("ไม่พบโครงการที่ตรงกับเงื่อนไขจังหวัดหรือประเภททรัพย์ที่เลือก")
         return
-
-    # Build options formatted nicely
-    proj_options = proj_counts.index.tolist()
-    proj_labels = {
-        p: f"{p} ({proj_counts.loc[p, 'count']} ยูนิต - [{proj_counts.loc[p, 'companies']}] - จ.{proj_counts.loc[p, 'province']})"
-        for p in proj_options
-    }
 
     with col_f3:
         selected_proj = st.selectbox(
-            "🏢 เลือกโครงการที่ต้องการเปรียบเทียบ:",
+            "เลือกโครงการที่ต้องการเปรียบเทียบ:",
             options=proj_options,
-            format_func=lambda x: proj_labels.get(x, x),
+            format_func=lambda x: label_dict.get(x, x),
             index=0,
             key=f"{key_prefix}_selected_proj"
         )
@@ -531,10 +630,16 @@ def render_same_project_comparison(df_all_source, is_dark_mode=False, plotly_tem
         return
 
     # Get all units in the selected project from the full dataset
-    proj_units = df_all_source[df_all_source['ชื่อโครงการ'].astype(str).str.strip() == selected_proj].copy()
+    if 'proj_clean' in df_all_source.columns:
+        proj_units = df_all_source[df_all_source['proj_clean'] == selected_proj].copy()
+    else:
+        u_p = df_all_source['ชื่อโครงการ'].dropna().unique()
+        p_lut = {p: clean_project_name(p) for p in u_p}
+        clean_s = df_all_source['ชื่อโครงการ'].map(p_lut)
+        proj_units = df_all_source[clean_s == selected_proj].copy()
     
     if proj_units.empty:
-        st.warning(f"⚠️ ไม่พบข้อมูลยูนิตในโครงการ '{selected_proj}'")
+        st.warning(f"ไม่พบข้อมูลยูนิตในโครงการ '{selected_proj}'")
         return
 
     # Ensure price numeric
@@ -586,10 +691,10 @@ def render_same_project_comparison(df_all_source, is_dark_mode=False, plotly_tem
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
             <div>
                 <h3 style="margin: 0; color: {'#34d399' if is_dark_mode else '#15803d'}; font-size: 1.35rem; font-weight: 800;">
-                    🏢 โครงการ: {selected_proj}
+                    โครงการ: {selected_proj}
                 </h3>
                 <div style="color: {'#94a3b8' if is_dark_mode else '#475569'}; font-size: 0.85rem; margin-top: 3px;">
-                    📍 ทำเล: <b>{location_str}</b> | พบทั้งหมด <b>{n_units:,}</b> ยูนิต จาก <b>{len(companies_present)}</b> สถาบัน ({', '.join(companies_present)})
+                    ทำเล: <b>{location_str}</b> | พบทั้งหมด <b>{n_units:,}</b> ยูนิต จาก <b>{len(companies_present)}</b> สถาบัน ({', '.join(companies_present)})
                 </div>
             </div>
         </div>
@@ -645,7 +750,7 @@ def render_same_project_comparison(df_all_source, is_dark_mode=False, plotly_tem
             x='label',
             y='price_million',
             color='บริษัท',
-            title=f'📊 ราคาขายรายยูนิตในโครงการ {selected_proj} (เรียงจากถูกไปแพง)',
+            title=f'ราคาขายรายยูนิตในโครงการ {selected_proj} (เรียงจากถูกไปแพง)',
             color_discrete_map=COMPANY_COLORS,
             template=plotly_template
         )
@@ -675,7 +780,7 @@ def render_same_project_comparison(df_all_source, is_dark_mode=False, plotly_tem
                 names='บริษัท',
                 values='count',
                 hole=0.45,
-                title=f'🥧 สัดส่วนยูนิตแยกตามบริษัทใน {selected_proj}',
+                title=f'สัดส่วนยูนิตแยกตามสถาบันใน {selected_proj}',
                 color='บริษัท',
                 color_discrete_map=COMPANY_COLORS,
                 template=plotly_template
@@ -694,7 +799,7 @@ def render_same_project_comparison(df_all_source, is_dark_mode=False, plotly_tem
                     y='ราคา',
                     color='ประเภททรัพย์',
                     hover_data=['รหัสทรัพย์', 'บริษัท'],
-                    title=f'📐 ความสัมพันธ์ระหว่างขนาดที่ดิน (ตร.ว.) กับราคาขาย',
+                    title=f'ความสัมพันธ์ระหว่างขนาดที่ดิน (ตร.ว.) กับราคาขาย',
                     template=plotly_template
                 )
                 fig_scat.update_layout(height=400, margin=dict(t=40, b=10, l=10, r=10))
@@ -703,15 +808,15 @@ def render_same_project_comparison(df_all_source, is_dark_mode=False, plotly_tem
                 st.plotly_chart(fig_scat, use_container_width=True, key=f"{key_prefix}_scatter_chart")
     # Map Section
     st.markdown("---")
-    st.markdown(f"##### 🗺️ แผนที่พิกัดที่ตั้งโครงการและยูนิต ({selected_proj})")
+    st.markdown(f"##### แผนที่ตำแหน่งที่ตั้งโครงการและยูนิต ({selected_proj})")
     same_proj_map_html = render_same_project_leaflet_map_html(proj_units, selected_proj, is_dark_mode=is_dark_mode)
     if same_proj_map_html:
         st.components.v1.html(same_proj_map_html, height=480, scrolling=False)
     else:
-        st.info("💡 ไม่พบข้อมูลพิกัดละติจูด/ลองจิจูดสำหรับแสดงแผนที่ของโครงการนี้")
+        st.info("ไม่พบข้อมูลพิกัดละติจูด/ลองจิจูดสำหรับแสดงแผนที่ของโครงการนี้")
 
     # Detailed Unit Table
-    st.markdown("##### 📋 ตารางเปรียบเทียบรายละเอียดทุกยูนิตในโครงการ")
+    st.markdown("##### ตารางเปรียบเทียบรายละเอียดทุกยูนิตในโครงการ")
     
     table_units = proj_units.sort_values('ราคา', ascending=True).copy()
     table_units['ขนาดที่ดิน'] = table_units['พื้นที่_ตารางวา'].apply(format_rai_ngan_wah)
@@ -738,7 +843,7 @@ def render_same_project_comparison(df_all_source, is_dark_mode=False, plotly_tem
             "ราคาต่อตารางวา": st.column_config.NumberColumn("ราคา/ตร.ว. (บาท)", format="฿%,d"),
             "ราคาต่อตารางเมตร": st.column_config.NumberColumn("ราคา/ตร.ม. (บาท)", format="฿%,d"),
             "พื้นที่ใช้สอย (ตร.ม.)": st.column_config.NumberColumn(format="%.1f"),
-            "ลิงก์": st.column_config.LinkColumn("เปิดดูทรัพย์", display_text="🔗 ดูรายละเอียด")
+            "ลิงก์": st.column_config.LinkColumn("เปิดดูทรัพย์", display_text="เปิดดูทรัพย์ ↗")
         },
         height=380,
         key=f"{key_prefix}_units_table"
@@ -749,7 +854,7 @@ def render_same_project_comparison(df_all_source, is_dark_mode=False, plotly_tem
     with c_exp1:
         csv_proj = table_units.to_csv(index=False).encode('utf-8-sig')
         st.download_button(
-            label=f"📄 ดาวน์โหลด CSV โครงการนี้ ({len(table_units):,} ยูนิต) ⚡",
+            label=f"ดาวน์โหลด CSV โครงการนี้ ({len(table_units):,} ยูนิต)",
             data=csv_proj,
             file_name=f"Project_Comparison_{selected_proj}_{pd.Timestamp.now().strftime('%Y%m%d')}.csv",
             mime="text/csv",
@@ -761,7 +866,7 @@ def render_same_project_comparison(df_all_source, is_dark_mode=False, plotly_tem
         with pd.ExcelWriter(excel_buf, engine='openpyxl') as writer:
             table_units.to_excel(writer, index=False, sheet_name='Units')
         st.download_button(
-            label=f"📊 ดาวน์โหลด Excel โครงการนี้ (.xlsx)",
+            label=f"ดาวน์โหลด Excel โครงการนี้ (.xlsx)",
             data=excel_buf.getvalue(),
             file_name=f"Project_Comparison_{selected_proj}_{pd.Timestamp.now().strftime('%Y%m%d')}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -778,7 +883,7 @@ def render_single_sam_asset_inspector(sam_all, df_raw, is_dark_mode=False, plotl
     Detailed single SAM asset inspector with real property photo gallery,
     complete specs, district/province/market benchmarks, and nearby comps.
     """
-    st.markdown("#### 🔎 เจาะลึกทรัพย์ SAM รายชิ้น & เปรียบเทียบตลาด (SAM Single Asset Deep Dive)")
+    st.markdown("#### เจาะลึกทรัพย์ SAM รายชิ้นและเปรียบเทียบตลาด (Single Asset Deep Dive)")
     st.caption("เลือกรหัสทรัพย์ SAM เพื่อตรวจสอบข้อมูลเชิงลึกแบบ 360 องศา พร้อมรูปภาพจริงจาก SAM เทียบราคากลาง และค้นหาทรัพย์คู่แข่งโดยรอบ")
 
     # Filter Bar to find the asset
@@ -801,7 +906,7 @@ def render_single_sam_asset_inspector(sam_all, df_raw, is_dark_mode=False, plotl
     # Keyword search for asset code or project
     with f3:
         search_kw = st.text_input(
-            "🔍 ค้นหารหัสทรัพย์ หรือชื่อโครงการ/ทำเล:",
+            "ค้นหารหัสทรัพย์ หรือชื่อโครงการ/ทำเล:",
             value="",
             placeholder="เช่น 3A1291, 4T0641, กฤษดานคร, ดอนเมือง...",
             key="insp_search_kw"
@@ -815,7 +920,7 @@ def render_single_sam_asset_inspector(sam_all, df_raw, is_dark_mode=False, plotl
             sam_searchable = sam_searchable[m_code | m_proj | m_title | m_dist]
 
     if sam_searchable.empty:
-        st.warning("⚠️ ไม่พบรายการทรัพย์สิน SAM ตามเงื่อนไขการค้นหา")
+        st.warning("ไม่พบรายการทรัพย์สิน SAM ตามเงื่อนไขการค้นหา")
         return
 
     # Create clean, distinct labels for dropdown
@@ -858,7 +963,7 @@ def render_single_sam_asset_inspector(sam_all, df_raw, is_dark_mode=False, plotl
     labels_dict = dict(zip(sam_searchable['รหัสทรัพย์'], sam_searchable['dropdown_label']))
 
     selected_code = st.selectbox(
-        "🏛️ เลือกทรัพย์สิน SAM ที่ต้องการเจาะลึก:",
+        "เลือกทรัพย์สิน SAM ที่ต้องการเจาะลึก:",
         options=options_list,
         format_func=lambda x: labels_dict.get(x, str(x)),
         index=0,
@@ -902,13 +1007,13 @@ def render_single_sam_asset_inspector(sam_all, df_raw, is_dark_mode=False, plotl
     # Status tag color
     if "ประมูล" in asset_sale:
         sale_badge_color = "#f59e0b"
-        sale_badge_text = "🔨 ทรัพย์ประมูล (Auction)"
+        sale_badge_text = "ทรัพย์ประมูล (Auction)"
     elif "รอประกาศราคา" in asset_sale or asset_price <= 0:
         sale_badge_color = "#94a3b8"
-        sale_badge_text = "⚪ รอประกาศราคา"
+        sale_badge_text = "รอประกาศราคา"
     else:
         sale_badge_color = "#10b981"
-        sale_badge_text = "🟢 ขายปกติ (Direct Sale)"
+        sale_badge_text = "ขายปกติ (Direct Sale)"
 
     # Header HTML Card
     header_html = f"""
@@ -916,7 +1021,7 @@ def render_single_sam_asset_inspector(sam_all, df_raw, is_dark_mode=False, plotl
         <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px;">
             <div>
                 <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-                    <span style="background: #10b981; color: white; padding: 3px 10px; border-radius: 6px; font-weight: 800; font-size: 0.85rem;">🏛️ รหัสทรัพย์: {asset_code}</span>
+                    <span style="background: #10b981; color: white; padding: 3px 10px; border-radius: 6px; font-weight: 800; font-size: 0.85rem;">รหัสทรัพย์: {asset_code}</span>
                     <span style="background: {sale_badge_color}22; color: {sale_badge_color}; border: 1px solid {sale_badge_color}; padding: 3px 10px; border-radius: 6px; font-weight: 700; font-size: 0.82rem;">{sale_badge_text}</span>
                     <span style="background: #3b82f622; color: #3b82f6; border: 1px solid #3b82f6; padding: 3px 10px; border-radius: 6px; font-weight: 700; font-size: 0.82rem;">{asset_type}</span>
                 </div>
@@ -924,12 +1029,12 @@ def render_single_sam_asset_inspector(sam_all, df_raw, is_dark_mode=False, plotl
                     {asset_name}
                 </h2>
                 <p style="margin: 4px 0 0 0; color: {'#94a3b8' if is_dark_mode else '#64748b'}; font-size: 0.88rem;">
-                    📍 ทำเล: <b>ต.{asset_subdist} อ.{asset_dist} จ.{asset_prov}</b> {f'| พิกัด GPS: {asset_lat:.5f}, {asset_lng:.5f}' if asset_lat else ''}
+                    ทำเล: <b>ต.{asset_subdist} อ.{asset_dist} จ.{asset_prov}</b> {f'| พิกัด GPS: {asset_lat:.5f}, {asset_lng:.5f}' if asset_lat else ''}
                 </p>
             </div>
             <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                {f'<a href="{asset_link}" target="_blank" style="background: #10b981; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);">🔗 เปิดเว็บ SAM</a>' if asset_link and asset_link != '#' else ''}
-                {f'<a href="{gmap_url}" target="_blank" style="background: {"#334155" if is_dark_mode else "#f1f5f9"}; color: {"#38bdf8" if is_dark_mode else "#0284c7"}; border: 1px solid {"#475569" if is_dark_mode else "#cbd5e1"}; padding: 8px 16px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 6px;">📍 ดูบน Google Maps</a>' if asset_lat else ''}
+                {f'<a href="{asset_link}" target="_blank" style="background: #10b981; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);">เปิดเว็บ SAM ↗</a>' if asset_link and asset_link != '#' else ''}
+                {f'<a href="{gmap_url}" target="_blank" style="background: {"#334155" if is_dark_mode else "#f1f5f9"}; color: {"#38bdf8" if is_dark_mode else "#0284c7"}; border: 1px solid {"#475569" if is_dark_mode else "#cbd5e1"}; padding: 8px 16px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 6px;">ดูบน Google Maps ↗</a>' if asset_lat else ''}
             </div>
         </div>
     </div>
@@ -942,7 +1047,7 @@ def render_single_sam_asset_inspector(sam_all, df_raw, is_dark_mode=False, plotl
     col_photo, col_specs = st.columns([0.48, 0.52])
     
     with col_photo:
-        st.markdown("##### 📷 ภาพถ่ายทรัพย์สินจริงจาก SAM")
+        st.markdown("##### ภาพถ่ายทรัพย์สินจริงจาก SAM")
         with st.spinner("กำลังดึงภาพถ่ายทรัพย์สินจาก SAM..."):
             asset_photos = fetch_sam_asset_images(asset_id, asset_link)
         
@@ -950,23 +1055,23 @@ def render_single_sam_asset_inspector(sam_all, df_raw, is_dark_mode=False, plotl
             st.image(
                 asset_photos[0],
                 use_container_width=True,
-                caption=f"📷 ภาพถ่ายทรัพย์สินจริงจาก SAM (รหัส {asset_code})"
+                caption=f"ภาพถ่ายทรัพย์สินจริงจาก SAM (รหัส {asset_code})"
             )
         else:
             # Fallback when no photos found
             st.markdown(f"""
             <div style="background: {'#1e293b' if is_dark_mode else '#f8fafc'}; border: 2px dashed {'#334155' if is_dark_mode else '#cbd5e1'}; border-radius: 12px; padding: 40px 20px; text-align: center; margin-bottom: 10px;">
-                <div style="font-size: 2.5rem; margin-bottom: 8px;">🏠</div>
+                <div style="font-size: 2rem; color: #94a3b8; margin-bottom: 8px;"><i class="fa fa-image"></i></div>
                 <div style="font-weight: 700; font-size: 1rem; color: {'#f8fafc' if is_dark_mode else '#1e293b'};">{asset_name}</div>
                 <div style="font-size: 0.82rem; color: {'#94a3b8' if is_dark_mode else '#64748b'}; margin-top: 4px;">ประเภท: {asset_type} ({asset_sale})</div>
                 <div style="margin-top: 14px;">
-                    <a href="{asset_link}" target="_blank" style="background: #10b981; color: white; padding: 6px 14px; border-radius: 6px; text-decoration: none; font-weight: 700; font-size: 0.8rem;">🔗 เปิดดูรูปภาพและโฉนดบนเว็บ SAM</a>
+                    <a href="{asset_link}" target="_blank" style="background: #10b981; color: white; padding: 6px 14px; border-radius: 6px; text-decoration: none; font-weight: 700; font-size: 0.8rem;">เปิดดูรูปภาพและโฉนดบนเว็บ SAM ↗</a>
                 </div>
             </div>
             """, unsafe_allow_html=True)
 
     with col_specs:
-        st.markdown("##### 🏷️ ข้อมูลราคาและรายละเอียดพื้นที่")
+        st.markdown("##### ข้อมูลราคาและรายละเอียดพื้นที่")
         
         m_row1_c1, m_row1_c2 = st.columns(2)
         with m_row1_c1:
@@ -1008,15 +1113,15 @@ def render_single_sam_asset_inspector(sam_all, df_raw, is_dark_mode=False, plotl
         st.markdown(f"""
         <div style="background: {'#1e293b' if is_dark_mode else '#f8fafc'}; border: 1px solid {'#334155' if is_dark_mode else '#e2e8f0'}; border-radius: 10px; padding: 10px 14px; margin-top: 10px; font-size: 0.84rem;">
             <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                <span style="color: {'#94a3b8' if is_dark_mode else '#64748b'};">🛏️ ห้องนอน / 🚿 ห้องน้ำ:</span>
+                <span style="color: {'#94a3b8' if is_dark_mode else '#64748b'};">ห้องนอน / ห้องน้ำ:</span>
                 <b>{bed_str} ห้องนอน / {bath_str} ห้องน้ำ</b>
             </div>
             <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                <span style="color: {'#94a3b8' if is_dark_mode else '#64748b'};">🚗 ที่จอดรถ:</span>
+                <span style="color: {'#94a3b8' if is_dark_mode else '#64748b'};">ที่จอดรถ:</span>
                 <b>{park_str} คัน</b>
             </div>
             <div style="display: flex; justify-content: space-between;">
-                <span style="color: {'#94a3b8' if is_dark_mode else '#64748b'};">📅 วันที่อัปเดตข้อมูล:</span>
+                <span style="color: {'#94a3b8' if is_dark_mode else '#64748b'};">วันที่อัปเดตข้อมูล:</span>
                 <b>{str(asset_row.get('วันที่ดึงข้อมูล', '-'))}</b>
             </div>
         </div>
@@ -1027,14 +1132,14 @@ def render_single_sam_asset_inspector(sam_all, df_raw, is_dark_mode=False, plotl
     # -------------------------------------------------------------------------
     # 2. UNIFIED MARKET & LAND VALUATION BENCHMARKS (Sq.Wah & Sq.M.)
     # -------------------------------------------------------------------------
-    st.markdown(f"##### 📊 การเปรียบเทียบราคากลางและสถิติตลาด ({asset_type} & ที่ดินเปล่าในทำเลนี้)")
+    st.markdown(f"##### การเปรียบเทียบราคากลางและสถิติตลาด ({asset_type} & ที่ดินเปล่าในทำเลนี้)")
     st.caption("วิเคราะห์เปรียบเทียบราคาต่อตารางวา (จากเนื้อที่ดิน) และราคาต่อตารางเมตร (จากพื้นที่ใช้สอย) พร้อมเปรียบเทียบราคากลางที่ดินเปล่าในรัศมีรอบทรัพย์")
 
     # Land Radius Slider Bar
     c_land_slider, c_land_info = st.columns([0.42, 0.58])
     with c_land_slider:
         land_radius_km = st.slider(
-            "📍 ปรับระยะรัศมีค้นหาที่ดินรอบทรัพย์นี้ (กิโลเมตร):",
+            "ปรับระยะรัศมีค้นหาที่ดินรอบทรัพย์นี้ (กิโลเมตร):",
             min_value=1,
             max_value=30,
             value=5,
@@ -1072,9 +1177,9 @@ def render_single_sam_asset_inspector(sam_all, df_raw, is_dark_mode=False, plotl
 
     with c_land_info:
         if asset_lat and asset_lng:
-            st.info(f"🎯 พบที่ดินเปล่าในรัศมี **{land_radius_km} กม.** ทั้งหมด **{nearby_land_cnt:,} แปลง** (ราคากลาง **{format_price_short(nearby_land_med_p)}** | **฿{nearby_land_med_sqw:,.0f}/ตร.ว.**)" if nearby_land_cnt > 0 else f"💡 ไม่พบแปลงที่ดินเปล่าในรัศมี {land_radius_km} กม. แนะนำให้เพิ่มรัศมีค้นหา")
+            st.info(f"พบที่ดินเปล่าในรัศมี **{land_radius_km} กม.** ทั้งหมด **{nearby_land_cnt:,} แปลง** (ราคากลาง **{format_price_short(nearby_land_med_p)}** | **฿{nearby_land_med_sqw:,.0f}/ตร.ว.**)" if nearby_land_cnt > 0 else f"ไม่พบแปลงที่ดินเปล่าในรัศมี {land_radius_km} กม. แนะนำให้เพิ่มรัศมีค้นหา")
         else:
-            st.warning("⚠️ ทรัพย์สินนี้ไม่มีพิกัด GPS สำหรับค้นหาตามรัศมี ระบบจะอิงราคากลางระดับอำเภอ/จังหวัดแทน")
+            st.warning("ทรัพย์สินนี้ไม่มีพิกัด GPS สำหรับค้นหาตามรัศมี ระบบจะอิงราคากลางระดับอำเภอ/จังหวัดแทน")
 
     # Calculate Property Type Benchmarks (Sq.W. and Sq.M.)
     col_sqm = 'พื้นที่ใช้สอย (ตร.ม.)' if 'พื้นที่ใช้สอย (ตร.ม.)' in df_raw.columns else ('พื้นที่ใช้สอย' if 'พื้นที่ใช้สอย' in df_raw.columns else None)
@@ -1139,11 +1244,11 @@ def render_single_sam_asset_inspector(sam_all, df_raw, is_dark_mode=False, plotl
             return '<span style="color: #94a3b8;">-</span>'
         diff_pct = (val - benchmark) / benchmark * 100
         if diff_pct < -5:
-            return f'<span style="color: #10b981; font-weight: 700;">🟢 ถูกกว่า {abs(diff_pct):.1f}%</span>'
+            return f'<span style="color: #10b981; font-weight: 700;">ถูกกว่า {abs(diff_pct):.1f}%</span>'
         elif diff_pct > 5:
-            return f'<span style="color: #ef4444; font-weight: 700;">🔴 สูงกว่า +{diff_pct:.1f}%</span>'
+            return f'<span style="color: #ef4444; font-weight: 700;">สูงกว่า +{diff_pct:.1f}%</span>'
         else:
-            return f'<span style="color: #3b82f6; font-weight: 700;">🔵 ใกล้เคียง ({diff_pct:+.1f}%)</span>'
+            return f'<span style="color: #3b82f6; font-weight: 700;">ใกล้เคียง ({diff_pct:+.1f}%)</span>'
 
     # Unified KPI Benchmark Cards
     b_col1, b_col2, b_col3, b_col4 = st.columns(4)
@@ -1152,7 +1257,7 @@ def render_single_sam_asset_inspector(sam_all, df_raw, is_dark_mode=False, plotl
         sqw_card_badge = calc_diff_badge(price_sqw, nearby_land_med_sqw) if price_sqw > 0 else '<span style="color: #94a3b8;">-</span>'
         st.markdown(f"""
         <div style="background: {'#1e293b' if is_dark_mode else '#f0fdf4'}; border: 1px solid {'#334155' if is_dark_mode else '#bbf7d0'}; border-radius: 10px; padding: 14px; text-align: center;">
-            <div style="font-size: 0.75rem; color: {'#34d399' if is_dark_mode else '#166534'}; font-weight: 600;">🌾 ราคากลางที่ดินเปล่า (รัศมี {land_radius_km} กม.)</div>
+            <div style="font-size: 0.75rem; color: {'#34d399' if is_dark_mode else '#166534'}; font-weight: 600;">ราคากลางที่ดินเปล่า (รัศมี {land_radius_km} กม.)</div>
             <div style="font-size: 1.25rem; font-weight: 800; color: {'#34d399' if is_dark_mode else '#15803d'}; margin: 2px 0;">{f'฿{nearby_land_med_sqw:,.0f}/ตร.ว.' if pd.notna(nearby_land_med_sqw) else '-'}</div>
             <div style="font-size: 0.78rem;">{sqw_card_badge}</div>
             <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 2px;">(จาก {nearby_land_cnt:,} แปลงที่ดินรอบทำเล)</div>
@@ -1162,7 +1267,7 @@ def render_single_sam_asset_inspector(sam_all, df_raw, is_dark_mode=False, plotl
         dist_badge = calc_diff_badge(price_sqw, dist_med_sqw) if price_sqw > 0 else (calc_diff_badge(price_sqm, dist_med_sqm) if price_sqm > 0 else '<span style="color: #94a3b8;">-</span>')
         st.markdown(f"""
         <div style="background: {'#1e293b' if is_dark_mode else '#f8fafc'}; border: 1px solid {'#334155' if is_dark_mode else '#e2e8f0'}; border-radius: 10px; padding: 14px; text-align: center;">
-            <div style="font-size: 0.75rem; color: {'#94a3b8' if is_dark_mode else '#64748b'}; font-weight: 600;">🏘️ ราคากลาง {asset_type} อ.{asset_dist}</div>
+            <div style="font-size: 0.75rem; color: {'#94a3b8' if is_dark_mode else '#64748b'}; font-weight: 600;">ราคากลาง {asset_type} อ.{asset_dist}</div>
             <div style="font-size: 1.15rem; font-weight: 800; color: {'#f8fafc' if is_dark_mode else '#0f172a'}; margin: 2px 0;">{f'฿{dist_med_sqw:,.0f}/ตร.ว.' if pd.notna(dist_med_sqw) else '-'}</div>
             <div style="font-size: 0.8rem; color: {'#38bdf8' if is_dark_mode else '#0284c7'}; font-weight: 700;">{f'฿{dist_med_sqm:,.0f}/ตร.ม.' if pd.notna(dist_med_sqm) else '-'}</div>
             <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 2px;">{dist_badge} (จาก {dist_cnt:,} ทรัพย์)</div>
@@ -1172,7 +1277,7 @@ def render_single_sam_asset_inspector(sam_all, df_raw, is_dark_mode=False, plotl
         prov_badge = calc_diff_badge(price_sqw, prov_med_sqw) if price_sqw > 0 else (calc_diff_badge(price_sqm, prov_med_sqm) if price_sqm > 0 else '<span style="color: #94a3b8;">-</span>')
         st.markdown(f"""
         <div style="background: {'#1e293b' if is_dark_mode else '#f8fafc'}; border: 1px solid {'#334155' if is_dark_mode else '#e2e8f0'}; border-radius: 10px; padding: 14px; text-align: center;">
-            <div style="font-size: 0.75rem; color: {'#94a3b8' if is_dark_mode else '#64748b'}; font-weight: 600;">📍 ราคากลาง {asset_type} จ.{asset_prov}</div>
+            <div style="font-size: 0.75rem; color: {'#94a3b8' if is_dark_mode else '#64748b'}; font-weight: 600;">ราคากลาง {asset_type} จ.{asset_prov}</div>
             <div style="font-size: 1.15rem; font-weight: 800; color: {'#f8fafc' if is_dark_mode else '#0f172a'}; margin: 2px 0;">{f'฿{prov_med_sqw:,.0f}/ตร.ว.' if pd.notna(prov_med_sqw) else '-'}</div>
             <div style="font-size: 0.8rem; color: {'#38bdf8' if is_dark_mode else '#0284c7'}; font-weight: 700;">{f'฿{prov_med_sqm:,.0f}/ตร.ม.' if pd.notna(prov_med_sqm) else '-'}</div>
             <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 2px;">{prov_badge} (จาก {prov_cnt:,} ทรัพย์)</div>
@@ -1182,7 +1287,7 @@ def render_single_sam_asset_inspector(sam_all, df_raw, is_dark_mode=False, plotl
         all_badge = calc_diff_badge(price_sqw, all_cat_med_sqw) if price_sqw > 0 else (calc_diff_badge(price_sqm, all_cat_med_sqm) if price_sqm > 0 else '<span style="color: #94a3b8;">-</span>')
         st.markdown(f"""
         <div style="background: {'#1e293b' if is_dark_mode else '#f8fafc'}; border: 1px solid {'#334155' if is_dark_mode else '#e2e8f0'}; border-radius: 10px; padding: 14px; text-align: center;">
-            <div style="font-size: 0.75rem; color: {'#94a3b8' if is_dark_mode else '#64748b'}; font-weight: 600;">🌐 ราคากลางตลาดรวม ({asset_type})</div>
+            <div style="font-size: 0.75rem; color: {'#94a3b8' if is_dark_mode else '#64748b'}; font-weight: 600;">ราคากลางตลาดรวม ({asset_type})</div>
             <div style="font-size: 1.15rem; font-weight: 800; color: {'#f8fafc' if is_dark_mode else '#0f172a'}; margin: 2px 0;">{f'฿{all_cat_med_sqw:,.0f}/ตร.ว.' if pd.notna(all_cat_med_sqw) else '-'}</div>
             <div style="font-size: 0.8rem; color: {'#38bdf8' if is_dark_mode else '#0284c7'}; font-weight: 700;">{f'฿{all_cat_med_sqm:,.0f}/ตร.ม.' if pd.notna(all_cat_med_sqm) else '-'}</div>
             <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 2px;">{all_badge} (จาก {all_cat_cnt:,} ทรัพย์)</div>
@@ -1199,32 +1304,32 @@ def render_single_sam_asset_inspector(sam_all, df_raw, is_dark_mode=False, plotl
         sqw_colors = []
 
         if price_sqw > 0:
-            sqw_cats.append(f'🏛️ ทรัพย์ SAM นี้ ({asset_code})')
+            sqw_cats.append(f'ทรัพย์ SAM นี้ ({asset_code})')
             sqw_vals.append(price_sqw)
             sqw_colors.append('#10b981')
 
         if pd.notna(nearby_land_med_sqw):
-            sqw_cats.append(f'🌾 ที่ดินเปล่า (รัศมี {land_radius_km} กม.)')
+            sqw_cats.append(f'ที่ดินเปล่า (รัศมี {land_radius_km} กม.)')
             sqw_vals.append(nearby_land_med_sqw)
             sqw_colors.append('#059669')
 
         if pd.notna(land_dist_med_sqw):
-            sqw_cats.append(f'🏘️ ที่ดินเปล่า อ.{asset_dist}')
+            sqw_cats.append(f'ที่ดินเปล่า อ.{asset_dist}')
             sqw_vals.append(land_dist_med_sqw)
             sqw_colors.append('#0d9488')
 
         if pd.notna(dist_med_sqw):
-            sqw_cats.append(f'🏘️ {asset_type} อ.{asset_dist}')
+            sqw_cats.append(f'{asset_type} อ.{asset_dist}')
             sqw_vals.append(dist_med_sqw)
             sqw_colors.append('#3b82f6')
 
         if pd.notna(prov_med_sqw):
-            sqw_cats.append(f'📍 {asset_type} จ.{asset_prov}')
+            sqw_cats.append(f'{asset_type} จ.{asset_prov}')
             sqw_vals.append(prov_med_sqw)
             sqw_colors.append('#06b6d4')
 
         if pd.notna(all_cat_med_sqw):
-            sqw_cats.append(f'🌐 {asset_type} ตลาดรวม')
+            sqw_cats.append(f'{asset_type} ตลาดรวม')
             sqw_vals.append(all_cat_med_sqw)
             sqw_colors.append('#f59e0b')
 
@@ -1238,7 +1343,7 @@ def render_single_sam_asset_inspector(sam_all, df_raw, is_dark_mode=False, plotl
                 textposition='auto'
             ))
             fig_sqw_bench.update_layout(
-                title=f'📐 ราคาต่อตารางวา (Price/Sq.Wah - จากเนื้อที่ดิน)',
+                title=f'ราคาต่อตารางวา (Price/Sq.Wah - จากเนื้อที่ดิน)',
                 xaxis_title="บาท / ตร.ว.",
                 height=320,
                 margin=dict(t=40, b=10, l=10, r=10),
@@ -1256,27 +1361,27 @@ def render_single_sam_asset_inspector(sam_all, df_raw, is_dark_mode=False, plotl
         sqm_colors = []
 
         if price_sqm > 0:
-            sqm_cats.append(f'🏛️ ทรัพย์ SAM นี้ ({asset_code})')
+            sqm_cats.append(f'ทรัพย์ SAM นี้ ({asset_code})')
             sqm_vals.append(price_sqm)
             sqm_colors.append('#10b981')
 
         if pd.notna(dist_med_sqm):
-            sqm_cats.append(f'🏘️ {asset_type} อ.{asset_dist}')
+            sqm_cats.append(f'{asset_type} อ.{asset_dist}')
             sqm_vals.append(dist_med_sqm)
             sqm_colors.append('#3b82f6')
 
         if pd.notna(prov_med_sqm):
-            sqm_cats.append(f'📍 {asset_type} จ.{asset_prov}')
+            sqm_cats.append(f'{asset_type} จ.{asset_prov}')
             sqm_vals.append(prov_med_sqm)
             sqm_colors.append('#06b6d4')
 
         if pd.notna(sam_cat_med_sqm):
-            sqm_cats.append(f'🏛️ {asset_type} SAM ทั่วประเทศ')
+            sqm_cats.append(f'{asset_type} SAM ทั่วประเทศ')
             sqm_vals.append(sam_cat_med_sqm)
             sqm_colors.append('#8b5cf6')
 
         if pd.notna(all_cat_med_sqm):
-            sqm_cats.append(f'🌐 {asset_type} ตลาดรวม')
+            sqm_cats.append(f'{asset_type} ตลาดรวม')
             sqm_vals.append(all_cat_med_sqm)
             sqm_colors.append('#f59e0b')
 
@@ -1290,7 +1395,7 @@ def render_single_sam_asset_inspector(sam_all, df_raw, is_dark_mode=False, plotl
                 textposition='auto'
             ))
             fig_sqm_bench.update_layout(
-                title=f'🏢 ราคาต่อตารางเมตร (Price/Sq.M. - จากพื้นที่ใช้สอย)',
+                title=f'ราคาต่อตารางเมตร (Price/Sq.M. - จากพื้นที่ใช้สอย)',
                 xaxis_title="บาท / ตร.ม.",
                 height=320,
                 margin=dict(t=40, b=10, l=10, r=10),
@@ -1307,7 +1412,7 @@ def render_single_sam_asset_inspector(sam_all, df_raw, is_dark_mode=False, plotl
     # -------------------------------------------------------------------------
     # 3. NEARBY COMPARABLE ASSETS (COMPS) WITH MINI-MAP & TABLE
     # -------------------------------------------------------------------------
-    st.markdown("##### 📍 เปรียบเทียบกับทรัพย์สินคู่แข่งในบริเวณใกล้เคียง (Nearby Comparable Assets)")
+    st.markdown("##### เปรียบเทียบกับทรัพย์สินคู่แข่งในบริเวณใกล้เคียง (Nearby Comparable Assets)")
     st.caption("ค้นหาและเปรียบเทียบทรัพย์ NPA ของทุกสถาบัน (BAM, GHB, KBANK, SCB, Chayo555 ฯลฯ) ที่ตั้งอยู่รอบตำแหน่งทรัพย์นี้")
 
     c_opt1, c_opt2, c_opt3 = st.columns([0.35, 0.35, 0.3])
@@ -1342,7 +1447,7 @@ def render_single_sam_asset_inspector(sam_all, df_raw, is_dark_mode=False, plotl
         else:
             nearby_comps = nearby_comps.sort_values('ราคา', ascending=True)
 
-        st.info(f"🎯 พบทรัพย์สินคู่แข่งในรัศมี **{radius_km} กม.** จำนวนทั้งหมด **{len(nearby_comps):,}** รายการ (ครอบคลุม {nearby_comps['บริษัท'].nunique()} สถาบัน)")
+        st.info(f"พบทรัพย์สินคู่แข่งในรัศมี **{radius_km} กม.** จำนวนทั้งหมด **{len(nearby_comps):,}** รายการ (ครอบคลุม {nearby_comps['บริษัท'].nunique()} สถาบัน)")
 
         # Mini Map showing SAM asset (Green Star) vs Nearby Comps (Colored circles)
         if not nearby_comps.empty:
@@ -1449,22 +1554,22 @@ def render_single_sam_asset_inspector(sam_all, df_raw, is_dark_mode=False, plotl
                     "ราคาขาย (บาท)": st.column_config.NumberColumn("ราคาขาย (บาท)", format="฿%,d"),
                     "ราคาต่อตารางวา": st.column_config.NumberColumn("ราคา/ตร.ว.", format="฿%,d"),
                     "ระยะทาง (กม.)": st.column_config.NumberColumn("ระยะห่าง (กม.)", format="%.2f กม."),
-                    "ลิงก์": st.column_config.LinkColumn("เปิดดูทรัพย์", display_text="🔗 ดูรายละเอียด")
+                    "ลิงก์": st.column_config.LinkColumn("เปิดดูทรัพย์", display_text="เปิดดูทรัพย์ ↗")
                 },
                 height=350,
                 key="insp_nearby_comps_table"
             )
         else:
-            st.warning(f"⚠️ ไม่พบทรัพย์สินอื่นในรัศมี {radius_km} กม. ลองขยายรัศมีหรือปลดตัวกรองประเภททรัพย์")
+            st.warning(f"ไม่พบทรัพย์สินอื่นในรัศมี {radius_km} กม. ลองขยายรัศมีหรือปลดตัวกรองประเภททรัพย์")
     else:
-        st.info("ℹ️ ทรัพย์สินนี้ไม่มีข้อมูลพิกัด GPS สำหรับค้นหาทรัพย์รอบข้าง")
+        st.info("ทรัพย์สินนี้ไม่มีข้อมูลพิกัด GPS สำหรับค้นหาทรัพย์รอบข้าง")
 
     # -------------------------------------------------------------------------
     # 4. SAME-PROJECT COMPS (IF APPLICABLE)
     # -------------------------------------------------------------------------
     asset_proj_name = str(asset_row.get('ชื่อโครงการ', '')).strip()
     if asset_proj_name and asset_proj_name not in ['', 'nan', 'None', '-', 'ไม่มีชื่อ']:
-        st.markdown(f"##### 🏢 ทรัพย์สินอื่นในโครงการเดียวกัน ({asset_proj_name})")
+        st.markdown(f"##### ทรัพย์สินอื่นในโครงการเดียวกัน ({asset_proj_name})")
         same_proj_all = df_raw[df_raw['ชื่อโครงการ'].astype(str).str.strip() == asset_proj_name].copy()
         
         if len(same_proj_all) > 1:
@@ -1478,12 +1583,12 @@ def render_single_sam_asset_inspector(sam_all, df_raw, is_dark_mode=False, plotl
                 use_container_width=True,
                 column_config={
                     "ราคาขาย (บาท)": st.column_config.NumberColumn("ราคาขาย (บาท)", format="฿%,d"),
-                    "ลิงก์": st.column_config.LinkColumn("เปิดดูทรัพย์", display_text="🔗 ดูรายละเอียด")
+                    "ลิงก์": st.column_config.LinkColumn("เปิดดูทรัพย์", display_text="เปิดดูทรัพย์ ↗")
                 },
                 key="insp_same_proj_table"
             )
         else:
-            st.caption(f"ℹ️ โครงการ '{asset_proj_name}' มีทรัพย์ของ SAM เพียงยูนิตเดียวในฐานข้อมูล")
+            st.caption(f"โครงการ '{asset_proj_name}' มีทรัพย์ของ SAM เพียงยูนิตเดียวในฐานข้อมูล")
 
 
 # ==============================================================================
@@ -1494,13 +1599,13 @@ def render_sam_tab(df_raw, df_filtered, is_dark_mode=False, plotly_template="plo
     Renders the specialized, comprehensive SAM NPA Analysis Tab with 7 deep-dive subtabs.
     """
     if df_raw is None or df_raw.empty:
-        st.warning("⚠️ ไม่มีข้อมูลในฐานข้อมูลสำหรับการวิเคราะห์ SAM")
+        st.warning("ไม่มีข้อมูลในฐานข้อมูลสำหรับการวิเคราะห์ SAM")
         return
 
     # Extract all SAM data from raw dataset
     sam_all = df_raw[df_raw['บริษัท'].astype(str).str.upper().str.contains('SAM', na=False)].copy()
     if sam_all.empty:
-        st.warning("⚠️ ไม่พบข้อมูลทรัพย์สินของบริษัท SAM ในฐานข้อมูล")
+        st.warning("ไม่พบข้อมูลทรัพย์สินของบริษัท SAM ในฐานข้อมูล")
         return
 
     # Ensure price numeric
@@ -1511,7 +1616,7 @@ def render_sam_tab(df_raw, df_filtered, is_dark_mode=False, plotly_template="plo
 
     # Add enriched classification columns if not present
     if 'Asset_Class' not in sam_all.columns:
-        sam_all['Asset_Class'] = sam_all['ประเภททรัพย์'].map(lambda x: ASSET_CLASS_MAP.get(str(x).strip(), "📦 อื่นๆ & สังหาริมทรัพย์ (Others)"))
+        sam_all['Asset_Class'] = sam_all['ประเภททรัพย์'].map(lambda x: ASSET_CLASS_MAP.get(str(x).strip(), "อื่นๆ และสังหาริมทรัพย์ (Others)"))
     if 'Price_Tier' not in sam_all.columns:
         sam_all['Price_Tier'] = sam_all['ราคา'].apply(classify_price_tier)
     if 'Economic_Zone' not in sam_all.columns:
@@ -1531,7 +1636,7 @@ def render_sam_tab(df_raw, df_filtered, is_dark_mode=False, plotly_template="plo
         with open(sam_logo_path, "rb") as img_f:
             sam_logo_b64 = base64.b64encode(img_f.read()).decode("utf-8")
 
-    logo_img_tag = f'<img src="data:image/png;base64,{sam_logo_b64}" style="height: 52px; object-fit: contain; margin-right: 12px; filter: drop-shadow(0 4px 8px rgba(16, 185, 129, 0.25));">' if sam_logo_b64 else '🏛️'
+    logo_img_tag = f'<img src="data:image/png;base64,{sam_logo_b64}" style="height: 52px; object-fit: contain; margin-right: 12px; filter: drop-shadow(0 4px 8px rgba(16, 185, 129, 0.25));">' if sam_logo_b64 else 'SAM'
 
     total_sam_units = len(sam_all)
     total_sam_val = sam_all['ราคา'].dropna().sum()
@@ -1576,7 +1681,7 @@ def render_sam_tab(df_raw, df_filtered, is_dark_mode=False, plotly_template="plo
     # -------------------------------------------------------------------------
     # SAM DEDICATED QUICK FILTERS
     # -------------------------------------------------------------------------
-    with st.expander("🎯 แผงควบคุมตัวกรองเฉพาะทรัพย์ SAM (Filter SAM Portfolio)", expanded=False):
+    with st.expander("แผงควบคุมตัวกรองเฉพาะทรัพย์ SAM (Filter SAM Portfolio)", expanded=False):
         f_col1, f_col2, f_col3, f_col4 = st.columns(4)
         
         with f_col1:
@@ -1653,18 +1758,18 @@ def render_sam_tab(df_raw, df_filtered, is_dark_mode=False, plotly_template="plo
     # 5 SPECIALIZED SUBTABS
     # -------------------------------------------------------------------------
     sam_sub2, sam_sub3, sam_sub_proj, sam_sub4, sam_sub5 = st.tabs([
-        "🗺️ แผนที่ & ทำเลยุทธศาสตร์ (Geospatial & Zones)",
-        "⚔️ เปรียบเทียบ SAM vs คู่แข่ง (Market Benchmarking)",
-        "🏘️ เปรียบเทียบในโครงการเดียวกัน (Same-Project Benchmark)",
-        "💎 ขุมทรัพย์การลงทุน & ทรัพย์เด่น (Investment Gems)",
-        "🔍 ค้นหาทรัพย์ SAM เจาะลึก & ส่งออก (Explorer & Export)"
+        "แผนที่และทำเลยุทธศาสตร์ (Geospatial & Zones)",
+        "เปรียบเทียบ SAM vs คู่แข่ง (Market Benchmarking)",
+        "เปรียบเทียบในโครงการเดียวกัน (Same-Project Benchmark)",
+        "ทรัพย์เด่นและการลงทุน (Investment Gems)",
+        "ค้นหาทรัพย์ SAM เจาะลึกและส่งออก (Explorer & Export)"
     ])
 
     # =========================================================================
     # SUB-TAB 2: ทำเลยุทธศาสตร์ & แผนที่ (GEOSPATIAL & ZONES)
     # =========================================================================
     with sam_sub2:
-        st.markdown("#### 🗺️ ทำเลยุทธศาสตร์และแผนที่พิกัดทรัพย์สิน SAM")
+        st.markdown("#### ทำเลยุทธศาสตร์และแผนที่พิกัดทรัพย์สิน SAM")
         st.caption("เจาะลึก 3 โซนยุทธศาสตร์หลัก (EEC, BKK & Metro, ภูมิภาค) พร้อมพิกัด GPS แม่นยำ 100%")
         
         # Zone KPI summary pills
@@ -1680,20 +1785,20 @@ def render_sam_tab(df_raw, df_filtered, is_dark_mode=False, plotly_template="plo
             eec_row = eec_match.iloc[0] if not eec_match.empty else None
             if eec_row is not None:
                 st.markdown(f"""
-                <div style="background: {'#1e293b' if is_dark_mode else '#f8fafc'}; border-left: 4px solid #f59e0b; padding: 12px 16px; border-radius: 8px; border-top: 1px solid {'#334155' if is_dark_mode else '#e2e8f0'}; border-right: 1px solid {'#334155' if is_dark_mode else '#e2e8f0'}; border-bottom: 1px solid {'#334155' if is_dark_mode else '#e2e8f0'};"><div style="font-size: 0.85rem; font-weight: 700; color: #f59e0b;">⚡ เขตพัฒนาพิเศษภาคตะวันออก (EEC)</div><div style="font-size: 1.3rem; font-weight: 800; color: {'#f8fafc' if is_dark_mode else '#0f172a'}; margin: 2px 0;">{eec_row['count']:,} รายการ (฿{eec_row['total_val']/1e9:,.2f}B)</div><div style="font-size: 0.75rem; color: {'#94a3b8' if is_dark_mode else '#64748b'};">ชลบุรี (391), ระยอง (302), ฉะเชิงเทรา (46)</div></div>""", unsafe_allow_html=True)
+                <div style="background: {'#1e293b' if is_dark_mode else '#f8fafc'}; border-left: 4px solid #f59e0b; padding: 12px 16px; border-radius: 8px; border-top: 1px solid {'#334155' if is_dark_mode else '#e2e8f0'}; border-right: 1px solid {'#334155' if is_dark_mode else '#e2e8f0'}; border-bottom: 1px solid {'#334155' if is_dark_mode else '#e2e8f0'};"><div style="font-size: 0.85rem; font-weight: 700; color: #f59e0b;">เขตพัฒนาพิเศษภาคตะวันออก (EEC)</div><div style="font-size: 1.3rem; font-weight: 800; color: {'#f8fafc' if is_dark_mode else '#0f172a'}; margin: 2px 0;">{eec_row['count']:,} รายการ (฿{eec_row['total_val']/1e9:,.2f}B)</div><div style="font-size: 0.75rem; color: {'#94a3b8' if is_dark_mode else '#64748b'};">ชลบุรี (391), ระยอง (302), ฉะเชิงเทรา (46)</div></div>""", unsafe_allow_html=True)
                 
         with z_col2:
             bkk_match = z_agg[z_agg['Economic_Zone'].str.contains('BKK', na=False)]
             bkk_row = bkk_match.iloc[0] if not bkk_match.empty else None
             if bkk_row is not None:
                 st.markdown(f"""
-                <div style="background: {'#1e293b' if is_dark_mode else '#f8fafc'}; border-left: 4px solid #3b82f6; padding: 12px 16px; border-radius: 8px; border-top: 1px solid {'#334155' if is_dark_mode else '#e2e8f0'}; border-right: 1px solid {'#334155' if is_dark_mode else '#e2e8f0'}; border-bottom: 1px solid {'#334155' if is_dark_mode else '#e2e8f0'};"><div style="font-size: 0.85rem; font-weight: 700; color: #3b82f6;">🌆 กรุงเทพฯ และปริมณฑล (BKK & Metro)</div><div style="font-size: 1.3rem; font-weight: 800; color: {'#f8fafc' if is_dark_mode else '#0f172a'}; margin: 2px 0;">{bkk_row['count']:,} รายการ (฿{bkk_row['total_val']/1e9:,.2f}B)</div><div style="font-size: 0.75rem; color: {'#94a3b8' if is_dark_mode else '#64748b'};">กทม. (1,029), ปทุมธานี (365), สมุทรปราการ (256), นนทบุรี (245)</div></div>""", unsafe_allow_html=True)
+                <div style="background: {'#1e293b' if is_dark_mode else '#f8fafc'}; border-left: 4px solid #3b82f6; padding: 12px 16px; border-radius: 8px; border-top: 1px solid {'#334155' if is_dark_mode else '#e2e8f0'}; border-right: 1px solid {'#334155' if is_dark_mode else '#e2e8f0'}; border-bottom: 1px solid {'#334155' if is_dark_mode else '#e2e8f0'};"><div style="font-size: 0.85rem; font-weight: 700; color: #3b82f6;">กรุงเทพฯ และปริมณฑล (BKK & Metro)</div><div style="font-size: 1.3rem; font-weight: 800; color: {'#f8fafc' if is_dark_mode else '#0f172a'}; margin: 2px 0;">{bkk_row['count']:,} รายการ (฿{bkk_row['total_val']/1e9:,.2f}B)</div><div style="font-size: 0.75rem; color: {'#94a3b8' if is_dark_mode else '#64748b'};">กทม. (1,029), ปทุมธานี (365), สมุทรปราการ (256), นนทบุรี (245)</div></div>""", unsafe_allow_html=True)
                 
         with z_col3:
             upcountry_cnt = total_sam_units - (eec_row['count'] if eec_row is not None else 0) - (bkk_row['count'] if bkk_row is not None else 0)
             upcountry_val = total_sam_val - (eec_row['total_val'] if eec_row is not None else 0) - (bkk_row['total_val'] if bkk_row is not None else 0)
             st.markdown(f"""
-            <div style="background: {'#1e293b' if is_dark_mode else '#f8fafc'}; border-left: 4px solid #10b981; padding: 12px 16px; border-radius: 8px; border-top: 1px solid {'#334155' if is_dark_mode else '#e2e8f0'}; border-right: 1px solid {'#334155' if is_dark_mode else '#e2e8f0'}; border-bottom: 1px solid {'#334155' if is_dark_mode else '#e2e8f0'};"><div style="font-size: 0.85rem; font-weight: 700; color: #10b981;">🏞️ ภูมิภาคและต่างจังหวัด (Regional Hubs)</div><div style="font-size: 1.3rem; font-weight: 800; color: {'#f8fafc' if is_dark_mode else '#0f172a'}; margin: 2px 0;">{upcountry_cnt:,} รายการ (฿{upcountry_val/1e9:,.2f}B)</div><div style="font-size: 0.75rem; color: {'#94a3b8' if is_dark_mode else '#64748b'};">เชียงใหม่ (124), โคราช (85), สงขลา (82), สุราษฎร์ฯ (82)</div></div>""", unsafe_allow_html=True)
+            <div style="background: {'#1e293b' if is_dark_mode else '#f8fafc'}; border-left: 4px solid #10b981; padding: 12px 16px; border-radius: 8px; border-top: 1px solid {'#334155' if is_dark_mode else '#e2e8f0'}; border-right: 1px solid {'#334155' if is_dark_mode else '#e2e8f0'}; border-bottom: 1px solid {'#334155' if is_dark_mode else '#e2e8f0'};"><div style="font-size: 0.85rem; font-weight: 700; color: #10b981;">ภูมิภาคและต่างจังหวัด (Regional Hubs)</div><div style="font-size: 1.3rem; font-weight: 800; color: {'#f8fafc' if is_dark_mode else '#0f172a'}; margin: 2px 0;">{upcountry_cnt:,} รายการ (฿{upcountry_val/1e9:,.2f}B)</div><div style="font-size: 0.75rem; color: {'#94a3b8' if is_dark_mode else '#64748b'};">เชียงใหม่ (124), โคราช (85), สงขลา (82), สุราษฎร์ฯ (82)</div></div>""", unsafe_allow_html=True)
 
         st.markdown("<br/>", unsafe_allow_html=True)
 
@@ -1701,13 +1806,13 @@ def render_sam_tab(df_raw, df_filtered, is_dark_mode=False, plotly_template="plo
         map_mode_col1, map_mode_col2 = st.columns([0.6, 0.4])
         with map_mode_col1:
             sam_map_color = st.segmented_control(
-                "🎨 เลือกการจำแนกสีจุดพิกัดบนแผนที่ SAM:",
-                options=["🏠 จำแนกตามกลุ่มประเภททรัพย์", "🏷️ จำแนกตามช่วงราคา (Price Tier)", "🔨 จำแนกตามสถานะการขาย (ประมูล/ขาย)"],
-                default="🏠 จำแนกตามกลุ่มประเภททรัพย์",
+                "เลือกการจำแนกสีจุดพิกัดบนแผนที่ SAM:",
+                options=["จำแนกตามกลุ่มประเภททรัพย์", "จำแนกตามช่วงราคา (Price Tier)", "จำแนกตามสถานะการขาย (ประมูล/ขาย)"],
+                default="จำแนกตามกลุ่มประเภททรัพย์",
                 key="sam_map_color_selector"
             )
             if not sam_map_color:
-                sam_map_color = "🏠 จำแนกตามกลุ่มประเภททรัพย์"
+                sam_map_color = "จำแนกตามกลุ่มประเภททรัพย์"
                 
         sam_map_data = sam_filtered[
             sam_filtered['ละติจูด'].notna() & sam_filtered['ลองจิจูด'].notna() &
@@ -1717,11 +1822,11 @@ def render_sam_tab(df_raw, df_filtered, is_dark_mode=False, plotly_template="plo
         if not sam_map_data.empty:
             if "กลุ่มประเภททรัพย์" in sam_map_color:
                 color_lookup = {
-                    "🏠 ที่อยู่อาศัย (Residential)": [59, 130, 246, 200],
-                    "🌾 ที่ดินเปล่า (Land Plots)": [16, 185, 129, 200],
-                    "🏢 อาคารและพาณิชยกรรม (Commercial)": [245, 158, 11, 200],
-                    "🏭 อุตสาหกรรมและโครงการพิเศษ (Industrial & Mega)": [239, 68, 68, 220],
-                    "📦 อื่นๆ & สังหาริมทรัพย์ (Others)": [139, 92, 246, 180]
+                    "ที่อยู่อาศัย (Residential)": [59, 130, 246, 200],
+                    "ที่ดินเปล่า (Land Plots)": [16, 185, 129, 200],
+                    "อาคารและพาณิชยกรรม (Commercial)": [245, 158, 11, 200],
+                    "อุตสาหกรรมและโครงการพิเศษ (Industrial & Mega)": [239, 68, 68, 220],
+                    "อื่นๆ และสังหาริมทรัพย์ (Others)": [139, 92, 246, 180]
                 }
                 sam_map_data['fill_color'] = sam_map_data['Asset_Class'].map(lambda x: color_lookup.get(x, [16, 185, 129, 200]))
             elif "ช่วงราคา" in sam_map_color:
@@ -1771,7 +1876,7 @@ def render_sam_tab(df_raw, df_filtered, is_dark_mode=False, plotly_template="plo
             tooltip = {
                 "html": """
                 <div style="background:#0f172a; color:#f8fafc; padding:10px 14px; border-radius:8px; font-family:Sarabun, sans-serif; font-size:12px; border:1px solid #10b981; box-shadow:0 4px 12px rgba(0,0,0,0.5);">
-                    <div style="font-weight:bold; font-size:14px; color:#34d399; margin-bottom:4px;">🏛️ SAM: {รหัสทรัพย์}</div>
+                    <div style="font-weight:bold; font-size:14px; color:#34d399; margin-bottom:4px;">SAM: {รหัสทรัพย์}</div>
                     <div><b>ประเภท:</b> {ประเภททรัพย์} ({ประเภทการขาย})</div>
                     <div><b>ราคา:</b> <span style="color:#fbbf24; font-weight:bold;">{ราคา_fmt}</span></div>
                     <div><b>ทำเล:</b> {อำเภอ}, {จังหวัด}</div>
@@ -1790,10 +1895,10 @@ def render_sam_tab(df_raw, df_filtered, is_dark_mode=False, plotly_template="plo
             )
             st.pydeck_chart(deck, use_container_width=True)
         else:
-            st.warning("⚠️ ไม่พบข้อมูลพิกัดสำหรับแสดงแผนที่")
+            st.warning("ไม่พบข้อมูลพิกัดสำหรับแสดงแผนที่")
 
         # Top 15 SAM Provinces Table & Bar Chart
-        st.markdown("##### 📍 15 อันดับจังหวัดที่มีทรัพย์สิน SAM หนาแน่นที่สุด")
+        st.markdown("##### 15 อันดับจังหวัดที่มีทรัพย์สิน SAM หนาแน่นที่สุด")
         top_prov_df = sam_all.groupby('จังหวัด').agg(
             count=('รหัสทรัพย์', 'count'),
             val_million=('ราคา', lambda x: x.sum() / 1e6),
@@ -1823,7 +1928,7 @@ def render_sam_tab(df_raw, df_filtered, is_dark_mode=False, plotly_template="plo
     # SUB-TAB 3: เปรียบเทียบ SAM VS คู่แข่ง (MARKET BENCHMARKING)
     # =========================================================================
     with sam_sub3:
-        st.markdown("#### ⚔️ การเปรียบเทียบขีดความสามารถในการแข่งขัน (SAM vs Competitors)")
+        st.markdown("#### การเปรียบเทียบขีดความสามารถในการแข่งขัน (SAM vs Competitors)")
         st.caption("เปรียบเทียบส่วนแบ่งตลาด (Market Share), ราคากลางต่อหน่วย, และราคาต่อตารางวา กับคู่แข่งทุกสถาบัน")
         
         b1, b2 = st.columns(2)
@@ -1835,7 +1940,7 @@ def render_sam_tab(df_raw, df_filtered, is_dark_mode=False, plotly_template="plo
                 names='บริษัท',
                 values='count',
                 hole=0.4,
-                title='🥧 ส่วนแบ่งตลาดตามจำนวนทรัพย์สิน (Units Market Share)',
+                title='ส่วนแบ่งตลาดตามจำนวนทรัพย์สิน (Units Market Share)',
                 color='บริษัท',
                 color_discrete_map=COMPANY_COLORS,
                 template=plotly_template
@@ -1855,7 +1960,7 @@ def render_sam_tab(df_raw, df_filtered, is_dark_mode=False, plotly_template="plo
                 names='บริษัท',
                 values='val_million',
                 hole=0.4,
-                title='💰 ส่วนแบ่งตลาดตามมูลค่ารวมของพอร์ต (Portfolio Value Share)',
+                title='ส่วนแบ่งตลาดตามมูลค่ารวมของพอร์ต (Portfolio Value Share)',
                 color='บริษัท',
                 color_discrete_map=COMPANY_COLORS,
                 template=plotly_template
@@ -1869,7 +1974,7 @@ def render_sam_tab(df_raw, df_filtered, is_dark_mode=False, plotly_template="plo
         st.markdown("---")
 
         # 2. Price Competitiveness Benchmark by Property Type
-        st.markdown("##### 🏷️ เปรียบเทียบราคากลาง (Median Price) SAM vs สถาบันอื่น แยกตามประเภททรัพย์")
+        st.markdown("##### เปรียบเทียบราคากลาง (Median Price) SAM vs สถาบันอื่น แยกตามประเภททรัพย์")
         top_types_benchmark = ["บ้านเดี่ยว", "ทาวน์เฮ้าส์", "ห้องชุดพักอาศัย", "ที่ดินเปล่า", "อาคารพาณิชย์", "โรงงาน/โกดัง"]
         df_bench = df_raw[df_raw['ประเภททรัพย์'].isin(top_types_benchmark) & (df_raw['ราคา'] > 0)].copy()
         
@@ -1896,7 +2001,7 @@ def render_sam_tab(df_raw, df_filtered, is_dark_mode=False, plotly_template="plo
         st.plotly_chart(fig_bench_p, use_container_width=True, key="sam_tab_bench_p")
 
         # 3. Price per Sq.Wah Benchmark (Land & House)
-        st.markdown("##### 📐 เปรียบเทียบราคาต่อตารางวา (Price / Sq.Wah) ในจังหวัดหลัก")
+        st.markdown("##### เปรียบเทียบราคาต่อตารางวา (Price / Sq.Wah) ในจังหวัดหลัก")
         df_raw_sqw = df_raw.copy()
         if 'ราคาต่อตารางวา' not in df_raw_sqw.columns:
             if 'พื้นที่_ตารางวา' in df_raw_sqw.columns and 'ราคา' in df_raw_sqw.columns:
@@ -1952,24 +2057,24 @@ def render_sam_tab(df_raw, df_filtered, is_dark_mode=False, plotly_template="plo
     # SUB-TAB 4: ขุมทรัพย์การลงทุน & ทรัพย์เด่น (INVESTMENT GEMS)
     # =========================================================================
     with sam_sub4:
-        st.markdown("#### 💎 ขุมทรัพย์การลงทุนและคัดกรองทรัพย์ศักยภาพสูงของ SAM")
+        st.markdown("#### คัดกรองทรัพย์ศักยภาพสูงและการลงทุนของ SAM")
         st.caption("คัดสรรกลุ่มทรัพย์ที่โดดเด่นทั้งในแง่มูลค่า, โอกาสการพัฒนา, สภาพคล่อง, และทรัพย์ประมูล")
 
         gem_category = st.radio(
             "เลือกกลุ่มทรัพย์ศักยภาพที่ต้องการวิเคราะห์:",
             options=[
-                "👑 10 อันดับ Mega Assets (ทรัพย์มูลค่าสูงสุด)",
-                "🏭 โรงงาน & โครงการเชิงพาณิชย์ (Commercial & Industrial)",
-                "🌾 ที่ดินแปลงยักษ์ศักยภาพสูง (Land Plots > 10 ไร่)",
-                "🏷️ ทรัพย์สภาพคล่องสูงราคาเข้าถึงง่าย (< 2 ล้านบาท)",
-                "🔨 ทรัพย์ประมูลน่าจับตา (SAM Auction Watchlist)"
+                "10 อันดับทรัพย์มูลค่าสูงสุด (Mega Assets)",
+                "โรงงานและโครงการเชิงพาณิชย์ (Commercial & Industrial)",
+                "ที่ดินแปลงใหญ่ศักยภาพสูง (Land Plots > 10 ไร่)",
+                "ทรัพย์สภาพคล่องสูงราคาเข้าถึงง่าย (< 2 ล้านบาท)",
+                "ทรัพย์ประมูลน่าจับตา (SAM Auction Watchlist)"
             ],
             horizontal=True,
             key="sam_gem_cat_radio"
         )
 
         if "Mega Assets" in gem_category:
-            st.markdown("##### 👑 10 อันดับทรัพย์สินมูลค่าสูงสุดของ SAM (Mega Commercial Assets)")
+            st.markdown("##### 10 อันดับทรัพย์สินมูลค่าสูงสุดของ SAM (Mega Commercial Assets)")
             top_mega = sam_all.nlargest(10, 'ราคา')[
                 ['รหัสทรัพย์', 'ชื่อประกาศ', 'ประเภททรัพย์', 'ราคา', 'จังหวัด', 'อำเภอ', 'เนื้อที่ (ตร.ว.)', 'พื้นที่_ตารางวา', 'ลิงก์']
             ].copy()
@@ -1981,20 +2086,20 @@ def render_sam_tab(df_raw, df_filtered, is_dark_mode=False, plotly_template="plo
                 use_container_width=True,
                 column_config={
                     "ราคา (บาท)": st.column_config.NumberColumn("ราคาขาย (บาท)", format="฿%,d"),
-                    "ลิงก์": st.column_config.LinkColumn("เปิดเว็บ SAM", display_text="🔗 ดูรายละเอียด")
+                    "ลิงก์": st.column_config.LinkColumn("เปิดเว็บ SAM", display_text="เปิดดูทรัพย์ ↗")
                 },
                 key="sam_top_mega_table"
             )
 
         elif "โรงงาน & โครงการเชิงพาณิชย์" in gem_category:
-            st.markdown("##### 🏭 ทรัพย์สินกลุ่มอุตสาหกรรม, โรงแรม, และโครงการพาณิชยกรรมขนาดใหญ่")
+            st.markdown("##### ทรัพย์สินกลุ่มอุตสาหกรรม โรงแรม และโครงการพาณิชยกรรมขนาดใหญ่")
             comm_types = [
                 'โรงงาน/โกดัง', 'โรงแรม/รีสอร์ท', 'ปั๊มน้ำมัน', 'โรงพยาบาล', 'สวนน้ำ', 
                 'ศูนย์จำหน่ายสินค้า', 'ห้างสรรพสินค้า', 'อาคารสำนักงาน', 'โชว์รูม'
             ]
             comm_df = sam_all[sam_all['ประเภททรัพย์'].isin(comm_types)].copy()
             
-            st.info(f"📊 พบทรัพย์สินเชิงพาณิชย์และอุตสาหกรรมรวม **{len(comm_df):,}** รายการ มูลค่ารวม **฿{comm_df['ราคา'].sum()/1e9:,.2f} พันล้านบาท**")
+            st.info(f"พบทรัพย์สินเชิงพาณิชย์และอุตสาหกรรมรวม **{len(comm_df):,}** รายการ มูลค่ารวม **฿{comm_df['ราคา'].sum()/1e9:,.2f} พันล้านบาท**")
             
             c_comm1, c_comm2 = st.columns([0.45, 0.55])
             with c_comm1:
@@ -2020,18 +2125,18 @@ def render_sam_tab(df_raw, df_filtered, is_dark_mode=False, plotly_template="plo
                     use_container_width=True,
                     column_config={
                         "ราคา": st.column_config.NumberColumn("ราคาขาย (บาท)", format="฿%,d"),
-                        "ลิงก์": st.column_config.LinkColumn("เว็บ SAM", display_text="🔗 เปิดดู")
+                        "ลิงก์": st.column_config.LinkColumn("เว็บ SAM", display_text="เปิดดูทรัพย์ ↗")
                     },
                     height=350,
                     key="sam_comm_table"
                 )
 
         elif "ที่ดินแปลงยักษ์" in gem_category:
-            st.markdown("##### 🌾 ที่ดินเปล่าแปลงใหญ่ (ขนาดตั้งแต่ 10 ไร่ขึ้นไป / ≥ 4,000 ตร.ว.)")
+            st.markdown("##### ที่ดินเปล่าแปลงใหญ่ (ขนาดตั้งแต่ 10 ไร่ขึ้นไป / ≥ 4,000 ตร.ว.)")
             large_land = sam_all[(sam_all['ประเภททรัพย์'] == 'ที่ดินเปล่า') & (sam_all['พื้นที่_ตารางวา'] >= 4000)].copy()
             large_land = large_land.sort_values('พื้นที่_ตารางวา', ascending=False)
             
-            st.success(f"🌾 มีที่ดินเปล่าแปลงใหญ่รวม **{len(large_land):,}** แปลง ขนาดรวมกว่า **{large_land['พื้นที่_ตารางวา'].sum()/400:,.1f} ไร่**")
+            st.success(f"มีที่ดินเปล่าแปลงใหญ่รวม **{len(large_land):,}** แปลง ขนาดรวมกว่า **{large_land['พื้นที่_ตารางวา'].sum()/400:,.1f} ไร่**")
             
             large_land['ขนาด (ไร่-งาน-วา)'] = large_land['พื้นที่_ตารางวา'].apply(format_rai_ngan_wah)
             large_land['ราคา/ตร.ว. (บาท)'] = large_land['ราคาต่อตารางวา']
@@ -2042,35 +2147,35 @@ def render_sam_tab(df_raw, df_filtered, is_dark_mode=False, plotly_template="plo
                 column_config={
                     "ราคา": st.column_config.NumberColumn("ราคารวม (บาท)", format="฿%,d"),
                     "ราคา/ตร.ว. (บาท)": st.column_config.NumberColumn("ราคา/ตร.ว.", format="฿%,d"),
-                    "ลิงก์": st.column_config.LinkColumn("เว็บ SAM", display_text="🔗 ดูโฉนด/แปลงที่ดิน")
+                    "ลิงก์": st.column_config.LinkColumn("เว็บ SAM", display_text="เปิดดูแปลงที่ดิน ↗")
                 },
                 key="sam_large_land_table"
             )
 
         elif "ราคาเข้าถึงง่าย" in gem_category:
-            st.markdown("##### 🏷️ ทรัพย์ที่อยู่อาศัยราคาไม่เกิน 2 ล้านบาท (Affordable & High-Liquidity)")
+            st.markdown("##### ทรัพย์ที่อยู่อาศัยราคาไม่เกิน 2 ล้านบาท (Affordable & High-Liquidity)")
             aff_df = sam_all[
                 sam_all['Asset_Class'].str.contains('Residential', na=False) & 
                 (sam_all['ราคา'] > 0) & (sam_all['ราคา'] <= 2_000_000)
             ].copy().sort_values('ราคา', ascending=True)
             
-            st.info(f"🏡 พบที่อยู่อาศัยราคาเข้าถึงง่าย **{len(aff_df):,}** รายการ (คอนโด {len(aff_df[aff_df['ประเภททรัพย์']=='ห้องชุดพักอาศัย']):,} ห้อง, ทาวน์เฮ้าส์ {len(aff_df[aff_df['ประเภททรัพย์']=='ทาวน์เฮ้าส์']):,} หลัง)")
+            st.info(f"พบที่อยู่อาศัยราคาเข้าถึงง่าย **{len(aff_df):,}** รายการ (คอนโด {len(aff_df[aff_df['ประเภททรัพย์']=='ห้องชุดพักอาศัย']):,} ห้อง, ทาวน์เฮ้าส์ {len(aff_df[aff_df['ประเภททรัพย์']=='ทาวน์เฮ้าส์']):,} หลัง)")
             
             st.dataframe(
                 aff_df[['รหัสทรัพย์', 'ประเภททรัพย์', 'ชื่อประกาศ', 'ราคา', 'ตำบล', 'อำเภอ', 'จังหวัด', 'ลิงก์']],
                 use_container_width=True,
                 column_config={
                     "ราคา": st.column_config.NumberColumn("ราคาขาย (บาท)", format="฿%,d"),
-                    "ลิงก์": st.column_config.LinkColumn("เปิดเว็บ SAM", display_text="🔗 ดูรายละเอียด")
+                    "ลิงก์": st.column_config.LinkColumn("เปิดเว็บ SAM", display_text="เปิดดูทรัพย์ ↗")
                 },
                 key="sam_aff_table"
             )
 
         else:
-            st.markdown("##### 🔨 รายการทรัพย์ขายทอดตลาด / ประมูลของ SAM (Auction Watchlist)")
+            st.markdown("##### รายการทรัพย์ขายทอดตลาด / ประมูลของ SAM (Auction Watchlist)")
             auc_df = sam_all[sam_all['ประเภทการขาย'].astype(str).str.contains('ทอดตลาด|ประมูล', na=False)].copy().sort_values('ราคา', ascending=False)
             
-            st.warning(f"🔨 มีทรัพย์สินที่ต้องเข้าประมูลทั้งหมด **{len(auc_df):,}** รายการ มูลค่ารวม **฿{auc_df['ราคา'].sum()/1e6:,.1f} ล้านบาท**")
+            st.warning(f"มีทรัพย์สินที่ต้องเข้าประมูลทั้งหมด **{len(auc_df):,}** รายการ มูลค่ารวม **฿{auc_df['ราคา'].sum()/1e6:,.1f} ล้านบาท**")
             
             auc_df['ขนาด'] = auc_df['พื้นที่_ตารางวา'].apply(format_rai_ngan_wah)
             st.dataframe(
@@ -2078,7 +2183,7 @@ def render_sam_tab(df_raw, df_filtered, is_dark_mode=False, plotly_template="plo
                 use_container_width=True,
                 column_config={
                     "ราคา": st.column_config.NumberColumn("ราคาเริ่มต้นประมูล (บาท)", format="฿%,d"),
-                    "ลิงก์": st.column_config.LinkColumn("เว็บ SAM", display_text="🔗 เข้าร่วมประมูล")
+                    "ลิงก์": st.column_config.LinkColumn("เว็บ SAM", display_text="เปิดดูข้อมูลประมูล ↗")
                 },
                 key="sam_auc_table"
             )
@@ -2087,12 +2192,12 @@ def render_sam_tab(df_raw, df_filtered, is_dark_mode=False, plotly_template="plo
     # SUB-TAB 5: ค้นหาทรัพย์ SAM เจาะลึก & ส่งออก (EXPLORER & EXPORT)
     # =========================================================================
     with sam_sub5:
-        st.markdown("#### 🔍 ระบบค้นหาทรัพย์ SAM เจาะลึก และส่งออกข้อมูล")
+        st.markdown("#### ค้นหาทรัพย์ SAM เจาะลึกและส่งออกข้อมูล")
         st.caption("ค้นหาตามรหัสทรัพย์, ชื่อโครงการ, ทำเล พร้อมระบบ Export ไฟล์ Excel / CSV")
 
         # Live search bar for SAM
         sam_search_txt = st.text_input(
-            "🔎 พิมพ์คำค้นหา (รหัสทรัพย์ เช่น 3A1291, ชื่อโครงการ, ตำบล, อำเภอ, จังหวัด):",
+            "พิมพ์คำค้นหา (รหัสทรัพย์ เช่น 3A1291, ชื่อโครงการ, ตำบล, อำเภอ, จังหวัด):",
             value="",
             placeholder="เช่น 3A0424, บุรีรัมย์, คลองหลวง, บ้านเดี่ยว...",
             key="sam_explorer_search_input"
@@ -2135,7 +2240,7 @@ def render_sam_tab(df_raw, df_filtered, is_dark_mode=False, plotly_template="plo
             column_config={
                 "ราคาขาย (บาท)": st.column_config.NumberColumn("ราคาขาย (บาท)", format="฿%,d"),
                 "พื้นที่ใช้สอย (ตร.ม.)": st.column_config.NumberColumn(format="%.1f"),
-                "ลิงก์": st.column_config.LinkColumn("หน้าประกาศเว็บ SAM", display_text="🔗 เปิดดูทรัพย์")
+                "ลิงก์": st.column_config.LinkColumn("หน้าประกาศเว็บ SAM", display_text="เปิดดูทรัพย์ ↗")
             },
             height=450,
             key="sam_explorer_table"
@@ -2143,13 +2248,13 @@ def render_sam_tab(df_raw, df_filtered, is_dark_mode=False, plotly_template="plo
 
         # Export Section
         st.markdown("<br/>", unsafe_allow_html=True)
-        st.markdown("##### 📥 ส่งออกข้อมูลทรัพย์ SAM (Export SAM NPA Data)")
+        st.markdown("##### ส่งออกข้อมูลทรัพย์ SAM (Export Data)")
         
         exp_col1, exp_col2 = st.columns(2)
         with exp_col1:
             csv_data = sam_res.to_csv(index=False).encode('utf-8-sig')
             st.download_button(
-                label=f"📄 ดาวน์โหลด CSV ({len(sam_res):,} รายการ) ⚡",
+                label=f"ดาวน์โหลด CSV ({len(sam_res):,} รายการ)",
                 data=csv_data,
                 file_name=f"SAM_NPA_Analysis_{pd.Timestamp.now().strftime('%Y%m%d')}.csv",
                 mime="text/csv",
@@ -2162,7 +2267,7 @@ def render_sam_tab(df_raw, df_filtered, is_dark_mode=False, plotly_template="plo
             with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
                 sam_res.to_excel(writer, index=False, sheet_name='SAM_Assets')
             st.download_button(
-                label=f"📊 ดาวน์โหลด Excel (.xlsx) ({len(sam_res):,} รายการ)",
+                label=f"ดาวน์โหลด Excel (.xlsx) ({len(sam_res):,} รายการ)",
                 data=excel_buffer.getvalue(),
                 file_name=f"SAM_NPA_Analysis_{pd.Timestamp.now().strftime('%Y%m%d')}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
