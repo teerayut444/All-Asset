@@ -90,6 +90,56 @@ REGION_PROVINCES = {
 
 PROVINCE_TO_REGION = {p: r for r, plist in REGION_PROVINCES.items() for p in plist}
 
+# Global Company Brand Colors & Gradients
+COMPANY_COLORS = {
+    "LED": "#0891b2",
+    "SAM": "#10b981", 
+    "BAM": "#3b82f6", 
+    "Chayo555": "#f97316", 
+    "Chayo": "#f97316", 
+    "Chayo NPA": "#f97316", 
+    "GHB": "#ca8a04", 
+    "KBANK": "#059669", 
+    "KTB": "#0284c7", 
+    "SCB": "#7e22ce", 
+    "GSB": "#eb1985",
+    "DDproperty": "#a855f7",
+    "Livinginsider": "#14b8a6",
+    "NaYoo": "#8b5cf6", 
+    "ZmyHome": "#ec4899",
+    "Baania": "#f59e0b"
+}
+COMP_BRAND_COLORS = COMPANY_COLORS
+
+COMP_GRADIENT_PALETTES = {
+    "LED": ["#0e7490", "#0891b2", "#06b6d4", "#22d3ee", "#38bdf8", "#7dd3fc"],
+    "SAM": ["#047857", "#059669", "#10b981", "#34d399", "#6ee7b7", "#a7f3d0"],
+    "BAM": ["#1d4ed8", "#2563eb", "#3b82f6", "#60a5fa", "#93c5fd", "#bfdbfe"],
+    "Chayo555": ["#c2410c", "#ea580c", "#f97316", "#fb923c", "#fdba74", "#fed7aa"],
+    "Chayo": ["#c2410c", "#ea580c", "#f97316", "#fb923c", "#fdba74", "#fed7aa"],
+    "Chayo NPA": ["#c2410c", "#ea580c", "#f97316", "#fb923c", "#fdba74", "#fed7aa"],
+    "GHB": ["#a16207", "#ca8a04", "#eab308", "#facc15", "#fde047", "#fef08a"],
+    "KBANK": ["#064e3b", "#047857", "#059669", "#10b981", "#34d399", "#6ee7b7"],
+    "KTB": ["#075985", "#0369a1", "#0284c7", "#38bdf8", "#7dd3fc", "#bae6fd"],
+    "SCB": ["#581c87", "#6b21a8", "#7e22ce", "#9333ea", "#a855f7", "#c084fc"],
+    "GSB": ["#86198f", "#a21caf", "#c026d3", "#d946ef", "#f472b6", "#fbcfe8"],
+    "DDproperty": ["#701a75", "#86198f", "#9333ea", "#a855f7", "#c084fc", "#e9d5ff"],
+    "Livinginsider": ["#115e59", "#0d9488", "#14b8a6", "#2dd4bf", "#5eead4", "#99f6e4"],
+    "NaYoo": ["#312e81", "#3730a3", "#4338ca", "#6366f1", "#818cf8", "#a5b4fc"],
+    "ZmyHome": ["#881337", "#9f1239", "#be123c", "#e11d48", "#f43f5e", "#fda4af"],
+    "Baania": ["#78350f", "#92400e", "#b45309", "#d97706", "#f59e0b", "#fde68a"]
+}
+
+def get_gradient_palette(comp_name, count=6):
+    palette = COMP_GRADIENT_PALETTES.get(comp_name, ["#3b82f6"] * 6)
+    if count == len(palette):
+        return palette
+    elif count < len(palette):
+        indices = np.linspace(0, len(palette) - 1, count, dtype=int)
+        return [palette[i] for i in indices]
+    else:
+        return palette + [palette[-1]] * (count - len(palette))
+
 def get_region_by_province(prov):
     return PROVINCE_TO_REGION.get(str(prov).strip(), 'อื่นๆ / ไม่ระบุ')
 
@@ -1532,6 +1582,23 @@ def load_properties_data(data_version=0):
         else:
             df['ลิงก์'] = df['ลิงก์'].astype(object).fillna("").astype(str)
 
+        # Ensure LED links use the smart lawsuit Auto-POST bridge
+        if 'บริษัท' in df.columns and 'รหัสทรัพย์' in df.columns:
+            led_mask = (df['บริษัท'] == 'LED')
+            if led_mask.any():
+                import urllib.parse
+                def make_led_bridge_url(code):
+                    s = str(code).strip()
+                    if not s or s in ['nan', 'None', '-']:
+                        return "https://asset.led.go.th/newbidreg/asset_search_law_suit.asp"
+                    if '/' in s:
+                        parts = s.split('/')
+                        s_no, s_yr = parts[0].strip(), parts[1].strip()
+                        return f"app/static/led_bridge.html?suit_no={urllib.parse.quote(s_no)}&suit_year={urllib.parse.quote(s_yr)}"
+                    return f"app/static/led_bridge.html?suit_no={urllib.parse.quote(s)}"
+                
+                df.loc[led_mask, 'ลิงก์'] = df.loc[led_mask, 'รหัสทรัพย์'].apply(make_led_bridge_url)
+
         if 'ราคา' in df.columns:
             df['ราคา'] = pd.to_numeric(df['ราคา'], errors='coerce')
             df.loc[df['ราคา'] < 1000, 'ราคา'] = np.nan
@@ -2891,72 +2958,127 @@ with tab2:
         with sub_tab1:
             col_c1, col_c2 = st.columns(2)
             
-            # 1. Total Assets by Company
+            # 1. Total Assets by Company with Rounded Gradient Bars
             with col_c1:
                 comp_counts = df_filtered['บริษัท'].value_counts().reset_index()
                 comp_counts.columns = ['บริษัท', 'จำนวนทรัพย์สิน']
-                fig_comp = px.bar(
-                    comp_counts,
-                    x='บริษัท',
-                    y='จำนวนทรัพย์สิน',
-                    color='บริษัท',
-                    title='จำนวนรายการทรัพย์สินเปรียบเทียบแต่ละบริษัท',
-                    color_discrete_map={"LED": "#0891b2", "SAM": "#10b981", "BAM": "#3b82f6", "Chayo555": "#f97316", "GHB": "#ca8a04", "KBANK": "#059669", "KTB": "#0284c7", "SCB": "#7e22ce", "GSB": "#eb1985", "DDproperty": "#a855f7", "Livinginsider": "#14b8a6", "NaYoo": "#8b5cf6", "ZmyHome": "#ec4899", "Baania": "#f59e0b"},
-                    template=plotly_template
+                
+                fig_comp = go.Figure(go.Bar(
+                    x=comp_counts['บริษัท'],
+                    y=comp_counts['จำนวนทรัพย์สิน'],
+                    marker=dict(
+                        color=[COMPANY_COLORS.get(c, '#3b82f6') for c in comp_counts['บริษัท']],
+                        cornerradius=8,
+                        line=dict(width=1.2, color='rgba(255, 255, 255, 0.4)')
+                    ),
+                    text=[f"{c:,}" for c in comp_counts['จำนวนทรัพย์สิน']],
+                    textposition='outside',
+                    textfont=dict(size=11, family="Outfit", weight="bold"),
+                    hovertemplate="<b>%{x}</b><br>จำนวนทรัพย์สิน: <b>%{y:,}</b> รายการ<extra></extra>"
+                ))
+                fig_comp.update_layout(
+                    title=dict(text='📊 จำนวนรายการทรัพย์สินเปรียบเทียบแต่ละบริษัท', font=dict(size=14, family="Outfit")),
+                    yaxis=dict(title='จำนวนทรัพย์ (รายการ)', showgrid=True, gridcolor='rgba(255,255,255,0.06)' if is_dark_mode else 'rgba(0,0,0,0.05)', zeroline=False),
+                    xaxis=dict(showgrid=False),
+                    height=440,
+                    margin=dict(t=50, b=20, l=10, r=10),
+                    template=plotly_template,
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    paper_bgcolor='rgba(0,0,0,0)'
                 )
-                fig_comp.update_layout(title_font=dict(size=14, family="Outfit"))
                 st.plotly_chart(style_plotly_fig(fig_comp), width="stretch", theme=None)
                 
-            # 2. Distribution of Property Type
+            # 2. Distribution of Property Type with Modern Donut Styling
             with col_c2:
                 type_counts = df_filtered['ประเภททรัพย์'].value_counts().head(8).reset_index()
                 type_counts.columns = ['ประเภททรัพย์', 'จำนวนประกาศ']
+                
+                donut_palette = ['#10b981', '#3b82f6', '#f59e0b', '#06b6d4', '#8b5cf6', '#ec4899', '#14b8a6', '#64748b']
                 fig_type = px.pie(
                     type_counts,
                     names='ประเภททรัพย์',
                     values='จำนวนประกาศ',
-                    hole=0.4,
-                    title='สัดส่วนประเภททรัพย์หลัก',
-                    color_discrete_sequence=px.colors.qualitative.Pastel,
+                    hole=0.55,
+                    title='สัดส่วนประเภททรัพย์หลัก (Asset Type Share)',
+                    color_discrete_sequence=donut_palette,
                     template=plotly_template
                 )
-                fig_type.update_layout(title_font=dict(size=14, family="Outfit"))
+                fig_type.update_traces(
+                    textposition='inside',
+                    textinfo='percent+label',
+                    marker=dict(line=dict(color='rgba(255, 255, 255, 0.6)', width=2)),
+                    hovertemplate="<b>%{label}</b><br>จำนวน: <b>%{value:,}</b> รายการ<br>สัดส่วน: <b>%{percent}</b><extra></extra>"
+                )
+                fig_type.update_layout(
+                    title_font=dict(size=14, family="Outfit"),
+                    height=440,
+                    margin=dict(t=50, b=20, l=10, r=10)
+                )
                 st.plotly_chart(style_plotly_fig(fig_type), width="stretch", theme=None)
                 
             st.markdown("---")
             col_c3, col_c4 = st.columns(2)
             
-            # 3. Median Price by Company
+            # 3. Median Price by Company with Value Labels
             with col_c3:
                 median_price_comp = df_filtered.groupby('บริษัท')['ราคา'].median().reset_index()
                 median_price_comp.columns = ['บริษัท', 'ราคากลาง Median (บาท)']
-                fig_avg_p = px.bar(
-                    median_price_comp,
-                    x='บริษัท',
-                    y='ราคากลาง Median (บาท)',
-                    color='บริษัท',
-                    title='ราคากลาง (Median) จำแนกตามบริษัททรัพย์สิน',
-                    color_discrete_map={"LED": "#0891b2", "SAM": "#10b981", "BAM": "#3b82f6", "Chayo555": "#f97316", "GHB": "#ca8a04", "KBANK": "#059669", "KTB": "#0284c7", "SCB": "#7e22ce", "GSB": "#eb1985", "DDproperty": "#a855f7", "Livinginsider": "#14b8a6", "NaYoo": "#8b5cf6", "ZmyHome": "#ec4899", "Baania": "#f59e0b"},
-                    template=plotly_template
+                
+                fig_avg_p = go.Figure(go.Bar(
+                    x=median_price_comp['บริษัท'],
+                    y=median_price_comp['ราคากลาง Median (บาท)'],
+                    marker=dict(
+                        color=[COMPANY_COLORS.get(c, '#3b82f6') for c in median_price_comp['บริษัท']],
+                        cornerradius=8,
+                        line=dict(width=1.2, color='rgba(255, 255, 255, 0.4)')
+                    ),
+                    text=[f"฿{v/1e6:.2f}M" if v >= 1e6 else f"฿{v:,.0f}" for v in median_price_comp['ราคากลาง Median (บาท)']],
+                    textposition='outside',
+                    textfont=dict(size=11, family="Outfit", weight="bold"),
+                    hovertemplate="<b>%{x}</b><br>ราคากลาง: <b>฿%{y:,.0f}</b><extra></extra>"
+                ))
+                fig_avg_p.update_layout(
+                    title=dict(text='💰 ราคากลาง (Median) จำแนกตามบริษัททรัพย์สิน', font=dict(size=14, family="Outfit")),
+                    yaxis=dict(title='ราคากลาง (บาท)', showgrid=True, gridcolor='rgba(255,255,255,0.06)' if is_dark_mode else 'rgba(0,0,0,0.05)', zeroline=False),
+                    xaxis=dict(showgrid=False),
+                    height=440,
+                    margin=dict(t=50, b=20, l=10, r=10),
+                    template=plotly_template,
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    paper_bgcolor='rgba(0,0,0,0)'
                 )
-                fig_avg_p.update_layout(title_font=dict(size=14, family="Outfit"))
                 st.plotly_chart(style_plotly_fig(fig_avg_p), width="stretch", theme=None)
                 
-            # 4. Top 10 Provinces
+            # 4. Top 10 Provinces with Gradient Horizontal Bars
             with col_c4:
                 top_prov = df_filtered['จังหวัด'].value_counts().head(10).reset_index()
                 top_prov.columns = ['จังหวัด', 'จำนวนทรัพย์']
-                fig_prov = px.bar(
-                    top_prov,
-                    x='จำนวนทรัพย์',
-                    y='จังหวัด',
+                
+                fig_prov = go.Figure(go.Bar(
+                    x=top_prov['จำนวนทรัพย์'],
+                    y=top_prov['จังหวัด'],
                     orientation='h',
-                    color='จำนวนทรัพย์',
-                    title='10 อันดับจังหวัดที่มีทรัพย์สินเยอะที่สุด',
-                    color_continuous_scale="Viridis",
-                    template=plotly_template
+                    marker=dict(
+                        color=top_prov['จำนวนทรัพย์'],
+                        colorscale=[[0, '#06b6d4'], [0.5, '#3b82f6'], [1, '#6366f1']],
+                        cornerradius=8,
+                        line=dict(width=1.2, color='rgba(255, 255, 255, 0.4)')
+                    ),
+                    text=[f"{c:,} รายการ" for c in top_prov['จำนวนทรัพย์']],
+                    textposition='outside',
+                    textfont=dict(size=11, family="Outfit", weight="bold"),
+                    hovertemplate="จังหวัด: <b>%{y}</b><br>จำนวนทรัพย์: <b>%{x:,}</b> รายการ<extra></extra>"
+                ))
+                fig_prov.update_layout(
+                    yaxis=dict(autorange="reversed"),
+                    xaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.06)' if is_dark_mode else 'rgba(0,0,0,0.05)', zeroline=False),
+                    title=dict(text='📍 10 อันดับจังหวัดที่มีทรัพย์สินเยอะที่สุด', font=dict(size=14, family="Outfit")),
+                    height=440,
+                    margin=dict(t=50, b=20, l=10, r=10),
+                    template=plotly_template,
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    paper_bgcolor='rgba(0,0,0,0)'
                 )
-                fig_prov.update_layout(yaxis=dict(autorange="reversed"), title_font=dict(size=14, family="Outfit"), coloraxis_showscale=False)
                 st.plotly_chart(style_plotly_fig(fig_prov), width="stretch", theme=None)
                 
             st.markdown("---")
@@ -2988,11 +3110,11 @@ with tab2:
                     df_hist_data = df_hist_data.sample(n=50000, random_state=42)
                 
                 color_map_dist = {
-                    "ที่ดินเปล่า": "#56B4E9",
-                    "บ้านเดี่ยว": "#CC79A7", 
-                    "ห้องชุดพักอาศัย": "#E69F00",
-                    "คอนโด": "#E69F00", 
-                    "ทาวน์เฮ้าส์": "#107c41"
+                    "ที่ดินเปล่า": "#06b6d4",
+                    "บ้านเดี่ยว": "#10b981", 
+                    "ห้องชุดพักอาศัย": "#3b82f6",
+                    "คอนโด": "#3b82f6", 
+                    "ทาวน์เฮ้าส์": "#f59e0b"
                 }
                 
                 fig_price_dist = px.histogram(
@@ -3007,12 +3129,17 @@ with tab2:
                     marginal="box",
                     barmode="stack"
                 )
+                fig_price_dist.update_traces(
+                    marker=dict(line=dict(width=0.8, color='rgba(255, 255, 255, 0.4)'), opacity=0.88)
+                )
                 fig_price_dist.update_layout(
                     title_font=dict(size=14, family="Outfit"), 
                     yaxis_title="จำนวนรายการ",
                     xaxis_title="ราคาเริ่มต้น (บาท)",
                     height=520,
-                    margin=dict(l=60, r=40, t=50, b=90)
+                    margin=dict(l=60, r=40, t=50, b=90),
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    paper_bgcolor='rgba(0,0,0,0)'
                 )
                 st.plotly_chart(style_plotly_fig(fig_price_dist), width="stretch", theme=None)
                 
@@ -3050,10 +3177,10 @@ with tab2:
                     df_scatter_data = df_scatter_data.sample(n=10000, random_state=42)
                 
                 color_map_scatter = {
-                    "บ้านเดี่ยว": "#3182bd", 
-                    "ทาวน์เฮ้าส์": "#ef3b2c",
-                    "ที่ดินเปล่า": "#56B4E9",
-                    "อาคารพาณิชย์": "#a855f7"
+                    "บ้านเดี่ยว": "#10b981", 
+                    "ทาวน์เฮ้าส์": "#f59e0b",
+                    "ที่ดินเปล่า": "#06b6d4",
+                    "อาคารพาณิชย์": "#8b5cf6"
                 }
                 
                 fig_price_vs_area = px.scatter(
@@ -3072,13 +3199,15 @@ with tab2:
                     xaxis_title="เนื้อที่ (ตร.ว.)",
                     yaxis_title="ราคาเริ่มต้น (บาท)",
                     height=520,
-                    margin=dict(l=60, r=40, t=50, b=90)
+                    margin=dict(l=60, r=40, t=50, b=90),
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    paper_bgcolor='rgba(0,0,0,0)'
                 )
                 fig_price_vs_area.update_traces(
                     marker=dict(
                         size=12,
-                        opacity=0.75,
-                        line=dict(width=1, color='white')
+                        opacity=0.8,
+                        line=dict(width=1.2, color='white')
                     )
                 )
                 st.plotly_chart(style_plotly_fig(fig_price_vs_area), width="stretch", theme=None)
@@ -3127,15 +3256,21 @@ with tab2:
                 fig_asset_focus = make_subplots(
                     rows=n_rows, cols=n_cols,
                     specs=[[{'type': 'pie'}] * n_cols for _ in range(n_rows)],
-                    subplot_titles=[f"{c}" for c in companies],
+                    subplot_titles=[f"🏢 {c}" for c in companies],
                 )
                 
-                colors = px.colors.qualitative.Pastel
-                # Top property types that are considered "important"
-                TOP_TYPES = ['บ้านเดี่ยว', 'ห้องชุดพักอาศัย', 'ทาวน์เฮ้าส์', 'ที่ดินเปล่า', 'อาคารพาณิชย์', 'โรงงาน/โกดัง', 'บ้านแฝด']
-                other_color = '#d1d5db'
-                color_map = {t: colors[i % len(colors)] for i, t in enumerate(TOP_TYPES)}
-                color_map['อื่นๆ'] = other_color
+                # Curated modern property type palette
+                PROPERTY_TYPE_COLORS = {
+                    'บ้านเดี่ยว': '#059669',       # Vibrant Emerald
+                    'ห้องชุดพักอาศัย': '#2563eb', # Royal Blue
+                    'ทาวน์เฮ้าส์': '#f59e0b',     # Vibrant Amber
+                    'ที่ดินเปล่า': '#06b6d4',     # Vivid Cyan
+                    'อาคารพาณิชย์': '#8b5cf6',    # Deep Violet
+                    'โรงงาน/โกดัง': '#ec4899',    # Bright Rose/Pink
+                    'บ้านแฝด': '#14b8a6',         # Fresh Teal
+                    'อื่นๆ': '#94a3b8'            # Slate Gray
+                }
+                other_color = '#94a3b8'
                 
                 MIN_PCT = 3.0  # Group types below this % into อื่นๆ
                 
@@ -3157,7 +3292,7 @@ with tab2:
                     # Build final data with อื่นๆ
                     labels = major['ประเภททรัพย์'].tolist()
                     values = major[value_col].tolist()
-                    pie_colors = [color_map.get(t, colors[hash(t) % len(colors)]) for t in labels]
+                    pie_colors = [PROPERTY_TYPE_COLORS.get(t, '#6366f1') for t in labels]
                     
                     if not minor.empty:
                         labels.append('อื่นๆ')
@@ -3172,7 +3307,8 @@ with tab2:
                             labels=labels,
                             values=values,
                             name=company,
-                            marker=dict(colors=pie_colors),
+                            hole=0.52,
+                            marker=dict(colors=pie_colors, line=dict(color='rgba(255, 255, 255, 0.6)', width=1.5)),
                             textinfo='label+percent',
                             textposition='auto',
                             text=text_labels,
@@ -3183,10 +3319,12 @@ with tab2:
                     )
                 
                 fig_asset_focus.update_layout(
-                    title=dict(text='สัดส่วนประเภททรัพย์สินแยกตามแต่ละบริษัท', font=dict(size=14, family="Outfit")),
+                    title=dict(text='สัดส่วนประเภททรัพย์สินแยกตามแต่ละบริษัท (Asset Focus Matrix)', font=dict(size=15, family="Outfit")),
                     height=420 * n_rows,
                     template=plotly_template,
                     showlegend=False,
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    paper_bgcolor='rgba(0,0,0,0)'
                 )
                 st.plotly_chart(style_plotly_fig(fig_asset_focus), width="stretch", theme=None)
 
@@ -3240,7 +3378,7 @@ with tab2:
                     key="tab2_subtab3_compare_company"
                 )
                 
-            # Color map matching company standard
+            # Color map and gradient palettes matching company standard
             COMP_BRAND_COLORS = {
                 "LED": "#0891b2",
                 "SAM": "#10b981", 
@@ -3259,6 +3397,35 @@ with tab2:
                 "ZmyHome": "#ec4899",
                 "Baania": "#f59e0b"
             }
+            COMP_GRADIENT_PALETTES = {
+                "LED": ["#0e7490", "#0891b2", "#06b6d4", "#22d3ee", "#38bdf8", "#7dd3fc"],
+                "SAM": ["#047857", "#059669", "#10b981", "#34d399", "#6ee7b7", "#a7f3d0"],
+                "BAM": ["#1d4ed8", "#2563eb", "#3b82f6", "#60a5fa", "#93c5fd", "#bfdbfe"],
+                "Chayo555": ["#c2410c", "#ea580c", "#f97316", "#fb923c", "#fdba74", "#fed7aa"],
+                "Chayo": ["#c2410c", "#ea580c", "#f97316", "#fb923c", "#fdba74", "#fed7aa"],
+                "Chayo NPA": ["#c2410c", "#ea580c", "#f97316", "#fb923c", "#fdba74", "#fed7aa"],
+                "GHB": ["#a16207", "#ca8a04", "#eab308", "#facc15", "#fde047", "#fef08a"],
+                "KBANK": ["#064e3b", "#047857", "#059669", "#10b981", "#34d399", "#6ee7b7"],
+                "KTB": ["#075985", "#0369a1", "#0284c7", "#38bdf8", "#7dd3fc", "#bae6fd"],
+                "SCB": ["#581c87", "#6b21a8", "#7e22ce", "#9333ea", "#a855f7", "#c084fc"],
+                "GSB": ["#86198f", "#a21caf", "#c026d3", "#d946ef", "#f472b6", "#fbcfe8"],
+                "DDproperty": ["#701a75", "#86198f", "#9333ea", "#a855f7", "#c084fc", "#e9d5ff"],
+                "Livinginsider": ["#115e59", "#0d9488", "#14b8a6", "#2dd4bf", "#5eead4", "#99f6e4"],
+                "NaYoo": ["#312e81", "#3730a3", "#4338ca", "#6366f1", "#818cf8", "#a5b4fc"],
+                "ZmyHome": ["#881337", "#9f1239", "#be123c", "#e11d48", "#f43f5e", "#fda4af"],
+                "Baania": ["#78350f", "#92400e", "#b45309", "#d97706", "#f59e0b", "#fde68a"]
+            }
+
+            def get_gradient_palette(comp_name, count=6):
+                palette = COMP_GRADIENT_PALETTES.get(comp_name, ["#3b82f6"] * 6)
+                if count == len(palette):
+                    return palette
+                elif count < len(palette):
+                    indices = np.linspace(0, len(palette) - 1, count, dtype=int)
+                    return [palette[i] for i in indices]
+                else:
+                    return palette + [palette[-1]] * (count - len(palette))
+
             comp_bar_color = COMP_BRAND_COLORS.get(selected_company, "#10b981")
             comp2_bar_color = COMP_BRAND_COLORS.get(compare_company, "#3b82f6")
 
@@ -3313,34 +3480,37 @@ with tab2:
                 c1_avg, c2_avg = (comp_df_tab2['ราคา'].mean() / 1e6) if c1_cnt > 0 else 0, (comp_df_2['ราคา'].mean() / 1e6) if c2_cnt > 0 else 0
                 c1_med, c2_med = (comp_df_tab2['ราคา'].median() / 1e6) if c1_cnt > 0 else 0, (comp_df_2['ราคา'].median() / 1e6) if c2_cnt > 0 else 0
 
+                card_bg = 'rgba(15, 23, 42, 0.75)' if is_dark_mode else 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)'
+                card_border = 'rgba(255, 255, 255, 0.1)' if is_dark_mode else 'rgba(226, 232, 240, 0.8)'
+
                 st.markdown(f"""
-                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 6px; margin-bottom: 16px;">
-                    <div style="background: {'rgba(15, 23, 42, 0.6)' if is_dark_mode else '#ffffff'}; border: 1px solid rgba(0,0,0,0.08); border-radius: 10px; padding: 12px 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                        <div style="font-size: 0.78rem; font-weight: 600; color: #64748b; margin-bottom: 4px;"><i class="fa fa-boxes"></i> จำนวนทรัพย์รวม (Units)</div>
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 6px; margin-bottom: 20px;">
+                    <div style="background: {card_bg}; border: 1px solid {card_border}; border-left: 4px solid {comp_bar_color}; border-radius: 12px; padding: 14px 16px; box-shadow: 0 4px 16px rgba(0,0,0,0.06);">
+                        <div style="font-size: 0.78rem; font-weight: 700; color: #64748b; margin-bottom: 6px;"><i class="fa fa-boxes"></i> จำนวนทรัพย์รวม (Units)</div>
                         <div style="display: flex; justify-content: space-between; align-items: baseline; margin-top: 4px;">
-                            <span style="font-size: 1rem; font-weight: 700; color: {comp_bar_color};">{selected_company}: <b>{c1_cnt:,}</b></span>
-                            <span style="font-size: 1rem; font-weight: 700; color: {comp2_bar_color};">{compare_company}: <b>{c2_cnt:,}</b></span>
+                            <span style="font-size: 1.05rem; font-weight: 800; color: {comp_bar_color};">{selected_company}: <b>{c1_cnt:,}</b></span>
+                            <span style="font-size: 1.05rem; font-weight: 800; color: {comp2_bar_color};">{compare_company}: <b>{c2_cnt:,}</b></span>
                         </div>
                     </div>
-                    <div style="background: {'rgba(15, 23, 42, 0.6)' if is_dark_mode else '#ffffff'}; border: 1px solid rgba(0,0,0,0.08); border-radius: 10px; padding: 12px 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                        <div style="font-size: 0.78rem; font-weight: 600; color: #64748b; margin-bottom: 4px;"><i class="fa fa-coins"></i> มูลค่าพอร์ตโฟลิโอรวม (MB)</div>
+                    <div style="background: {card_bg}; border: 1px solid {card_border}; border-left: 4px solid #f59e0b; border-radius: 12px; padding: 14px 16px; box-shadow: 0 4px 16px rgba(0,0,0,0.06);">
+                        <div style="font-size: 0.78rem; font-weight: 700; color: #64748b; margin-bottom: 6px;"><i class="fa fa-coins"></i> มูลค่าพอร์ตโฟลิโอรวม (MB)</div>
                         <div style="display: flex; justify-content: space-between; align-items: baseline; margin-top: 4px;">
-                            <span style="font-size: 1rem; font-weight: 700; color: {comp_bar_color};">{selected_company}: <b>฿{c1_val:,.0f}M</b></span>
-                            <span style="font-size: 1rem; font-weight: 700; color: {comp2_bar_color};">{compare_company}: <b>฿{c2_val:,.0f}M</b></span>
+                            <span style="font-size: 1.05rem; font-weight: 800; color: {comp_bar_color};">{selected_company}: <b>฿{c1_val:,.0f}M</b></span>
+                            <span style="font-size: 1.05rem; font-weight: 800; color: {comp2_bar_color};">{compare_company}: <b>฿{c2_val:,.0f}M</b></span>
                         </div>
                     </div>
-                    <div style="background: {'rgba(15, 23, 42, 0.6)' if is_dark_mode else '#ffffff'}; border: 1px solid rgba(0,0,0,0.08); border-radius: 10px; padding: 12px 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                        <div style="font-size: 0.78rem; font-weight: 600; color: #64748b; margin-bottom: 4px;"><i class="fa fa-tag"></i> ราคาเฉลี่ยต่อยูนิต (Avg Price)</div>
+                    <div style="background: {card_bg}; border: 1px solid {card_border}; border-left: 4px solid #8b5cf6; border-radius: 12px; padding: 14px 16px; box-shadow: 0 4px 16px rgba(0,0,0,0.06);">
+                        <div style="font-size: 0.78rem; font-weight: 700; color: #64748b; margin-bottom: 6px;"><i class="fa fa-tag"></i> ราคาเฉลี่ยต่อยูนิต (Avg Price)</div>
                         <div style="display: flex; justify-content: space-between; align-items: baseline; margin-top: 4px;">
-                            <span style="font-size: 1rem; font-weight: 700; color: {comp_bar_color};">{selected_company}: <b>฿{c1_avg:,.2f}M</b></span>
-                            <span style="font-size: 1rem; font-weight: 700; color: {comp2_bar_color};">{compare_company}: <b>฿{c2_avg:,.2f}M</b></span>
+                            <span style="font-size: 1.05rem; font-weight: 800; color: {comp_bar_color};">{selected_company}: <b>฿{c1_avg:,.2f}M</b></span>
+                            <span style="font-size: 1.05rem; font-weight: 800; color: {comp2_bar_color};">{compare_company}: <b>฿{c2_avg:,.2f}M</b></span>
                         </div>
                     </div>
-                    <div style="background: {'rgba(15, 23, 42, 0.6)' if is_dark_mode else '#ffffff'}; border: 1px solid rgba(0,0,0,0.08); border-radius: 10px; padding: 12px 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                        <div style="font-size: 0.78rem; font-weight: 600; color: #64748b; margin-bottom: 4px;"><i class="fa fa-balance-scale"></i> ราคามัธยฐาน (Median Price)</div>
+                    <div style="background: {card_bg}; border: 1px solid {card_border}; border-left: 4px solid #06b6d4; border-radius: 12px; padding: 14px 16px; box-shadow: 0 4px 16px rgba(0,0,0,0.06);">
+                        <div style="font-size: 0.78rem; font-weight: 700; color: #64748b; margin-bottom: 6px;"><i class="fa fa-balance-scale"></i> ราคามัธยฐาน (Median Price)</div>
                         <div style="display: flex; justify-content: space-between; align-items: baseline; margin-top: 4px;">
-                            <span style="font-size: 1rem; font-weight: 700; color: {comp_bar_color};">{selected_company}: <b>฿{c1_med:,.2f}M</b></span>
-                            <span style="font-size: 1rem; font-weight: 700; color: {comp2_bar_color};">{compare_company}: <b>฿{c2_med:,.2f}M</b></span>
+                            <span style="font-size: 1.05rem; font-weight: 800; color: {comp_bar_color};">{selected_company}: <b>฿{c1_med:,.2f}M</b></span>
+                            <span style="font-size: 1.05rem; font-weight: 800; color: {comp2_bar_color};">{compare_company}: <b>฿{c2_med:,.2f}M</b></span>
                         </div>
                     </div>
                 </div>
@@ -3348,35 +3518,89 @@ with tab2:
 
                 col_c1, col_c2 = st.columns(2)
                 with col_c1:
-                    # Chart 1: Grouped Price Tier Bar
+                    # Chart 1: Grouped Price Tier Bar with Gradients & Total Value Lines
                     tier1 = comp_df_tab2.groupby('Price_Tier', observed=False).agg(count=('ราคา', 'count'), val=('ราคา', 'sum')).reindex(PRICE_TIER_ORDER).reset_index().fillna(0)
                     tier2 = comp_df_2.groupby('Price_Tier', observed=False).agg(count=('ราคา', 'count'), val=('ราคา', 'sum')).reindex(PRICE_TIER_ORDER).reset_index().fillna(0)
+                    tier1['val_million'] = tier1['val'] / 1e6
+                    tier2['val_million'] = tier2['val'] / 1e6
+
+                    grad1 = get_gradient_palette(selected_company, len(PRICE_TIER_ORDER))
+                    grad2 = get_gradient_palette(compare_company, len(PRICE_TIER_ORDER))
 
                     fig_tier_comp = go.Figure()
+                    # Bars (Count)
                     fig_tier_comp.add_trace(go.Bar(
                         x=tier1['Price_Tier'],
                         y=tier1['count'],
-                        name=f'{selected_company} (รายการ)',
-                        marker_color=comp_bar_color,
+                        name=f'{selected_company} (จำนวนทรัพย์)',
+                        yaxis='y',
+                        marker=dict(
+                            color=grad1,
+                            cornerradius=8,
+                            line=dict(width=1.2, color='rgba(255, 255, 255, 0.4)')
+                        ),
                         text=[f"{int(c):,}" for c in tier1['count']],
-                        textposition='auto'
+                        textposition='outside',
+                        textfont=dict(size=11, family="Outfit", weight="bold"),
+                        hovertemplate=f"<b>{selected_company}</b><br>ช่วงราคา: %{{x}}<br>จำนวนทรัพย์: <b>%{{y:,}}</b> รายการ<extra></extra>"
                     ))
                     fig_tier_comp.add_trace(go.Bar(
                         x=tier2['Price_Tier'],
                         y=tier2['count'],
-                        name=f'{compare_company} (รายการ)',
-                        marker_color=comp2_bar_color,
+                        name=f'{compare_company} (จำนวนทรัพย์)',
+                        yaxis='y',
+                        marker=dict(
+                            color=grad2,
+                            cornerradius=8,
+                            line=dict(width=1.2, color='rgba(255, 255, 255, 0.4)')
+                        ),
                         text=[f"{int(c):,}" for c in tier2['count']],
-                        textposition='auto'
+                        textposition='outside',
+                        textfont=dict(size=11, family="Outfit", weight="bold"),
+                        hovertemplate=f"<b>{compare_company}</b><br>ช่วงราคา: %{{x}}<br>จำนวนทรัพย์: <b>%{{y:,}}</b> รายการ<extra></extra>"
                     ))
+                    # Lines (Total Value MB)
+                    fig_tier_comp.add_trace(go.Scatter(
+                        x=tier1['Price_Tier'],
+                        y=tier1['val_million'],
+                        name=f'{selected_company} (มูลค่ารวม MB)',
+                        yaxis='y2',
+                        mode='lines+markers+text',
+                        line=dict(width=3, color=comp_bar_color, shape='spline'),
+                        marker=dict(size=8, color=comp_bar_color, line=dict(width=2, color='#ffffff')),
+                        text=[f"฿{v:,.0f}M" if v > 0 else "" for v in tier1['val_million']],
+                        textposition='top center',
+                        textfont=dict(size=10, family="Outfit", color=comp_bar_color, weight="bold"),
+                        hovertemplate=f"มูลค่ารวม {selected_company}: <b>฿%{{y:,.1f}}M</b><extra></extra>"
+                    ))
+                    fig_tier_comp.add_trace(go.Scatter(
+                        x=tier2['Price_Tier'],
+                        y=tier2['val_million'],
+                        name=f'{compare_company} (มูลค่ารวม MB)',
+                        yaxis='y2',
+                        mode='lines+markers+text',
+                        line=dict(width=3, color=comp2_bar_color, shape='spline', dash='dot'),
+                        marker=dict(size=8, color=comp2_bar_color, line=dict(width=2, color='#ffffff')),
+                        text=[f"฿{v:,.0f}M" if v > 0 else "" for v in tier2['val_million']],
+                        textposition='top center',
+                        textfont=dict(size=10, family="Outfit", color=comp2_bar_color, weight="bold"),
+                        hovertemplate=f"มูลค่ารวม {compare_company}: <b>฿%{{y:,.1f}}M</b><extra></extra>"
+                    ))
+
                     fig_tier_comp.update_layout(
-                        title=dict(text=f'🏷️ เปรียบเทียบจำนวนทรัพย์ตามช่วงราคา ({selected_company} vs {compare_company})', font=dict(size=14, family="Outfit")),
+                        title=dict(text=f'🏷️ เปรียบเทียบจำนวนทรัพย์และมูลค่าตามช่วงราคา ({selected_company} vs {compare_company})', font=dict(size=14, family="Outfit")),
                         barmode='group',
-                        yaxis=dict(title='จำนวนทรัพย์ (รายการ)', showgrid=False),
-                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-                        height=450,
-                        margin=dict(t=40, b=10, l=10, r=10),
-                        template=plotly_template
+                        bargroupgap=0.1,
+                        bargap=0.25,
+                        yaxis=dict(title='จำนวนทรัพย์ (รายการ)', showgrid=True, gridcolor='rgba(255,255,255,0.06)' if is_dark_mode else 'rgba(0,0,0,0.05)', zeroline=False),
+                        yaxis2=dict(title='มูลค่ารวม (ล้านบาท)', overlaying='y', side='right', showgrid=False, zeroline=False),
+                        xaxis=dict(showgrid=False),
+                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(family="Outfit", size=11)),
+                        height=480,
+                        margin=dict(t=60, b=20, l=10, r=10),
+                        template=plotly_template,
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        paper_bgcolor='rgba(0,0,0,0)'
                     )
                     st.plotly_chart(style_plotly_fig(fig_tier_comp), width="stretch", theme=None)
 
@@ -3400,19 +3624,33 @@ with tab2:
                         template=plotly_template,
                         points=False
                     )
+                    fig_box.update_traces(
+                        boxmean=True,
+                        line=dict(width=1.5),
+                        marker=dict(opacity=0.85)
+                    )
                     fig_box.update_layout(
                         title_font=dict(size=14, family="Outfit"),
-                        height=450, 
+                        height=460, 
                         yaxis_type="log",
                         yaxis_title="ราคา (ล้านบาท - สเกล Log)",
-                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-                        margin=dict(t=40, b=10, l=10, r=10)
+                        yaxis=dict(
+                            showgrid=True, 
+                            gridcolor='rgba(255,255,255,0.06)' if is_dark_mode else 'rgba(0,0,0,0.05)',
+                            tickmode='array',
+                            tickvals=[0.5, 1, 2, 5, 10, 20, 50, 100],
+                            ticktext=['฿0.5M', '฿1M', '฿2M', '฿5M', '฿10M', '฿20M', '฿50M', '฿100M']
+                        ),
+                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(family="Outfit", size=12)),
+                        margin=dict(t=50, b=20, l=10, r=10),
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        paper_bgcolor='rgba(0,0,0,0)'
                     )
                     st.plotly_chart(style_plotly_fig(fig_box), width="stretch", theme=None)
 
                 col_c3, col_c4 = st.columns(2)
                 with col_c3:
-                    # Chart 3: Asset Type Share (%)
+                    # Chart 3: Asset Type Share (%) with Sleek Horizontal Gradient Bars
                     t_share1 = comp_df_tab2['ประเภททรัพย์'].value_counts(normalize=True).head(6).reset_index()
                     t_share1.columns = ['ประเภททรัพย์', 'pct']
                     t_share1['pct'] = t_share1['pct'] * 100
@@ -3423,64 +3661,124 @@ with tab2:
                     t_share2['pct'] = t_share2['pct'] * 100
                     t_share2['บริษัท'] = compare_company
 
-                    share_df = pd.concat([t_share1, t_share2], ignore_index=True)
-                    fig_share = px.bar(
-                        share_df,
-                        x='pct',
-                        y='ประเภททรัพย์',
-                        color='บริษัท',
-                        barmode='group',
+                    # Use combined order so both companies align
+                    common_types = list(dict.fromkeys(t_share1['ประเภททรัพย์'].tolist() + t_share2['ประเภททรัพย์'].tolist()))[:6]
+                    t_share1_full = t_share1.set_index('ประเภททรัพย์').reindex(common_types).fillna(0).reset_index()
+                    t_share2_full = t_share2.set_index('ประเภททรัพย์').reindex(common_types).fillna(0).reset_index()
+
+                    grad_share1 = get_gradient_palette(selected_company, len(common_types))
+                    grad_share2 = get_gradient_palette(compare_company, len(common_types))
+
+                    fig_share = go.Figure()
+                    fig_share.add_trace(go.Bar(
+                        y=common_types,
+                        x=t_share1_full['pct'],
+                        name=f'{selected_company}',
                         orientation='h',
-                        color_discrete_map={selected_company: comp_bar_color, compare_company: comp2_bar_color},
-                        title=f'🥧 สัดส่วนประเภททรัพย์ในพอร์ตโฟลิโอ (% Share)',
-                        text_auto='.1f',
-                        template=plotly_template
-                    )
+                        marker=dict(
+                            color=grad_share1,
+                            cornerradius=8,
+                            line=dict(width=1.2, color='rgba(255, 255, 255, 0.4)')
+                        ),
+                        text=[f"{p:.1f}%" if p > 0 else "" for p in t_share1_full['pct']],
+                        textposition='outside',
+                        textfont=dict(size=11, family="Outfit", weight="bold"),
+                        hovertemplate=f"<b>{selected_company}</b><br>ประเภท: %{{y}}<br>สัดส่วน: <b>%{{x:.1f}}%</b><extra></extra>"
+                    ))
+                    fig_share.add_trace(go.Bar(
+                        y=common_types,
+                        x=t_share2_full['pct'],
+                        name=f'{compare_company}',
+                        orientation='h',
+                        marker=dict(
+                            color=grad_share2,
+                            cornerradius=8,
+                            line=dict(width=1.2, color='rgba(255, 255, 255, 0.4)')
+                        ),
+                        text=[f"{p:.1f}%" if p > 0 else "" for p in t_share2_full['pct']],
+                        textposition='outside',
+                        textfont=dict(size=11, family="Outfit", weight="bold"),
+                        hovertemplate=f"<b>{compare_company}</b><br>ประเภท: %{{y}}<br>สัดส่วน: <b>%{{x:.1f}}%</b><extra></extra>"
+                    ))
                     fig_share.update_layout(
-                        title_font=dict(size=14, family="Outfit"),
-                        height=420,
+                        title=dict(text=f'🥧 สัดส่วนประเภททรัพย์ในพอร์ตโฟลิโอ (% Share)', font=dict(size=14, family="Outfit")),
+                        barmode='group',
+                        bargroupgap=0.1,
+                        bargap=0.25,
                         xaxis_title="สัดส่วนในพอร์ตโฟลิโอ (%)",
+                        xaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.06)' if is_dark_mode else 'rgba(0,0,0,0.05)', zeroline=False),
                         yaxis_title="",
-                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-                        margin=dict(t=40, b=10, l=10, r=10)
+                        yaxis=dict(autorange="reversed"),
+                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(family="Outfit", size=12)),
+                        height=440,
+                        margin=dict(t=50, b=20, l=10, r=10),
+                        template=plotly_template,
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        paper_bgcolor='rgba(0,0,0,0)'
                     )
                     st.plotly_chart(style_plotly_fig(fig_share), width="stretch", theme=None)
 
                 with col_c4:
-                    # Chart 4: Region distribution
+                    # Chart 4: Region distribution with Rounded Gradient Bars
                     if 'ภาค' in comp_df_tab2.columns and 'ภาค' in comp_df_2.columns:
-                        r_share1 = comp_df_tab2['ภาค'].value_counts().reset_index()
-                        r_share1.columns = ['ภาค', 'count']
-                        r_share1['บริษัท'] = selected_company
-                        
-                        r_share2 = comp_df_2['ภาค'].value_counts().reset_index()
-                        r_share2.columns = ['ภาค', 'count']
-                        r_share2['บริษัท'] = compare_company
-                        
-                        r_df = pd.concat([r_share1, r_share2], ignore_index=True)
-                        fig_region = px.bar(
-                            r_df,
-                            x='ภาค',
-                            y='count',
-                            color='บริษัท',
-                            barmode='group',
-                            color_discrete_map={selected_company: comp_bar_color, compare_company: comp2_bar_color},
-                            title=f'📍 เปรียบเทียบการกระจายตัวตามภูมิภาค ({selected_company} vs {compare_company})',
-                            text_auto=True,
-                            template=plotly_template
-                        )
+                        regions_all = ["ภาคกลาง", "ภาคเหนือ", "ภาคตะวันออกเฉียงเหนือ", "ภาคตะวันออก", "ภาคใต้", "ภาคตะวันตก"]
+                        r1 = comp_df_tab2['ภาค'].value_counts().reindex(regions_all).fillna(0).reset_index()
+                        r1.columns = ['ภาค', 'count']
+                        r2 = comp_df_2['ภาค'].value_counts().reindex(regions_all).fillna(0).reset_index()
+                        r2.columns = ['ภาค', 'count']
+
+                        grad_reg1 = get_gradient_palette(selected_company, len(regions_all))
+                        grad_reg2 = get_gradient_palette(compare_company, len(regions_all))
+
+                        fig_region = go.Figure()
+                        fig_region.add_trace(go.Bar(
+                            x=regions_all,
+                            y=r1['count'],
+                            name=f'{selected_company}',
+                            marker=dict(
+                                color=grad_reg1,
+                                cornerradius=8,
+                                line=dict(width=1.2, color='rgba(255, 255, 255, 0.4)')
+                            ),
+                            text=[f"{int(c):,}" if c > 0 else "" for c in r1['count']],
+                            textposition='outside',
+                            textfont=dict(size=11, family="Outfit", weight="bold"),
+                            hovertemplate=f"<b>{selected_company}</b><br>ภูมิภาค: %{{x}}<br>จำนวน: <b>%{{y:,}}</b> รายการ<extra></extra>"
+                        ))
+                        fig_region.add_trace(go.Bar(
+                            x=regions_all,
+                            y=r2['count'],
+                            name=f'{compare_company}',
+                            marker=dict(
+                                color=grad_reg2,
+                                cornerradius=8,
+                                line=dict(width=1.2, color='rgba(255, 255, 255, 0.4)')
+                            ),
+                            text=[f"{int(c):,}" if c > 0 else "" for c in r2['count']],
+                            textposition='outside',
+                            textfont=dict(size=11, family="Outfit", weight="bold"),
+                            hovertemplate=f"<b>{compare_company}</b><br>ภูมิภาค: %{{x}}<br>จำนวน: <b>%{{y:,}}</b> รายการ<extra></extra>"
+                        ))
                         fig_region.update_layout(
-                            title_font=dict(size=14, family="Outfit"),
-                            height=420,
+                            title=dict(text=f'📍 เปรียบเทียบการกระจายตัวตามภูมิภาค ({selected_company} vs {compare_company})', font=dict(size=14, family="Outfit")),
+                            barmode='group',
+                            bargroupgap=0.1,
+                            bargap=0.25,
                             xaxis_title="ภูมิภาค",
+                            xaxis=dict(showgrid=False),
                             yaxis_title="จำนวนทรัพย์ (รายการ)",
-                            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-                            margin=dict(t=40, b=10, l=10, r=10)
+                            yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.06)' if is_dark_mode else 'rgba(0,0,0,0.05)', zeroline=False),
+                            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(family="Outfit", size=12)),
+                            height=440,
+                            margin=dict(t=50, b=20, l=10, r=10),
+                            template=plotly_template,
+                            plot_bgcolor='rgba(0,0,0,0)',
+                            paper_bgcolor='rgba(0,0,0,0)'
                         )
                         st.plotly_chart(style_plotly_fig(fig_region), width="stretch", theme=None)
             else:
                 # ==========================================
-                # SINGLE COMPANY MODE
+                # SINGLE COMPANY MODE: Rich Gradients & Dual Y-Axis Glow
                 # ==========================================
                 comp_df_tab2['Price_Tier'] = comp_df_tab2['ราคา'].apply(get_price_tier)
 
@@ -3493,35 +3791,49 @@ with tab2:
                     tier_df['count'] = tier_df['count'].fillna(0)
                     tier_df['val_million'] = tier_df['total_val'].fillna(0) / 1e6
 
+                    single_grad = get_gradient_palette(selected_company, len(PRICE_TIER_ORDER))
+
                     fig_tier = go.Figure()
                     fig_tier.add_trace(go.Bar(
                         x=tier_df['Price_Tier'],
                         y=tier_df['count'],
                         name='จำนวนทรัพย์ (รายการ)',
-                        marker_color=comp_bar_color,
+                        marker=dict(
+                            color=single_grad,
+                            cornerradius=8,
+                            line=dict(width=1.2, color='rgba(255, 255, 255, 0.45)')
+                        ),
                         yaxis='y',
                         text=tier_df['count'].astype(int),
-                        textposition='auto'
+                        textposition='outside',
+                        textfont=dict(size=11, family="Outfit", weight="bold"),
+                        hovertemplate=f"<b>{selected_company}</b><br>ช่วงราคา: %{{x}}<br>จำนวนทรัพย์: <b>%{{y:,}}</b> รายการ<extra></extra>"
                     ))
                     fig_tier.add_trace(go.Scatter(
                         x=tier_df['Price_Tier'],
                         y=tier_df['val_million'],
                         name='มูลค่ารวม (ล้านบาท)',
-                        marker_color='#3b82f6',
                         mode='lines+markers+text',
                         text=[f"฿{v:,.0f}M" for v in tier_df['val_million']],
                         textposition='top center',
+                        textfont=dict(size=11, family="Outfit", color="#3b82f6", weight="bold"),
                         yaxis='y2',
-                        line=dict(width=3, color='#3b82f6')
+                        line=dict(width=3.5, color='#3b82f6', shape='spline'),
+                        marker=dict(size=9, color='#3b82f6', line=dict(width=2, color='#ffffff')),
+                        fill='tozeroy',
+                        fillcolor='rgba(59, 130, 246, 0.08)',
+                        hovertemplate="มูลค่ารวม: <b>฿%{y:,.1f}M</b><extra></extra>"
                     ))
                     fig_tier.update_layout(
                         title=dict(text=f'🏷️ การกระจายตัวตามช่วงราคา {selected_company} (Price Tier Pyramid)', font=dict(size=14, family="Outfit")),
-                        yaxis=dict(title='จำนวนทรัพย์ (รายการ)', showgrid=False),
+                        yaxis=dict(title='จำนวนทรัพย์ (รายการ)', showgrid=True, gridcolor='rgba(255,255,255,0.06)' if is_dark_mode else 'rgba(0,0,0,0.05)', zeroline=False),
                         yaxis2=dict(title='มูลค่ารวม (ล้านบาท)', overlaying='y', side='right', showgrid=False),
-                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-                        height=450,
-                        margin=dict(t=40, b=10, l=10, r=10),
-                        template=plotly_template
+                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(family="Outfit", size=12)),
+                        height=460,
+                        margin=dict(t=50, b=20, l=10, r=10),
+                        template=plotly_template,
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        paper_bgcolor='rgba(0,0,0,0)'
                     )
                     st.plotly_chart(style_plotly_fig(fig_tier), width="stretch", theme=None)
 
@@ -3537,15 +3849,30 @@ with tab2:
                         color='ประเภททรัพย์',
                         title=f'📦 การกระจายราคาของ 6 ประเภททรัพย์หลัก {selected_company} (Box Plot - ล้านบาท)',
                         template=plotly_template,
+                        color_discrete_sequence=get_gradient_palette(selected_company, len(top_types)),
                         points=False
+                    )
+                    fig_box.update_traces(
+                        boxmean=True,
+                        line=dict(width=1.5),
+                        marker=dict(opacity=0.85)
                     )
                     fig_box.update_layout(
                         title_font=dict(size=14, family="Outfit"),
-                        height=450, 
+                        height=460, 
                         showlegend=False, 
                         yaxis_type="log",
                         yaxis_title="ราคา (ล้านบาท - สเกล Log)",
-                        margin=dict(t=40, b=10, l=10, r=10)
+                        yaxis=dict(
+                            showgrid=True, 
+                            gridcolor='rgba(255,255,255,0.06)' if is_dark_mode else 'rgba(0,0,0,0.05)',
+                            tickmode='array',
+                            tickvals=[0.5, 1, 2, 5, 10, 20, 50, 100],
+                            ticktext=['฿0.5M', '฿1M', '฿2M', '฿5M', '฿10M', '฿20M', '฿50M', '฿100M']
+                        ),
+                        margin=dict(t=50, b=20, l=10, r=10),
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        paper_bgcolor='rgba(0,0,0,0)'
                     )
                     st.plotly_chart(style_plotly_fig(fig_box), width="stretch", theme=None)
 
@@ -4576,15 +4903,13 @@ with tab3:
 
                     # Standard Column Ordering: Price and Areas front and center!
                     cols_nearby_order = [
-                        "บริษัท", "รหัสทรัพย์", "ชื่อโครงการ", "ประเภททรัพย์", "ประเภทการขาย", 
-                        "ราคาขาย (บาท)", "เนื้อที่ (ไร่-งาน-ตร.ว.)", "ราคา/ตร.ว. (บาท)", "พื้นที่ใช้สอย (ตร.ม.)", "ราคา/ตร.ม. (บาท)",
-                        "ระยะทาง (กม.)", "ตำบล", "อำเภอ", "จังหวัด", "ชื่อประกาศ", "ลิงก์", 
-                        "ห้องนอน", "ห้องน้ำ", "ที่จอดรถ", "ID", "ละติจูด", "ลองจิจูด", "วันที่ดึงข้อมูล", "วันประกาศ"
+                        "บริษัท", "ID", "รหัสทรัพย์", "ชื่อโครงการ", "ประเภททรัพย์", "ประเภทการขาย", "ราคาขาย (บาท)",
+                        "ตำบล", "อำเภอ", "จังหวัด", "ระยะทาง (กม.)", "ละติจูด", "ลองจิจูด", "ชื่อประกาศ", "ลิงก์",
+                        "เนื้อที่ (ไร่-งาน-ตร.ว.)", "ราคา/ตร.ว. (บาท)", "พื้นที่ใช้สอย (ตร.ม.)", "ราคา/ตร.ม. (บาท)", "วันที่ดึงข้อมูล",
+                        "ห้องนอน", "ห้องน้ำ", "ที่จอดรถ", "วันประกาศ"
                     ]
                     cols_present = [c for c in cols_nearby_order if c in nearby_show.columns]
-                    # Also include any other columns in nearby_show that weren't in the explicit list (excluding helper columns)
-                    extra_cols = [c for c in nearby_show.columns if c not in cols_present and c not in ['ราคา', 'ขนาดพื้นที่', 'ฐานพื้นที่คำนวณ', 'หน่วยวัด', 'ราคาต่อหน่วย', 'ราคาต่อหน่วย (แสดงผล)', 'พื้นที่_ตารางวา', 'เนื้อที่ (ตร.ว.)', 'sqwah_calc']]
-                    nearby_show = nearby_show[cols_present + extra_cols]
+                    nearby_show = nearby_show[cols_present]
 
                     st.dataframe(
                         nearby_show,
@@ -4667,46 +4992,49 @@ with tab4:
             df_table_source = df_filtered
             if tab4_search_query:
                 q_tab4 = tab4_search_query.strip()
-                cond_title = df_table_source['ชื่อประกาศ'].str.contains(q_tab4, case=False, na=False) if 'ชื่อประกาศ' in df_table_source.columns else False
-                cond_code = df_table_source['รหัสทรัพย์'].str.contains(q_tab4, case=False, na=False) if 'รหัสทรัพย์' in df_table_source.columns else False
-                cond_proj = df_table_source['ชื่อโครงการ'].str.contains(q_tab4, case=False, na=False) if 'ชื่อโครงการ' in df_table_source.columns else False
-                df_table_source = df_table_source[cond_title | cond_code | cond_proj]
+                q_tab4_lower = q_tab4.lower()
+                
+                # 1. Exact match on รหัสทรัพย์ or ID
+                exact_code = df_table_source['รหัสทรัพย์'].astype(str).str.strip().str.lower() == q_tab4_lower if 'รหัสทรัพย์' in df_table_source.columns else False
+                exact_id = df_table_source['ID'].astype(str).str.strip().str.lower() == q_tab4_lower if 'ID' in df_table_source.columns else False
+                exact_match_mask = exact_code | exact_id
+
+                if exact_match_mask.any():
+                    df_table_source = df_table_source[exact_match_mask]
+                else:
+                    # 2. Substring matching across title, project, code, and id
+                    q_tab4_esc = re.escape(q_tab4)
+                    cond_title = df_table_source['ชื่อประกาศ'].astype(str).str.contains(q_tab4_esc, case=False, na=False) if 'ชื่อประกาศ' in df_table_source.columns else False
+                    cond_code = df_table_source['รหัสทรัพย์'].astype(str).str.contains(q_tab4_esc, case=False, na=False) if 'รหัสทรัพย์' in df_table_source.columns else False
+                    cond_id = df_table_source['ID'].astype(str).str.contains(q_tab4_esc, case=False, na=False) if 'ID' in df_table_source.columns else False
+                    cond_proj = df_table_source['ชื่อโครงการ'].astype(str).str.contains(q_tab4_esc, case=False, na=False) if 'ชื่อโครงการ' in df_table_source.columns else False
+                    df_table_source = df_table_source[cond_title | cond_code | cond_id | cond_proj]
 
             # Apply Quick Sort logic
             active_sort_label = ""
             if selected_quick_sort == "ราคาต่ำสุด (Top 100)":
                 p_mask = df_table_source['ราคา'].notna() & (pd.to_numeric(df_table_source['ราคา'], errors='coerce') > 0)
                 df_table_source = df_table_source[p_mask].sort_values(by='ราคา', ascending=True)
-                if display_limit == 0:
-                    display_limit = 100
                 active_sort_label = "ราคาต่ำสุด (น้อยไปมาก)"
             elif selected_quick_sort == "ราคาสูงสุด (Top 100)":
                 p_mask = df_table_source['ราคา'].notna() & (pd.to_numeric(df_table_source['ราคา'], errors='coerce') > 0)
                 df_table_source = df_table_source[p_mask].sort_values(by='ราคา', ascending=False)
-                if display_limit == 0:
-                    display_limit = 100
                 active_sort_label = "ราคาสูงสุด (มากไปน้อย)"
             elif selected_quick_sort == "฿/ตร.ว. ถูกสุด (Top 100)":
                 if 'ราคาต่อตารางวา' in df_table_source.columns:
                     p_mask = df_table_source['ราคาต่อตารางวา'].notna() & (pd.to_numeric(df_table_source['ราคาต่อตารางวา'], errors='coerce') > 0)
                     df_table_source = df_table_source[p_mask].sort_values(by='ราคาต่อตารางวา', ascending=True)
-                if display_limit == 0:
-                    display_limit = 100
                 active_sort_label = "ราคาต่อตารางวาถูกที่สุด"
             elif selected_quick_sort == "฿/ตร.ม. ถูกสุด (Top 100)":
                 if 'ราคาต่อตารางเมตร' in df_table_source.columns:
                     p_mask = df_table_source['ราคาต่อตารางเมตร'].notna() & (pd.to_numeric(df_table_source['ราคาต่อตารางเมตร'], errors='coerce') > 0)
                     df_table_source = df_table_source[p_mask].sort_values(by='ราคาต่อตารางเมตร', ascending=True)
-                if display_limit == 0:
-                    display_limit = 100
                 active_sort_label = "ราคาต่อตารางเมตรถูกที่สุด"
             elif selected_quick_sort == "อัปเดตล่าสุด (Top 100)":
                 for dcol in ['วันที่ดึงข้อมูล', 'วันประกาศ']:
                     if dcol in df_table_source.columns:
                         df_table_source = df_table_source.sort_values(by=dcol, ascending=False, na_position='last')
                         break
-                if display_limit == 0:
-                    display_limit = 100
                 active_sort_label = "วันที่อัปเดตล่าสุด"
             elif selected_quick_sort == "พื้นที่ใหญ่สุด (Top 100)":
                 for acol in ['พื้นที่_ตารางวา', 'เนื้อที่ (ตร.ว.)']:
@@ -4714,21 +5042,21 @@ with tab4:
                         p_mask = df_table_source[acol].notna() & (pd.to_numeric(df_table_source[acol], errors='coerce') > 0)
                         df_table_source = df_table_source[p_mask].sort_values(by=acol, ascending=False)
                         break
-                if display_limit == 0:
-                    display_limit = 100
                 active_sort_label = "ขนาดพื้นที่ใหญ่ที่สุด"
 
-            # Slice the requested number of rows
-            if display_limit == 0:
-                df_table = df_table_source.head(0)
-            else:
+            # Slice the requested number of rows (Auto-display when searching or sorting)
+            if display_limit > 0:
                 df_table = df_table_source.head(display_limit)
+            elif tab4_search_query or selected_quick_sort != "ค่าเริ่มต้น":
+                df_table = df_table_source.head(100)
+            else:
+                df_table = df_table_source.head(0)
 
         # Status text
-        if display_limit == 0 and not tab4_search_query:
-            st.caption("ปัจจุบันแสดงเฉพาะ **หัวข้อคอลัมน์** เพื่อความเร็วสูงสุด (เลือกจำนวนแถวที่ต้องการแสดง หรือพิมพ์ค้นหารหัสทรัพย์)")
-        elif tab4_search_query and display_limit == 0:
-            st.caption(f"พบข้อมูลตรงกับการค้นหา **{len(df_table_source):,}** รายการ (เลือกจำนวนแถวด้านบนเพื่อเปิดดูข้อมูลในตาราง)")
+        if display_limit == 0 and not tab4_search_query and selected_quick_sort == "ค่าเริ่มต้น":
+            st.caption("ปัจจุบันแสดงเฉพาะ **หัวข้อคอลัมน์** เพื่อความเร็วสูงสุด (พิมพ์ค้นหารหัสทรัพย์ หรือเลือกจำนวนแถวที่ต้องการแสดง)")
+        elif tab4_search_query:
+            st.caption(f"🔍 พบข้อมูลตรงกับการค้นหา **{len(df_table_source):,}** รายการ (แสดง **{len(df_table):,}** รายการแรกในตาราง)")
         else:
             sort_info_str = f" | จัดเรียง: **{active_sort_label}**" if active_sort_label else ""
             total_matches = len(df_table_source) if len(df_table_source) > 0 else len(df_filtered)
@@ -4756,14 +5084,13 @@ with tab4:
                     df_table_show[num_col] = pd.to_numeric(df_table_show[num_col], errors='coerce')
 
         cols_table_raw = [
-            "บริษัท", "รหัสทรัพย์", "ชื่อโครงการ", "ประเภททรัพย์", "ประเภทการขาย", 
-            "ราคาขาย (บาท)", "เนื้อที่ (ไร่-งาน-ตร.ว.)", "พื้นที่ใช้สอย (ตร.ม.)",
-            "ตำบล", "อำเภอ", "จังหวัด", "ชื่อประกาศ", "ลิงก์", 
-            "ห้องนอน", "ห้องน้ำ", "ที่จอดรถ", "ID", "ละติจูด", "ลองจิจูด", "วันที่ดึงข้อมูล", "วันประกาศ"
+            "บริษัท", "ID", "รหัสทรัพย์", "ชื่อโครงการ", "ประเภททรัพย์", "ประเภทการขาย", "ราคาขาย (บาท)",
+            "ตำบล", "อำเภอ", "จังหวัด", "ละติจูด", "ลองจิจูด", "ชื่อประกาศ", "ลิงก์",
+            "เนื้อที่ (ไร่-งาน-ตร.ว.)", "พื้นที่ใช้สอย (ตร.ม.)", "วันที่ดึงข้อมูล",
+            "ห้องนอน", "ห้องน้ำ", "ที่จอดรถ", "วันประกาศ"
         ]
         cols_present = [c for c in cols_table_raw if c in df_table_show.columns]
-        extra_cols = [c for c in df_table_show.columns if c not in cols_present and c not in ['ราคา', 'พื้นที่_ตารางวา', 'เนื้อที่ (ตร.ว.)', 'sqwah_calc', 'ราคา/ตร.ว. (บาท)', 'ราคา/ตร.ม. (บาท)', 'ราคาต่อตารางวา', 'ราคาต่อตารางเมตร']]
-        df_table_show = df_table_show[cols_present + extra_cols]
+        df_table_show = df_table_show[cols_present]
 
         st.dataframe(
             df_table_show,

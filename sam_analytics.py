@@ -1995,6 +1995,7 @@ def render_sam_tab(df_raw, df_filtered, is_dark_mode=False, plotly_template="plo
             color_discrete_map=COMPANY_COLORS,
             template=plotly_template
         )
+        fig_bench_p.update_traces(marker=dict(cornerradius=8, line=dict(width=1.2, color='rgba(255,255,255,0.4)')))
         fig_bench_p.update_layout(height=420, yaxis_title="ราคากลาง (ล้านบาท)", margin=dict(t=40, b=10, l=10, r=10))
         if style_plotly_fig:
             fig_bench_p = style_plotly_fig(fig_bench_p)
@@ -2035,6 +2036,7 @@ def render_sam_tab(df_raw, df_filtered, is_dark_mode=False, plotly_template="plo
                 color_discrete_map=COMPANY_COLORS,
                 template=plotly_template
             )
+            fig_sqw.update_traces(marker=dict(cornerradius=8, line=dict(width=1.2, color='rgba(255,255,255,0.4)')))
             fig_sqw.update_layout(height=380, yaxis_title="บาท / ตารางวา", margin=dict(t=40, b=10, l=10, r=10))
             if style_plotly_fig:
                 fig_sqw = style_plotly_fig(fig_sqw)
