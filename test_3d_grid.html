@@ -1,0 +1,78 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <script src="https://code.highcharts.com/highcharts.js"></script>
+    <script src="https://code.highcharts.com/highcharts-3d.js"></script>
+    <style>
+        body {
+            background: transparent;
+            margin: 0;
+            padding: 8px;
+            font-family: 'Outfit', -apple-system, sans-serif;
+            color: #f8fafc;
+        }
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+        .donut-card {
+            background: rgba(15, 23, 42, 0.75);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 14px;
+            padding: 12px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+        }
+        .chart-box {
+            height: 260px;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div class="grid-container" id="grid"></div>
+    <script>
+        const companies = {
+            "SAM": { color: "#10b981", data: [{name: "บ้านเดี่ยว", y: 48.2, color: "#059669"}, {name: "ที่ดินเปล่า", y: 26.4, color: "#06b6d4"}, {name: "ทาวน์เฮ้าส์", y: 14.1, color: "#f59e0b"}, {name: "ห้องชุด", y: 8.3, color: "#2563eb"}, {name: "อื่นๆ", y: 3.0, color: "#94a3b8"}] },
+            "BAM": { color: "#3b82f6", data: [{name: "บ้านเดี่ยว", y: 38.5, color: "#059669"}, {name: "ที่ดินเปล่า", y: 31.2, color: "#06b6d4"}, {name: "ห้องชุด", y: 18.0, color: "#2563eb"}, {name: "ทาวน์เฮ้าส์", y: 9.3, color: "#f59e0b"}, {name: "อื่นๆ", y: 3.0, color: "#94a3b8"}] },
+            "LED": { color: "#0891b2", data: [{name: "ที่ดินเปล่า", y: 42.1, color: "#06b6d4"}, {name: "บ้านเดี่ยว", y: 28.3, color: "#059669"}, {name: "ห้องชุด", y: 19.5, color: "#2563eb"}, {name: "ทาวน์เฮ้าส์", y: 7.1, color: "#f59e0b"}, {name: "อื่นๆ", y: 3.0, color: "#94a3b8"}] }
+        };
+
+        const grid = document.getElementById('grid');
+        Object.keys(companies).forEach((comp, idx) => {
+            const card = document.createElement('div');
+            card.className = 'donut-card';
+            card.style.borderTop = `4px solid ${companies[comp].color}`;
+            card.innerHTML = `<div style="font-weight:800;font-size:14px;color:${companies[comp].color};margin-bottom:4px;">🏢 ${comp} (3D Donut)</div><div id="chart_${idx}" class="chart-box"></div>`;
+            grid.appendChild(card);
+
+            Highcharts.chart(`chart_${idx}`, {
+                chart: {
+                    type: 'pie',
+                    options3d: { enabled: true, alpha: 50, depth: 32 },
+                    backgroundColor: 'transparent',
+                    margin: [0, 0, 0, 0]
+                },
+                title: { text: null },
+                tooltip: { pointFormat: '<b>{point.name}</b>: <b>{point.y:.1f}%</b>' },
+                plotOptions: {
+                    pie: {
+                        innerSize: '52%',
+                        depth: 32,
+                        dataLabels: {
+                            enabled: true,
+                            format: '{point.name}<br>{point.y:.1f}%',
+                            distance: 12,
+                            style: { color: '#e2e8f0', textOutline: 'none', fontSize: '10px', fontFamily: 'Outfit' }
+                        }
+                    }
+                },
+                series: [{ name: 'สัดส่วน', data: companies[comp].data }],
+                credits: { enabled: false }
+            });
+        });
+    </script>
+</body>
+</html>

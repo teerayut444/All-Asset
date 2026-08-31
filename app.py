@@ -2078,6 +2078,9 @@ if is_dark_mode:
     --hover-bg: #334155;
     --tab-bg: #0f172a;
     --page-bg: #0f172a;
+    --tab-inactive-text: #cbd5e1;
+    --tab-hover-text: #ffffff;
+    --tab-active-text: #38bdf8;
     """
     plotly_template = "plotly_dark"
     mapbox_style = "carto-darkmatter"
@@ -2102,6 +2105,9 @@ else:
     --hover-bg: #e2e8f0;
     --tab-bg: #ffffff;
     --page-bg: #ffffff;
+    --tab-inactive-text: #475569;
+    --tab-hover-text: #0f172a;
+    --tab-active-text: #2563eb;
     """
     plotly_template = "plotly_white"
     mapbox_style = "carto-positron"
@@ -2451,24 +2457,53 @@ div[data-testid="stPills"] [data-testid="stPillsItem"][aria-checked="true"] span
 /* Style the tab container to sit at the top and fit height */
 div[data-baseweb="tab-list"], div[data-testid="stTabList"] {
     margin-top: 0px !important;
-    padding-top: 5px !important;
-    padding-bottom: 5px !important;
-    padding-left: 20px !important;
+    padding-top: 6px !important;
+    padding-bottom: 6px !important;
+    padding-left: 16px !important;
     background-color: var(--page-bg) !important;
     border-bottom: 1px solid var(--card-border) !important;
+    gap: 8px !important;
     z-index: 1000 !important;
 }
 
-button[data-baseweb="tab"] p, button[data-testid="stTab"] p {
-    color: var(--card-subtext) !important;
-    font-weight: 600;
-    font-size: 0.95rem;
+/* Inactive Tab Buttons & all nested text/icons */
+button[data-baseweb="tab"],
+button[data-testid="stTab"],
+div[data-baseweb="tab-list"] button,
+button[data-baseweb="tab"] *,
+button[data-testid="stTab"] *,
+div[data-baseweb="tab-list"] button * {
+    color: var(--tab-inactive-text) !important;
+    -webkit-text-fill-color: var(--tab-inactive-text) !important;
+    font-weight: 600 !important;
+    font-size: 0.95rem !important;
+    transition: color 0.15s ease, border-color 0.15s ease !important;
 }
-button[data-baseweb="tab"][aria-selected="true"], button[data-testid="stTab"][aria-selected="true"] {
-    border-bottom-color: #6366f1 !important;
+
+/* Hover Tab State */
+button[data-baseweb="tab"]:hover,
+button[data-testid="stTab"]:hover,
+div[data-baseweb="tab-list"] button:hover,
+button[data-baseweb="tab"]:hover *,
+button[data-testid="stTab"]:hover *,
+div[data-baseweb="tab-list"] button:hover * {
+    color: var(--tab-hover-text) !important;
+    -webkit-text-fill-color: var(--tab-hover-text) !important;
 }
-button[data-baseweb="tab"][aria-selected="true"] p, button[data-testid="stTab"][aria-selected="true"] p {
-    color: #6366f1 !important;
+
+/* Active / Selected Tab State */
+button[data-baseweb="tab"][aria-selected="true"],
+button[data-testid="stTab"][aria-selected="true"],
+div[data-baseweb="tab-list"] button[aria-selected="true"] {
+    border-bottom: 3px solid var(--tab-active-text) !important;
+}
+
+button[data-baseweb="tab"][aria-selected="true"] *,
+button[data-testid="stTab"][aria-selected="true"] *,
+div[data-baseweb="tab-list"] button[aria-selected="true"] * {
+    color: var(--tab-active-text) !important;
+    -webkit-text-fill-color: var(--tab-active-text) !important;
+    font-weight: 800 !important;
 }
 
 /* Segmented Control Styling */
@@ -2956,31 +2991,36 @@ with tab2:
         ])
         
         with sub_tab1:
+            import streamlit.components.v1 as components
+            import json
+            
             col_c1, col_c2 = st.columns(2)
             
-            # 1. Total Assets by Company with Rounded Gradient Bars
+            # 1. Total Assets by Company with Brand Colors & % Share Badges
             with col_c1:
                 comp_counts = df_filtered['บริษัท'].value_counts().reset_index()
                 comp_counts.columns = ['บริษัท', 'จำนวนทรัพย์สิน']
+                tot_units_all = comp_counts['จำนวนทรัพย์สิน'].sum() if not comp_counts.empty else 1
+                comp_counts['pct_share'] = (comp_counts['จำนวนทรัพย์สิน'] / tot_units_all) * 100
                 
                 fig_comp = go.Figure(go.Bar(
                     x=comp_counts['บริษัท'],
                     y=comp_counts['จำนวนทรัพย์สิน'],
                     marker=dict(
                         color=[COMPANY_COLORS.get(c, '#3b82f6') for c in comp_counts['บริษัท']],
-                        cornerradius=8,
+                        cornerradius=10,
                         line=dict(width=1.2, color='rgba(255, 255, 255, 0.4)')
                     ),
-                    text=[f"{c:,}" for c in comp_counts['จำนวนทรัพย์สิน']],
+                    text=[f"<b>{c:,}</b><br><span style='font-size:9.5px;color:#94a3b8;'>({p:.1f}%)</span>" for c, p in zip(comp_counts['จำนวนทรัพย์สิน'], comp_counts['pct_share'])],
                     textposition='outside',
-                    textfont=dict(size=11, family="Outfit", weight="bold"),
-                    hovertemplate="<b>%{x}</b><br>จำนวนทรัพย์สิน: <b>%{y:,}</b> รายการ<extra></extra>"
+                    textfont=dict(size=10.5, family="Outfit"),
+                    hovertemplate="<b>%{x}</b><br>จำนวนทรัพย์: <b>%{y:,}</b> รายการ<extra></extra>"
                 ))
                 fig_comp.update_layout(
-                    title=dict(text='📊 จำนวนรายการทรัพย์สินเปรียบเทียบแต่ละบริษัท', font=dict(size=14, family="Outfit")),
+                    title=dict(text='📊 จำนวนรายการทรัพย์สินเปรียบเทียบแต่ละบริษัท (Market Share)', font=dict(size=14, family="Outfit")),
                     yaxis=dict(title='จำนวนทรัพย์ (รายการ)', showgrid=True, gridcolor='rgba(255,255,255,0.06)' if is_dark_mode else 'rgba(0,0,0,0.05)', zeroline=False),
                     xaxis=dict(showgrid=False),
-                    height=440,
+                    height=450,
                     margin=dict(t=50, b=20, l=10, r=10),
                     template=plotly_template,
                     plot_bgcolor='rgba(0,0,0,0)',
@@ -2988,60 +3028,139 @@ with tab2:
                 )
                 st.plotly_chart(style_plotly_fig(fig_comp), width="stretch", theme=None)
                 
-            # 2. Distribution of Property Type with Modern Donut Styling
+            # 2. Distribution of Property Type in 3D Donut Chart
             with col_c2:
                 type_counts = df_filtered['ประเภททรัพย์'].value_counts().head(8).reset_index()
                 type_counts.columns = ['ประเภททรัพย์', 'จำนวนประกาศ']
                 
-                donut_palette = ['#10b981', '#3b82f6', '#f59e0b', '#06b6d4', '#8b5cf6', '#ec4899', '#14b8a6', '#64748b']
-                fig_type = px.pie(
-                    type_counts,
-                    names='ประเภททรัพย์',
-                    values='จำนวนประกาศ',
-                    hole=0.55,
-                    title='สัดส่วนประเภททรัพย์หลัก (Asset Type Share)',
-                    color_discrete_sequence=donut_palette,
-                    template=plotly_template
-                )
-                fig_type.update_traces(
-                    textposition='inside',
-                    textinfo='percent+label',
-                    marker=dict(line=dict(color='rgba(255, 255, 255, 0.6)', width=2)),
-                    hovertemplate="<b>%{label}</b><br>จำนวน: <b>%{value:,}</b> รายการ<br>สัดส่วน: <b>%{percent}</b><extra></extra>"
-                )
-                fig_type.update_layout(
-                    title_font=dict(size=14, family="Outfit"),
-                    height=440,
-                    margin=dict(t=50, b=20, l=10, r=10)
-                )
-                st.plotly_chart(style_plotly_fig(fig_type), width="stretch", theme=None)
+                vibrant_donut_colors = ['#10b981', '#3b82f6', '#f59e0b', '#06b6d4', '#8b5cf6', '#ec4899', '#14b8a6', '#64748b']
+                c2_series_data = [
+                    {"name": row['ประเภททรัพย์'], "y": int(row['จำนวนประกาศ']), "color": vibrant_donut_colors[i % len(vibrant_donut_colors)]}
+                    for i, (_, row) in enumerate(type_counts.iterrows())
+                ]
+                
+                text_color = "#f8fafc" if is_dark_mode else "#0f172a"
+                label_color = "#cbd5e1" if is_dark_mode else "#334155"
+                
+                html_c2 = f"""
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="utf-8">
+                    <script src="https://code.highcharts.com/highcharts.js"></script>
+                    <script src="https://code.highcharts.com/highcharts-3d.js"></script>
+                    <style>
+                        * {{ box-sizing: border-box; }}
+                        body {{
+                            background: transparent;
+                            margin: 0;
+                            padding: 4px;
+                            font-family: 'Outfit', -apple-system, sans-serif;
+                            color: {text_color};
+                        }}
+                        #chart_type_3d {{
+                            height: 420px;
+                            width: 100%;
+                        }}
+                    </style>
+                </head>
+                <body>
+                    <div id="chart_type_3d"></div>
+                    <script>
+                        Highcharts.chart('chart_type_3d', {{
+                            chart: {{
+                                type: 'pie',
+                                options3d: {{
+                                    enabled: true,
+                                    alpha: 50,
+                                    depth: 38
+                                }},
+                                backgroundColor: 'transparent',
+                                margin: [45, 10, 10, 10]
+                            }},
+                            title: {{
+                                text: 'สัดส่วนประเภททรัพย์หลัก (3D Asset Share)',
+                                align: 'left',
+                                style: {{ color: '{text_color}', fontSize: '16px', fontFamily: 'Outfit', fontWeight: '700' }}
+                            }},
+                            subtitle: {{
+                                text: 'รวมทั้งหมด: <b style="color:#3b82f6;">{tot_units_all:,} รายการ</b>',
+                                align: 'left',
+                                style: {{ color: '#94a3b8', fontSize: '13px', fontFamily: 'Outfit' }}
+                            }},
+                            tooltip: {{
+                                headerFormat: '',
+                                pointFormat: '<b>{{point.name}}</b>: <b>{{point.y:,.0f}} รายการ</b> ({{point.percentage:.1f}}%)',
+                                style: {{ fontSize: '13px', fontFamily: 'Outfit' }}
+                            }},
+                            plotOptions: {{
+                                pie: {{
+                                    innerSize: '50%',
+                                    depth: 38,
+                                    dataLabels: {{
+                                        enabled: true,
+                                        format: '{{point.name}}<br><b>{{point.percentage:.1f}}%</b>',
+                                        distance: 14,
+                                        style: {{
+                                            color: '{label_color}',
+                                            textOutline: 'none',
+                                            fontSize: '13px',
+                                            fontFamily: 'Outfit, sans-serif',
+                                            fontWeight: '700'
+                                        }}
+                                    }}
+                                }}
+                            }},
+                            series: [{{
+                                name: 'สัดส่วน',
+                                data: {json.dumps(c2_series_data)}
+                            }}],
+                            credits: {{ enabled: false }}
+                        }});
+                    </script>
+                </body>
+                </html>
+                """
+                components.html(html_c2, height=440, scrolling=False)
                 
             st.markdown("---")
             col_c3, col_c4 = st.columns(2)
             
-            # 3. Median Price by Company with Value Labels
+            # 3. Median Price by Company with Brand Colors & Market Benchmark Line
             with col_c3:
-                median_price_comp = df_filtered.groupby('บริษัท')['ราคา'].median().reset_index()
+                median_price_comp = df_filtered.groupby('บริษัท')['ราคา'].median().reset_index().sort_values('ราคา', ascending=False)
                 median_price_comp.columns = ['บริษัท', 'ราคากลาง Median (บาท)']
+                market_median_price = df_filtered['ราคา'].median() if not df_filtered.empty else 0
                 
                 fig_avg_p = go.Figure(go.Bar(
                     x=median_price_comp['บริษัท'],
                     y=median_price_comp['ราคากลาง Median (บาท)'],
                     marker=dict(
                         color=[COMPANY_COLORS.get(c, '#3b82f6') for c in median_price_comp['บริษัท']],
-                        cornerradius=8,
+                        cornerradius=10,
                         line=dict(width=1.2, color='rgba(255, 255, 255, 0.4)')
                     ),
                     text=[f"฿{v/1e6:.2f}M" if v >= 1e6 else f"฿{v:,.0f}" for v in median_price_comp['ราคากลาง Median (บาท)']],
                     textposition='outside',
-                    textfont=dict(size=11, family="Outfit", weight="bold"),
+                    textfont=dict(size=10.5, family="Outfit", weight="bold"),
                     hovertemplate="<b>%{x}</b><br>ราคากลาง: <b>฿%{y:,.0f}</b><extra></extra>"
                 ))
+                if market_median_price > 0:
+                    med_text = f"ค่ากลางตลาด: ฿{market_median_price/1e6:.2f}M" if market_median_price >= 1e6 else f"ค่ากลางตลาด: ฿{market_median_price:,.0f}"
+                    fig_avg_p.add_hline(
+                        y=market_median_price,
+                        line_dash="dot",
+                        line_color="#ef4444",
+                        line_width=2,
+                        annotation_text=med_text,
+                        annotation_position="top left",
+                        annotation_font=dict(size=10, color="#ef4444", family="Outfit", weight="bold")
+                    )
                 fig_avg_p.update_layout(
-                    title=dict(text='💰 ราคากลาง (Median) จำแนกตามบริษัททรัพย์สิน', font=dict(size=14, family="Outfit")),
+                    title=dict(text='💰 ราคากลาง (Median Price) จำแนกตามบริษัททรัพย์สิน', font=dict(size=14, family="Outfit")),
                     yaxis=dict(title='ราคากลาง (บาท)', showgrid=True, gridcolor='rgba(255,255,255,0.06)' if is_dark_mode else 'rgba(0,0,0,0.05)', zeroline=False),
                     xaxis=dict(showgrid=False),
-                    height=440,
+                    height=450,
                     margin=dict(t=50, b=20, l=10, r=10),
                     template=plotly_template,
                     plot_bgcolor='rgba(0,0,0,0)',
@@ -3049,10 +3168,12 @@ with tab2:
                 )
                 st.plotly_chart(style_plotly_fig(fig_avg_p), width="stretch", theme=None)
                 
-            # 4. Top 10 Provinces with Gradient Horizontal Bars
+            # 4. Top 10 Provinces with Cyber Gradient Horizontal Bars
             with col_c4:
                 top_prov = df_filtered['จังหวัด'].value_counts().head(10).reset_index()
                 top_prov.columns = ['จังหวัด', 'จำนวนทรัพย์']
+                prov_tot = df_filtered['จังหวัด'].count() if not df_filtered.empty else 1
+                top_prov['pct'] = (top_prov['จำนวนทรัพย์'] / prov_tot) * 100
                 
                 fig_prov = go.Figure(go.Bar(
                     x=top_prov['จำนวนทรัพย์'],
@@ -3060,20 +3181,20 @@ with tab2:
                     orientation='h',
                     marker=dict(
                         color=top_prov['จำนวนทรัพย์'],
-                        colorscale=[[0, '#06b6d4'], [0.5, '#3b82f6'], [1, '#6366f1']],
-                        cornerradius=8,
-                        line=dict(width=1.2, color='rgba(255, 255, 255, 0.4)')
+                        colorscale=[[0, '#06b6d4'], [0.45, '#3b82f6'], [1, '#4f46e5']],
+                        cornerradius=10,
+                        line=dict(width=1.5, color='rgba(255, 255, 255, 0.5)')
                     ),
-                    text=[f"{c:,} รายการ" for c in top_prov['จำนวนทรัพย์']],
+                    text=[f"{c:,} ({p:.1f}%)" for c, p in zip(top_prov['จำนวนทรัพย์'], top_prov['pct'])],
                     textposition='outside',
-                    textfont=dict(size=11, family="Outfit", weight="bold"),
+                    textfont=dict(size=10.5, family="Outfit", weight="bold"),
                     hovertemplate="จังหวัด: <b>%{y}</b><br>จำนวนทรัพย์: <b>%{x:,}</b> รายการ<extra></extra>"
                 ))
                 fig_prov.update_layout(
                     yaxis=dict(autorange="reversed"),
                     xaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.06)' if is_dark_mode else 'rgba(0,0,0,0.05)', zeroline=False),
-                    title=dict(text='📍 10 อันดับจังหวัดที่มีทรัพย์สินเยอะที่สุด', font=dict(size=14, family="Outfit")),
-                    height=440,
+                    title=dict(text='📍 10 อันดับจังหวัดที่มีทรัพย์สินหนาแน่นที่สุด (Top 10 Locations)', font=dict(size=14, family="Outfit")),
+                    height=450,
                     margin=dict(t=50, b=20, l=10, r=10),
                     template=plotly_template,
                     plot_bgcolor='rgba(0,0,0,0)',
@@ -3217,7 +3338,7 @@ with tab2:
             st.write("เปรียบเทียบสัดส่วนพอร์ตสินค้าของแต่ละบริษัทเพื่อดูความเชี่ยวชาญเฉพาะทางในแต่ละประเภททรัพย์สิน")
             
             focus_metric = st.radio(
-                "เลือกเกณฑ์การวิเคราะห์สัดส่วนพอร์ตสินค้า", 
+                "💰 เลือกเกณฑ์การวิเคราะห์", 
                 ["👥 จำนวนทรัพย์สิน (Asset Count)", "💰 มูลค่าทรัพย์สินรวม (Total Value)"], 
                 horizontal=True, 
                 key="focus_metric_type"
@@ -3238,95 +3359,212 @@ with tab2:
                 comp_type_df = df_filtered.groupby(['บริษัท', 'ประเภททรัพย์']).size().reset_index(name=value_col)
                 hover_tmpl = "<b>%{label}</b><br>จำนวน: %{value:,} รายการ<br>สัดส่วน: %{percent}<extra>%{name}</extra>"
                 
-            # Sort with LED, SAM, BAM, Chayo555 / Chayo prioritized in the top row (3 columns)
+            # Curated modern property type palette
+            PROPERTY_TYPE_COLORS = {
+                'บ้านเดี่ยว': '#059669',       # Vibrant Emerald
+                'ห้องชุดพักอาศัย': '#2563eb', # Royal Blue
+                'ทาวน์เฮ้าส์': '#f59e0b',     # Vibrant Amber
+                'ที่ดินเปล่า': '#06b6d4',     # Vivid Cyan
+                'อาคารพาณิชย์': '#8b5cf6',    # Deep Violet
+                'โรงงาน/โกดัง': '#ec4899',    # Bright Rose/Pink
+                'บ้านแฝด': '#14b8a6',         # Fresh Teal
+                'อื่นๆ': '#94a3b8'            # Slate Gray
+            }
+            other_color = '#94a3b8'
+
+            # Sort with LED, SAM, BAM, Chayo555 / Chayo prioritized
             PREFERRED_COMPANY_ORDER = ["LED", "SAM", "BAM", "Chayo555", "Chayo", "Chayo NPA", "GHB", "KBANK", "KTB", "SCB", "GSB", "DDproperty", "Livinginsider", "NaYoo", "ZmyHome", "Baania"]
             all_comps = list(comp_type_df['บริษัท'].unique())
             companies = sorted(
                 all_comps, 
                 key=lambda c: (PREFERRED_COMPANY_ORDER.index(c) if c in PREFERRED_COMPANY_ORDER else 999, c)
             )
-            
+
             if len(companies) > 0:
-                from plotly.subplots import make_subplots
-                import plotly.graph_objects as go
+                import streamlit.components.v1 as components
+                import json
                 
-                n_cols = min(len(companies), 3)
-                n_rows = (len(companies) + n_cols - 1) // n_cols
-                
-                fig_asset_focus = make_subplots(
-                    rows=n_rows, cols=n_cols,
-                    specs=[[{'type': 'pie'}] * n_cols for _ in range(n_rows)],
-                    subplot_titles=[f"🏢 {c}" for c in companies],
-                )
-                
-                # Curated modern property type palette
-                PROPERTY_TYPE_COLORS = {
-                    'บ้านเดี่ยว': '#059669',       # Vibrant Emerald
-                    'ห้องชุดพักอาศัย': '#2563eb', # Royal Blue
-                    'ทาวน์เฮ้าส์': '#f59e0b',     # Vibrant Amber
-                    'ที่ดินเปล่า': '#06b6d4',     # Vivid Cyan
-                    'อาคารพาณิชย์': '#8b5cf6',    # Deep Violet
-                    'โรงงาน/โกดัง': '#ec4899',    # Bright Rose/Pink
-                    'บ้านแฝด': '#14b8a6',         # Fresh Teal
-                    'อื่นๆ': '#94a3b8'            # Slate Gray
-                }
-                other_color = '#94a3b8'
-                
-                MIN_PCT = 3.0  # Group types below this % into อื่นๆ
-                
-                for idx, company in enumerate(companies):
-                    row = idx // n_cols + 1
-                    col = idx % n_cols + 1
-                    cdf = comp_type_df[comp_type_df['บริษัท'] == company].sort_values(value_col, ascending=False)
+                # Build data for 3D Donut Charts
+                companies_3d_data = []
+                for comp in companies:
+                    comp_color = COMPANY_COLORS.get(comp, '#3b82f6')
+                    cdf = comp_type_df[comp_type_df['บริษัท'] == comp].sort_values(value_col, ascending=False)
                     total = cdf[value_col].sum()
-                    
                     if total <= 0:
                         continue
-                        
-                    # Split into major vs minor
+                    
                     cdf = cdf.copy()
-                    cdf['pct'] = cdf[value_col] / total * 100
-                    major = cdf[cdf['pct'] >= MIN_PCT]
-                    minor = cdf[cdf['pct'] < MIN_PCT]
+                    cdf['pct'] = (cdf[value_col] / total) * 100
+                    major = cdf[cdf['pct'] >= 3.0]
+                    minor = cdf[cdf['pct'] < 3.0]
                     
-                    # Build final data with อื่นๆ
-                    labels = major['ประเภททรัพย์'].tolist()
-                    values = major[value_col].tolist()
-                    pie_colors = [PROPERTY_TYPE_COLORS.get(t, '#6366f1') for t in labels]
-                    
+                    series_data = []
+                    for _, r in major.iterrows():
+                        t_name = r['ประเภททรัพย์']
+                        t_pct = round(float(r['pct']), 1)
+                        t_c = PROPERTY_TYPE_COLORS.get(t_name, '#6366f1')
+                        series_data.append({"name": t_name, "y": t_pct, "color": t_c})
+                        
                     if not minor.empty:
-                        labels.append('อื่นๆ')
-                        values.append(minor[value_col].sum())
-                        pie_colors.append(other_color)
+                        other_pct = round(float(minor['pct'].sum()), 1)
+                        series_data.append({"name": "อื่นๆ", "y": other_pct, "color": other_color})
+                        
+                    total_display = f"฿{total/1e6:,.0f}M" if is_val_metric and total >= 1e6 else (f"{int(total):,} รายการ" if not is_val_metric else f"฿{total:,.0f}")
                     
-                    # Only show label+percent for major items, hide text for อื่นๆ
-                    text_labels = [f"{l}" for l in major['ประเภททรัพย์']] + ([''] if not minor.empty else [])
-                    
-                    fig_asset_focus.add_trace(
-                        go.Pie(
-                            labels=labels,
-                            values=values,
-                            name=company,
-                            hole=0.52,
-                            marker=dict(colors=pie_colors, line=dict(color='rgba(255, 255, 255, 0.6)', width=1.5)),
-                            textinfo='label+percent',
-                            textposition='auto',
-                            text=text_labels,
-                            insidetextorientation='auto',
-                            hovertemplate=hover_tmpl,
-                        ),
-                        row=row, col=col
-                    )
+                    pills = []
+                    for _, r in cdf.head(3).iterrows():
+                        t_name = r['ประเภททรัพย์']
+                        t_pct = r['pct']
+                        t_c = PROPERTY_TYPE_COLORS.get(t_name, '#6366f1')
+                        pills.append({"name": t_name, "pct": t_pct, "color": t_c})
+                        
+                    companies_3d_data.append({
+                        "company": comp,
+                        "color": comp_color,
+                        "total_str": total_display,
+                        "pills": pills,
+                        "series_data": series_data
+                    })
                 
-                fig_asset_focus.update_layout(
-                    title=dict(text='สัดส่วนประเภททรัพย์สินแยกตามแต่ละบริษัท (Asset Focus Matrix)', font=dict(size=15, family="Outfit")),
-                    height=420 * n_rows,
-                    template=plotly_template,
-                    showlegend=False,
-                    plot_bgcolor='rgba(0,0,0,0)',
-                    paper_bgcolor='rgba(0,0,0,0)'
-                )
-                st.plotly_chart(style_plotly_fig(fig_asset_focus), width="stretch", theme=None)
+                # HTML Theme styling
+                card_bg = "rgba(15, 23, 42, 0.82)" if is_dark_mode else "linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)"
+                card_border = "rgba(255, 255, 255, 0.12)" if is_dark_mode else "rgba(226, 232, 240, 0.9)"
+                text_color = "#f8fafc" if is_dark_mode else "#0f172a"
+                label_color = "#e2e8f0" if is_dark_mode else "#1e293b"
+                
+                cards_html = ""
+                js_init = ""
+                for idx, item in enumerate(companies_3d_data):
+                    comp = item['company']
+                    comp_color = item['color']
+                    total_str = item['total_str']
+                    top_pills_html = "".join([
+                        f"<span style='display:inline-block;background:{p['color']}18;color:{p['color']};border:1px solid {p['color']}40;border-radius:6px;padding:3px 8px;font-size:12px;font-weight:700;margin:2px 3px;'>{p['name']} {p['pct']:.0f}%</span>"
+                        for p in item['pills']
+                    ])
+                    
+                    cards_html += f"""
+                    <div class="donut-card" style="border-top: 4px solid {comp_color};">
+                        <div class="card-header">
+                            <span style="color: {comp_color}; font-weight: 800; font-size: 16px;">🏢 {comp}</span>
+                            <span style="color: #64748b; font-weight: 700; font-size: 13.5px;">รวม: <b style="color:{text_color};">{total_str}</b></span>
+                        </div>
+                        <div style="text-align:center; margin-top:2px; margin-bottom: 4px;">{top_pills_html}</div>
+                        <div id="chart3d_{idx}" class="chart-box"></div>
+                    </div>
+                    """
+                    
+                    series_json = json.dumps(item['series_data'])
+                    js_init += f"""
+                    Highcharts.chart('chart3d_{idx}', {{
+                        chart: {{
+                            type: 'pie',
+                            options3d: {{
+                                enabled: true,
+                                alpha: 52,
+                                beta: 0,
+                                depth: 38
+                            }},
+                            backgroundColor: 'transparent',
+                            margin: [0, 0, 0, 0]
+                        }},
+                        title: {{ text: null }},
+                        tooltip: {{
+                            headerFormat: '',
+                            pointFormat: '<b>{{point.name}}</b>: <b>{{point.y:.1f}}%</b>',
+                            style: {{ fontSize: '13px', fontFamily: 'Outfit' }}
+                        }},
+                        plotOptions: {{
+                            pie: {{
+                                innerSize: '46%',
+                                depth: 38,
+                                dataLabels: {{
+                                    enabled: true,
+                                    format: '{{point.name}}<br><b>{{point.y:.1f}}%</b>',
+                                    distance: 12,
+                                    style: {{
+                                        color: '{label_color}',
+                                        textOutline: 'none',
+                                        fontSize: '13px',
+                                        fontWeight: '700',
+                                        fontFamily: 'Outfit, sans-serif'
+                                    }}
+                                }}
+                            }}
+                        }},
+                        series: [{{
+                            name: 'สัดส่วน',
+                            data: {series_json}
+                        }}],
+                        credits: {{ enabled: false }}
+                    }});
+                    """
+                
+                n_rows = (len(companies_3d_data) + 3) // 4
+                total_height = max(450, n_rows * 420)
+                
+                full_html = f"""
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="utf-8">
+                    <script src="https://code.highcharts.com/highcharts.js"></script>
+                    <script src="https://code.highcharts.com/highcharts-3d.js"></script>
+                    <style>
+                        * {{ box-sizing: border-box; }}
+                        body {{
+                            background: transparent;
+                            margin: 0;
+                            padding: 4px;
+                            font-family: 'Outfit', -apple-system, sans-serif;
+                            color: {text_color};
+                        }}
+                        .grid-container {{
+                            display: grid;
+                            grid-template-columns: repeat(4, 1fr);
+                            gap: 16px;
+                        }}
+                        @media (max-width: 1400px) {{
+                            .grid-container {{
+                                grid-template-columns: repeat(2, 1fr);
+                            }}
+                        }}
+                        @media (max-width: 700px) {{
+                            .grid-container {{
+                                grid-template-columns: 1fr;
+                            }}
+                        }}
+                        .donut-card {{
+                            background: {card_bg};
+                            border: 1px solid {card_border};
+                            border-radius: 14px;
+                            padding: 14px 14px 8px 14px;
+                            box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+                        }}
+                        .card-header {{
+                            display: flex;
+                            justify-content: space-between;
+                            align-items: center;
+                            margin-bottom: 6px;
+                        }}
+                        .chart-box {{
+                            height: 310px;
+                            width: 100%;
+                        }}
+                    </style>
+                </head>
+                <body>
+                    <div class="grid-container">
+                        {cards_html}
+                    </div>
+                    <script>
+                        {js_init}
+                    </script>
+                </body>
+                </html>
+                """
+                
+                components.html(full_html, height=total_height, scrolling=False)
 
         # -----------------------------------------------------------------
         # SUB-TAB 3: การกระจายตัวพอร์ตโฟลิโอรายบริษัท (Company Portfolio Deep Dive)

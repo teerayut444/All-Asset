@@ -314,12 +314,12 @@ def render_3d_property_type_donut(type_counts_df, is_dark_mode=False):
         marker=dict(colors=colors, line=dict(color='#ffffff' if not is_dark_mode else '#1e293b', width=2.5)),
         textinfo='label+percent',
         textposition='outside',
-        textfont=dict(size=11, family="Outfit, Sarabun", color="#f8fafc" if is_dark_mode else "#0f172a"),
+        textfont=dict(size=13, family="Outfit, Sarabun", color="#f8fafc" if is_dark_mode else "#0f172a"),
         hovertemplate="<b>%{label}</b><br>จำนวนประกาศ: <b>%{value:,}</b> (%{percent})<extra></extra>"
     )])
 
     fig.update_layout(
-        title=dict(text='สัดส่วนประเภททรัพย์สินหลัก (3D Isometric Donut)', font=dict(size=14, family="Outfit, Sarabun")),
+        title=dict(text='สัดส่วนประเภททรัพย์สินหลัก (3D Isometric Donut)', font=dict(size=16, family="Outfit, Sarabun")),
         showlegend=False,
         height=420,
         margin=dict(l=30, r=30, t=50, b=30),
