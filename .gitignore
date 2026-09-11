@@ -13,22 +13,29 @@ venv/
 env/
 ENV/
 *.log
+logs/
 *.tmp
 *.bak
 *.swp
 *~
 
 # ==============================================================================
-# PyInstaller, Executables & Build Artifacts
+# PyInstaller, Executables, Archives & Build Artifacts
 # ==============================================================================
 build/
 dist/
+packaging/build/
+packaging/dist/
 *.exe
 *.dll
 *.so
 *.dylib
 *.pyd
 *.spec
+*.zip
+*.tar.gz
+*.rar
+*.7z
 
 # ==============================================================================
 # Web Scrapers & Scraper Utilities (Keep repository strictly for Dashboard)
@@ -40,6 +47,7 @@ py/
 run_all_scrapers.*
 scraping*.log
 .*_state_*.json
+scratch/
 scratch*
 
 # ==============================================================================
@@ -51,11 +59,15 @@ scratch*
 *.pdf
 static/*.csv
 
-# Whitelist reference tables needed for geographic lookups & dashboard data
+# Ignore large snapshot/intermediate parquet files (>35MB each)
+*.parquet
+data/*.parquet
+
+# Whitelist primary dashboard dataset & reference tables
+!all_assets.parquet
 !references/thailand_provinces_districts_subdistricts.csv
 !references/thailand_provinces_districts_subdistricts.json
 !references/thailand_provinces_districts_subdistricts.xlsx
-!all_assets.parquet
 
 # ==============================================================================
 # Backups & Scratch Scripts
@@ -71,7 +83,7 @@ Co pilot.py
 app - *.py
 
 # ==============================================================================
-# IDE, Editor & OS Specific Files
+# IDE, Editor, Agent & OS Specific Files
 # ==============================================================================
 .vscode/
 .idea/
@@ -80,3 +92,8 @@ app - *.py
 .DS_Store
 Thumbs.db
 desktop.ini
+*.lnk
+
+# Antigravity & AI Agent directories
+.agents/
+.gemini/

@@ -98,7 +98,9 @@ def scan_available_snapshots(base_csv_dir: str = "CSV_Output") -> List[Dict[str,
     
     # Check default root Parquet file
     parquet_path = Path("all_assets.parquet")
+    seen_parquet_paths = set()
     if parquet_path.exists():
+        seen_parquet_paths.add(str(parquet_path.resolve()))
         mtime = datetime.datetime.fromtimestamp(parquet_path.stat().st_mtime)
         snapshots.append({
             "id": "current_active_parquet",
@@ -107,6 +109,29 @@ def scan_available_snapshots(base_csv_dir: str = "CSV_Output") -> List[Dict[str,
             "path": str(parquet_path),
             "mtime": mtime
         })
+        
+    # Check dated Parquet files in root or CSV_Output
+    for p_file in sorted(Path(".").glob("all_assets_*.parquet"), reverse=True):
+        if not p_file.name.endswith("_no_centroid.parquet") and p_file.name != "all_assets.parquet":
+            p_res = str(p_file.resolve())
+            if p_res not in seen_parquet_paths:
+                seen_parquet_paths.add(p_res)
+                mtime = datetime.datetime.fromtimestamp(p_file.stat().st_mtime)
+                m_date = re.search(r'all_assets_(\d{4})_(\d{2})_(\d{2})\.parquet', p_file.name)
+                if m_date:
+                    y, m, d = m_date.groups()
+                    th_year = int(y) + 543 if int(y) < 2500 else int(y)
+                    th_m = THAI_SHORT_MONTHS[int(m) - 1] if int(m) <= 12 else m
+                    date_lbl = f"{int(d)} {th_m} {th_year}"
+                else:
+                    date_lbl = p_file.name
+                snapshots.append({
+                    "id": f"parquet_{p_file.stem}",
+                    "label": f"ฐานข้อมูล Parquet วันที่ {date_lbl} ({p_file.name})",
+                    "type": "parquet",
+                    "path": str(p_file),
+                    "mtime": mtime
+                })
         
     if base_path.exists() and base_path.is_dir():
         # Scan subdirectories inside CSV_Output
@@ -528,6 +553,7 @@ def render_download_buttons(df: pd.DataFrame, filename_prefix: str, key_suffix: 
             data=csv_data,
             file_name=f"{filename_prefix}.csv",
             mime="text/csv",
+            icon=":material/csv:",
             use_container_width=True,
             key=f"dl_csv_{key_suffix}"
         )
@@ -540,6 +566,7 @@ def render_download_buttons(df: pd.DataFrame, filename_prefix: str, key_suffix: 
             data=excel_buffer.getvalue(),
             file_name=f"{filename_prefix}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            icon=":material/table_view:",
             use_container_width=True,
             key=f"dl_excel_{key_suffix}"
         )
@@ -886,7 +913,7 @@ def render_monthly_comparison(
         border-radius: 10px;
         box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.02);
         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        font-family: 'Noto Sans Thai', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }}
     .audit-metric-card:hover {{
         border-color: #cbd5e1;
@@ -953,29 +980,49 @@ def render_monthly_comparison(
     
     col_target, col_base, col_sort = st.columns([0.38, 0.38, 0.24])
     with col_target:
+        st.markdown(
+            f"<div style='font-size: 0.9rem; font-weight: 700; color: {'#f8fafc' if is_dark_mode else '#0f172a'}; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;'>"
+            f"<i class='fa-regular fa-calendar-check' style='color: #059669;'></i> ชุดข้อมูลปัจจุบัน (Target Period):"
+            f"</div>",
+            unsafe_allow_html=True
+        )
         selected_target_label = st.selectbox(
-            "ชุดข้อมูลปัจจุบัน (Target Period)",
+            "ชุดข้อมูลปัจจุบัน (Target Period):",
             options=snapshot_labels,
             index=0,
             key="mom_target_snapshot_selector",
+            label_visibility="collapsed",
             help="เลือกชุดข้อมูลหรืองวดเวลาล่าสุดที่ต้องการนำมาวิเคราะห์"
         )
         target_snapshot = available_snapshots[snapshot_labels.index(selected_target_label)]
         
     with col_base:
         base_idx = 1 if len(available_snapshots) > 1 else 0
+        st.markdown(
+            f"<div style='font-size: 0.9rem; font-weight: 700; color: {'#f8fafc' if is_dark_mode else '#0f172a'}; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;'>"
+            f"<i class='fa-solid fa-clock-rotate-left' style='color: #059669;'></i> ชุดข้อมูลเปรียบเทียบ (Baseline Period):"
+            f"</div>",
+            unsafe_allow_html=True
+        )
         selected_base_label = st.selectbox(
-            "ชุดข้อมูลเปรียบเทียบ (Baseline Period)",
+            "ชุดข้อมูลเปรียบเทียบ (Baseline Period):",
             options=snapshot_labels,
             index=base_idx,
             key="mom_base_snapshot_selector",
+            label_visibility="collapsed",
             help="เลือกชุดข้อมูลหรืองวดเวลาก่อนหน้าที่ต้องการใช้เป็นฐานเปรียบเทียบ"
         )
         base_snapshot = available_snapshots[snapshot_labels.index(selected_base_label)]
         
     with col_sort:
+        st.markdown(
+            f"<div style='font-size: 0.9rem; font-weight: 700; color: {'#f8fafc' if is_dark_mode else '#0f172a'}; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;'>"
+            f"<i class='fa-solid fa-arrow-down-wide-short' style='color: #059669;'></i> จัดเรียงตาม:"
+            f"</div>",
+            unsafe_allow_html=True
+        )
         sort_opt = st.selectbox(
-            "จัดเรียงตาม",
+            "จัดเรียงตาม:",
             options=[
                 "ลำดับมาตรฐาน (LED, SAM, BAM, Chayo...)",
                 "จำนวนทรัพย์ปัจจุบันสูงสุด",
@@ -985,6 +1032,7 @@ def render_monthly_comparison(
                 "มูลค่าพอร์ตสูงสุด"
             ],
             index=0,
+            label_visibility="collapsed",
             key="mom_card_sort_opt"
         )
         

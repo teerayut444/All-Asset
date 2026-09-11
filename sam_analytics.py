@@ -206,48 +206,45 @@ def render_same_project_leaflet_map_html(proj_units, proj_name, is_dark_mode=Fal
         return None
 
     # Load logo dictionary with tight crop & centering
-    alias_map = {
-        'bam': 'bam.png',
-        'sam': 'SAM.png',
-        'kbank': 'kbank.png',
-        'scb': 'scb.png',
-        'ktb': 'KTB.png',
-        'ghb': 'ghb.png',
-        'chayo': 'Chayo555.png',
-        'chayo555': 'Chayo555.png',
-        'nayoo': 'nayoo.png',
-        'baania': 'baania.png',
-        'zmyhome': 'zmyhome.png',
-        'led': 'LED.png',
-        'ddproperty': 'ddproperty.png',
-        'livinginsider': 'livinginsider.png'
-    }
-    companies = ['LED', 'BAM', 'SAM', 'KBANK', 'SCB', 'KTB', 'GHB', 'GSB', 'Chayo555', 'DDproperty', 'Livinginsider', 'NaYoo', 'Baania', 'ZmyHome']
+    base_dir = Path(__file__).resolve().parent
+    logo_dir = base_dir / "assets" / "logos"
+    if not logo_dir.exists():
+        logo_dir = Path("assets/logos")
+        
     logo_dict = {}
-    for c in companies:
-        comp_key = c.lower()
-        fname = alias_map.get(comp_key, f"{comp_key}.png")
-        p = os.path.join("assets", "logos", fname)
-        if os.path.exists(p):
-            try:
-                im = Image.open(p).convert("RGBA")
-                bbox = im.getbbox()
-                if bbox:
-                    im = im.crop(bbox)
-                max_side = max(im.width, im.height)
-                square = Image.new("RGBA", (max_side, max_side), (0, 0, 0, 0))
-                ox = (max_side - im.width) // 2
-                oy = (max_side - im.height) // 2
-                square.paste(im, (ox, oy), im)
-                square = square.resize((64, 64), Image.Resampling.LANCZOS)
-                buf = io.BytesIO()
-                square.save(buf, format="PNG", optimize=True)
-                b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
-                logo_dict[c] = f"data:image/png;base64,{b64}"
-                logo_dict[c.lower()] = logo_dict[c]
-                logo_dict[c.upper()] = logo_dict[c]
-            except Exception:
-                pass
+    if logo_dir.exists():
+        from PIL import Image
+        import io, base64
+        for fname in os.listdir(logo_dir):
+            if fname.lower().endswith(('.png', '.jpg', '.jpeg', '.webp')):
+                path = logo_dir / fname
+                base_name = os.path.splitext(fname)[0].strip()
+                try:
+                    im = Image.open(path).convert("RGBA")
+                    bbox = im.getbbox()
+                    if bbox:
+                        im = im.crop(bbox)
+                    max_side = max(im.width, im.height)
+                    square = Image.new("RGBA", (max_side, max_side), (0, 0, 0, 0))
+                    ox = (max_side - im.width) // 2
+                    oy = (max_side - im.height) // 2
+                    square.paste(im, (ox, oy), im)
+                    square = square.resize((48, 48), Image.Resampling.LANCZOS)
+                    buf = io.BytesIO()
+                    square.save(buf, format="PNG", optimize=True)
+                    b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
+                    data_uri = f"data:image/png;base64,{b64}"
+                    
+                    logo_dict[base_name] = data_uri
+                    logo_dict[base_name.lower()] = data_uri
+                    logo_dict[base_name.upper()] = data_uri
+                    clean_name = base_name.replace("logo", "").replace(" ", "").strip()
+                    if clean_name:
+                        logo_dict[clean_name] = data_uri
+                        logo_dict[clean_name.lower()] = data_uri
+                        logo_dict[clean_name.upper()] = data_uri
+                except Exception:
+                    pass
 
     props_list = []
     for _, r in valid_units.iterrows():
@@ -296,8 +293,7 @@ def render_same_project_leaflet_map_html(proj_units, proj_name, is_dark_mode=Fal
             seen_coords.add(coord_key)
             deduped_props.append(item)
 
-    tiles_url = "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" if not is_dark_mode else "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-    props_json = json.dumps(deduped_props, ensure_ascii=False)
+    props_json = json.dumps(props_list, ensure_ascii=False)
     logos_json = json.dumps(logo_dict, ensure_ascii=False)
     proj_title_escaped = str(proj_name).replace("'", "\\'")
 
@@ -306,71 +302,160 @@ def render_same_project_leaflet_map_html(proj_units, proj_name, is_dark_mode=Fal
     <html>
     <head>
         <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+Thai:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
         <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
         <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
         <style>
-            html, body, #same-proj-map {{
-                height: 100%;
+            html, body {{
                 width: 100%;
+                height: 100%;
                 margin: 0;
                 padding: 0;
-                font-family: 'Sarabun', 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+                overflow: hidden;
+            }}
+            #same-proj-map {{
+                width: 100%;
+                height: 100vh;
+                min-height: 680px;
+                margin: 0;
+                padding: 0;
+                font-family: 'Noto Sans Thai', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
                 background: {'#0f172a' if is_dark_mode else '#f8fafc'};
                 border-radius: 12px;
-                overflow: hidden;
             }}
             .logo-marker-pin {{
                 display: flex;
                 justify-content: center;
                 align-items: center;
-                width: 34px;
-                height: 34px;
+                width: 36px;
+                height: 36px;
                 background: #ffffff;
                 border-radius: 50%;
-                border: 2px solid #ffffff;
+                border: 2.5px solid #3b82f6;
                 box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
                 transition: transform 0.2s ease, box-shadow 0.2s ease;
                 cursor: pointer;
-                overflow: hidden;
+                overflow: visible;
                 box-sizing: border-box;
                 padding: 0;
+                position: relative;
             }}
             .logo-marker-pin:hover {{
-                transform: scale(1.3);
+                transform: scale(1.25);
                 box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
                 z-index: 1000 !important;
             }}
             .logo-marker-pin img {{
-                width: 18px;
-                height: 18px;
-                max-width: 18px;
-                max-height: 18px;
+                width: 22px;
+                height: 22px;
+                max-width: 22px;
+                max-height: 22px;
                 object-fit: contain;
                 display: block;
                 margin: 0 auto;
-                transform: translateY(-1px);
+                border-radius: 4px;
+            }}
+            .cluster-badge-count {{
+                position: absolute;
+                top: -6px;
+                right: -6px;
+                background: #2563eb;
+                color: #ffffff;
+                font-size: 11px;
+                font-weight: 800;
+                padding: 1px 5px;
+                border-radius: 10px;
+                border: 1.5px solid #ffffff;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+                font-family: 'Inter', sans-serif;
+                line-height: 1.2;
+            }}
+            .multi-pill-scroll {{
+                display: flex;
+                gap: 5px;
+                overflow-x: auto;
+                padding: 2px 2px 6px 2px;
+                margin-bottom: 8px;
+                scrollbar-width: none;
+                -ms-overflow-style: none;
+            }}
+            .multi-pill-scroll::-webkit-scrollbar {{
+                display: none;
+            }}
+            .multi-pill-tab {{
+                background: #f8fafc;
+                border: 1px solid #e2e8f0;
+                color: #475569;
+                border-radius: 14px;
+                padding: 4px 9px;
+                font-size: 11px;
+                cursor: pointer;
+                white-space: nowrap;
+                transition: all 0.15s ease;
+                font-family: 'Noto Sans Thai', sans-serif;
+                font-weight: 500;
+                outline: none;
+            }}
+            .multi-pill-tab:hover {{
+                background: #f1f5f9;
+                color: #0f172a;
+            }}
+            .multi-pill-tab.active {{
+                background: #2563eb;
+                color: #ffffff;
+                border-color: #1d4ed8;
+                font-weight: 700;
+                box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+            }}
+            .view-toggle-btn {{
+                display: block;
+                width: 100%;
+                background: #f8fafc;
+                border: 1px solid #cbd5e1;
+                color: #1e293b;
+                border-radius: 8px;
+                padding: 6px 10px;
+                font-size: 11.5px;
+                font-weight: 600;
+                text-align: center;
+                cursor: pointer;
+                margin-top: 8px;
+                transition: all 0.15s ease;
+                font-family: 'Noto Sans Thai', sans-serif;
+            }}
+            .view-toggle-btn:hover {{
+                background: #f1f5f9;
+                border-color: #94a3b8;
+                color: #0f172a;
             }}
             .leaflet-popup-content-wrapper {{
-                background: {'#1e293b' if is_dark_mode else '#ffffff'} !important;
-                color: {'#f8fafc' if is_dark_mode else '#0f172a'} !important;
-                border-radius: 12px !important;
-                box-shadow: 0 10px 25px rgba(0,0,0,0.3) !important;
-                border: 1px solid {'rgba(255,255,255,0.1)' if is_dark_mode else 'rgba(0,0,0,0.08)'} !important;
-                padding: 4px !important;
+                background: #ffffff !important;
+                color: #0f172a !important;
+                border-radius: 14px !important;
+                box-shadow: 0 12px 32px rgba(0,0,0,0.16) !important;
+                border: 1px solid rgba(0,0,0,0.08) !important;
+                padding: 2px !important;
             }}
             .leaflet-popup-tip {{
-                background: {'#1e293b' if is_dark_mode else '#ffffff'} !important;
+                background: #ffffff !important;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.12) !important;
+            }}
+            .leaflet-popup-content {{
+                margin: 10px 12px !important;
+                line-height: 1.4 !important;
+                color: #0f172a !important;
             }}
             .leaflet-tooltip {{
-                background: {'rgba(15, 23, 42, 0.92)' if is_dark_mode else 'rgba(255, 255, 255, 0.95)'} !important;
-                color: {'#f8fafc' if is_dark_mode else '#0f172a'} !important;
-                border: 1px solid {'rgba(255,255,255,0.15)' if is_dark_mode else 'rgba(0,0,0,0.1)'} !important;
+                background: rgba(15, 23, 42, 0.94) !important;
+                color: #ffffff !important;
                 border-radius: 8px !important;
-                box-shadow: 0 4px 15px rgba(0,0,0,0.2) !important;
-                font-family: 'Sarabun', sans-serif !important;
+                border: 1px solid rgba(255, 255, 255, 0.18) !important;
+                box-shadow: 0 6px 18px rgba(0,0,0,0.3) !important;
                 padding: 6px 10px !important;
+                font-size: 12px !important;
             }}
         </style>
     </head>
@@ -380,71 +465,308 @@ def render_same_project_leaflet_map_html(proj_units, proj_name, is_dark_mode=Fal
             var map = L.map('same-proj-map', {{
                 zoomControl: true,
                 attributionControl: false
-            }});
+            }}).setView([13.7563, 100.5018], 12);
 
-            L.tileLayer('{tiles_url}', {{
-                maxZoom: 19,
-                subdomains: 'abcd'
-            }}).addTo(map);
+            var streetLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{{z}}/{{y}}/{{x}}', {{ maxZoom: 19 }});
+            var osmLayer = L.tileLayer('https://tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{ maxZoom: 19 }});
+            var satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{{z}}/{{y}}/{{x}}', {{ maxZoom: 19 }});
+            var darkLayer = L.tileLayer('https://{{s}}.basemaps.cartocdn.com/dark_all/{{z}}/{{x}}/{{y}}{{r}}.png', {{ maxZoom: 19 }});
+            
+            {'darkLayer.addTo(map);' if is_dark_mode else 'streetLayer.addTo(map);'}
 
-            var properties = {props_json};
+            var baseMaps = {{
+                "<i class=\'fa-solid fa-road\'></i> แผนที่ถนนมาตรฐาน (Esri Street)": streetLayer,
+                "<i class=\'fa-solid fa-earth-asia\'></i> OpenStreetMap": osmLayer,
+                "<i class=\'fa-solid fa-satellite\'></i> ภาพถ่ายดาวเทียม": satLayer,
+                "<i class=\'fa-solid fa-moon\'></i> โหมดมืด": darkLayer
+            }};
+            L.control.layers(baseMaps, null, {{ position: 'topright' }}).addTo(map);
+
             var logos = {logos_json};
-            var markers = [];
+            var properties = {props_json};
 
-            properties.forEach(function(p) {{
-                if (!p.lat || !p.lon) return;
+            var companyColors = {{
+                "SAM": "#10b981", "BAM": "#3b82f6", "KBANK": "#059669", "SCB": "#7e22ce",
+                "KTB": "#0284c7", "GHB": "#ca8a04", "GSB": "#eb1985", "Chayo555": "#f97316",
+                "Chayo": "#f97316", "LED": "#0891b2", "DDproperty": "#a855f7",
+                "Livinginsider": "#14b8a6", "NaYoo": "#8b5cf6", "ZmyHome": "#ec4899", "Baania": "#f59e0b"
+            }};
+
+            // Robust Logo Finder in JS
+            function getCompanyLogo(comp) {{
+                if (!comp) return '';
+                var c = String(comp).trim();
+                if (logos[c]) return logos[c];
+                if (logos[c.toLowerCase()]) return logos[c.toLowerCase()];
+                if (logos[c.toUpperCase()]) return logos[c.toUpperCase()];
+                var cLower = c.toLowerCase();
+                for (var k in logos) {{
+                    var kLower = k.toLowerCase();
+                    if (cLower === kLower || cLower.indexOf(kLower) !== -1 || kLower.indexOf(cLower) !== -1) {{
+                        return logos[k];
+                    }}
+                }}
+                return '';
+            }}
+
+            function createSingleIcon(p) {{
                 var comp = p.company || 'SAM';
-                var logoUrl = logos[comp] || logos[comp.toLowerCase()] || '';
-                
-                var logoHtml = logoUrl ? '<img src="' + logoUrl + '" alt="' + comp + '" />' : '<span style="font-weight:800; font-size:11px; color:#0f172a;">' + comp.substring(0,3) + '</span>';
-                
-                var customIcon = L.divIcon({{
-                    className: 'custom-logo-icon',
-                    html: '<div class="logo-marker-pin">' + logoHtml + '</div>',
-                    iconSize: [34, 34],
-                    iconAnchor: [17, 17],
-                    popupAnchor: [0, -17]
+                var logoUrl = getCompanyLogo(comp);
+                var compColor = companyColors[comp] || '#2563eb';
+                var logoHtml = logoUrl ? '<img src="' + logoUrl + '" alt="' + comp + '" />' : '<span style="font-weight:800; font-size:10px; color:#0f172a;">' + comp.substring(0,3) + '</span>';
+
+                return L.divIcon({{
+                    className: 'custom-single-pin',
+                    html: '<div class="logo-marker-pin" style="border-color:' + compColor + ';">' + logoHtml + '</div>',
+                    iconSize: [36, 36],
+                    iconAnchor: [18, 18],
+                    popupAnchor: [0, -18]
+                }});
+            }}
+
+            function buildSinglePopup(p, idxInGroup, totalInGroup) {{
+                var comp = p.company || 'SAM';
+                var compColor = companyColors[comp] || '#2563eb';
+                var logoUrl = getCompanyLogo(comp);
+                var logoImg = logoUrl ? '<img src="' + logoUrl + '" style="width:16px;height:16px;object-fit:contain;vertical-align:middle;margin-right:5px;border-radius:3px;" />' : '';
+
+                var landStr = (p.land_area && p.land_area !== '-' && p.land_area !== 'nan') ? p.land_area : '-';
+                var usableStr = (p.usable_area && p.usable_area !== '-' && p.usable_area !== 'nan') ? p.usable_area : '-';
+
+                return '<div class="item-card-inner" style="padding: 2px 0;">' +
+                    '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">' +
+                    '  <div style="display:flex; gap:5px; align-items:center; flex-wrap:wrap;">' +
+                    '    <span style="background:#f8fafc; border-left:3.5px solid ' + compColor + '; border-top:1px solid #e2e8f0; border-right:1px solid #e2e8f0; border-bottom:1px solid #e2e8f0; color:#0f172a; padding:2px 7px; border-radius:4px; font-size:11px; font-weight:700;">' + logoImg + comp + '</span>' +
+                    '    <span style="background:#fef3c7; border:1px solid #fde68a; color:#b45309; padding:2px 6px; border-radius:4px; font-size:11px; font-weight:600;">' + (p.type || '-') + '</span>' +
+                    '  </div>' +
+                    (totalInGroup > 1 ? '<span style="background:#f1f5f9; border:1px solid #cbd5e1; color:#2563eb; font-size:10.5px; padding:1px 6px; border-radius:10px; font-weight:700;">' + (idxInGroup + 1) + '/' + totalInGroup + '</span>' : '') +
+                    '</div>' +
+
+                    '<div style="font-weight:700; font-size:13.5px; color:#0f172a; line-height:1.35; margin-bottom:4px; word-break:break-word;">{proj_title_escaped}</div>' +
+
+                    '<div style="color:#64748b; font-size:11px; margin-bottom:8px;">' +
+                    '<i class="fa-solid fa-barcode" style="margin-right:4px;"></i> รหัสทรัพย์: <b style="color:#0f172a;">' + (p.code || '-') + '</b>' +
+                    '</div>' +
+
+                    '<div style="background:linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%); border:1px solid #bbf7d0; border-radius:8px; padding:7px 10px; margin-bottom:8px;">' +
+                    '  <div style="font-size:10px; color:#15803d; text-transform:uppercase; font-weight:700;">ราคาเสนอขาย</div>' +
+                    '  <b style="font-size:17px; color:#15803d; font-family:Inter,sans-serif; letter-spacing:0.3px;">' + (p.price || '-') + '</b>' +
+                    '</div>' +
+
+                    '<div style="background:#f8fafc; border-radius:8px; padding:7px 9px; font-size:11.5px; margin-bottom:8px; border:1px solid #e2e8f0; color:#334155;">' +
+                    '  <div style="display:flex; justify-content:space-between; margin-bottom:3px;">' +
+                    '    <span><i class="fa-solid fa-ruler-combined" style="margin-right:4px;"></i> เนื้อที่: <b style="color:#0f172a;">' + landStr + '</b></span>' +
+                    '  </div>' +
+                    '  <div style="display:flex; justify-content:space-between;">' +
+                    '    <span><i class="fa-solid fa-vector-square" style="margin-right:4px;"></i> ใช้สอย: <b style="color:#0f172a;">' + usableStr + '</b></span>' +
+                    '  </div>' +
+                    '</div>' +
+
+                    (p.link && p.link !== '-' && p.link !== '' ? '<a href="' + p.link + '" target="_blank" style="display:block; text-align:center; background:linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color:#ffffff; padding:7px 12px; border-radius:8px; text-decoration:none; font-size:12px; font-weight:700; box-shadow:0 2px 8px rgba(37,99,235,0.25); transition:all 0.15s ease;"><i class="fa-solid fa-arrow-up-right-from-square" style="margin-right:4px;"></i> เปิดดูประกาศทรัพย์สิน ↗</a>' : '') +
+                    '</div>';
+            }}
+
+            function buildSameProjMultiPopup(group) {{
+                var total = group.items.length;
+                var groupKey = group.key;
+                var companiesInGroup = [];
+                group.items.forEach(function(item) {{
+                    if (item.company && companiesInGroup.indexOf(item.company) === -1) {{
+                        companiesInGroup.push(item.company);
+                    }}
                 }});
 
-                var locStr = [p.subdist, p.district, p.province].filter(Boolean).join(', ');
+                var maxTabs = Math.min(total, 8);
+                var tabsHTML = '<div class="multi-pill-scroll">';
+                var cardsHTML = '<div id="card_view_' + groupKey + '">';
+                var tableRowsHTML = '';
 
-                var popupContent = '<div style="font-size: 13px; padding: 2px; min-width: 230px;">' +
-                    '<div style="font-weight: 800; font-size: 14px; color: #38bdf8; margin-bottom: 4px;">{proj_title_escaped}</div>' +
-                    '<div style="color: #94a3b8; font-size: 11.5px; margin-bottom: 6px;">รหัสทรัพย์: <b style="color: #ffffff;">' + (p.code || '-') + '</b></div>' +
-                    '<div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:5px;">' +
-                    '  <span style="background:rgba(167,139,250,0.15); color:#a78bfa; padding:2px 6px; border-radius:4px; font-size:11px; font-weight:600;">' + comp + '</span>' +
-                    '  <span style="background:rgba(252,211,77,0.15); color:#fcd34d; padding:2px 6px; border-radius:4px; font-size:11px; font-weight:600;">' + (p.type || '-') + '</span>' +
+                group.items.forEach(function(item, i) {{
+                    var comp = item.company || 'SAM';
+                    var cColor = companyColors[comp] || '#64748b';
+                    var activeClass = i === 0 ? 'active' : '';
+                    var activeDisplay = i === 0 ? 'block' : 'none';
+                    var itemLogo = getCompanyLogo(comp);
+                    var pillLogo = itemLogo ? '<img src="' + itemLogo + '" style="width:13px;height:13px;object-fit:contain;vertical-align:middle;margin-right:3px;border-radius:2px;" />' : '';
+
+                    if (i < maxTabs) {{
+                        tabsHTML += '<button type="button" class="multi-pill-tab ' + activeClass + '" data-group="' + groupKey + '" data-idx="' + i + '" onclick="window.switchMultiUnitTab(this.getAttribute(\\'data-group\\'), parseInt(this.getAttribute(\\'data-idx\\')))" id="tab_' + groupKey + '_' + i + '" style="border-left:3.5px solid ' + cColor + ';">' +
+                            pillLogo + (i + 1) + '. ' + comp + ' ' + (item.price || '-') +
+                            '</button>';
+                    }}
+
+                    cardsHTML += '<div class="unit-slide" id="slide_' + groupKey + '_' + i + '" style="display:' + activeDisplay + ';">' +
+                        buildSinglePopup(item, i, total) +
+                        '</div>';
+
+                    if (i < 25) {{
+                        var landOrUse = (item.land_area && item.land_area !== '-' && item.land_area !== 'nan') ? item.land_area : (item.usable_area || '-');
+                        var rowLogo = getCompanyLogo(comp);
+                        var rowLogoImg = rowLogo ? '<img src="' + rowLogo + '" style="width:14px;height:14px;object-fit:contain;vertical-align:middle;margin-right:4px;border-radius:2px;" />' : '';
+                        tableRowsHTML += '<tr style="border-bottom:1px solid #f1f5f9;">' +
+                            '<td style="padding:5px 6px; font-weight:700; color:' + cColor + '; white-space:nowrap;">' + rowLogoImg + comp + '</td>' +
+                            '<td style="padding:5px 6px; color:#0f172a;">' + (item.code || '-') + '</td>' +
+                            '<td style="padding:5px 6px; font-weight:700; color:#15803d;">' + (item.price || '-') + '</td>' +
+                            '<td style="padding:5px 6px; color:#475569;">' + landOrUse + '</td>' +
+                            '<td style="padding:5px 6px; text-align:right;">' + (item.link ? '<a href="' + item.link + '" target="_blank" style="color:#2563eb; text-decoration:none; font-weight:700;"><i class="fa-solid fa-arrow-up-right-from-square"></i> ดู</a>' : '-') + '</td>' +
+                            '</tr>';
+                    }}
+                }});
+
+                if (total > maxTabs) {{
+                    tabsHTML += '<span style="font-size:10.5px; color:#64748b; align-self:center; white-space:nowrap; padding:0 4px;">+' + (total - maxTabs) + '</span>';
+                }}
+
+                tabsHTML += '</div>';
+                cardsHTML += '</div>';
+
+                var compareTableHTML = '<div id="table_view_' + groupKey + '" style="display:none; margin-top:4px;">' +
+                    '<div style="max-height:160px; overflow-y:auto; background:#ffffff; border-radius:8px; border:1px solid #e2e8f0;">' +
+                    '<table style="width:100%; border-collapse:collapse; font-size:11px; text-align:left;">' +
+                    '<thead><tr style="background:#f8fafc; color:#64748b; border-bottom:1px solid #e2e8f0;"><th style="padding:5px 6px;">บริษัท</th><th style="padding:5px 6px;">รหัส</th><th style="padding:5px 6px;">ราคา</th><th style="padding:5px 6px;">พื้นที่</th><th style="padding:5px 6px; text-align:right;">ลิงก์</th></tr></thead>' +
+                    '<tbody>' + tableRowsHTML + '</tbody>' +
+                    '</table>' +
                     '</div>' +
-                    '<div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 6px; padding: 5px 8px; margin-bottom: 6px;">' +
-                    '  <span style="font-size:10px; color:#a7f3d0;">ราคาเสนอขาย</span><br/><b style="font-size:14px; color:#34d399;">' + p.price + '</b>' +
-                    '</div>' +
-                    '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 3px 8px; font-size: 11px; color:#cbd5e1; margin-bottom: 5px;">' +
-                    '   <div>เนื้อที่: <b>' + (p.land_area || '-') + '</b></div>' +
-                    '   <div>พื้นที่ใช้สอย: <b>' + (p.usable_area || '-') + '</b></div>' +
-                    '</div>' +
-                    (locStr ? '<div style="font-size: 11px; color: #94a3b8; margin-bottom: 5px;"><span style="color: #e2e8f0;">' + locStr + '</span></div>' : '') +
-                    (p.link && p.link !== '-' && p.link !== '' ? '<div style="margin-top: 4px; text-align: right;"><a href="' + p.link + '" target="_blank" style="display: inline-block; background: #3b82f6; color: white; padding: 3px 8px; border-radius: 6px; text-decoration: none; font-size: 11px; font-weight: 600;">เปิดดูประกาศ ↗</a></div>' : '') +
                     '</div>';
 
-                var tooltipContent = '<div style="font-size:12px; line-height:1.4;">' +
-                    '<b style="color:#38bdf8;">{proj_title_escaped}</b><br/>' +
-                    '[' + comp + '] ' + (p.code || '-') + ' | ' + (p.type || '-') + '<br/>' +
-                    '<b style="color:#34d399;">' + p.price + '</b>' +
-                    (locStr ? '<br/><span style="color:#94a3b8;">' + locStr + '</span>' : '') +
-                    '</div>';
+                var toggleBtnHTML = '<button type="button" class="view-toggle-btn" data-group="' + groupKey + '" data-total="' + total + '" onclick="window.toggleMultiUnitView(this.getAttribute(\\'data-group\\'), parseInt(this.getAttribute(\\'data-total\\')))" id="btn_toggle_' + groupKey + '"><i class="fa-solid fa-table-list" style="margin-right:4px;"></i> สลับดูตารางเปรียบเทียบทุกยูนิต (' + total + ' รายการ)</button>';
 
-                var marker = L.marker([p.lat, p.lon], {{ icon: customIcon }}).addTo(map);
-                marker.bindPopup(popupContent);
-                marker.bindTooltip(tooltipContent, {{ direction: 'top', offset: [0, -17] }});
-                markers.push(marker);
+                return '<div class="multi-unit-popup" style="min-width:275px; max-width:320px;">' +
+                    '<div class="multi-popup-header" style="margin-bottom:6px; padding-bottom:5px; border-bottom:1px solid #f1f5f9;">' +
+                    '  <div style="font-weight:800; font-size:12.5px; color:#0f172a;"><i class="fa-solid fa-building" style="margin-right:4px;"></i> โครงการนี้พบ ' + total + ' ยูนิต <span style="font-weight:400; color:#64748b;">(' + companiesInGroup.join(', ') + ')</span></div>' +
+                    '</div>' +
+                    tabsHTML +
+                    cardsHTML +
+                    compareTableHTML +
+                    toggleBtnHTML +
+                    '</div>';
+            }}
+
+            window.switchMultiUnitTab = function(groupKey, targetIdx) {{
+                var cardView = document.getElementById('card_view_' + groupKey);
+                var tableView = document.getElementById('table_view_' + groupKey);
+                var toggleBtn = document.getElementById('btn_toggle_' + groupKey);
+                
+                // Ensure card view is visible
+                if (cardView) cardView.style.display = 'block';
+                if (tableView) tableView.style.display = 'none';
+                if (toggleBtn) toggleBtn.innerHTML = '<i class="fa-solid fa-table-list" style="margin-right:4px;"></i> สลับดูตารางเปรียบเทียบทุกยูนิต';
+
+                var tabs = document.querySelectorAll('[id^="tab_' + groupKey + '_"]');
+                tabs.forEach(function(t) {{ t.classList.remove('active'); }});
+                
+                var slides = document.querySelectorAll('[id^="slide_' + groupKey + '_"]');
+                slides.forEach(function(s) {{ s.style.display = 'none'; }});
+                
+                var targetTab = document.getElementById('tab_' + groupKey + '_' + targetIdx);
+                if (targetTab) targetTab.classList.add('active');
+                
+                var targetSlide = document.getElementById('slide_' + groupKey + '_' + targetIdx);
+                if (targetSlide) targetSlide.style.display = 'block';
+            }};
+
+            window.toggleMultiUnitView = function(groupKey, total) {{
+                var cardView = document.getElementById('card_view_' + groupKey);
+                var tableView = document.getElementById('table_view_' + groupKey);
+                var toggleBtn = document.getElementById('btn_toggle_' + groupKey);
+                if (!cardView || !tableView) return;
+
+                if (tableView.style.display === 'none' || tableView.style.display === '') {{
+                    cardView.style.display = 'none';
+                    tableView.style.display = 'block';
+                    if (toggleBtn) toggleBtn.innerHTML = '<i class="fa-solid fa-id-card" style="margin-right:4px;"></i> สลับกลับมาดูการ์ดรายยูนิต';
+                }} else {{
+                    cardView.style.display = 'block';
+                    tableView.style.display = 'none';
+                    if (toggleBtn) toggleBtn.innerHTML = '<i class="fa-solid fa-table-list" style="margin-right:4px;"></i> สลับดูตารางเปรียบเทียบทุกยูนิต (' + total + ' รายการ)';
+                }}
+            }};
+
+            var coordGroups = {{}};
+            properties.forEach(function(p) {{
+                if (!p.lat || !p.lon) return;
+                var key = parseFloat(p.lat).toFixed(5) + '_' + parseFloat(p.lon).toFixed(5);
+                if (!coordGroups[key]) coordGroups[key] = {{ key: key, lat: parseFloat(p.lat), lon: parseFloat(p.lon), items: [] }};
+                coordGroups[key].items.push(p);
             }});
 
-            if (markers.length > 0) {{
-                var group = new L.featureGroup(markers);
-                map.fitBounds(group.getBounds(), {{ padding: [40, 40], maxZoom: 16 }});
+            var allMarkers = [];
+            for (var k in coordGroups) {{
+                (function(group) {{
+                    var count = group.items.length;
+                    if (count === 1) {{
+                        var p = group.items[0];
+                        var marker = L.marker([group.lat, group.lon], {{ icon: createSingleIcon(p) }}).addTo(map);
+                        marker.bindPopup(buildSinglePopup(p, 0, 1));
+                        
+                        var locStr = [p.subdist, p.district, p.province].filter(Boolean).join(', ');
+                        var tooltipContent = '<div style="font-size:12px; line-height:1.4;">' +
+                            '<b style="color:#2563eb;">{proj_title_escaped}</b><br/>' +
+                            '[' + (p.company || '-') + '] ' + (p.code || '-') + ' | ' + (p.type || '-') + '<br/>' +
+                            '<b style="color:#15803d;">' + (p.price || '-') + '</b>' +
+                            (locStr ? '<br/><span style="color:#64748b;"><i class="fa-solid fa-location-dot" style="margin-right:4px;"></i> ' + locStr + '</span>' : '') +
+                            '</div>';
+                        marker.bindTooltip(tooltipContent, {{ direction: 'top', offset: [0, -17] }});
+                        allMarkers.push(marker);
+                    }} else {{
+                        var uniqueComps = [];
+                        group.items.forEach(function(item) {{
+                            if (item.company && uniqueComps.indexOf(item.company) === -1) {{
+                                uniqueComps.push(item.company);
+                            }}
+                        }});
+
+                        var primaryComp = group.items[0].company || 'SAM';
+                        var primaryLogo = getCompanyLogo(primaryComp);
+                        var cColor = companyColors[primaryComp] || '#2563eb';
+                        
+                        var logoImgHtml = primaryLogo ? '<img src="' + primaryLogo + '" alt="' + primaryComp + '" />' : '<span style="font-weight:800; font-size:11px; color:#0f172a;">' + primaryComp.substring(0,3) + '</span>';
+
+                        var clusterIconHTML = '<div class="logo-marker-pin" style="border-color:' + cColor + '; width:38px; height:38px;">' +
+                            logoImgHtml +
+                            '<span class="cluster-badge-count">' + count + '</span>' +
+                            '</div>';
+
+                        var clusterIcon = L.divIcon({{
+                            className: 'custom-cluster-icon',
+                            html: clusterIconHTML,
+                            iconSize: [38, 38],
+                            iconAnchor: [19, 19],
+                            popupAnchor: [0, -19]
+                        }});
+
+                        var clusterMarker = L.marker([group.lat, group.lon], {{ icon: clusterIcon }}).addTo(map);
+
+                        var multiPopupHTML = buildSameProjMultiPopup(group);
+                        clusterMarker.bindPopup(multiPopupHTML, {{ maxWidth: 340 }});
+
+                        var clusterTooltip = '<div style="font-size:12px; line-height:1.4;">' +
+                            '<b style="color:#2563eb;"><i class="fa-solid fa-building" style="margin-right:4px;"></i> โครงการนี้มี ' + count + ' ยูนิต</b><br/>' +
+                            'สถาบัน: <b>' + uniqueComps.join(', ') + '</b><br/>' +
+                            '<span style="color:#64748b; font-size:10.5px;"><i class="fa-solid fa-circle-info" style="margin-right:4px;"></i> กดคลิกเพื่อดูรายละเอียดและตารางเปรียบเทียบทุกยูนิต</span>' +
+                            '</div>';
+                        clusterMarker.bindTooltip(clusterTooltip, {{ direction: 'top', offset: [0, -19] }});
+                        allMarkers.push(clusterMarker);
+                    }}
+                }})(coordGroups[k]);
+            }}
+
+            if (allMarkers.length === 1) {{
+                var latlng = allMarkers[0].getLatLng();
+                map.setView([latlng.lat, latlng.lng], 15);
+            }} else if (allMarkers.length > 1) {{
+                var groupBounds = new L.featureGroup(allMarkers);
+                map.fitBounds(groupBounds.getBounds(), {{ padding: [40, 40], maxZoom: 16 }});
             }} else {{
                 map.setView([13.7563, 100.5018], 10);
             }}
+
+            setTimeout(function() {{
+                map.invalidateSize();
+            }}, 250);
+            window.addEventListener('resize', function() {{
+                map.invalidateSize();
+            }});
         </script>
     </body>
     </html>
@@ -523,8 +845,10 @@ def clean_project_name(name):
 # SAME-PROJECT COMPARISON RENDERER (SHARED FUNCTION)
 # ==============================================================================
 @st.cache_data(show_spinner=False)
-def get_cached_project_catalog(_df):
-    """Pre-indexes project data, unique projects per province and type for instant zero-lag lookups."""
+def get_cached_project_catalog(_df, filter_company="SAM"):
+    """Pre-indexes project data, unique projects per province and type for instant zero-lag lookups.
+    If filter_company is provided (default 'SAM'), restricts the catalog to projects containing assets from that company.
+    """
     if _df is None or _df.empty or 'ชื่อโครงการ' not in _df.columns:
         return {'p_meta': pd.DataFrame(), 'count_dict': {}, 'label_dict': {}, 'prov_list': [], 'type_list': []}
     
@@ -537,6 +861,14 @@ def get_cached_project_catalog(_df):
     df_p['proj_clean'] = df_p['ชื่อโครงการ'].map(p_lut)
     df_p = df_p[df_p['proj_clean'].notna() & (df_p['proj_clean'] != '')]
     
+    # Restrict to projects containing assets from the target company (SAM)
+    if filter_company and 'บริษัท' in df_p.columns:
+        target_projects = set(df_p[df_p['บริษัท'] == filter_company]['proj_clean'].dropna().unique())
+        df_p = df_p[df_p['proj_clean'].isin(target_projects)]
+
+    if df_p.empty:
+        return {'p_meta': pd.DataFrame(), 'count_dict': {}, 'label_dict': {}, 'prov_list': [], 'type_list': []}
+
     # Fast pure Python set accumulation (67x faster than pandas groupby apply)
     proj_arr = df_p['proj_clean'].to_numpy()
     co_arr = df_p['บริษัท'].to_numpy()
@@ -570,19 +902,19 @@ def get_cached_project_catalog(_df):
     }
 
 
-def render_same_project_comparison(df_all_source, is_dark_mode=False, plotly_template="plotly_white", style_plotly_fig=None, default_company_filter=None, key_prefix="same_proj"):
+def render_same_project_comparison(df_all_source, is_dark_mode=False, plotly_template="plotly_white", style_plotly_fig=None, default_company_filter="SAM", key_prefix="same_proj"):
     """
     Renders a comprehensive Same-Project Comparison module.
-    Allows comparing all units within a specific project across SAM or all companies.
+    Allows comparing all units within a specific project across SAM and competitor companies.
     """
     if df_all_source is None or df_all_source.empty:
         st.warning("ไม่มีข้อมูลสำหรับการเปรียบเทียบในโครงการ")
         return
 
-    st.markdown("### เปรียบเทียบทรัพย์ในโครงการเดียวกัน (Same-Project Comparison)")
-    st.write("ค้นหาและเปรียบเทียบยูนิตทั้งหมดที่ตั้งอยู่ในโครงการ/หมู่บ้าน/คอนโดเดียวกัน ทั้งราคา ขนาด และความคุ้มค่าเทียบระหว่างสถาบัน")
+    st.markdown("### <i class='fa-solid fa-city' style='color:#2563eb; margin-right:8px;'></i>เปรียบเทียบทรัพย์ในโครงการเดียวกัน (Same-Project Comparison)", unsafe_allow_html=True)
+    st.write("ค้นหาและเปรียบเทียบยูนิตทั้งหมดที่ตั้งอยู่ในโครงการ/หมู่บ้าน/คอนโดเดียวกันที่มีทรัพย์สินของ **SAM** พร้อมเปรียบเทียบราคา ขนาด และความคุ้มค่าเทียบระหว่างสถาบัน/ตลาด")
 
-    catalog = get_cached_project_catalog(df_all_source)
+    catalog = get_cached_project_catalog(df_all_source, filter_company=default_company_filter or "SAM")
     p_meta = catalog.get('p_meta', pd.DataFrame())
     count_dict = catalog.get('count_dict', {})
     label_dict = catalog.get('label_dict', {})
@@ -590,11 +922,11 @@ def render_same_project_comparison(df_all_source, is_dark_mode=False, plotly_tem
     type_list = catalog.get('type_list', ["ทั้งหมด (ทุกประเภท)"])
 
     if p_meta.empty or not count_dict:
-        st.warning("ไม่พบข้อมูลโครงการที่มีชื่อระบุชัดเจน")
+        st.warning("ไม่พบข้อมูลโครงการที่มีทรัพย์สินของ SAM ในระบบ")
         return
 
     # Filter Bar for selecting project
-    col_f1, col_f2, col_f3 = st.columns([0.3, 0.3, 0.4])
+    col_f1, col_f2, col_f3 = st.columns([0.28, 0.28, 0.44])
     
     with col_f1:
         sel_prov = st.selectbox("กรองตามจังหวัด:", options=prov_list, index=0, key=f"{key_prefix}_sel_prov")
@@ -613,12 +945,12 @@ def render_same_project_comparison(df_all_source, is_dark_mode=False, plotly_tem
     proj_options = [p for p in count_dict if p in valid_set]
 
     if not proj_options:
-        st.info("ไม่พบโครงการที่ตรงกับเงื่อนไขจังหวัดหรือประเภททรัพย์ที่เลือก")
+        st.info("ไม่พบโครงการที่มีทรัพย์ SAM ตรงกับเงื่อนไขจังหวัดหรือประเภททรัพย์ที่เลือก")
         return
 
     with col_f3:
         selected_proj = st.selectbox(
-            "เลือกโครงการที่ต้องการเปรียบเทียบ:",
+            f"เลือกโครงการที่ต้องการเปรียบเทียบ (พบ {len(proj_options):,} โครงการของ SAM):",
             options=proj_options,
             format_func=lambda x: label_dict.get(x, x),
             index=0,
@@ -811,7 +1143,7 @@ def render_same_project_comparison(df_all_source, is_dark_mode=False, plotly_tem
     st.markdown(f"##### แผนที่ตำแหน่งที่ตั้งโครงการและยูนิต ({selected_proj})")
     same_proj_map_html = render_same_project_leaflet_map_html(proj_units, selected_proj, is_dark_mode=is_dark_mode)
     if same_proj_map_html:
-        st.components.v1.html(same_proj_map_html, height=480, scrolling=False)
+        st.components.v1.html(same_proj_map_html, height=680, scrolling=False)
     else:
         st.info("ไม่พบข้อมูลพิกัดละติจูด/ลองจิจูดสำหรับแสดงแผนที่ของโครงการนี้")
 

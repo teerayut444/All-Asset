@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>All Asset NPA Intelligence Platform · System Architecture</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-paper:   #2d3142;
+      --color-paper-2: #393e53;
+      --color-ink:     #f5f5f5;
+      --color-muted:   #bfc0c0;
+      --color-soft:    #8e98ac;
+      --color-accent:  #f08a59;
+      --color-link:    #6a95d8;
+      --font-sans:     'Geist', system-ui, -apple-system, sans-serif;
+      --font-serif:    'Instrument Serif', serif;
+      --font-mono:     'Geist Mono', ui-monospace, monospace;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-paper);
+      color: var(--color-ink);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2.5rem 1.5rem;
+    }
+
+    .frame {
+      max-width: 1160px;
+      width: 100%;
+    }
+
+    .header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-bottom: 1.5rem;
+      border-bottom: 1px solid rgba(245, 245, 245, 0.12);
+      padding-bottom: 1rem;
+    }
+
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      font-weight: 500;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--color-accent);
+      margin-bottom: 0.35rem;
+    }
+
+    h1 {
+      font-family: var(--font-serif);
+      font-size: clamp(1.6rem, 2.2vw + 0.8rem, 2.3rem);
+      font-weight: 400;
+      letter-spacing: -0.01em;
+      line-height: 1.15;
+      color: var(--color-ink);
+    }
+
+    .meta-tag {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--color-muted);
+      background: rgba(245, 245, 245, 0.05);
+      border: 1px solid rgba(245, 245, 245, 0.12);
+      padding: 0.3rem 0.6rem;
+      border-radius: 4px;
+    }
+
+    .svg-container {
+      width: 100%;
+      background: #252837;
+      border: 1px solid rgba(245, 245, 245, 0.12);
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    }
+
+    svg {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .legend-bar {
+      display: flex;
+      gap: 1.5rem;
+      margin-top: 1rem;
+      padding: 0.5rem 0.25rem;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--color-soft);
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <div class="header-row">
+      <div>
+        <p class="eyebrow">System Architecture · Editorial Specification</p>
+        <h1>All Asset NPA Intelligence Platform</h1>
+      </div>
+      <div class="meta-tag">v2.6 · 4px Grid · Strict Orthogonal</div>
+    </div>
+
+    <div class="svg-container">
+      <svg viewBox="0 0 1080 520" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="npa-arch-title npa-arch-desc">
+        <title id="npa-arch-title">All Asset NPA Platform System Architecture</title>
+        <desc id="npa-arch-desc">Four-tier pipeline: Ingestion, Spatial & Normalization Engine, Storage, and Presentation layer.</desc>
+        
+        <defs>
+          <!-- Grid Pattern -->
+          <pattern id="dot-grid" width="24" height="24" patternUnits="userSpaceOnUse">
+            <circle cx="2" cy="2" r="0.8" fill="rgba(245,245,245,0.08)"/>
+          </pattern>
+          
+          <!-- Marker Arrows -->
+          <marker id="arr" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="#bfc0c0"/>
+          </marker>
+          <marker id="arr-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="#f08a59"/>
+          </marker>
+          <marker id="arr-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="#6a95d8"/>
+          </marker>
+        </defs>
+
+        <!-- Canvas Background -->
+        <rect width="1080" height="520" fill="#252837"/>
+        <rect width="1080" height="520" fill="url(#dot-grid)"/>
+
+        <!-- ========================================== -->
+        <!-- 1. ZONES (Drawn before arrows & nodes)     -->
+        <!-- ========================================== -->
+        
+        <!-- Zone 1: Data Ingestion (x: 40, y: 76, w: 220, h: 400) -->
+        <rect x="40" y="76" width="220" height="400" rx="8"
+              fill="rgba(245,245,245,0.02)" stroke="rgba(245,245,245,0.10)" stroke-width="0.8"/>
+        <rect x="92" y="70" width="116" height="14" rx="2" fill="#252837"/>
+        <text x="150" y="80" fill="#8e98ac" font-size="8" font-family="'Geist Mono', monospace"
+              font-weight="600" text-anchor="middle" letter-spacing="0.14em">1. DATA INGESTION</text>
+
+        <!-- Zone 2: Processing & Enrichment (x: 320, y: 76, w: 256, h: 400) -->
+        <rect x="320" y="76" width="256" height="400" rx="8"
+              fill="rgba(240,138,89,0.03)" stroke="rgba(240,138,89,0.22)" stroke-width="0.8"/>
+        <rect x="372" y="70" width="152" height="14" rx="2" fill="#252837"/>
+        <text x="448" y="80" fill="#f08a59" font-size="8" font-family="'Geist Mono', monospace"
+              font-weight="600" text-anchor="middle" letter-spacing="0.14em">2. ENRICHMENT ENGINE</text>
+
+        <!-- Zone 3: Storage & Persistence (x: 636, y: 140, w: 184, h: 272) -->
+        <rect x="636" y="140" width="184" height="272" rx="8"
+              fill="rgba(245,245,245,0.02)" stroke="rgba(245,245,245,0.10)" stroke-width="0.8"/>
+        <rect x="668" y="134" width="120" height="14" rx="2" fill="#252837"/>
+        <text x="728" y="144" fill="#8e98ac" font-size="8" font-family="'Geist Mono', monospace"
+              font-weight="600" text-anchor="middle" letter-spacing="0.14em">3. DATA STORE & CACHE</text>
+
+        <!-- Zone 4: Presentation & Analytics (x: 876, y: 104, w: 168, h: 344) -->
+        <rect x="876" y="104" width="168" height="344" rx="8"
+              fill="rgba(245,245,245,0.02)" stroke="rgba(245,245,245,0.10)" stroke-width="0.8"/>
+        <rect x="904" y="98" width="112" height="14" rx="2" fill="#252837"/>
+        <text x="960" y="108" fill="#8e98ac" font-size="8" font-family="'Geist Mono', monospace"
+              font-weight="600" text-anchor="middle" letter-spacing="0.14em">4. PRESENTATION</text>
+
+        <!-- ========================================== -->
+        <!-- 2. CONNECTORS (Strict orthogonal with r=8)  -->
+        <!-- ========================================== -->
+
+        <!-- Ingestion 1 (NPA Portals) -> Address Normalizer: (236, 160) -> (348, 160) plain line -->
+        <line x1="236" y1="160" x2="348" y2="160" stroke="#bfc0c0" stroke-width="1.2" marker-end="url(#arr)"/>
+        <!-- Label: HTML/API -->
+        <rect x="256" y="152" width="68" height="14" rx="2" fill="#252837"/>
+        <text x="290" y="162" fill="#8e98ac" font-size="7.5" font-family="'Geist Mono', monospace" text-anchor="middle">HTML/API</text>
+
+        <!-- Ingestion 2 (Market Aggregators) -> Spatial Matcher (mid x=292, y1=280 to y2=276) -->
+        <path d="M 236,280 H 284 Q 292,280 292,278 V 276 Q 292,274 300,274 H 348"
+              fill="none" stroke="#bfc0c0" stroke-width="1.2" marker-end="url(#arr)"/>
+
+        <!-- Ingestion 3 (Govt Spatial DB) -> Spatial Matcher: from (236, 400) to (348, 296) -->
+        <path d="M 236,400 H 284 Q 292,400 292,392 V 304 Q 292,296 300,296 H 348"
+              fill="none" stroke="#6a95d8" stroke-width="1.2" marker-end="url(#arr-link)"/>
+        <!-- Label: DOPA 77P -->
+        <rect x="268" y="340" width="48" height="14" rx="2" fill="#252837"/>
+        <text x="292" y="350" fill="#6a95d8" font-size="7.5" font-family="'Geist Mono', monospace" text-anchor="middle">DOPA 77P</text>
+
+        <!-- Internal Engine 1: Address Normalizer -> Spatial Matcher (downward) -->
+        <line x1="448" y1="196" x2="448" y2="236" stroke="#f08a59" stroke-width="1.2" marker-end="url(#arr-accent)"/>
+        <!-- Label: PARSED -->
+        <rect x="424" y="206" width="48" height="14" rx="2" fill="#252837"/>
+        <text x="448" y="216" fill="#f08a59" font-size="7.5" font-family="'Geist Mono', monospace" text-anchor="middle">PARSED</text>
+
+        <!-- Internal Engine 2: Spatial Matcher -> Valuation Engine (downward) -->
+        <line x1="448" y1="316" x2="448" y2="368" stroke="#bfc0c0" stroke-width="1.2" marker-end="url(#arr)"/>
+
+        <!-- Focal Spatial Matcher -> Unified NPA Data Store: from (548, 260) to (656, 236) -->
+        <path d="M 548,260 H 594 Q 602,260 602,252 V 244 Q 602,236 610,236 H 656"
+              fill="none" stroke="#f08a59" stroke-width="1.4" marker-end="url(#arr-accent)"/>
+        <rect x="572" y="222" width="60" height="14" rx="2" fill="#252837"/>
+        <text x="602" y="232" fill="#f08a59" font-size="7.5" font-family="'Geist Mono', monospace" text-anchor="middle">ENRICHED</text>
+
+        <!-- Valuation Engine -> Unified NPA Data Store: from (548, 400) to (656, 252) -->
+        <path d="M 548,400 H 594 Q 602,400 602,392 V 260 Q 602,252 610,252 H 656"
+              fill="none" stroke="#bfc0c0" stroke-width="1.2" marker-end="url(#arr)"/>
+
+        <!-- Unified Data Store -> Spatial Index (downward) -->
+        <line x1="728" y1="268" x2="728" y2="320" stroke="#bfc0c0" stroke-width="1.2" marker-end="url(#arr)"/>
+
+        <!-- Unified Data Store -> Streamlit Frontend: from (796, 236) to (896, 172) -->
+        <path d="M 796,236 H 838 Q 846,236 846,228 V 180 Q 846,172 854,172 H 896"
+              fill="none" stroke="#bfc0c0" stroke-width="1.2" marker-end="url(#arr)"/>
+        <rect x="822" y="196" width="48" height="14" rx="2" fill="#252837"/>
+        <text x="846" y="206" fill="#8e98ac" font-size="7.5" font-family="'Geist Mono', monospace" text-anchor="middle">LOAD/DF</text>
+
+        <!-- Streamlit Frontend -> Map (downward) -->
+        <line x1="960" y1="200" x2="960" y2="248" stroke="#bfc0c0" stroke-width="1.2" marker-end="url(#arr)"/>
+
+        <!-- Streamlit Frontend -> Bubble Analytics: right side loop -->
+        <path d="M 1024,172 H 1036 Q 1044,172 1044,180 V 364 Q 1044,372 1036,372 H 1024"
+              fill="none" stroke="#bfc0c0" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arr)"/>
+
+        <!-- ========================================== -->
+        <!-- 3. COMPONENT NODES (Z-order on top)        -->
+        <!-- ========================================== -->
+
+        <!-- Zone 1: Ingestion Nodes -->
+        <!-- Node 1.1: NPA Portals Scraper -->
+        <rect x="64" y="128" width="172" height="64" rx="6"
+              fill="#2d3142" stroke="rgba(245,245,245,0.18)" stroke-width="1"/>
+        <text x="76" y="148" fill="#f5f5f5" font-size="11" font-weight="600" font-family="'Geist', sans-serif">NPA Primary Portals</text>
+        <text x="76" y="164" fill="#8e98ac" font-size="8.5" font-family="'Geist', sans-serif">BAM · SAM · LED · Bank NPA</text>
+        <text x="76" y="179" fill="#6a95d8" font-size="7.5" font-family="'Geist Mono', monospace">:scrape_worker / raw</text>
+
+        <!-- Node 1.2: Market Aggregators -->
+        <rect x="64" y="248" width="172" height="64" rx="6"
+              fill="#2d3142" stroke="rgba(245,245,245,0.18)" stroke-width="1"/>
+        <text x="76" y="268" fill="#f5f5f5" font-size="11" font-weight="600" font-family="'Geist', sans-serif">Market Aggregators</text>
+        <text x="76" y="284" fill="#8e98ac" font-size="8.5" font-family="'Geist', sans-serif">Baania · Livinginsider API</text>
+        <text x="76" y="299" fill="#8e98ac" font-size="7.5" font-family="'Geist Mono', monospace">:benchmark_price / json</text>
+
+        <!-- Node 1.3: Administrative Boundaries -->
+        <rect x="64" y="368" width="172" height="64" rx="6"
+              fill="#2d3142" stroke="rgba(245,245,245,0.18)" stroke-width="1"/>
+        <text x="76" y="388" fill="#f5f5f5" font-size="11" font-weight="600" font-family="'Geist', sans-serif">DOPA Administrative DB</text>
+        <text x="76" y="404" fill="#8e98ac" font-size="8.5" font-family="'Geist', sans-serif">77 Provinces · 928 Districts</text>
+        <text x="76" y="419" fill="#6a95d8" font-size="7.5" font-family="'Geist Mono', monospace">th_administrative.json</text>
+
+        <!-- Zone 2: Processing & Enrichment Nodes -->
+        <!-- Node 2.1: Address Normalizer -->
+        <rect x="348" y="128" width="200" height="68" rx="6"
+              fill="#2d3142" stroke="rgba(245,245,245,0.22)" stroke-width="1"/>
+        <text x="360" y="148" fill="#f5f5f5" font-size="11" font-weight="600" font-family="'Geist', sans-serif">Address Normalizer</text>
+        <text x="360" y="164" fill="#8e98ac" font-size="8.5" font-family="'Geist', sans-serif">Text Cleaning & Token Extraction</text>
+        <text x="360" y="180" fill="#bfc0c0" font-size="7.5" font-family="'Geist Mono', monospace">Mooban · Soi · Road Cleaner</text>
+
+        <!-- Node 2.2: FOCAL CORE - Thai Spatial Matcher -->
+        <rect x="348" y="236" width="200" height="80" rx="8"
+              fill="#342828" stroke="#f08a59" stroke-width="1.6"/>
+        <!-- Eyebrow inside focal box -->
+        <rect x="358" y="244" width="76" height="12" rx="2" fill="rgba(240,138,89,0.25)"/>
+        <text x="396" y="253" fill="#f08a59" font-size="7" font-weight="600" font-family="'Geist Mono', monospace" text-anchor="middle">PRIMARY FOCAL</text>
+        <text x="360" y="274" fill="#f5f5f5" font-size="12" font-weight="600" font-family="'Geist', sans-serif">Thai Spatial Geocoder</text>
+        <text x="360" y="290" fill="#f08a59" font-size="8.5" font-family="'Geist', sans-serif">Province · District · Sub-district Matching</text>
+        <text x="360" y="304" fill="#bfc0c0" font-size="7.5" font-family="'Geist Mono', monospace">spatial_resolver.py :match_geo()</text>
+
+        <!-- Node 2.3: Valuation & Yield Engine -->
+        <rect x="348" y="368" width="200" height="64" rx="6"
+              fill="#2d3142" stroke="rgba(245,245,245,0.22)" stroke-width="1"/>
+        <text x="360" y="388" fill="#f5f5f5" font-size="11" font-weight="600" font-family="'Geist', sans-serif">Valuation & Discount Engine</text>
+        <text x="360" y="404" fill="#8e98ac" font-size="8.5" font-family="'Geist', sans-serif">Appraised vs Market Discount %</text>
+        <text x="360" y="419" fill="#8e98ac" font-size="7.5" font-family="'Geist Mono', monospace">metric_calculator :discount_spread</text>
+
+        <!-- Zone 3: Storage Nodes -->
+        <!-- Node 3.1: Unified NPA Data Store -->
+        <rect x="656" y="204" width="140" height="64" rx="6"
+              fill="#2d3142" stroke="rgba(245,245,245,0.22)" stroke-width="1"/>
+        <text x="668" y="224" fill="#f5f5f5" font-size="11" font-weight="600" font-family="'Geist', sans-serif">NPA Master Store</text>
+        <text x="668" y="240" fill="#8e98ac" font-size="8.5" font-family="'Geist', sans-serif">Normalized Parquet / CSV</text>
+        <text x="668" y="255" fill="#bfc0c0" font-size="7.5" font-family="'Geist Mono', monospace">data/all_assets.parquet</text>
+
+        <!-- Node 3.2: Spatial Index & Centroids -->
+        <rect x="656" y="320" width="140" height="64" rx="6"
+              fill="#2d3142" stroke="rgba(245,245,245,0.22)" stroke-width="1"/>
+        <text x="668" y="340" fill="#f5f5f5" font-size="11" font-weight="600" font-family="'Geist', sans-serif">Spatial Centroids</text>
+        <text x="668" y="356" fill="#8e98ac" font-size="8.5" font-family="'Geist', sans-serif">Lat-Long Lookup Tables</text>
+        <text x="668" y="371" fill="#8e98ac" font-size="7.5" font-family="'Geist Mono', monospace">cache/province_coords</text>
+
+        <!-- Zone 4: Presentation Nodes -->
+        <!-- Node 4.1: Streamlit Frontend Core -->
+        <rect x="896" y="140" width="128" height="60" rx="6"
+              fill="#2d3142" stroke="rgba(245,245,245,0.22)" stroke-width="1"/>
+        <text x="908" y="160" fill="#f5f5f5" font-size="11" font-weight="600" font-family="'Geist', sans-serif">Streamlit App</text>
+        <text x="908" y="174" fill="#8e98ac" font-size="8.5" font-family="'Geist', sans-serif">Session & Filter State</text>
+        <text x="908" y="188" fill="#6a95d8" font-size="7.5" font-family="'Geist Mono', monospace">app.py :8501</text>
+
+        <!-- Node 4.2: Interactive Map View -->
+        <rect x="896" y="248" width="128" height="56" rx="6"
+              fill="#2d3142" stroke="rgba(245,245,245,0.18)" stroke-width="1"/>
+        <text x="908" y="268" fill="#f5f5f5" font-size="10.5" font-weight="600" font-family="'Geist', sans-serif">Geospatial Map</text>
+        <text x="908" y="282" fill="#8e98ac" font-size="8" font-family="'Geist', sans-serif">Folium / Cluster Pins</text>
+        <text x="908" y="294" fill="#8e98ac" font-size="7" font-family="'Geist Mono', monospace">render_map()</text>
+
+        <!-- Node 4.3: Bubble Matrix Analytics -->
+        <rect x="896" y="344" width="128" height="56" rx="6"
+              fill="#2d3142" stroke="rgba(245,245,245,0.18)" stroke-width="1"/>
+        <text x="908" y="364" fill="#f5f5f5" font-size="10.5" font-weight="600" font-family="'Geist', sans-serif">Bubble Matrix</text>
+        <text x="908" y="378" fill="#8e98ac" font-size="8" font-family="'Geist', sans-serif">Yield vs Discount Screener</text>
+        <text x="908" y="390" fill="#8e98ac" font-size="7" font-family="'Geist Mono', monospace">bubble_chart.py</text>
+
+        <!-- ========================================== -->
+        <!-- 4. EDITORIAL ANNOTATION CALLOUT            -->
+        <!-- ========================================== -->
+        <!-- Dashed Bézier leader pointing to focal node -->
+        <path d="M 448,32 Q 476,32 504,80 T 496,234"
+              fill="none" stroke="#f08a59" stroke-width="1" stroke-dasharray="3,3"/>
+        <circle cx="496" cy="234" r="2.5" fill="#f08a59"/>
+        
+        <!-- Callout Text in Instrument Serif Italic -->
+        <text x="440" y="36" fill="#f08a59" font-family="'Instrument Serif', serif" font-style="italic"
+              font-size="13" text-anchor="end">
+          Normalizes 77 provinces and 900+ districts with zero manual geocoding
+        </text>
+      </svg>
+    </div>
+
+    <!-- Legend bar -->
+    <div class="legend-bar">
+      <div class="legend-item">
+        <div class="legend-dot" style="background: #f08a59;"></div>
+        <span>Focal Processing Layer (Thai Spatial Resolver)</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background: #6a95d8;"></div>
+        <span>External Reference & API Services</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background: #bfc0c0;"></div>
+        <span>Synchronous Data Pipeline</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background: #8e98ac; opacity: 0.5;"></div>
+        <span>Async / Filter Feedback</span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

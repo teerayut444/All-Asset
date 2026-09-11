@@ -1,6 +1,6 @@
 # 📚 บันทึกโครงสร้างและสถาปัตยกรรมการดึงข้อมูล (Web Scraper Architecture & Data Schema Reference)
 
-เอกสารฉบับนี้รวบรวม **โครงสร้างเว็บ (Web Structure), Endpoint, Data Schema, และเทคนิคการดึงข้อมูล** ของทุกค่ายอสังหาริมทรัพย์และ NPA ทั้งหมด 13 แหล่งที่ใช้งานในระบบ All Asset Dashboard
+เอกสารฉบับนี้รวบรวม **โครงสร้างเว็บ (Web Structure), Endpoint, Data Schema, และเทคนิคการดึงข้อมูล** ของทุกค่ายอสังหาริมทรัพย์และ NPA ทั้งหมด **14 แหล่ง** ที่ใช้งานในระบบ All Asset Dashboard
 
 ---
 
@@ -10,27 +10,64 @@
 
 | # | ชื่อคอลัมน์ | ชนิดข้อมูล | คำอธิบาย & กฎการแปลง |
 |---|---|---|---|
-| 1 | **บริษัท** | Text | ชื่อค่าย เช่น `Baania`, `BAM`, `GSB`, `KBANK`, `KTB`, `SCB`, `GHB`, `SAM`, `NaYoo`, `ZmyHome`, `Chayo555`, `Taladnudbaan`, `LED` |
+| 1 | **บริษัท** | Text | ชื่อค่าย: `Baania`, `BAM`, `Chayo555`, `DDproperty`, `GHB`, `GSB`, `KBANK`, `KTB`, `LED`, `Livinginsider`, `NaYoo`, `SAM`, `SCB`, `ZmyHome` |
 | 2 | **ID** | Text | Primary Key ไม่ซ้ำกันในระบบของค่ายนั้นๆ |
 | 3 | **รหัสทรัพย์** | Text | รหัสอ้างอิงทรัพย์ (Property Code) หากไม่มีให้ใช้ `ID` แทน |
 | 4 | **ชื่อโครงการ** | Text | ชื่อหมู่บ้าน/คอนโด/โครงการ (ถ้ามี) |
-| 5 | **ประเภททรัพย์** | Text | แปลงเป็นหมวดมาตรฐาน (บ้านเดี่ยว, ห้องชุดพักอาศัย, ทาวน์เฮ้าส์, ที่ดินเปล่า, อาคารพาณิชย์, โรงงาน/โกดัง, โรงแรม/รีสอร์ท, อพาร์ทเมนท์, อาคารสำนักงาน) |
-| 6 | **ประเภทการขาย** | Text | `ขาย`, `เช่า`, `ขาย/เช่า`, `ประมูล` |
-| 7 | **ราคา** | Numeric (Float) | ราคาขาย/ราคาประเมิน (บาท) ห้ามมีคอมม่า |
-| 8 | **ตำบล** | Text | ตำบล/แขวง (ตัดคำนำหน้า 'ต.', 'แขวง' ออก) |
-| 9 | **อำเภอ** | Text | อำเภอ/เขต (ตัดคำนำหน้า 'อ.', 'เขต' ออก) |
-| 10 | **จังหวัด** | Text | ชื่อจังหวัดมาตรฐาน เช่น `กรุงเทพมหานคร`, `ชลบุรี`, `เชียงใหม่` |
-| 11 | **ละติจูด** | Numeric (Float) | พิกัด WGS84 Latitude |
-| 12 | **ลองจิจูด** | Numeric (Float) | พิกัด WGS84 Longitude |
+| 5 | **ประเภททรัพย์** | Text | แปลงเป็นหมวดมาตรฐาน (บ้านเดี่ยว, ห้องชุดพักอาศัย, ทาวน์เฮ้าส์, ที่ดินเปล่า, อาคารพาณิชย์, โรงงาน/โกดัง, โรงแรม/รีสอร์ท, อพาร์ทเมนท์, อาคารสำนักงาน, บ้านแฝด) |
+| 6 | **ประเภทการขาย** | Text | `ขาย`, `ขายทอดตลาด ปลอดจำนอง`, `ขายทอดตลาด จำนองติดไป` (ตัด NPL และให้เช่าออก) |
+| 7 | **ราคา** | Numeric (Float) | ราคาขาย/ราคาประเมิน (บาท) ห้ามมีคอมม่า และต้องเป็นค่าบวก |
+| 8 | **ตำบล** | Text | ตำบล/แขวง (ตัดคำนำหน้า 'ต.', 'แขวง' และตัดวงเล็บสาขาออก) |
+| 9 | **อำเภอ** | Text | อำเภอ/เขต (ตัดคำนำหน้า 'อ.', 'เขต' และแก้ปัญหาคำว่า 'เมือง' โดดๆ ให้ระบุจังหวัดต่อท้าย เช่น 'เมืองชลบุรี') |
+| 10 | **จังหวัด** | Text | ชื่อจังหวัดมาตรฐาน 77 จังหวัด (เช่น `กรุงเทพมหานคร`, `พระนครศรีอยุธยา`, `ชลบุรี`) |
+| 11 | **ละติจูด** | Numeric (Float) | พิกัด WGS84 Latitude (ทศนิยม 4-6 ตำแหน่ง) |
+| 12 | **ลองจิจูด** | Numeric (Float) | พิกัด WGS84 Longitude (ทศนิยม 4-6 ตำแหน่ง) |
 | 13 | **ชื่อประกาศ** | Text | หัวข้อประกาศ หรือสร้างจาก `ประเภท + โครงการ + ตำบล อำเภอ จังหวัด` |
 | 14 | **ลิงก์** | Text | URL หน้าประกาศตรงของทรัพย์ |
 | 15 | **เนื้อที่ (ตร.ว.)** | Text | รูปแบบ `ไร่-งาน-ตร.ว.` เช่น `1-2-50`, `0-0-25.5` |
-| 16 | **พื้นที่ใช้สอย (ตร.ม.)** | Numeric (Float) | ขนาดพื้นที่ใช้สอยตัวอาคาร |
+| 16 | **พื้นที่ใช้สอย (ตร.ม.)** | Numeric (Float) | ขนาดพื้นที่ใช้สอยตัวอาคาร/ห้องชุด |
 | 17 | **วันที่ดึงข้อมูล** | Datetime | รูปแบบ `YYYY-MM-DD HH:MM:SS` |
 | 18 | **ห้องนอน** | Numeric (Int) | จำนวนห้องนอน |
 | 19 | **ห้องน้ำ** | Numeric (Int) | จำนวนห้องน้ำ |
 | 20 | **ที่จอดรถ** | Numeric (Int) | จำนวนที่จอดรถ |
 | 21 | **วันประกาศ** | Text/Date | วันที่ลงประกาศ หรือวันที่อัปเดตข้อมูลล่าสุด |
+
+---
+
+## 🗺️ โมดูลมาตรฐานและการทำความสะอาดที่อยู่ (Location & GIS Engine)
+
+ระบบใช้โมดูลกลาง [`clean_location_util.py`](file:///c:/Users/Teerayut.N/.vscode/extensions/All%20Asset%20Dashboard/Monthly%20all%20new/clean_location_util.py) ทำงานร่วมกับฐานข้อมูลเวกเตอร์ขอบเขตการปกครองประเทศไทย:
+- [`subdistricts.geojson`](file:///c:/Users/Teerayut.N/.vscode/extensions/All%20Asset%20Dashboard/Monthly%20all%20new/subdistricts.geojson) (ขอบเขตระดับตำบล/แขวง)
+- [`districts.geojson`](file:///c:/Users/Teerayut.N/.vscode/extensions/All%20Asset%20Dashboard/Monthly%20all%20new/districts.geojson) (ขอบเขตระดับอำเภอ/เขต)
+
+### ฟังก์ชันหลัก:
+1. **Reverse Geocoding (Offline STRtree Point-in-Polygon)**:
+   - แปลงพิกัด ละติจูด/ลองจิจูด เป็น ตำบล/อำเภอ/จังหวัด ในหน่วยความจำ RAM ความเร็วสูง (<0.1ms/จุด)
+2. **Forward Geocoding / Centroid Imputation**:
+   - สำหรับทรัพย์ที่มีชื่อที่อยู่ชัดเจนแต่ไม่มีพิกัด ระบบจะดึงพิกัดจุดกึ่งกลาง (Centroid) ของตำบล/อำเภอนั้นจาก `subdistricts.geojson` มาเติมให้อัตโนมัติ
+3. **Smart Text Normalization & Comprehensive Location Repair**:
+   - **ฟื้นฟูชื่ออำเภอที่ถูกตัดท้าย (Truncated Districts)**: แก้ไขชื่ออำเภอจากระบบราชการ (LED, GHB, GSB) เช่น `เมืองสุราษฎร์ธาน` $\rightarrow$ `เมืองสุราษฎร์ธานี`, `เมืองนครศรีธรรมร` $\rightarrow$ `เมืองนครศรีธรรมราช`, `เมืองประจวบคีรีข` $\rightarrow$ `เมืองประจวบคีรีขันธ์`, `สุไหงโก-ล` $\rightarrow$ `สุไหงโก-ลก`
+   - **แก้ไขชื่อย่อและอำเภอเมือง**: `อยุธยา`, `จ.อยุธยา` $\rightarrow$ `พระนครศรีอยุธยา`, `อำเภอ = เมือง` $\rightarrow$ `เมือง{จังหวัด}`
+   - **ตัดคำนำหน้าและวงเล็บขยะ**: ตัดคำว่า 'ต.', 'อ.', 'จ.', 'แขวง', 'เขต' และตัดวงเล็บสาขา เช่น `ปทุมธานี(ธัญบุรี)` $\rightarrow$ `ปทุมธานี`
+   - **แก้ปัญหาคำซ้อนข้ามจังหวัด (Cross-Province Mismatch)**:
+     - ข้อผิดพลาด "บางนา-ตราด" ถูกแยกเป็นจังหวัดตราด $\rightarrow$ ปรับคืนเป็น `สมุทรปราการ` (บางพลี) หรือ `กรุงเทพมหานคร` (บางนา)
+     - `กันทรลักษ์` ถูกบันทึกเป็น กทม. $\rightarrow$ ปรับคืนเป็น `ศรีสะเกษ`
+     - อำเภอต่างจังหวัดที่ติดเป็น กทม. เช่น `ศรีราชา` $\rightarrow$ `ชลบุรี`, `ปากช่อง` $\rightarrow$ `นครราชสีมา`, `ส่องดาว` $\rightarrow$ `สกลนคร`, `ปากเกร็ด/เมืองนนทบุรี` $\rightarrow$ `นนทบุรี`
+   - **แมปโซนการตลาดและถนนยอดนิยม (Popular Zones & Roads Mapping)**:
+     - ถนนหลังสวน, ซอยต้นสน, ถนนวิทยุ $\rightarrow$ แขวงลุมพินี, เขตปทุมวัน, กทม.
+     - รามอินทรา, ถนนรามอินทรา, ท่าแร้ง $\rightarrow$ แขวงท่าแร้ง, เขตบางเขน, กทม.
+     - เกษตร-นวมินทร์, นวลจันทร์ $\rightarrow$ เขตบึงกุ่ม, กทม.
+     - เกษตรศาสตร์, ลาดพร้าวตอนต้น $\rightarrow$ เขตจตุจักร, กทม.
+     - แจ้งวัฒนะ $\rightarrow$ แขวงทุ่งสองห้อง, เขตหลักสี่, กทม.
+     - ลาดพร้าวตอนปลาย, รามคำแหงตอนต้น $\rightarrow$ เขตบางกะปิ, กทม.
+     - ราชพฤกษ์ $\rightarrow$ เขตภาษีเจริญ, กทม.
+     - สุราษฎร์ธานีบ่อผุด $\rightarrow$ ตำบลบ่อผุด, อำเภอเกาะสมุย, สุราษฎร์ธานี
+   - **จัดระเบียบชื่อตำบลตามมาตรฐานราชการ (Subdistrict Standardization)**:
+     - `เมืองพัทยา` (อ.บางละมุง) $\rightarrow$ กำหนดเป็น `หนองปรือ` (ตำบลแกนกลางของพัทยาตามฐานข้อมูลทางการ)
+     - `แขวงบางนา` เดิม (เขตบางนา, กทม.) $\rightarrow$ กำหนดเป็น `บางนาเหนือ` (ตามประกาศเขตปกครองปัจจุบัน)
+     - `แขวงบางบอน` เดิม (เขตบางบอน, กทม.) $\rightarrow$ กำหนดเป็น `บางบอนเหนือ`
+     - สะกดคำตามราชบัณฑิตยสถาน: `ศรีษะจรเข้...` $\rightarrow$ `ศีรษะจรเข้...`, `ดอนหัวฬอ` $\rightarrow$ `ดอนหัวฬ่อ`
+   - **กรองและล้างค่าสตริงว่าง**: ทำความสะอาด `"nan"`, `"None"`, `"null"`, `"-"` ให้เป็นสตริงว่าง `""` 100%
 
 ---
 
@@ -84,7 +121,108 @@
 
 ---
 
-### 3. KTB - ธนาคารกรุงไทย NPA (`scrape_ktb_monthly.py`)
+### 3. Chayo555 - ชโย กรุ๊ป (`scrape_chayo555_monthly.py`)
+- **ประเภทเว็บ**: Asset Listing Web Portal
+- **Engine**: `requests` (AuditedSession) + `BeautifulSoup` + GIS Location Engine
+- **Listing URL**: `https://asset.chayo555.com`
+- **Field Mapping**:
+  - `ID` / `รหัสทรัพย์`: รหัสทรัพย์ชโย
+  - `ราคา`: ราคาขายทรัพย์ NPA
+  - `ที่อยู่ & พิกัด`: สกัดจาก Card HTML และแปลงพิกัดผ่าน GIS Engine
+
+---
+
+### 4. DDproperty (`scrape_ddproperty_monthly.py`)
+- **ประเภทเว็บ**: HTML Listing & Next.js/React SSR + Multi-threaded Concurrent Workers
+- **Engine**: `requests` (AuditedSession) + `BeautifulSoup` + `ThreadPoolExecutor` + Offline GIS Point-in-Polygon
+- **Listing URL**: `https://www.ddproperty.com/รวมประกาศขาย/{page}`
+- **Detail URL**: `https://www.ddproperty.com/property/{slug-id}`
+- **Items Per Page**: 20 รายการ/หน้า (~110,000+ รายการ)
+- **เทคนิคการดึงข้อมูล**:
+  - สกัดข้อมูลจากการ์ดประกาศและ JSON-LD Schema
+  - ทำความสะอาดที่อยู่ผ่าน `clean_location_util.py` (กำจัดคำขยะ เช่น 'ห้องนอน', 'ตร.ว.', 'ซอย')
+  - **การป้องกันข้อผิดพลาดทำเล (Anti-Misclassification)**: ป้องกันคำว่า *"บางนา-ตราด"* หรือ *"บางนา"* ไม่ให้แมปเป็นจังหวัด `ตราด` โดยบังคับเข้า `สมุทรปราการ` หรือ `กรุงเทพมหานคร` และแมปอำเภอ `กันทรลักษ์` ให้ถูกต้องเป็น `ศรีสะเกษ`
+  - **การดึงพิกัด (Coordinates & Maps)**:
+    - หน้าผลการค้นหา DDproperty ไม่มีพิกัด GPS ตรงๆ ในการ์ด แต่มีข้อมูลทำเลระดับ `areaText` (ตำบล), `districtText` (อำเภอ), `regionText` (จังหวัด) อย่างครบถ้วนใน `additionalData`, `segment.parameters.metaData.listingData`, และ `shortAddress`/`fullAddress`
+    - พิกัด `ละติจูด` และ `ลองจิจูด` จะถูกคำนวณผ่านระบบ Offline GIS Centroid Imputation (`clean_row_location()`) ได้แม่นยำ 100% ทุกรายการ
+    - สำหรับหน้า Detail (`/property/{id}`): มีพิกัด GPS จริงฝังอยู่ใน `listingLocationData.data.center` (`lat`, `lng`) สกัดได้ผ่าน `fetch_ddproperty_detail_coords()` โดยตั้งค่า `Referer` ป้องกัน 403 Forbidden
+- **Field Mapping**:
+  - `ID`: รหัสทรัพย์จาก URL/Card ID
+  - `ชื่อโครงการ`: สกัดจากชื่อประกาศ/โครงสร้าง HTML
+  - `ราคา`: สกัดจาก Element ราคา (`฿...`)
+  - `ที่อยู่`: สกัดจาก breadcrumb/badge และตรวจสอบความถูกต้องด้วย GIS
+  - `เนื้อที่ & พื้นที่ใช้สอย`: แยก ตร.ว. และ ตร.ม. อัตโนมัติ
+
+---
+
+### 5. GHB - ธนาคารอาคารสงเคราะห์ (`scrape_ghb_monthly.py`)
+- **ประเภทเว็บ**: Server-rendered HTML + Detail Page Coordination
+- **Engine**: `curl_cffi` (Impersonate: `chrome120`) + `BeautifulSoup`
+- **Listing URL**: `https://www.ghbhomecenter.com/property-for-sale?pg={page_no}`
+- **Detail URL**: `https://www.ghbhomecenter.com/property-{pid}`
+- **Items Per Page**: 20 รายการ/หน้า (~30,000+ รายการ)
+- **เทคนิคการดึงข้อมูล & โครงสร้างพิกัด**:
+  - ในหน้าการ์ดผลการค้นหา (`/property-for-sale`) จะมีข้อมูลรหัสทรัพย์ ราคา และที่อยู่แบบย่อ
+  - **พิกัด GPS จริง (Lat/Lon)**: อยู่ในหน้ารายละเอียด (`/property-{pid}`) ผ่านลิงก์และ iframe ของ Google Maps ในรูปแบบ `google.com/maps.*?q=([0-9\.]+),([0-9\.]+)` (มีความครอบคลุมของพิกัดจริงสูงถึง ~90%)
+  - ข้อมูลที่ไม่มีพิกัดจะส่งต่อให้ `clean_row_location()` เพื่อทำ Centroid Imputation จาก `subdistricts.geojson`
+- **Field Mapping**:
+  - `ID`: รหัสตัวเลขจาก URL `/property-{pid}`
+  - `ราคา`: สกัดจาก `class="text-propertyprice"`
+  - `ที่อยู่`: สกัดจาก card description และแก้ไขตำบล/อำเภอ (เช่น ศีรษะจรเข้ $\rightarrow$ บางเสาธง)
+  - `พิกัด`: สกัดจาก Google Maps query ในหน้า Detail หรือคำนวณผ่าน Centroid Imputation
+
+---
+
+### 6. GSB - ธนาคารออมสิน NPA (`scrape_gsb_monthly.py`)
+- **ประเภทเว็บ**: Next.js Static Build Data API (`x-nextjs-data: 1`)
+- **Engine**: `subprocess` (`curl.exe` with headers) + Dynamic `buildId` extraction
+- **Build ID Extraction**: ดึง Build ID จากหน้าแรก `https://npa-assets.gsb.or.th/`
+- **Data Endpoint**: 
+  - `https://npa-assets.gsb.or.th/_next/data/{build_id}/asset/npa/all.json`
+  - พร้อม fallback ไปยัง category endpoints เพื่อดึงข้อมูลครบทุกหมวดหมู่ (~4,400+ รายการ)
+- **Response Format**: Next.js props JSON บรรจุรายการทรัพย์สมบูรณ์
+- **Field Mapping**:
+  - `ID`: `item.asset_id` หรือ `item.id`
+  - `รหัสทรัพย์`: `item.asset_group_id_npa` หรือ `item.asset_group_id`
+  - `ประเภททรัพย์`: `item.asset_type_desc`
+  - `ราคา`: `item.xprice` ➡️ `item.current_offer_price` ➡️ `item.xprice_normal`
+  - `ที่อยู่`: `item.sub_district_name`, `item.district_name`, `item.province_name`
+  - `พิกัด`: `item.latitude`, `item.longitude` (พร้อม Reverse GIS fallback)
+  - `เนื้อที่`: แปลง `item.rai`, `item.ngan`, `item.wa` เป็น `ไร่-งาน-ตร.ว.`
+  - `ลิงก์`: `https://npa-assets.gsb.or.th/asset/{dev_type}/{asset_id}`
+
+---
+
+### 7. KBANK - ธนาคารกสิกรไทย NPA (`scrape_kbank_monthly.py`)
+- **ประเภทเว็บ**: ASP.NET Web Service + Akamai Interstitial Challenge
+- **Engine**: `curl_cffi` (Impersonate: `chrome120`)
+- **Security / WAF**: Akamai Interstitial POW Solver (`solve_akamai_challenge`)
+- **Endpoint**: `POST https://www.kasikornbank.com/Custom/KWEB2020/NPA2023Backend13.aspx/GetProperties`
+- **Payload**:
+  ```json
+  {
+    "filter": {
+      "AllCurrentPageIndex": 1,
+      "CurrentPageIndex": 1,
+      "PageSize": 50,
+      "SearchPurposes": ["AllProperties"],
+      "propertyList": "AllProperties"
+    }
+  }
+  ```
+- **Response Format**: `{"d": "{\"Data\": {\"TotalRows\": 1234, \"Items\": [...]}}"}`
+- **Field Mapping**:
+  - `ID` / `รหัสทรัพย์`: `item.PropertyCode` หรือ `item.PropertyId`
+  - `ชื่อโครงการ`: `item.ProjectName`
+  - `ประเภททรัพย์`: `item.PropertyTypeDesc`
+  - `ราคา`: `item.SpecialPrice` หรือ `item.Price`
+  - `ที่อยู่`: `item.SubDistrictName`, `item.DistrictName`, `item.ProvinceName`
+  - `พิกัด`: `item.Latitude`, `item.Longitude`
+  - `ลิงก์`: `https://www.kasikornbank.com/th/propertyforsale/search/pages/detail.aspx?PropertyCode={PropertyCode}`
+
+---
+
+### 8. KTB - ธนาคารกรุงไทย NPA (`scrape_ktb_monthly.py`)
 - **ประเภทเว็บ**: REST API (JSON POST Endpoint)
 - **Engine**: `requests` (AuditedSession)
 - **Endpoint**: `POST https://npa.krungthai.com/api/v1/product/searchAll`
@@ -114,7 +252,75 @@
 
 ---
 
-### 4. SCB - ธนาคารไทยพาณิชย์ Home SCB (`scrape_scb_monthly.py`)
+### 9. LED - กรมบังคับคดี (`scrape_led_monthly.py`)
+- **ประเภทเว็บ**: ASP.NET / ASP Web Forms (Table Search with Session State)
+- **Engine**: `requests` (AuditedSession with State Management)
+- **Base URL**: `https://asset.led.go.th/newbidreg/`
+- **Search URL**: `https://asset.led.go.th/newbidreg/default.asp`
+- **เทคนิคการดึงข้อมูล**:
+  - ดึงค่า `oseckey` และรายชื่อจังหวัดจากหน้าเริ่มต้น
+  - ส่ง POST Form request ค้นหาตามรายจังหวัด
+  - สกัดฟอร์มทรัพย์ (`web1`, `web2`, ...) และ input hidden fields
+  - ตัดวงเล็บสาขา/ศาล (เช่น `(ธัญบุรี)`, `(กลางเมือง`) ออกจาก ตำบล/อำเภอ/จังหวัด
+- **Field Mapping**:
+  - `ID`: `auc_asset_gen` หรือ `{law_suit_no}/{law_suit_year}_{str_bid_num}`
+  - `รหัสทรัพย์`: คดีหมายเลขแดง/ลำดับทรัพย์
+  - `ประเภทการขาย`: `saletypename` (เช่น `ขายทอดตลาด ปลอดจำนอง`, `ขายทอดตลาด จำนองติดไป`)
+  - `ราคา`: `assetprice1` ถึง `assetprice9` (ค้นหาราคาประเมินที่ไม่เป็น 0)
+  - `ที่อยู่`: `tumbol_name`, `amphur_name`, `province_name`
+  - `เนื้อที่`: `rai`, `ngan`, `wa`
+  - `ลิงก์`: `https://asset.led.go.th/newbidreg/asset_open.asp?law_suit_no=...`
+
+---
+
+### 10. Livinginsider (`scrape_livinginsider_monthly.py`)
+- **ประเภทเว็บ**: Paginated Real Estate Portal + Multi-threaded Concurrent Workers
+- **Engine**: `requests` (AuditedSession) + `BeautifulSoup` + `ThreadPoolExecutor(max_workers=35)`
+- **Listing URL**: `https://www.livinginsider.com/searchword/all/Buysell/{page_num}/รวมประกาศขาย-คอนโด-บ้าน-ที่ดิน.html`
+- **Detail URL**: `https://www.livinginsider.com/livingdetail/{item_id}`
+- **Items Per Page**: 48 รายการ/หน้า (~136,000+ รายการ)
+- **เทคนิคการดึงข้อมูล**:
+  - สกัดข้อมูลจากการ์ดประกาศอย่างรวดเร็วผ่าน Thread Pool
+  - ตรวจสอบและทำความสะอาดที่อยู่ผ่าน `clean_location_util.py`
+  - แปลง `อยุธยา` $\rightarrow$ `พระนครศรีอยุธยา` และแก้ `อำเภอ = เมือง` $\rightarrow$ `เมือง{จังหวัด}`
+- **Field Mapping**:
+  - `ID` / `รหัสทรัพย์`: รหัสประกาศจาก URL
+  - `ราคา`: ราคาขายทรัพย์
+  - `ที่อยู่`: สกัดจาก Location Badge/Card Text และตรวจสอบผ่าน GIS
+  - `พิกัด`: สกัดจากหน้าประกาศ / Impute Centroid
+
+---
+
+### 11. NaYoo - น่าอยู่ (`scrape_nayoo_monthly.py`)
+- **ประเภทเว็บ**: Modern Multi-tenant REST API
+- **Engine**: `requests` (AuditedSession)
+- **API Base**: `https://api.nayoo.co`
+- **GIS Reverse Geocoding**: เชื่อมต่อกับโมเดล GeoJSON (`subdistricts.geojson`) ด้วย `shapely.strtree.STRtree` สำหรับแปลงพิกัด (Lat/Lon) เป็น ตำบล/อำเภอ/จังหวัด อัตโนมัติเมื่อเว็บไม่มีชื่อที่อยู่
+- **Field Mapping**:
+  - `ID`: `item.id` หรือ `item.uuid`
+  - `ชื่อโครงการ`: `item.project_name.th` หรือ `item.title`
+  - `ราคา`: `item.price` หรือ `item.min_price`
+  - `ที่อยู่`: สกัดจาก API หรือ Reverse geocode ผ่าน GeoJSON
+  - `พิกัด`: `item.latitude`, `item.longitude`
+  - `ลิงก์`: `https://nayoo.co/listings/{slug}`
+
+---
+
+### 12. SAM - บริษัท บริหารสินทรัพย์สุขุมวิท จำกัด (`scrape_sam_monthly.py`)
+- **ประเภทเว็บ**: PHP Search Backend + Detail HTML Page
+- **Engine**: `requests` + `BeautifulSoup`
+- **Listing Endpoint**: `POST https://sam.or.th/site/npa/page_list.php`
+- **Detail Endpoint**: `GET https://sam.or.th/site/npa/detail.php?id={prop_id}&keyref=`
+- **Field Mapping**:
+  - `ID` / `รหัสทรัพย์`: `รหัสทรัพย์สิน : XXXXX`
+  - `ประเภททรัพย์`: `ประเภททรัพย์สิน : ...`
+  - `ราคา`: `ราคาประกาศขาย : ...`
+  - `ที่อยู่`: สกัดจากข้อความที่ตั้ง `ตำบล... อำเภอ... จังหวัด...`
+  - `พิกัด`: สกัดจาก Google Maps Embed link ในหน้า Detail
+
+---
+
+### 13. SCB - ธนาคารไทยพาณิชย์ Home SCB (`scrape_scb_monthly.py`)
 - **ประเภทเว็บ**: REST API (AJAX JSON Endpoint)
 - **Engine**: `requests` (AuditedSession)
 - **Endpoint**: `GET https://asset.home.scb/api/project/cmd`
@@ -134,97 +340,7 @@
 
 ---
 
-### 5. GSB - ธนาคารออมสิน NPA (`scrape_gsb_monthly.py`)
-- **ประเภทเว็บ**: Next.js Static Build Data API
-- **Engine**: `subprocess` (`curl.exe` with `x-nextjs-data: 1`)
-- **Build ID Extraction**: ดึง Build ID จากหน้าแรก `https://npa-assets.gsb.or.th/`
-- **Data Endpoint**: `https://npa-assets.gsb.or.th/_next/data/{build_id}/asset/npa/all.json`
-- **Response Format**: Next.js props JSON บรรจุรายการทรัพย์ทั้งหมดในไฟล์เดียว
-- **Field Mapping**:
-  - `ID`: `item.asset_id` หรือ `item.id`
-  - `รหัสทรัพย์`: `item.asset_group_id_npa` หรือ `item.asset_group_id`
-  - `ประเภททรัพย์`: `item.asset_type_desc`
-  - `ราคา`: `item.xprice` ➡️ `item.current_offer_price` ➡️ `item.xprice_normal`
-  - `ที่อยู่`: `item.sub_district_name`, `item.district_name`, `item.province_name`
-  - `พิกัด`: `item.latitude`, `item.longitude`
-  - `เนื้อที่`: `item.rai`, `item.ngan`, `item.wa`
-  - `ลิงก์`: `https://npa-assets.gsb.or.th/asset/{dev_type}/{asset_id}`
-
----
-
-### 6. KBANK - ธนาคารกสิกรไทย NPA (`scrape_kbank_monthly.py`)
-- **ประเภทเว็บ**: ASP.NET Web Service + Akamai Interstitial Challenge
-- **Engine**: `curl_cffi` (Impersonate: `chrome120`)
-- **Security / WAF**: Akamai Interstitial POW Solver (`solve_akamai_challenge`)
-- **Endpoint**: `POST https://www.kasikornbank.com/Custom/KWEB2020/NPA2023Backend13.aspx/GetProperties`
-- **Payload**:
-  ```json
-  {
-    "filter": {
-      "AllCurrentPageIndex": 1,
-      "CurrentPageIndex": 1,
-      "PageSize": 50,
-      "SearchPurposes": ["AllProperties"],
-      "propertyList": "AllProperties"
-    }
-  }
-  ```
-- **Response Format**: `{"d": "{\"Data\": {\"TotalRows\": 1234, \"Items\": [...]}}"}`
-- **Field Mapping**:
-  - `ID` / `รหัสทรัพย์`: `item.PropertyCode` หรือ `item.PropertyId`
-  - `ชื่อโครงการ`: `item.ProjectName`
-  - `ประเภททรัพย์`: `item.PropertyTypeDesc`
-  - `ราคา`: `item.SpecialPrice` หรือ `item.Price`
-  - `ที่อยู่`: `item.SubDistrictName`, `item.DistrictName`, `item.ProvinceName`
-  - `พิกัด`: `item.Latitude`, `item.Longitude`
-  - `ลิงก์`: `https://www.kasikornbank.com/th/propertyforsale/search/pages/detail.aspx?PropertyCode={PropertyCode}`
-
----
-
-### 7. GHB - ธนาคารอาคารสงเคราะห์ (`scrape_ghb_monthly.py`)
-- **ประเภทเว็บ**: Server-rendered HTML + Detail Page Coordination
-- **Engine**: `curl_cffi` (Impersonate: `chrome120`) + `BeautifulSoup`
-- **Listing URL**: `https://www.ghbhomecenter.com/property-for-sale?pg={page_no}`
-- **Detail URL**: `https://www.ghbhomecenter.com/property-{pid}`
-- **Items Per Page**: 20 รายการ/หน้า (~30,000+ รายการ)
-- **Field Mapping**:
-  - `ID`: รหัสตัวเลขจาก URL `/property-{pid}`
-  - `ราคา`: สกัดจาก `class="text-propertyprice"`
-  - `ที่อยู่`: สกัดจาก card description
-  - `พิกัด & ห้อง`: สกัดจากตัวแปร JavaScript `var geoLat = ...`, `var geoLong = ...` ในหน้า Detail
-
----
-
-### 8. SAM - บริษัท บริหารสินทรัพย์สุขุมวิท จำกัด (`scrape_sam_monthly.py`)
-- **ประเภทเว็บ**: PHP Search Backend + Detail HTML Page
-- **Engine**: `requests` + `BeautifulSoup`
-- **Listing Endpoint**: `POST https://sam.or.th/site/npa/page_list.php`
-- **Detail Endpoint**: `GET https://sam.or.th/site/npa/detail.php?id={prop_id}&keyref=`
-- **Field Mapping**:
-  - `ID` / `รหัสทรัพย์`: `รหัสทรัพย์สิน : XXXXX`
-  - `ประเภททรัพย์`: `ประเภททรัพย์สิน : ...`
-  - `ราคา`: `ราคาประกาศขาย : ...`
-  - `ที่อยู่`: สกัดจากข้อความที่ตั้ง `ตำบล... อำเภอ... จังหวัด...`
-  - `พิกัด`: สกัดจาก Google Maps Embed link ในหน้า Detail
-
----
-
-### 9. NaYoo - น่าอยู่ (`scrape_nayoo_monthly.py`)
-- **ประเภทเว็บ**: Modern Multi-tenant REST API
-- **Engine**: `requests` (AuditedSession)
-- **API Base**: `https://api.nayoo.co`
-- **GIS Reverse Geocoding**: เชื่อมต่อกับโมเดล Shapefile/GeoJSON (`subdistricts.geojson`) ด้วย `shapely.strtree.STRtree` สำหรับแปลงพิกัด (Lat/Lon) เป็น ตำบล/อำเภอ/จังหวัด อัตโนมัติเมื่อเว็บไม่มีชื่อที่อยู่
-- **Field Mapping**:
-  - `ID`: `item.id` หรือ `item.uuid`
-  - `ชื่อโครงการ`: `item.project_name.th` หรือ `item.title`
-  - `ราคา`: `item.price` หรือ `item.min_price`
-  - `ที่อยู่`: สกัดจาก API หรือ Reverse geocode ผ่าน GeoJSON
-  - `พิกัด`: `item.latitude`, `item.longitude`
-  - `ลิงก์`: `https://nayoo.co/listings/{slug}`
-
----
-
-### 10. ZmyHome (`scrape_zmyhome_monthly.py`)
+### 14. ZmyHome (`scrape_zmyhome_monthly.py`)
 - **ประเภทเว็บ**: Next.js / Server-rendered Listing + Multi-threading Concurrent Workers
 - **Engine**: `requests` (AuditedSession) + `BeautifulSoup` + `ThreadPoolExecutor(max_workers=5)`
 - **GIS Reverse Geocoding**: In-Memory `shapely.strtree.STRtree` + `subdistricts.geojson` (คำนวณใน RAM <0.1ms ไม่มีการยิง OpenStreetMap API ภายนอก)
@@ -243,56 +359,24 @@
 
 ---
 
-### 11. Chayo555 - ชโย กรุ๊ป (`scrape_chayo555_monthly.py`)
-- **ประเภทเว็บ**: Asset Listing Web Portal
-- **Engine**: `requests` + `BeautifulSoup` + GeoJSON Engine
-- **Listing URL**: `https://asset.chayo555.com`
-- **Field Mapping**:
-  - `ID` / `รหัสทรัพย์`: รหัสทรัพย์ชโย
-  - `ราคา`: ราคาขายทรัพย์ NPA
-  - `ที่อยู่ & พิกัด`: สกัดจาก Card HTML และแปลงพิกัดผ่าน GIS Engine
+## 🛡️ กฎการทำงานคู่ขนานและการผสานข้อมูล (Parallel Orchestration & Merge Rules)
 
----
-
-### 12. Taladnudbaan - ตลาดนัดบ้านมือสอง (`scrape_taladnudbaan_monthly.py`)
-- **ประเภทเว็บ**: Paginated HTML Property Portal
-- **Engine**: `requests` + `BeautifulSoup`
-- **Listing URL**: `https://www.taladnudbaan.com/properties?page={page_num}`
-- **Detail URL**: `https://www.taladnudbaan.com/property/{slug_id}`
-- **Field Mapping**:
-  - `ID`: รหัสอสังหาฯ จาก URL
-  - `ราคา`: สกัดจากราคาประกาศขาย
-  - `ที่อยู่`: แยกข้อความ ตำบล อำเภอ จังหวัด
-
----
-
-### 13. LED - กรมบังคับคดี (`scrape_led_monthly.py`)
-- **ประเภทเว็บ**: ASP.NET / ASP Web Forms (Table Search)
-- **Engine**: `requests` (Session with State management)
-- **Base URL**: `https://asset.led.go.th/newbidreg/`
-- **Search URL**: `https://asset.led.go.th/newbidreg/default.asp`
-- **เทคนิคการดึงข้อมูล**:
-  - ดึงค่า `oseckey` และรายชื่อจังหวัดจากหน้าเริ่มต้น
-  - ส่ง POST Form request ค้นหาตามรายจังหวัด
-  - สกัดฟอร์มทรัพย์ (`web1`, `web2`, ...) และ input hidden fields
-- **Field Mapping**:
-  - `ID`: `auc_asset_gen` หรือ `{law_suit_no}/{law_suit_year}_{str_bid_num}`
-  - `รหัสทรัพย์`: คดีหมายเลขแดง/ลำดับทรัพย์
-  - `ประเภทการขาย`: `saletypename` (เช่น `ประมูล`)
-  - `ราคา`: `assetprice1` ถึง `assetprice9` (ค้นหาราคาประเมินที่ไม่เป็น 0)
-  - `ที่อยู่`: `tumbol_name`, `amphur_name`, `province_name`
-  - `เนื้อที่`: `rai`, `ngan`, `wa`
-  - `ลิงก์`: `https://asset.led.go.th/newbidreg/asset_open.asp?law_suit_no=...`
-
----
-
-## 🛡️ กฎการตรวจสอบความถูกต้องของข้อมูล (Quality & Resume Rule)
-
-1. **Smart Resume Validation**:
-   - เมื่อโหลดไฟล์ CSV สะสมเดิม หากพบว่าข้อมูลเดิมมากกว่า 50% มีค่าว่างในคอลัมน์สำคัญ (เช่น `ราคา` หรือ `จังหวัด` เป็น `NaN`) ระบบจะทำการ**ละทิ้งข้อมูลที่ไม่สมบูรณ์และเริ่มสแครปใหม่**ทันที เพื่อป้องกันการข้ามหน้าจากการบันทึกที่ผิดพลาดในอดีต
-2. **Rate Limiting & Safety Delays**:
-   - ค่ายที่ใช้ Next.js/ElasticSearch (เช่น Baania, GSB) เว้นระยะ 2.5 - 4.0 วินาที
-   - ค่ายธนาคารที่มี WAF เข้มงวด (เช่น KBANK, GHB) เว้นระยะ 6.0 - 11.0 วินาที
-3. **Encoding & Text Sanitization**:
-   - ใช้ `sys.stdout.reconfigure(encoding='utf-8')` ทุกสคริปต์
-   - บันทึกไฟล์ CSV ด้วย `encoding='utf-8-sig'` เพื่อให้เปิดใน Microsoft Excel ภาษาไทยได้อย่างถูกต้อง
+1. **Parallel Execution Engine (`run_parallel_monthly.py`)**:
+   - รันสแครปเปอร์ทั้ง 14 ค่ายพร้อมกันอย่างเป็นอิสระ โดยมีตัวควบคุม Memory และ Rate Limiter
+   - ตรวจจับ Session / WAF Error และระบบ Smart Retry อัตโนมัติ
+2. **Smart Resume Validation**:
+   - เมื่อโหลดไฟล์ CSV สะสมเดิม หากพบว่าข้อมูลเดิมมากกว่า 50% มีค่าว่างในคอลัมน์สำคัญ (เช่น `ราคา` หรือ `จังหวัด` เป็น `NaN`) ระบบจะทำการ**ละทิ้งข้อมูลที่ไม่สมบูรณ์และเริ่มสแครปใหม่**ทันที
+3. **Master Merge & Parquet Pipeline (`merge_csv_monthly.py`)**:
+   - รวบรวม CSV ของทั้ง 14 ค่าย
+   - ทำ High-performance Location Normalization ซ้ำอีกรอบด้วย Vectorized Map
+   - ตัดสตริง `"nan"`, `"None"`, `"null"` ออกทั้งหมด
+   - บันทึก Master CSV ประจำเดือน (`all_assets_monthly_YYYY_MM.csv`)
+   - แปลงและอัปเดตไฟล์ความเร็วสูง [`all_assets.parquet`](file:///c:/Users/Teerayut.N/.vscode/extensions/All%20Asset%20Dashboard/all_assets.parquet) สำหรับแสดงผลบน Streamlit Dashboard ทันที
+4. **Centroid Coordinate & Precision Tagging Policy (นโยบายพิกัดกึ่งกลางและการติดป้ายความแม่นยำ ⚠️)**:
+   - **ระบบคำนวณพิกัดกึ่งกลาง (Centroid Imputation)**: กรณีทรัพย์สินที่ไม่มีพิกัด GPS บนหน้าเว็บหรือ API (เช่น กรมบังคับคดี LED และประกาศที่ไม่มีหมุดแผนที่) ระบบจะใช้ In-Memory Forward Geocoding คำนวณจุดกึ่งกลางของตำบลหรืออำเภอจาก `subdistricts.geojson` เพื่อให้สามารถพล็อตตำแหน่งและค้นหาตามรัศมีบนแผนที่ได้ครบถ้วน
+   - **ระบบติดป้ายระบุความแตกต่าง (is_centroid Tagging)**: รายการที่ใช้พิกัดจุดกึ่งกลางจะถูกติดแท็ก `is_centroid = True` เพื่อแยกแยะออกจากพิกัดแปลงจริงอย่างชัดเจน
+   - **การแสดงผลบนแผนที่ Dashboard (`app.py`)**:
+     - **หมุดรวม (Cluster / Multi-Asset)**: ขอบหมุดเปลี่ยนเป็นสีส้มอำพัน (#f59e0b) และตัวเลขรวมพิกัดบน Badge จะมีสัญลักษณ์ตกใจต่อท้าย เช่น `15 ⚠️`
+     - **หมุดเดี่ยว (Single Pin)**: แสดง Badge สัญลักษณ์ตกใจ `⚠️` ที่มุมบนของหมุด
+     - **Popup Card**: แสดงแถบแจ้งเตือน `"⚠️ พิกัดโดยประมาณ (คำนวณจากจุดกึ่งกลางตำบล/อำเภอ)"` พร้อมปุ่มลัด `🗺️ ดูแปลงที่ดิน map (LandsMaps) ↗` สำหรับทรัพย์สิน LED
+     - **ตารางข้อมูล (Tab 1 & Tab 3)**: เพิ่มคอลัมน์ `"ความแม่นยำพิกัด"` แสดงสถานะ `"📍 แปลงจริง"` หรือ `"⚠️ กึ่งกลางตำบล"` ให้คัดกรองได้ชัดเจน

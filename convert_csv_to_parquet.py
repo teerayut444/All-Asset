@@ -211,6 +211,45 @@ def optimize_and_clean_dataframe(df, exclude_unwanted=True):
         invalid_coords = ~(df['ละติจูด'].between(5.0, 21.0) & df['ลองจิจูด'].between(97.0, 106.0))
         df.loc[invalid_coords, ['ละติจูด', 'ลองจิจูด']] = np.nan
 
+    # บันทึกสถานะว่าแถวใดมีพิกัดจริงจากต้นทาง (พิกัดถูกต้อง และไม่ใช่ LED)
+    is_led = df['บริษัท'].astype(str).str.strip().str.upper() == 'LED' if 'บริษัท' in df.columns else False
+    has_real_coords = df['ละติจูด'].notna() & df['ลองจิจูด'].notna() & (~is_led)
+
+    # คำนวณพิกัดกึ่งกลาง (Centroid Imputation) จากฐานข้อมูล GIS ให้แถวที่ไม่มีพิกัดจริง
+    try:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        monthly_dir = os.path.join(base_dir, "Monthly all new")
+        if monthly_dir not in sys.path:
+            sys.path.insert(0, monthly_dir)
+        from clean_location_util import forward_geocode_location, init_gis
+        init_gis()
+
+        need_centroid = (~has_real_coords) & (df['จังหวัด'].notna() | df['อำเภอ'].notna())
+        if need_centroid.any():
+            loc_keys = df.loc[need_centroid, ['ตำบล', 'อำเภอ', 'จังหวัด']].drop_duplicates()
+            centroid_map = {}
+            for _, r_loc in loc_keys.iterrows():
+                t = str(r_loc['ตำบล']).strip() if pd.notna(r_loc['ตำบล']) else ""
+                a = str(r_loc['อำเภอ']).strip() if pd.notna(r_loc['อำเภอ']) else ""
+                p = str(r_loc['จังหวัด']).strip() if pd.notna(r_loc['จังหวัด']) else ""
+                c_lat, c_lng = forward_geocode_location(t, a, p)
+                if c_lat and c_lng:
+                    centroid_map[(t, a, p)] = (float(c_lat), float(c_lng))
+
+            if centroid_map:
+                t_series = df.loc[need_centroid, 'ตำบล'].fillna('').astype(str).str.strip()
+                a_series = df.loc[need_centroid, 'อำเภอ'].fillna('').astype(str).str.strip()
+                p_series = df.loc[need_centroid, 'จังหวัด'].fillna('').astype(str).str.strip()
+                coords = [centroid_map.get(k) for k in zip(t_series, a_series, p_series)]
+                df.loc[need_centroid, 'ละติจูด'] = [c[0] if c else np.nan for c in coords]
+                df.loc[need_centroid, 'ลองจิจูด'] = [c[1] if c else np.nan for c in coords]
+                print(f"  📍 คำนวณพิกัดกึ่งกลาง (Centroid) สำเร็จ: {sum(1 for c in coords if c):,} รายการ", flush=True)
+    except Exception as e:
+        print(f"  ⚠️ Warning Centroid Imputation: {e}", flush=True)
+
+    # สร้างคอลัมน์ is_centroid (True = จุดกึ่งกลางตำบล/อำเภอ, False = แปลงจริง)
+    df['is_centroid'] = ((~has_real_coords) & df['ละติจูด'].notna()).astype('bool')
+
     # 6. พื้นที่ใช้สอย (ตร.ม.)
     area_col = None
     for c in ['พื้นที่ใช้สอย (ตร.ม.)', 'พื้นที่ใช้สอย', 'usable_area']:
@@ -240,10 +279,20 @@ def optimize_and_clean_dataframe(df, exclude_unwanted=True):
     else:
         df['พื้นที่_ตารางวา'] = pd.to_numeric(df['พื้นที่_ตารางวา'], errors='coerce').astype('float32')
 
-    # 8. จำนวนห้อง (ห้องนอน, ห้องน้ำ, ที่จอดรถ)
+    # 8. จำนวนห้อง (ห้องนอน, ห้องน้ำ, ที่จอดรถ) และ ชั้น
     for c in ['ห้องนอน', 'ห้องน้ำ', 'ที่จอดรถ']:
         if c in df.columns:
             df[c] = pd.to_numeric(df[c], errors='coerce').astype('Int16')
+
+    if 'ชั้น' in df.columns:
+        df['ชั้น'] = df['ชั้น'].fillna('').astype(str).replace({'nan': '', 'None': '', 'null': '', '<NA>': '', 'NaN': '', '-': ''}).str.strip()
+    else:
+        df['ชั้น'] = ''
+
+    if 'เลขโฉนด' in df.columns:
+        df['เลขโฉนด'] = df['เลขโฉนด'].fillna('').astype(str).replace({'nan': '', 'None': '', 'null': '', '<NA>': '', 'NaN': '', '-': ''}).str.strip()
+    else:
+        df['เลขโฉนด'] = ''
 
     # 9. คำนวณราคาต่อหน่วย (ราคา/ตร.ว. และ ราคา/ตร.ม.)
     if 'ราคาต่อตารางวา' not in df.columns:
@@ -277,8 +326,18 @@ def optimize_and_clean_dataframe(df, exclude_unwanted=True):
         df['ลิงก์'] = df['ลิงก์'].fillna('').astype(str).str.strip()
 
     # 12. ลบรายการซ้ำซ้อน (Deduplication)
+    # สำหรับ LED: 'รหัสทรัพย์' คือหมายเลขคดีแดง ซึ่ง 1 คดีมีทรัพย์ขายทอดตลาดได้หลายแปลง/หลายห้องชุด จึงต้องใช้ 'ID'
     initial_cnt = len(df)
-    df = df.drop_duplicates(subset=['บริษัท', 'รหัสทรัพย์'] if ('บริษัท' in df.columns and 'รหัสทรัพย์' in df.columns) else None)
+    if 'บริษัท' in df.columns:
+        if 'ID' in df.columns and 'รหัสทรัพย์' in df.columns:
+            is_led = df['บริษัท'].astype(str).str.strip().str.upper() == 'LED'
+            df_led = df[is_led].drop_duplicates(subset=['บริษัท', 'ID'])
+            df_non_led = df[~is_led].drop_duplicates(subset=['บริษัท', 'รหัสทรัพย์'])
+            df = pd.concat([df_led, df_non_led], ignore_index=True)
+        elif 'ID' in df.columns:
+            df = df.drop_duplicates(subset=['บริษัท', 'ID'])
+        elif 'รหัสทรัพย์' in df.columns:
+            df = df.drop_duplicates(subset=['บริษัท', 'รหัสทรัพย์'])
     dup_removed = initial_cnt - len(df)
     if dup_removed > 0:
         print(f"  🧹  ลบรายการซ้ำซ้อน (Duplicates): {dup_removed:,} รายการ", flush=True)
@@ -374,6 +433,28 @@ def convert_csv_to_parquet(input_path=None, output_path="all_assets.parquet", ex
     print(f"\n💾 กำลังบันทึกไฟล์ Parquet ความเร็วสูง (ZSTD Compression)...", flush=True)
     clean_df.to_parquet(output_path, compression='zstd', index=False)
 
+    # บันทึกชุดข้อมูลแยกเฉพาะแบบไม่มีพิกัดกึ่งกลาง (all_assets_no_centroid)
+    if os.path.basename(output_path) == "all_assets.parquet":
+        base_dir = os.path.dirname(os.path.abspath(output_path))
+        no_c_df = clean_df.copy()
+        if 'is_centroid' in no_c_df.columns:
+            no_c_df.loc[no_c_df['is_centroid'] == True, ['ละติจูด', 'ลองจิจูด']] = np.nan
+        no_c_parquet = os.path.join(base_dir, "all_assets_no_centroid.parquet")
+        no_c_csv = os.path.join(base_dir, "all_assets_no_centroid.csv")
+        no_c_df.to_parquet(no_c_parquet, compression='zstd', index=False)
+        no_c_df.to_csv(no_c_csv, index=False, encoding="utf-8-sig")
+        target_dir = os.path.dirname(os.path.abspath(target_file))
+        if target_dir != base_dir and os.path.exists(target_dir):
+            target_no_c_csv = os.path.join(target_dir, "all_assets_no_centroid.csv")
+            no_c_df.to_csv(target_no_c_csv, index=False, encoding="utf-8-sig")
+        print(f"📦 [แยกชุดข้อมูล] บันทึก {os.path.basename(no_c_parquet)} และ {os.path.basename(no_c_csv)} (เว้นว่างพิกัดกึ่งกลางไว้เหมือนเดิม)", flush=True)
+        
+        current_ymd = datetime.now().strftime("%Y_%m_%d")
+        timed_parquet = os.path.join(base_dir, f"all_assets_{current_ymd}.parquet")
+        if os.path.abspath(output_path) != os.path.abspath(timed_parquet):
+            clean_df.to_parquet(timed_parquet, compression='zstd', index=False)
+            print(f"📦 [แยกชุดข้อมูล] บันทึกไฟล์ระบุเดือนวัน: {os.path.basename(timed_parquet)}", flush=True)
+
     parquet_size = os.path.getsize(output_path)
     ram_usage = clean_df.memory_usage(deep=True).sum()
     elapsed = time.time() - start_time
@@ -381,7 +462,7 @@ def convert_csv_to_parquet(input_path=None, output_path="all_assets.parquet", ex
     print("=" * 70)
     print("🎉 แปลงไฟล์สำเร็จเรียบร้อย! (Conversion Completed)")
     print("=" * 70)
-    print(f"📁 ไฟล์ผลลัพธ์ (Output):       {os.path.abspath(output_path)}")
+    print(f"📁 ไฟล์ผลลัพธ์หลัก (Output):   {os.path.abspath(output_path)} (มีครบทุกพิกัด + แท็ก is_centroid)")
     print(f"📊 จำนวนรายการทั้งหมด:        {len(clean_df):,} รายการ")
     print(f"📦 ขนาดไฟล์ Parquet:         {parquet_size / (1024*1024):.2f} MB (ลดลง {(1 - parquet_size/total_csv_size)*100:.1f}%)")
     print(f"⚡ การใช้ Memory ใน RAM:     {ram_usage / (1024*1024):.2f} MB (เบามาก เหมาะกับ Streamlit Cloud)")

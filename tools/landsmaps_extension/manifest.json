@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "All Asset - LandsMaps Auto-Fill Assistant",
+  "version": "1.0.0",
+  "description": "เลือกจังหวัด อำเภอ และกรอกค้นหาบน LandsMaps อัตโนมัติ 100% จาก All Asset Dashboard",
+  "content_scripts": [
+    {
+      "matches": [
+        "https://landsmaps.dol.go.th/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_end"
+    }
+  ]
+}
