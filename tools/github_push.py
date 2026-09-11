@@ -1,7 +1,19 @@
+import os
 import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
+
+# Automatically locate and change working directory to Project Root
+CURRENT_FILE = Path(__file__).resolve()
+if (CURRENT_FILE.parent / ".git").exists():
+    PROJECT_ROOT = CURRENT_FILE.parent
+elif (CURRENT_FILE.parent.parent / ".git").exists():
+    PROJECT_ROOT = CURRENT_FILE.parent.parent
+else:
+    PROJECT_ROOT = CURRENT_FILE.parent
+
+os.chdir(PROJECT_ROOT)
 
 # Path to the git executable on this machine
 GIT_PATH = r"C:\Users\Teerayut.N\AppData\Local\Programs\Git\cmd\git.exe"
