@@ -8001,15 +8001,24 @@ with tab3:
         # CASE A: เนื้อที่ (ค่ากลาง ราคา/ตร.ว.)
         # =========================================================================
         with tab_land_sub4:
-            is_landed_sub4 = ~df_scope['ประเภททรัพย์'].str.contains('ห้องชุด|คอนโด', na=False)
-            df_land_sub4 = df_scope[
+            # Select only columns needed for this section to minimize memory usage
+            _cols_sub4_needed = [c for c in [
+                'ประเภททรัพย์', 'ราคา', 'พื้นที่_ตารางวา', 'จังหวัด', 'อำเภอ', 'ตำบล',
+                'บริษัท', 'รหัสทรัพย์', 'ลิงก์', 'ชื่อประกาศ',
+                'ราคาต่อตารางวา', 'ราคาต่อตารางเมตร',
+            ] if c in df_scope.columns]
+            _df_scope_slim = df_scope[_cols_sub4_needed]
+
+            is_landed_sub4 = ~_df_scope_slim['ประเภททรัพย์'].str.contains('ห้องชุด|คอนโด', na=False)
+            df_land_sub4 = _df_scope_slim[
                 is_landed_sub4 & 
-                (df_scope['ราคา'].notna()) & 
-                (df_scope['ราคา'] > 0) & 
-                (df_scope['พื้นที่_ตารางวา'].notna()) & 
-                (df_scope['พื้นที่_ตารางวา'] > 0) & 
-                (df_scope['พื้นที่_ตารางวา'] <= 10000)
+                (_df_scope_slim['ราคา'].notna()) & 
+                (_df_scope_slim['ราคา'] > 0) & 
+                (_df_scope_slim['พื้นที่_ตารางวา'].notna()) & 
+                (_df_scope_slim['พื้นที่_ตารางวา'] > 0) & 
+                (_df_scope_slim['พื้นที่_ตารางวา'] <= 10000)
             ].copy()
+            del _df_scope_slim
 
             if not df_land_sub4.empty:
                 df_land_sub4['ราคา_ต่อ_ตรว'] = df_land_sub4['ราคา'] / df_land_sub4['พื้นที่_ตารางวา']
@@ -8297,8 +8306,16 @@ with tab3:
                     return np.nan
 
             # Focus on properties with usable area (exclude vacant land)
-            is_usable_sub4 = (df_scope['ประเภททรัพย์'] != 'ที่ดินเปล่า') & (df_scope['ราคา'].notna()) & (df_scope['ราคา'] > 0)
-            df_usable_sub4 = df_scope[is_usable_sub4].copy()
+            _cols_usable_needed = [c for c in [
+                'ประเภททรัพย์', 'ราคา', 'พื้นที่ใช้สอย (ตร.ม.)', 'จังหวัด', 'อำเภอ', 'ตำบล',
+                'บริษัท', 'รหัสทรัพย์', 'ลิงก์', 'ชื่อประกาศ',
+                'ราคาต่อตารางวา', 'ราคาต่อตารางเมตร',
+            ] if c in df_scope.columns]
+            _df_scope_usable = df_scope[_cols_usable_needed]
+
+            is_usable_sub4 = (_df_scope_usable['ประเภททรัพย์'] != 'ที่ดินเปล่า') & (_df_scope_usable['ราคา'].notna()) & (_df_scope_usable['ราคา'] > 0)
+            df_usable_sub4 = _df_scope_usable[is_usable_sub4].copy()
+            del _df_scope_usable
 
             if not df_usable_sub4.empty and 'พื้นที่ใช้สอย (ตร.ม.)' in df_usable_sub4.columns:
                 df_usable_sub4['พื้นที่ใช้สอย_ตรม'] = df_usable_sub4['พื้นที่ใช้สอย (ตร.ม.)'].apply(parse_usable_sqm)

@@ -1,0 +1,2674 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>All Asset NPA Map</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+Thai:wght@300;400;500;600;700;800&display=swap">
+    <style>
+      body { margin: 0; padding: 0; overflow: hidden; background-color: #0f172a; font-family: 'Noto Sans Thai', 'Inter', sans-serif; }
+      body:not(.dark-theme) { background-color: #f8fafc; }
+      #map { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; background-color: #0f172a; }
+      body:not(.dark-theme) #map { background-color: #e2e8f0; }
+
+      #loader {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-family: 'Noto Sans Thai', 'Inter', sans-serif;
+        font-size: 14px;
+        color: #1e293b;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(8px);
+        padding: 16px 28px;
+        border-radius: 9999px;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        border: 1px solid rgba(0, 0, 0, 0.05);
+      }
+      .spinner {
+        border: 3px solid #e2e8f0;
+        border-top: 3px solid #3b82f6;
+        border-radius: 50%;
+        width: 20px;
+        height: 20px;
+        animation: spin 0.8s linear infinite;
+      }
+
+      /* Basemap Mode Switcher (Top-Left) */
+      #map-style-controls {
+        position: absolute;
+        top: 16px;
+        left: 16px;
+        background: rgba(255, 255, 255, 0.92);
+        backdrop-filter: blur(8px);
+        padding: 6px;
+        border-radius: 10px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+        font-family: 'Noto Sans Thai', 'Inter', sans-serif;
+        font-size: 12px;
+        z-index: 99;
+        display: flex;
+        gap: 4px;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+      }
+      .style-btn {
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: 6px;
+        padding: 5px 10px;
+        font-family: inherit;
+        font-size: 11px;
+        font-weight: 600;
+        color: #334155;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+      .style-btn:hover {
+        background: rgba(59, 130, 246, 0.1);
+        color: #2563eb;
+      }
+      .style-btn.active {
+        background: #2563eb;
+        color: #ffffff;
+        box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);
+      }
+
+      /* Floating Chip / Pill Filter Bar (Airbnb & Google Maps Style) */
+      #map-filter-controls {
+        position: absolute;
+        top: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        padding: 5px 8px;
+        border-radius: 9999px;
+        box-shadow: 0 10px 28px -4px rgba(0, 0, 0, 0.14), 0 2px 6px -1px rgba(0, 0, 0, 0.06);
+        font-family: 'Noto Sans Thai', 'Inter', sans-serif;
+        font-size: 12px;
+        z-index: 999;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        flex-wrap: nowrap;
+        white-space: nowrap;
+        transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      @media (max-width: 1280px) {
+        #map-filter-controls {
+          top: 64px;
+          left: 50%;
+          transform: translateX(-50%);
+          max-width: calc(100vw - 32px);
+          overflow-x: auto;
+          scrollbar-width: none;
+          padding: 6px 10px;
+        }
+        #map-filter-controls::-webkit-scrollbar {
+          display: none;
+        }
+      }
+
+      /* Pill Group & Capsule Buttons */
+      .custom-multiselect {
+        position: relative;
+        user-select: none;
+      }
+      .filter-pill {
+        background: #f8fafc;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 9999px;
+        padding: 6px 12px;
+        font-family: inherit;
+        font-size: 11.5px;
+        font-weight: 600;
+        color: #334155;
+        cursor: pointer;
+        outline: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        white-space: nowrap;
+        max-width: 200px;
+      }
+      .filter-pill:hover, .custom-multiselect.open .filter-pill {
+        border-color: #94a3b8;
+        background: #ffffff;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        color: #0f172a;
+      }
+      /* Active Pill (When Filtered - Airbnb Highlight Style) */
+      .filter-pill.active {
+        background: #eff6ff !important;
+        border-color: #3b82f6 !important;
+        color: #1d4ed8 !important;
+        font-weight: 700;
+        box-shadow: 0 2px 10px rgba(59, 130, 246, 0.18) !important;
+      }
+      .filter-pill.active .pill-icon {
+        color: #2563eb !important;
+      }
+      .pill-text {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 130px;
+        display: inline-block;
+      }
+      .pill-icon {
+        font-size: 11.5px;
+        color: #64748b;
+        pointer-events: none;
+        flex-shrink: 0;
+        transition: color 0.15s ease;
+      }
+      .pill-arrow {
+        font-size: 9px;
+        color: #94a3b8;
+        transition: transform 0.2s ease;
+      }
+      .custom-multiselect.open .pill-arrow {
+        transform: rotate(180deg);
+      }
+      .pill-badge {
+        background: #2563eb;
+        color: #ffffff;
+        font-size: 10px;
+        font-weight: 700;
+        min-width: 17px;
+        height: 17px;
+        padding: 0 4px;
+        border-radius: 9999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+      }
+      .pill-clear {
+        background: rgba(37, 99, 235, 0.12);
+        color: #2563eb;
+        border-radius: 9999px;
+        width: 17px;
+        height: 17px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 9px;
+        margin-left: 2px;
+        transition: all 0.15s ease;
+        cursor: pointer;
+      }
+      .pill-clear:hover {
+        background: #ef4444;
+        color: #ffffff;
+        transform: scale(1.15);
+      }
+
+      /* Modern Popover Card */
+      .ms-dropdown {
+        display: none;
+        position: absolute;
+        top: calc(100% + 8px);
+        left: 0;
+        min-width: 275px;
+        background: rgba(255, 255, 255, 0.98);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        border-radius: 16px;
+        box-shadow: 0 16px 36px rgba(0, 0, 0, 0.18), 0 2px 6px rgba(0, 0, 0, 0.04);
+        padding: 12px;
+        z-index: 1000;
+        animation: msFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+      .custom-multiselect.open .ms-dropdown {
+        display: block;
+      }
+      @keyframes msFadeIn {
+        from { opacity: 0; transform: translateY(-6px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .ms-dropdown-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+        padding-bottom: 6px;
+        border-bottom: 1px solid #e2e8f0;
+      }
+      .ms-header-title {
+        font-size: 12px;
+        font-weight: 700;
+        color: #0f172a;
+        display: flex;
+        align-items: center;
+      }
+      .ms-actions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .ms-action-link {
+        background: none;
+        border: none;
+        color: #2563eb;
+        font-family: inherit;
+        font-size: 11px;
+        font-weight: 600;
+        cursor: pointer;
+        padding: 2px 4px;
+        border-radius: 4px;
+        transition: all 0.15s ease;
+      }
+      .ms-action-link:hover {
+        background: rgba(37, 99, 235, 0.08);
+        text-decoration: underline;
+      }
+      .ms-action-sep {
+        color: #cbd5e1;
+        font-size: 10px;
+      }
+      .ms-search-box {
+        position: relative;
+        margin-bottom: 8px;
+      }
+      .ms-search-icon {
+        position: absolute;
+        left: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 11px;
+        color: #94a3b8;
+        pointer-events: none;
+      }
+      .ms-search-input {
+        width: 100%;
+        box-sizing: border-box;
+        background: #f1f5f9;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 9999px;
+        padding: 5px 10px 5px 28px;
+        font-family: inherit;
+        font-size: 11px;
+        color: #1e293b;
+        outline: none;
+        transition: all 0.15s ease;
+      }
+      .ms-search-input:focus {
+        border-color: #3b82f6;
+        background: #ffffff;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+      }
+      .ms-options-list {
+        max-height: 220px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        scrollbar-width: thin;
+        padding-right: 2px;
+      }
+      .ms-options-list::-webkit-scrollbar {
+        width: 5px;
+      }
+      .ms-options-list::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+      }
+      .ms-option-item {
+        display: flex;
+        align-items: center;
+        padding: 6px 8px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background 0.12s ease;
+        gap: 8px;
+        font-size: 12px;
+        color: #334155;
+      }
+      .ms-option-item:hover {
+        background: #f1f5f9;
+        color: #0f172a;
+      }
+      .ms-option-item input[type="checkbox"] {
+        accent-color: #2563eb;
+        width: 15px;
+        height: 15px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin: 0;
+      }
+      .ms-option-name {
+        flex: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .ms-option-num {
+        font-size: 10.5px;
+        color: #94a3b8;
+        font-weight: 600;
+        background: #f1f5f9;
+        padding: 1px 6px;
+        border-radius: 9999px;
+      }
+      .ms-dropdown-footer {
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px solid #e2e8f0;
+        display: flex;
+        justify-content: flex-end;
+      }
+      .ms-btn-apply {
+        background: #2563eb;
+        color: #ffffff;
+        border: none;
+        border-radius: 9999px;
+        padding: 5px 14px;
+        font-family: inherit;
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        transition: all 0.15s ease;
+      }
+      .ms-btn-apply:hover {
+        background: #1d4ed8;
+        box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+      }
+      .ms-dropdown.align-right {
+        left: auto;
+        right: 0;
+      }
+
+      /* Price Range Popover Styling */
+      .price-popover {
+        min-width: 310px !important;
+      }
+      .price-inputs-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+      .price-input-box {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .price-input-box label {
+        font-size: 10px;
+        font-weight: 700;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+      }
+      .price-num-input {
+        width: 100%;
+        box-sizing: border-box;
+        background: #f1f5f9;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 6px 8px;
+        font-family: inherit;
+        font-size: 11.5px;
+        font-weight: 600;
+        color: #0f172a;
+        outline: none;
+        transition: all 0.15s ease;
+      }
+      .price-num-input:focus {
+        border-color: #3b82f6;
+        background: #ffffff;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+      }
+      .price-preset-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 5px;
+        margin-bottom: 8px;
+      }
+      .price-preset-btn {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 6px 4px;
+        font-family: inherit;
+        font-size: 10.5px;
+        font-weight: 600;
+        color: #475569;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        text-align: center;
+        white-space: nowrap;
+      }
+      .price-preset-btn:hover {
+        background: #eff6ff;
+        border-color: #93c5fd;
+        color: #1d4ed8;
+      }
+      .price-preset-btn.active {
+        background: #2563eb;
+        border-color: #2563eb;
+        color: #ffffff;
+      }
+
+      /* Search & Utility Pills */
+      .search-group {
+        position: relative;
+        display: flex;
+        align-items: center;
+      }
+      .search-icon {
+        position: absolute;
+        left: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 11px;
+        color: #94a3b8;
+        pointer-events: none;
+      }
+      .filter-input {
+        background: #f8fafc;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 9999px;
+        padding: 6px 12px 6px 28px;
+        font-family: inherit;
+        font-size: 11.5px;
+        font-weight: 500;
+        color: #1e293b;
+        outline: none;
+        width: 130px;
+        transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      .filter-input:focus {
+        width: 175px;
+        border-color: #3b82f6;
+        background: #ffffff;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+      }
+      .filter-btn-reset {
+        background: transparent;
+        border: 1.5px dashed #cbd5e1;
+        border-radius: 9999px;
+        padding: 6px 12px;
+        font-family: inherit;
+        font-size: 11.5px;
+        font-weight: 600;
+        color: #64748b;
+        cursor: pointer;
+        outline: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+      }
+      .filter-btn-reset:hover {
+        background: #fef2f2;
+        border-color: #ef4444;
+        color: #dc2626;
+      }
+      .filter-count-badge {
+        background: #ecfdf5;
+        border: 1.5px solid #a7f3d0;
+        border-radius: 9999px;
+        padding: 6px 13px;
+        font-family: inherit;
+        font-size: 11.5px;
+        font-weight: 700;
+        color: #047857;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        white-space: nowrap;
+        box-shadow: 0 1px 3px rgba(5, 150, 105, 0.08);
+        transition: all 0.2s ease;
+      }
+      .filter-count-badge.filtered {
+        background: #eff6ff;
+        border-color: #93c5fd;
+        color: #1d4ed8;
+      }
+
+      /* Dark Theme for Pill Filter Bar & Popovers */
+      body.dark-theme #map-filter-controls {
+        background: rgba(15, 23, 42, 0.95) !important;
+        border-color: rgba(255, 255, 255, 0.12) !important;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6) !important;
+      }
+      body.dark-theme .filter-pill {
+        background: #1e293b !important;
+        border-color: #334155 !important;
+        color: #f1f5f9 !important;
+      }
+      body.dark-theme .filter-pill:hover, body.dark-theme .custom-multiselect.open .filter-pill {
+        border-color: #60a5fa !important;
+        background: #334155 !important;
+        color: #ffffff !important;
+      }
+      body.dark-theme .filter-pill.active {
+        background: rgba(37, 99, 235, 0.25) !important;
+        border-color: #60a5fa !important;
+        color: #93c5fd !important;
+      }
+      body.dark-theme .filter-pill.active .pill-icon {
+        color: #60a5fa !important;
+      }
+      body.dark-theme .pill-icon {
+        color: #94a3b8 !important;
+      }
+      body.dark-theme .pill-arrow {
+        color: #64748b !important;
+      }
+      body.dark-theme .pill-clear {
+        background: rgba(96, 165, 250, 0.2) !important;
+        color: #93c5fd !important;
+      }
+      body.dark-theme .pill-clear:hover {
+        background: #ef4444 !important;
+        color: #ffffff !important;
+      }
+      body.dark-theme .ms-dropdown {
+        background: rgba(15, 23, 42, 0.98) !important;
+        border-color: rgba(255, 255, 255, 0.15) !important;
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7) !important;
+      }
+      body.dark-theme .ms-dropdown-header {
+        border-bottom-color: rgba(255, 255, 255, 0.1) !important;
+      }
+      body.dark-theme .ms-header-title {
+        color: #f8fafc !important;
+      }
+      body.dark-theme .ms-action-link {
+        color: #60a5fa !important;
+      }
+      body.dark-theme .ms-action-link:hover {
+        background: rgba(96, 165, 250, 0.15) !important;
+      }
+      body.dark-theme .ms-search-input {
+        background: #0f172a !important;
+        border-color: #334155 !important;
+        color: #f8fafc !important;
+      }
+      body.dark-theme .ms-search-input:focus {
+        border-color: #60a5fa !important;
+      }
+      body.dark-theme .ms-option-item {
+        color: #cbd5e1 !important;
+      }
+      body.dark-theme .ms-option-item:hover {
+        background: #1e293b !important;
+        color: #ffffff !important;
+      }
+      body.dark-theme .ms-option-item input[type="checkbox"] {
+        accent-color: #3b82f6 !important;
+      }
+      body.dark-theme .ms-option-num {
+        background: #1e293b !important;
+        color: #94a3b8 !important;
+      }
+      body.dark-theme .ms-dropdown-footer {
+        border-top-color: rgba(255, 255, 255, 0.1) !important;
+      }
+      body.dark-theme .ms-btn-apply {
+        background: #3b82f6 !important;
+      }
+      body.dark-theme .ms-btn-apply:hover {
+        background: #2563eb !important;
+      }
+      body.dark-theme .filter-input {
+        background: #1e293b !important;
+        border-color: #334155 !important;
+        color: #f8fafc !important;
+      }
+      body.dark-theme .filter-input:focus {
+        border-color: #60a5fa !important;
+        background: #0f172a !important;
+      }
+      body.dark-theme .filter-btn-reset {
+        background: transparent !important;
+        border-color: #475569 !important;
+        color: #94a3b8 !important;
+      }
+      body.dark-theme .filter-btn-reset:hover {
+        background: rgba(239, 68, 68, 0.2) !important;
+        border-color: #ef4444 !important;
+        color: #f87171 !important;
+      }
+      body.dark-theme .filter-count-badge {
+        background: rgba(6, 78, 59, 0.6) !important;
+        border-color: #059669 !important;
+        color: #34d399 !important;
+      }
+      body.dark-theme .price-num-input {
+        background: #0f172a !important;
+        border-color: #334155 !important;
+        color: #f8fafc !important;
+      }
+      body.dark-theme .price-num-input:focus {
+        border-color: #60a5fa !important;
+      }
+      body.dark-theme .price-preset-btn {
+        background: #1e293b !important;
+        border-color: #334155 !important;
+        color: #cbd5e1 !important;
+      }
+      body.dark-theme .price-preset-btn:hover {
+        background: rgba(59, 130, 246, 0.25) !important;
+        border-color: #60a5fa !important;
+        color: #60a5fa !important;
+      }
+      body.dark-theme .price-preset-btn.active {
+        background: #3b82f6 !important;
+        border-color: #3b82f6 !important;
+        color: #ffffff !important;
+      }
+
+      /* Legend Overlay (Top-Right) */
+      #map-legend {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        background: rgba(255, 255, 255, 0.92);
+        backdrop-filter: blur(8px);
+        padding: 12px 16px;
+        border-radius: 10px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        font-family: 'Noto Sans Thai', 'Inter', sans-serif;
+        font-size: 12px;
+        z-index: 99;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        max-height: 80vh;
+        overflow-y: auto;
+      }
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #334155;
+        font-weight: 500;
+      }
+      .legend-color {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        display: inline-block;
+      }
+
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+
+      /* Hide standard map attribution controls if any */
+      div[class*="mapboxgl-ctrl-attrib"],
+      div[class*="maplibregl-ctrl-attrib"],
+      .mapboxgl-ctrl-bottom-right,
+      .mapboxgl-ctrl-bottom-left,
+      div[class*="deckgl-attribution"] {
+        display: none !important;
+      }
+
+      /* Ensure Deck.gl Tooltip is visible and properly layered */
+      .deck-tooltip {
+        font-family: 'Noto Sans Thai', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+        z-index: 999999 !important;
+        pointer-events: none !important;
+      }
+
+      /* Dark Theme overrides */
+      body.dark-theme {
+        background-color: #0f172a !important;
+      }
+      body.dark-theme #loader {
+        background: rgba(15, 23, 42, 0.92) !important;
+        color: #f8fafc !important;
+        border-color: rgba(255, 255, 255, 0.1) !important;
+      }
+      body.dark-theme #map-style-controls {
+        background: rgba(15, 23, 42, 0.92) !important;
+        border-color: rgba(255, 255, 255, 0.1) !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+      }
+      body.dark-theme .style-btn {
+        color: #94a3b8 !important;
+      }
+      body.dark-theme .style-btn:hover {
+        background: rgba(59, 130, 246, 0.2) !important;
+        color: #60a5fa !important;
+      }
+      body.dark-theme .style-btn.active {
+        background: #3b82f6 !important;
+        color: #ffffff !important;
+      }
+      body.dark-theme #map-legend {
+        background: rgba(15, 23, 42, 0.92) !important;
+        border-color: rgba(255, 255, 255, 0.1) !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+      }
+      body.dark-theme #map-legend > div:first-child {
+        color: #94a3b8 !important;
+      }
+      body.dark-theme .legend-item {
+        color: #e2e8f0 !important;
+      }
+      body.dark-theme #points-count {
+        border-top-color: rgba(255, 255, 255, 0.1) !important;
+        color: #94a3b8 !important;
+      }
+      .legend-centroid-badge {
+        background: #fef3c7;
+        color: #92400e;
+        font-size: 9.5px;
+        font-weight: 800;
+        padding: 0px 4px;
+        border-radius: 4px;
+        border: 1px solid #fde68a;
+      }
+      .legend-centroid-summary {
+        border-top: 1px dashed #e2e8f0;
+        margin-top: 5px;
+        padding-top: 5px;
+        font-size: 10.5px;
+        color: #92400e;
+        font-weight: 700;
+      }
+      body.dark-theme .legend-centroid-badge {
+        background: rgba(245, 158, 11, 0.2) !important;
+        color: #fde68a !important;
+        border-color: rgba(245, 158, 11, 0.4) !important;
+      }
+      body.dark-theme .legend-centroid-summary {
+        border-top-color: rgba(255, 255, 255, 0.1) !important;
+        color: #fde68a !important;
+      }
+      #legend-overlap-stat {
+        border-top: 1px dashed #e2e8f0;
+        margin-top: 5px;
+        padding-top: 5px;
+        font-size: 10px;
+        color: #475569;
+        line-height: 1.45;
+      }
+      body.dark-theme #legend-overlap-stat {
+        border-top-color: rgba(255, 255, 255, 0.1) !important;
+        color: #94a3b8 !important;
+      }
+
+      /* Multi-Asset Duplicate Stack Navigator */
+      #card-stack-navigator {
+        display: none;
+        flex-direction: column;
+        gap: 6px;
+        background: #f0f9ff;
+        border: 1.5px solid #bae6fd;
+        border-radius: 12px;
+        padding: 8px 10px;
+        margin-bottom: 10px;
+        box-shadow: 0 2px 6px rgba(14, 165, 233, 0.08);
+      }
+      body.dark-theme #card-stack-navigator {
+        background: rgba(12, 74, 110, 0.25);
+        border-color: rgba(56, 189, 248, 0.35);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      }
+      .card-stack-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 6px;
+      }
+      .card-stack-summary {
+        font-size: 11.5px;
+        font-weight: 800;
+        color: #0369a1;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        line-height: 1.2;
+      }
+      body.dark-theme .card-stack-summary {
+        color: #7dd3fc;
+      }
+      .card-stack-controls {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+      }
+      .card-stack-nav-btn {
+        width: 24px;
+        height: 24px;
+        border-radius: 6px;
+        border: 1px solid #bae6fd;
+        background: #ffffff;
+        color: #0284c7;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 10px;
+        transition: all 0.15s ease;
+      }
+      .card-stack-nav-btn:hover {
+        background: #e0f2fe;
+        color: #0369a1;
+        transform: scale(1.05);
+      }
+      body.dark-theme .card-stack-nav-btn {
+        background: #0f172a;
+        border-color: rgba(56, 189, 248, 0.4);
+        color: #7dd3fc;
+      }
+      body.dark-theme .card-stack-nav-btn:hover {
+        background: #1e293b;
+        color: #ffffff;
+      }
+      .card-stack-counter {
+        font-size: 11px;
+        font-weight: 800;
+        color: #0369a1;
+        min-width: 34px;
+        text-align: center;
+        user-select: none;
+      }
+      body.dark-theme .card-stack-counter {
+        color: #bae6fd;
+      }
+      .card-stack-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+      .card-stack-chip {
+        font-size: 10px;
+        font-weight: 700;
+        padding: 2px 7px;
+        border-radius: 9999px;
+        background: #ffffff;
+        border: 1px solid #bae6fd;
+        color: #0284c7;
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+      }
+      body.dark-theme .card-stack-chip {
+        background: #0f172a;
+        border-color: rgba(56, 189, 248, 0.3);
+        color: #7dd3fc;
+      }
+      .card-stack-select {
+        width: 100%;
+        font-size: 11px;
+        padding: 4px 8px;
+        border-radius: 6px;
+        border: 1px solid #bae6fd;
+        background: #ffffff;
+        color: #1e293b;
+        outline: none;
+        cursor: pointer;
+        font-family: inherit;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        overflow: hidden;
+      }
+      .card-stack-select:focus {
+        border-color: #0284c7;
+      }
+      body.dark-theme .card-stack-select {
+        background: #0f172a;
+        border-color: rgba(56, 189, 248, 0.35);
+        color: #f1f5f9;
+      }
+      body.dark-theme .card-stack-select:focus {
+        border-color: #38bdf8;
+      }
+
+      /* Toast Notification */
+      .toast {
+        position: absolute;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%) translateY(40px);
+        background: #0f172a;
+        color: #ffffff;
+        padding: 10px 22px;
+        border-radius: 9999px;
+        font-family: 'Noto Sans Thai', 'Inter', sans-serif;
+        font-size: 13px;
+        font-weight: 600;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.15);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        z-index: 100001;
+        opacity: 0;
+        pointer-events: none;
+        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      .toast.show {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+      }
+
+      /* Interactive Property Detail Card (Popup Modal) */
+      #property-card {
+        position: absolute;
+        bottom: 20px;
+        left: 20px;
+        width: 360px;
+        max-width: calc(100vw - 40px);
+        background: rgba(255, 255, 255, 0.96);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        border-radius: 16px;
+        box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.25), 0 1px 3px rgba(0, 0, 0, 0.05);
+        padding: 16px 18px;
+        z-index: 100000;
+        display: none;
+        font-family: 'Noto Sans Thai', 'Inter', sans-serif;
+        box-sizing: border-box;
+        transform-origin: bottom left;
+      }
+      #property-card.show {
+        display: block;
+      }
+      #property-card.card-pop-in {
+        animation: cardPopIn 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+      #property-card.card-pulse-bounce {
+        animation: cardBounceUpdateLight 0.36s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+      #property-card.card-fade-out {
+        animation: cardFadeOut 0.2s cubic-bezier(0.4, 0, 1, 1) forwards;
+      }
+
+      body.dark-theme #property-card {
+        background: rgba(15, 23, 42, 0.95);
+        border-color: rgba(255, 255, 255, 0.15);
+        color: #f8fafc;
+        box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.6);
+      }
+      body.dark-theme #property-card.card-pulse-bounce {
+        animation: cardBounceUpdateDark 0.36s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+
+      @keyframes cardPopIn {
+        0% {
+          opacity: 0;
+          transform: translateY(32px) scale(0.92);
+        }
+        60% {
+          opacity: 1;
+          transform: translateY(-8px) scale(1.02);
+        }
+        80% {
+          transform: translateY(3px) scale(0.99);
+        }
+        100% {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+
+      @keyframes cardBounceUpdateLight {
+        0% {
+          transform: translateY(0) scale(1);
+        }
+        28% {
+          transform: translateY(-12px) scale(1.028);
+          box-shadow: 0 25px 45px -8px rgba(37, 99, 235, 0.38), 0 0 0 3px rgba(37, 99, 235, 0.45);
+        }
+        65% {
+          transform: translateY(3px) scale(0.99);
+        }
+        85% {
+          transform: translateY(-1px) scale(1.004);
+        }
+        100% {
+          transform: translateY(0) scale(1);
+          box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.25), 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+      }
+
+      @keyframes cardBounceUpdateDark {
+        0% {
+          transform: translateY(0) scale(1);
+        }
+        28% {
+          transform: translateY(-12px) scale(1.028);
+          box-shadow: 0 25px 45px -8px rgba(56, 189, 248, 0.45), 0 0 0 3px rgba(56, 189, 248, 0.5);
+        }
+        65% {
+          transform: translateY(3px) scale(0.99);
+        }
+        85% {
+          transform: translateY(-1px) scale(1.004);
+        }
+        100% {
+          transform: translateY(0) scale(1);
+          box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.6);
+        }
+      }
+
+      @keyframes cardFadeOut {
+        0% {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+        100% {
+          opacity: 0;
+          transform: translateY(22px) scale(0.94);
+        }
+      }
+
+      .content-pop {
+        animation: contentPopAnim 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+      @keyframes contentPopAnim {
+        0% {
+          transform: scale(0.94);
+          opacity: 0.75;
+        }
+        50% {
+          transform: scale(1.05);
+        }
+        100% {
+          transform: scale(1);
+          opacity: 1;
+        }
+      }
+      .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+      .card-badge {
+        font-size: 11px;
+        font-weight: 700;
+        padding: 2px 10px;
+        border-radius: 9999px;
+        background: #2563eb;
+        color: #ffffff;
+        letter-spacing: 0.3px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .card-close-btn {
+        background: transparent;
+        border: none;
+        color: #94a3b8;
+        font-size: 18px;
+        font-weight: 700;
+        cursor: pointer;
+        padding: 2px 6px;
+        border-radius: 6px;
+        line-height: 1;
+        transition: all 0.15s ease;
+      }
+      .card-close-btn:hover {
+        background: rgba(0, 0, 0, 0.08);
+        color: #0f172a;
+      }
+      body.dark-theme .card-close-btn:hover {
+        background: rgba(255, 255, 255, 0.12);
+        color: #ffffff;
+      }
+      .card-title {
+        font-size: 13.5px;
+        font-weight: 700;
+        color: #0f172a;
+        line-height: 1.35;
+        margin-bottom: 6px;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+      body.dark-theme .card-title {
+        color: #f8fafc;
+      }
+      .card-price {
+        font-size: 16px;
+        font-weight: 800;
+        color: #2563eb;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: baseline;
+        gap: 4px;
+      }
+      body.dark-theme .card-price {
+        color: #38bdf8;
+      }
+      .card-grid {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 4px 10px;
+        font-size: 12px;
+        background: rgba(241, 245, 249, 0.7);
+        padding: 8px 12px;
+        border-radius: 10px;
+        margin-bottom: 12px;
+        border: 1px solid rgba(226, 232, 240, 0.8);
+      }
+      body.dark-theme .card-grid {
+        background: rgba(30, 41, 59, 0.6);
+        border-color: rgba(51, 65, 85, 0.8);
+      }
+      .card-grid-label {
+        color: #64748b;
+        font-weight: 500;
+      }
+      body.dark-theme .card-grid-label {
+        color: #94a3b8;
+      }
+      .card-grid-val {
+        color: #1e293b;
+        font-weight: 600;
+      }
+      body.dark-theme .card-grid-val {
+        color: #f1f5f9;
+      }
+      .card-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .btn-primary-link {
+        flex: 1 1 auto;
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        color: #ffffff !important;
+        border: none;
+        border-radius: 8px;
+        padding: 8px 14px;
+        font-size: 12.5px;
+        font-weight: 700;
+        font-family: inherit;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        text-decoration: none;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+        transition: all 0.2s ease;
+      }
+      .btn-primary-link:hover {
+        background: linear-gradient(135deg, #1d4ed8, #1e40af);
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px rgba(37, 99, 235, 0.45);
+      }
+      .btn-secondary-action {
+        background: rgba(241, 245, 249, 0.9);
+        color: #334155;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        padding: 8px 12px;
+        font-size: 12px;
+        font-weight: 600;
+        font-family: inherit;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        transition: all 0.2s ease;
+      }
+      .btn-secondary-action:hover {
+        background: #e2e8f0;
+        color: #0f172a;
+      }
+      body.dark-theme .btn-secondary-action {
+        background: rgba(30, 41, 59, 0.8);
+        color: #cbd5e1;
+        border-color: #475569;
+      }
+      body.dark-theme .btn-secondary-action:hover {
+        background: #334155;
+        color: #ffffff;
+      }
+
+      /* LandsMaps Auto-Fill Helper Modal */
+      .lands-modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(15, 23, 42, 0.65);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        z-index: 99999;
+        align-items: center;
+        justify-content: center;
+        animation: msFadeIn 0.2s ease-out;
+      }
+      .lands-modal-overlay.show {
+        display: flex;
+      }
+      .lands-modal-card {
+        background: #ffffff;
+        border-radius: 20px;
+        max-width: 540px;
+        width: 90%;
+        padding: 24px 28px;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        border: 1px solid rgba(226, 232, 240, 0.8);
+        font-family: 'Noto Sans Thai', 'Inter', sans-serif;
+        color: #1e293b;
+        position: relative;
+        max-height: 90vh;
+        overflow-y: auto;
+      }
+      body.dark-theme .lands-modal-card {
+        background: #1e293b;
+        border-color: #334155;
+        color: #f8fafc;
+      }
+      .lands-step-box {
+        background: #f8fafc;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 14px 16px;
+        margin: 10px 0;
+        font-size: 12.5px;
+        line-height: 1.5;
+      }
+      body.dark-theme .lands-step-box {
+        background: #0f172a;
+        border-color: #334155;
+      }
+      .bookmarklet-drag-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: linear-gradient(135deg, #0d9488, #0f766e);
+        color: #ffffff !important;
+        font-weight: 700;
+        font-size: 13px;
+        padding: 10px 20px;
+        border-radius: 9999px;
+        text-decoration: none;
+        box-shadow: 0 4px 14px rgba(13, 148, 136, 0.35);
+        cursor: grab;
+        margin: 8px 0;
+        user-select: none;
+        border: 2px dashed rgba(255, 255, 255, 0.6);
+      }
+      .bookmarklet-drag-pill:hover {
+        background: linear-gradient(135deg, #0f766e, #115e59);
+        transform: scale(1.02);
+      }
+    </style>
+  </head>
+  <body class="BODY_CLASS_PLACEHOLDER">
+    <div id="loader"><div class="spinner"></div> <span id="loader-text">กำลังโหลดและจัดเตรียมข้อมูลแผนที่...</span></div>
+    <div id="map"></div>
+    <div id="toast" class="toast"></div>
+
+    <!-- Interactive Property Detail Card Popup -->
+    <div id="property-card">
+      <div class="card-header">
+        <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+          <div id="card-badge" class="card-badge">SAM</div>
+          <div id="card-centroid-badge" style="display:none; background:#fef3c7; border:1px solid #fde68a; color:#92400e; font-size:10.5px; font-weight:800; padding:2px 8px; border-radius:9999px; align-items:center; gap:4px;">
+            <i class="fa-solid fa-triangle-exclamation" style="font-size:10px;"></i> พิกัดกึ่งกลาง
+          </div>
+        </div>
+        <button class="card-close-btn" onclick="closePropertyCard()" title="ปิดหน้าต่าง"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <!-- Multi-Asset Duplicate Stack Navigator -->
+      <div id="card-stack-navigator">
+        <div class="card-stack-header">
+          <div class="card-stack-summary" id="card-stack-summary">
+            <i class="fa-solid fa-layer-group" style="color:#0284c7;"></i>
+            <span>พิกัดนี้มี 1 รายการ</span>
+          </div>
+          <div class="card-stack-controls">
+            <button type="button" class="card-stack-nav-btn" onclick="navigateStack(-1)" title="รายการก่อนหน้า"><i class="fa-solid fa-chevron-left"></i></button>
+            <span class="card-stack-counter" id="card-stack-counter">1 / 1</span>
+            <button type="button" class="card-stack-nav-btn" onclick="navigateStack(1)" title="รายการถัดไป"><i class="fa-solid fa-chevron-right"></i></button>
+          </div>
+        </div>
+        <div class="card-stack-chips" id="card-stack-chips"></div>
+        <select id="card-stack-select" class="card-stack-select" onchange="jumpToStackIndex(this.value)"></select>
+      </div>
+      <!-- Centroid warning banner -->
+      <div id="card-centroid-warning" style="display:none; background:#fffbeb; border:1.5px solid #fde68a; border-radius:8px; padding:5px 9px; margin-bottom:8px; font-size:11.5px; color:#b45309; font-weight:700; display:none; align-items:center; gap:5px;">
+        <i class="fa-solid fa-triangle-exclamation" style="color:#d97706;"></i>
+        <span><b>พิกัดโดยประมาณ</b> — คำนวณจากจุดกึ่งกลางตำบล/อำเภอ ไม่ใช่ตำแหน่งจริงของทรัพย์</span>
+      </div>
+      <div id="card-title" class="card-title">ชื่อประกาศทรัพย์สิน</div>
+      <div id="card-price" class="card-price">฿0 บาท</div>
+      <div class="card-grid">
+        <span class="card-grid-label"><i class="fa-solid fa-hashtag" style="color: #64748b; margin-right: 4px;"></i>รหัสทรัพย์:</span>
+        <span id="card-id" class="card-grid-val">-</span>
+        <span class="card-grid-label"><i class="fa-solid fa-house-chimney" style="color: #64748b; margin-right: 4px;"></i>ประเภท:</span>
+        <span id="card-type" class="card-grid-val">-</span>
+        <span class="card-grid-label"><i class="fa-solid fa-location-dot" style="color: #64748b; margin-right: 4px;"></i>จังหวัด:</span>
+        <span id="card-prov" class="card-grid-val">-</span>
+        <span class="card-grid-label"><i class="fa-solid fa-city" style="color: #64748b; margin-right: 4px;"></i>อำเภอ/เขต:</span>
+        <span id="card-dist" class="card-grid-val">-</span>
+      </div>
+      <div class="card-actions">
+        <button id="btn-open-link" class="btn-primary-link" onclick="openPropertyLink()"><i class="fa-solid fa-arrow-up-right-from-square"></i> เปิดดูทรัพย์สิน (เว็บไซต์)</button>
+        <button id="btn-copy-id" class="btn-secondary-action" onclick="copyCardId()"><i class="fa-regular fa-copy"></i> รหัส</button>
+        <div id="led-map-group" style="display:none; width:100%; gap:6px; margin-top:2px;">
+          <button id="btn-led-map" class="btn-primary-link" style="background:linear-gradient(135deg, #0d9488, #0f766e); color:#ffffff; box-shadow:0 4px 12px rgba(13,148,136,0.35); flex:1;" onclick="openLedMap()"><i class="fa-solid fa-map-location-dot"></i> ดูแปลงที่ดิน (LandsMaps)</button>
+          <button id="btn-led-help" type="button" class="btn-secondary-action" style="padding:0 12px; font-size:11.5px; flex:0 0 auto; color:#0d9488; font-weight:700; border-color:rgba(13,148,136,0.4);" onclick="openLandsmapsHelperModal()" title="วิธีตั้งค่าปุ่มค้นหาอัตโนมัติ 1-คลิก บน LandsMaps"><i class="fa-solid fa-wand-magic-sparkles"></i> ตั้งค่าออโต้</button>
+        </div>
+        <button id="btn-gmap" class="btn-secondary-action" onclick="openGoogleMaps()"><i class="fa-solid fa-map"></i> แผนที่ Google</button>
+      </div>
+    </div>
+
+    <!-- LandsMaps Auto-Fill Guide Modal -->
+    <div id="lands-helper-modal" class="lands-modal-overlay" onclick="if(event.target===this) closeLandsmapsHelperModal()">
+      <div class="lands-modal-card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid #e2e8f0; padding-bottom:8px;">
+          <div style="font-weight:800; font-size:15px; display:flex; align-items:center; gap:8px;">
+            <i class="fa-solid fa-wand-magic-sparkles" style="color:#0d9488;"></i> วิธีใช้ปุ่มค้นหา LandsMaps อัตโนมัติ (1-Click)
+          </div>
+          <button onclick="closeLandsmapsHelperModal()" style="background:none; border:none; font-size:18px; color:#94a3b8; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <p style="font-size:12.5px; line-height:1.5; margin-bottom:12px; color:#64748b;">
+          เนื่องจากเว็บไซต์กรมที่ดินไม่มี URL รับพิกัดโดยตรง เราจึงสร้าง <b>ปุ่มลัดอัจฉริยะ (Bookmarklet)</b> ให้คุณกดแค่คลิกเดียวบนหน้า LandsMaps แล้วระบบจะ <b>เลือกจังหวัด และอำเภอ ให้อัตโนมัติทันที!</b>
+        </p>
+
+        <div class="lands-step-box">
+          <div style="font-weight:700; color:#0f766e; margin-bottom:6px;"><i class="fa-solid fa-1" style="margin-right:4px;"></i> ติดตั้งปุ่มลัด (ทำครั้งเดียว)</div>
+          <p style="margin:4px 0 8px;"><b>ลากปุ่มสีเขียวด้านล่างนี้</b> ขึ้นไปวางบนแถบบุ๊กมาร์ก (Bookmarks Bar) ของคุณ (กด <code>Ctrl + Shift + B</code> เพื่อเปิดแถบบุ๊กมาร์ก):</p>
+          <div style="text-align:center;">
+            <a id="bookmarklet-link" href="javascript:(function(){var h=window.location.hash.substring(1);var p=new URLSearchParams(h);var prov=decodeURIComponent(p.get('prov')||'').trim();var dist=decodeURIComponent(p.get('dist')||'').trim();var deed=decodeURIComponent(p.get('deed')||'').trim();var cNo=decodeURIComponent(p.get('case')||'').trim();if(!prov&&!dist){prov=prompt('กรุณาระบุชื่อจังหวัด:')||'';dist=prompt('กรุณาระบุชื่ออำเภอ:')||'';if(!prov&&!dist)return;}function clean(s){return(s||'').replace(/^(จังหวัด|จ\.|อำเภอ|อ\.|เขต)/g,'').trim().toLowerCase();}function showBanner(msg,suc){var b=document.getElementById('all-asset-b');if(!b){b=document.createElement('div');b.id='all-asset-b';b.style.position='fixed';b.style.top='16px';b.style.left='50%';b.style.transform='translateX(-50%)';b.style.zIndex='9999999';b.style.padding='10px 22px';b.style.borderRadius='10px';b.style.fontFamily='sans-serif';b.style.fontSize='13px';b.style.fontWeight='bold';b.style.boxShadow='0 10px 25px rgba(0,0,0,0.3)';document.body.appendChild(b);}b.style.backgroundColor=suc?'#059669':'#0284c7';b.style.color='#fff';b.innerHTML=msg;setTimeout(function(){if(b)b.remove();},5000);}showBanner('⚡ All Asset: กำลังเลือก '+(prov?'จ.'+prov:'')+(dist?' อ.'+dist:'')+'...',false);var cP=clean(prov);var cD=clean(dist);var sels=Array.from(document.querySelectorAll('select'));var pSel=sels.find(function(s){var id=(s.id||'').toLowerCase();var n=(s.name||'').toLowerCase();return id.includes('prov')||n.includes('prov')||Array.from(s.options).some(function(o){return o.text.includes('กรุงเทพ')||o.text.includes('จังหวัด');});})||sels[0];if(!pSel){alert('❌ ไม่พบช่องเลือกจังหวัด กรุณารอหน้าเว็บโหลดเสร็จก่อนครับ');return;}var pOpt=Array.from(pSel.options).find(function(o){var t=clean(o.text);return t&&(t===cP||t.includes(cP)||cP.includes(t));});if(pOpt){pSel.value=pOpt.value;pSel.dispatchEvent(new Event('change',{bubbles:true}));if(window.jQuery){window.jQuery(pSel).trigger('change');}}var att=0;var tm=setInterval(function(){att++;var curSels=Array.from(document.querySelectorAll('select'));var dSel=curSels.find(function(s){var id=(s.id||'').toLowerCase();var n=(s.name||'').toLowerCase();return s!==pSel&&(id.includes('amp')||id.includes('dist')||n.includes('amp')||n.includes('dist')||Array.from(s.options).some(function(o){return o.text.includes('อำเภอ')||o.text.includes('เขต');}));})||curSels[1];if(dSel&&dSel.options&&dSel.options.length>1){var dOpt=Array.from(dSel.options).find(function(o){var t=clean(o.text);return t&&(t===cD||t.includes(cD)||cD.includes(t));});if(dOpt){clearInterval(tm);dSel.value=dOpt.value;dSel.dispatchEvent(new Event('change',{bubbles:true}));if(window.jQuery){window.jQuery(dSel).trigger('change');}var deedInp=document.querySelector('input[placeholder*=\'โฉนด\'], input[name*=\'deed\'], input[id*=\'deed\']');if(deed&&deedInp){deedInp.value=deed;deedInp.dispatchEvent(new Event('input',{bubbles:true}));deedInp.dispatchEvent(new Event('change',{bubbles:true}));setTimeout(function(){var btn=Array.from(document.querySelectorAll('button, input[type=\'button\'], a')).find(function(b){return(b.innerText||b.value||'').includes('ค้นหา');});if(btn)btn.click();showBanner('✅ เลือกจังหวัด อำเภอ และค้นหาโฉนด '+deed+' สำเร็จ!',true);},300);}else{if(deedInp)deedInp.focus();showBanner('✅ เลือก '+(prov?'จ.'+prov:'')+(dist?' อ.'+dist:'')+' สำเร็จแล้ว! '+(cNo?'(คดี:'+cNo+')':''),true);}}}if(att>=25){clearInterval(tm);showBanner('⚠️ กรุณาเลือกอำเภอด้วยตนเอง',false);}},200);})();" class="bookmarklet-drag-pill" title="ลากปุ่มนี้ขึ้นไปปล่อยที่แถบ Bookmarks Bar">
+              <i class="fa-solid fa-arrows-up-down-left-right"></i> 📍 ค้นหา LandsMaps ออโต้ (ลากฉันขึ้นแถบบุ๊กมาร์ก)
+            </a>
+          </div>
+          <div style="text-align:center; margin-top:6px;">
+            <button type="button" class="btn-secondary-action" style="font-size:11px;" onclick="copyBookmarkletCode()"><i class="fa-regular fa-copy"></i> หรือคลิกที่นี่เพื่อคัดลอกโค้ดสคริปต์ไปสร้าง Bookmark เอง</button>
+          </div>
+        </div>
+
+        <div class="lands-step-box">
+          <div style="font-weight:700; color:#0f766e; margin-bottom:6px;"><i class="fa-solid fa-2" style="margin-right:4px;"></i> วิธีใช้งานจริง</div>
+          <ol style="margin:4px 0 0 16px; padding:0; line-height:1.6;">
+            <li>คลิกปุ่ม <b>"ดูแปลงที่ดิน (LandsMaps)"</b> บนทรัพย์สินในแดชบอร์ดตามปกติ</li>
+            <li>เมื่อหน้า LandsMaps เปิดขึ้นมา ให้ <b>คลิกปุ่ม "📍 ค้นหา LandsMaps ออโต้" บนแถบบุ๊กมาร์กของคุณ 1 ครั้ง</b></li>
+            <li>ระบบจะเลือก <b>จังหวัด</b> และ <b>อำเภอ</b> ให้ทันทีใน 1 วินาทีครับ!</li>
+          </ol>
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; margin-top:16px;">
+          <button type="button" class="btn-primary-link" style="padding:8px 20px;" onclick="closeLandsmapsHelperModal()">เข้าใจแล้ว ปิดหน้าต่าง</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Basemap Style Switcher Controls -->
+    <div id="map-style-controls">
+      <button class="style-btn" id="btn-voyager" onclick="setBasemapStyle('voyager')"><i class="fa-solid fa-road"></i> แผนที่ถนน</button>
+      <button class="style-btn" id="btn-osm" onclick="setBasemapStyle('osm')"><i class="fa-solid fa-globe"></i> OpenStreetMap</button>
+      <button class="style-btn" id="btn-satellite" onclick="setBasemapStyle('satellite')"><i class="fa-solid fa-satellite"></i> ภาพดาวเทียม</button>
+      <button class="style-btn" id="btn-dark" onclick="setBasemapStyle('dark')"><i class="fa-solid fa-moon"></i> โหมดมืด</button>
+    </div>
+
+    <!-- Client-Side Realtime Filter Controls (Instant In-Memory Multi-Select Floating Pill Bar) -->
+    <div id="map-filter-controls">
+      <!-- 1. Company Multi-Select Pill -->
+      <div class="custom-multiselect" id="ms-comp">
+        <button type="button" class="filter-pill" id="pill-comp" onclick="toggleMultiSelect('ms-comp')">
+          <i class="fa-solid fa-building-columns pill-icon"></i>
+          <span class="pill-text" id="ms-comp-label">ทุกบริษัท</span>
+          <span class="pill-badge" id="ms-comp-badge" style="display:none;">0</span>
+          <span class="pill-clear" id="ms-comp-clear" onclick="clearCategoryPill(event, 'comp')" title="ล้างตัวกรองบริษัท" style="display:none;"><i class="fa-solid fa-xmark"></i></span>
+          <i class="fa-solid fa-chevron-down pill-arrow"></i>
+        </button>
+        <div class="ms-dropdown" id="ms-comp-dropdown">
+          <div class="ms-dropdown-header">
+            <span class="ms-header-title"><i class="fa-solid fa-building-columns" style="color:#2563eb; margin-right:6px;"></i>เลือกบริษัท</span>
+            <div class="ms-actions">
+              <button type="button" class="ms-action-link" onclick="selectAllOptions('comp')">เลือกทั้งหมด</button>
+              <span class="ms-action-sep">•</span>
+              <button type="button" class="ms-action-link" onclick="deselectAllOptions('comp')">ล้าง</button>
+            </div>
+          </div>
+          <div class="ms-search-box">
+            <i class="fa-solid fa-magnifying-glass ms-search-icon"></i>
+            <input type="text" class="ms-search-input" placeholder="ค้นหาชื่อบริษัท..." oninput="filterDropdownList('ms-comp', this.value)" />
+          </div>
+          <div class="ms-options-list" id="ms-comp-options"></div>
+          <div class="ms-dropdown-footer">
+            <button type="button" class="ms-btn-apply" onclick="closeAllDropdowns()"><i class="fa-solid fa-check"></i> เสร็จสิ้น</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Property Type Multi-Select Pill -->
+      <div class="custom-multiselect" id="ms-type">
+        <button type="button" class="filter-pill" id="pill-type" onclick="toggleMultiSelect('ms-type')">
+          <i class="fa-solid fa-house-chimney pill-icon"></i>
+          <span class="pill-text" id="ms-type-label">ทุกประเภททรัพย์</span>
+          <span class="pill-badge" id="ms-type-badge" style="display:none;">0</span>
+          <span class="pill-clear" id="ms-type-clear" onclick="clearCategoryPill(event, 'type')" title="ล้างตัวกรองประเภททรัพย์" style="display:none;"><i class="fa-solid fa-xmark"></i></span>
+          <i class="fa-solid fa-chevron-down pill-arrow"></i>
+        </button>
+        <div class="ms-dropdown" id="ms-type-dropdown">
+          <div class="ms-dropdown-header">
+            <span class="ms-header-title"><i class="fa-solid fa-house-chimney" style="color:#2563eb; margin-right:6px;"></i>เลือกประเภททรัพย์</span>
+            <div class="ms-actions">
+              <button type="button" class="ms-action-link" onclick="selectAllOptions('type')">เลือกทั้งหมด</button>
+              <span class="ms-action-sep">•</span>
+              <button type="button" class="ms-action-link" onclick="deselectAllOptions('type')">ล้าง</button>
+            </div>
+          </div>
+          <div class="ms-search-box">
+            <i class="fa-solid fa-magnifying-glass ms-search-icon"></i>
+            <input type="text" class="ms-search-input" placeholder="ค้นหาประเภททรัพย์..." oninput="filterDropdownList('ms-type', this.value)" />
+          </div>
+          <div class="ms-options-list" id="ms-type-options"></div>
+          <div class="ms-dropdown-footer">
+            <button type="button" class="ms-btn-apply" onclick="closeAllDropdowns()"><i class="fa-solid fa-check"></i> เสร็จสิ้น</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Price Range Pill -->
+      <div class="custom-multiselect" id="ms-price">
+        <button type="button" class="filter-pill" id="pill-price" onclick="toggleMultiSelect('ms-price')">
+          <i class="fa-solid fa-tag pill-icon"></i>
+          <span class="pill-text" id="ms-price-label">ทุกช่วงราคา</span>
+          <span class="pill-badge" id="ms-price-badge" style="display:none;"></span>
+          <span class="pill-clear" id="ms-price-clear" onclick="clearPricePill(event)" title="ล้างตัวกรองราคา" style="display:none;"><i class="fa-solid fa-xmark"></i></span>
+          <i class="fa-solid fa-chevron-down pill-arrow"></i>
+        </button>
+        <div class="ms-dropdown price-popover" id="ms-price-dropdown">
+          <div class="ms-dropdown-header">
+            <span class="ms-header-title"><i class="fa-solid fa-tag" style="color:#2563eb; margin-right:6px;"></i>กำหนดช่วงราคา</span>
+            <button type="button" class="ms-action-link" onclick="resetPriceFilter()">ล้างราคา</button>
+          </div>
+          <div class="price-inputs-row">
+            <div class="price-input-box">
+              <label>ต่ำสุด (บาท)</label>
+              <input type="number" id="price-min-input" class="price-num-input" placeholder="0" min="0" step="100000" oninput="onPriceCustomInput()" />
+            </div>
+            <span style="align-self: center; padding-top: 14px; color: #94a3b8; font-weight: 700;">-</span>
+            <div class="price-input-box">
+              <label>สูงสุด (บาท)</label>
+              <input type="number" id="price-max-input" class="price-num-input" placeholder="ไม่จำกัด" min="0" step="100000" oninput="onPriceCustomInput()" />
+            </div>
+          </div>
+          <div style="font-size: 10px; font-weight: 700; color: #64748b; margin-bottom: 5px; text-transform: uppercase;">ช่วงราคาด่วน</div>
+          <div class="price-preset-grid">
+            <button type="button" class="price-preset-btn active" id="btn-preset-all" onclick="setPricePreset(0, 0, this)">ทุกราคา</button>
+            <button type="button" class="price-preset-btn" onclick="setPricePreset(0, 1000000, this)">&lt; 1 ล้าน</button>
+            <button type="button" class="price-preset-btn" onclick="setPricePreset(1000000, 3000000, this)">1 - 3 ล้าน</button>
+            <button type="button" class="price-preset-btn" onclick="setPricePreset(3000000, 5000000, this)">3 - 5 ล้าน</button>
+            <button type="button" class="price-preset-btn" onclick="setPricePreset(5000000, 10000000, this)">5 - 10 ล้าน</button>
+            <button type="button" class="price-preset-btn" onclick="setPricePreset(10000000, 0, this)">&gt; 10 ล้าน</button>
+          </div>
+          <div class="ms-dropdown-footer">
+            <button type="button" class="ms-btn-apply" onclick="closeAllDropdowns()"><i class="fa-solid fa-check"></i> เสร็จสิ้น</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. Sale Type Multi-Select Pill -->
+      <div class="custom-multiselect" id="ms-sale">
+        <button type="button" class="filter-pill" id="pill-sale" onclick="toggleMultiSelect('ms-sale')">
+          <i class="fa-solid fa-gavel pill-icon"></i>
+          <span class="pill-text" id="ms-sale-label">ทุกประเภทการขาย</span>
+          <span class="pill-badge" id="ms-sale-badge" style="display:none;">0</span>
+          <span class="pill-clear" id="ms-sale-clear" onclick="clearCategoryPill(event, 'sale')" title="ล้างประเภทการขาย" style="display:none;"><i class="fa-solid fa-xmark"></i></span>
+          <i class="fa-solid fa-chevron-down pill-arrow"></i>
+        </button>
+        <div class="ms-dropdown" id="ms-sale-dropdown">
+          <div class="ms-dropdown-header">
+            <span class="ms-header-title"><i class="fa-solid fa-gavel" style="color:#2563eb; margin-right:6px;"></i>เลือกประเภทการขาย</span>
+            <div class="ms-actions">
+              <button type="button" class="ms-action-link" onclick="selectAllOptions('sale')">เลือกทั้งหมด</button>
+              <span class="ms-action-sep">•</span>
+              <button type="button" class="ms-action-link" onclick="deselectAllOptions('sale')">ล้าง</button>
+            </div>
+          </div>
+          <div class="ms-search-box">
+            <i class="fa-solid fa-magnifying-glass ms-search-icon"></i>
+            <input type="text" class="ms-search-input" placeholder="ค้นหาประเภทการขาย..." oninput="filterDropdownList('ms-sale', this.value)" />
+          </div>
+          <div class="ms-options-list" id="ms-sale-options"></div>
+          <div class="ms-dropdown-footer">
+            <button type="button" class="ms-btn-apply" onclick="closeAllDropdowns()"><i class="fa-solid fa-check"></i> เสร็จสิ้น</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. Region Multi-Select Pill -->
+      <div class="custom-multiselect" id="ms-region">
+        <button type="button" class="filter-pill" id="pill-region" onclick="toggleMultiSelect('ms-region')">
+          <i class="fa-solid fa-map pill-icon"></i>
+          <span class="pill-text" id="ms-region-label">ทุกภูมิภาค</span>
+          <span class="pill-badge" id="ms-region-badge" style="display:none;">0</span>
+          <span class="pill-clear" id="ms-region-clear" onclick="clearCategoryPill(event, 'region')" title="ล้างภูมิภาค" style="display:none;"><i class="fa-solid fa-xmark"></i></span>
+          <i class="fa-solid fa-chevron-down pill-arrow"></i>
+        </button>
+        <div class="ms-dropdown" id="ms-region-dropdown">
+          <div class="ms-dropdown-header">
+            <span class="ms-header-title"><i class="fa-solid fa-map" style="color:#2563eb; margin-right:6px;"></i>เลือกภูมิภาค</span>
+            <div class="ms-actions">
+              <button type="button" class="ms-action-link" onclick="selectAllOptions('region')">เลือกทั้งหมด</button>
+              <span class="ms-action-sep">•</span>
+              <button type="button" class="ms-action-link" onclick="deselectAllOptions('region')">ล้าง</button>
+            </div>
+          </div>
+          <div class="ms-options-list" id="ms-region-options"></div>
+          <div class="ms-dropdown-footer">
+            <button type="button" class="ms-btn-apply" onclick="closeAllDropdowns()"><i class="fa-solid fa-check"></i> เสร็จสิ้น</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 6. Province Multi-Select Pill -->
+      <div class="custom-multiselect" id="ms-prov">
+        <button type="button" class="filter-pill" id="pill-prov" onclick="toggleMultiSelect('ms-prov')">
+          <i class="fa-solid fa-location-dot pill-icon"></i>
+          <span class="pill-text" id="ms-prov-label">ทุกจังหวัด</span>
+          <span class="pill-badge" id="ms-prov-badge" style="display:none;">0</span>
+          <span class="pill-clear" id="ms-prov-clear" onclick="clearCategoryPill(event, 'prov')" title="ล้างตัวกรองจังหวัด" style="display:none;"><i class="fa-solid fa-xmark"></i></span>
+          <i class="fa-solid fa-chevron-down pill-arrow"></i>
+        </button>
+        <div class="ms-dropdown" id="ms-prov-dropdown">
+          <div class="ms-dropdown-header">
+            <span class="ms-header-title"><i class="fa-solid fa-location-dot" style="color:#2563eb; margin-right:6px;"></i>เลือกจังหวัด</span>
+            <div class="ms-actions">
+              <button type="button" class="ms-action-link" onclick="selectAllOptions('prov')">เลือกทั้งหมด</button>
+              <span class="ms-action-sep">•</span>
+              <button type="button" class="ms-action-link" onclick="deselectAllOptions('prov')">ล้าง</button>
+            </div>
+          </div>
+          <div class="ms-search-box">
+            <i class="fa-solid fa-magnifying-glass ms-search-icon"></i>
+            <input type="text" class="ms-search-input" placeholder="ค้นหาจังหวัด..." oninput="filterDropdownList('ms-prov', this.value)" />
+          </div>
+          <div class="ms-options-list" id="ms-prov-options"></div>
+          <div class="ms-dropdown-footer">
+            <button type="button" class="ms-btn-apply" onclick="closeAllDropdowns()"><i class="fa-solid fa-check"></i> เสร็จสิ้น</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 7. District Multi-Select Pill -->
+      <div class="custom-multiselect" id="ms-district">
+        <button type="button" class="filter-pill" id="pill-district" onclick="toggleMultiSelect('ms-district')">
+          <i class="fa-solid fa-city pill-icon"></i>
+          <span class="pill-text" id="ms-district-label">ทุกอำเภอ/เขต</span>
+          <span class="pill-badge" id="ms-district-badge" style="display:none;">0</span>
+          <span class="pill-clear" id="ms-district-clear" onclick="clearCategoryPill(event, 'district')" title="ล้างอำเภอ" style="display:none;"><i class="fa-solid fa-xmark"></i></span>
+          <i class="fa-solid fa-chevron-down pill-arrow"></i>
+        </button>
+        <div class="ms-dropdown align-right" id="ms-district-dropdown">
+          <div class="ms-dropdown-header">
+            <span class="ms-header-title"><i class="fa-solid fa-city" style="color:#2563eb; margin-right:6px;"></i>เลือกอำเภอ / เขต</span>
+            <div class="ms-actions">
+              <button type="button" class="ms-action-link" onclick="selectAllOptions('district')">เลือกทั้งหมด</button>
+              <span class="ms-action-sep">•</span>
+              <button type="button" class="ms-action-link" onclick="deselectAllOptions('district')">ล้าง</button>
+            </div>
+          </div>
+          <div class="ms-search-box">
+            <i class="fa-solid fa-magnifying-glass ms-search-icon"></i>
+            <input type="text" class="ms-search-input" placeholder="ค้นหาอำเภอ/เขต..." oninput="filterDropdownList('ms-district', this.value)" />
+          </div>
+          <div class="ms-options-list" id="ms-district-options"></div>
+          <div class="ms-dropdown-footer">
+            <button type="button" class="ms-btn-apply" onclick="closeAllDropdowns()"><i class="fa-solid fa-check"></i> เสร็จสิ้น</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 8. Quick Keyword Search Pill -->
+      <div class="search-group">
+        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+        <input id="filter-search" type="text" class="filter-input" placeholder="ค้นหาชื่อ/รหัส..." oninput="applyClientFilter()" />
+      </div>
+
+      <!-- 9. Reset Pill Button -->
+      <button class="filter-btn-reset" onclick="resetClientFilters()" title="รีเซ็ตตัวกรองทั้งหมด">
+        <i class="fa-solid fa-rotate-left"></i> รีเซ็ต
+      </button>
+
+      <!-- 10. Counter Badge Pill -->
+      <div id="filter-count-badge" class="filter-count-badge">
+        <i class="fa-solid fa-layer-group"></i><span id="filter-count-text">กำลังโหลด...</span>
+      </div>
+    </div>
+    
+    <!-- Legend Overlay inside the Map -->
+    <div id="map-legend">
+      LEGEND_ITEMS_PLACEHOLDER
+      <div id="legend-overlap-stat">
+        <i class="fa-solid fa-layer-group" style="color:#0284c7; margin-right:3px;"></i>
+        <span id="legend-overlap-text">กำลังวิเคราะห์พิกัด...</span>
+      </div>
+      <div style="border-top: 1px solid #e2e8f0; margin-top: 6px; padding-top: 6px; font-size: 10px; color: #94a3b8;" id="points-count">กำลังโหลดข้อมูล...</div>
+    </div>
+
+    <!-- Load JS libraries from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/d3-dsv@3/dist/d3-dsv.min.js"></script>
+    <script src="https://unpkg.com/deck.gl@9.0.16/dist.min.js"></script>
+
+    <script>
+      const loader = document.getElementById('loader');
+      const loaderText = document.getElementById('loader-text');
+      
+      let deckglInstance = null;
+      let cachedData = [];
+      let currentStyle = document.body.classList.contains('dark-theme') ? 'dark' : 'osm';
+      let activePropertyData = null;
+
+      let currentCoordMap = new Map();
+      let activeCoordStack = [];
+      let activeCoordStackIndex = 0;
+
+      function getCoordKey(d) {
+        return Math.round(d.lat * 100000) + '_' + Math.round(d.lon * 100000);
+      }
+
+      function compareItemsByPriceAsc(a, b) {
+        const pA = (a._price && a._price > 0) ? a._price : Infinity;
+        const pB = (b._price && b._price > 0) ? b._price : Infinity;
+        if (pA !== pB) return pA - pB;
+
+        const uA = (a._unit_price && a._unit_price > 0) ? a._unit_price : Infinity;
+        const uB = (b._unit_price && b._unit_price > 0) ? b._unit_price : Infinity;
+        return uA - uB;
+      }
+
+      function buildCoordMap(data) {
+        const map = new Map();
+        for (let i = 0; i < data.length; i++) {
+          const d = data[i];
+          const key = Math.round(d.lat * 100000) + '_' + Math.round(d.lon * 100000);
+          let list = map.get(key);
+          if (!list) {
+            list = [];
+            map.set(key, list);
+          }
+          list.push(d);
+        }
+        for (const list of map.values()) {
+          if (list.length > 1) {
+            list.sort(compareItemsByPriceAsc);
+          }
+        }
+        return map;
+      }
+
+      function updateDuplicateStats(data, coordMap) {
+        const totalItems = data.length;
+        const uniqueCoords = coordMap.size;
+        let dupCoords = 0;
+        let dupItems = 0;
+        let crossCoCoords = 0;
+
+        for (const list of coordMap.values()) {
+          if (list.length > 1) {
+            dupCoords++;
+            dupItems += list.length;
+            const firstCo = list[0]._company;
+            for (let j = 1; j < list.length; j++) {
+              if (list[j]._company !== firstCo) {
+                crossCoCoords++;
+                break;
+              }
+            }
+          }
+        }
+
+        const overlapText = document.getElementById('legend-overlap-text');
+        if (overlapText) {
+          overlapText.innerHTML = `พิกัดจริง <b>${uniqueCoords.toLocaleString()}</b> จุด | ซ้ำ (>1) <b>${dupCoords.toLocaleString()}</b> จุด (<b>${dupItems.toLocaleString()}</b> รายการ)`;
+          if (crossCoCoords > 0) {
+            overlapText.innerHTML += `<br><span style="color:#0284c7; font-weight:700;"><i class="fa-solid fa-building-circle-check" style="margin-right:3px;"></i>มีหลายเจ้าแข่งกัน: <b>${crossCoCoords.toLocaleString()}</b> จุด</span>`;
+          }
+        }
+
+        const countEl = document.getElementById('points-count');
+        if (countEl) {
+          countEl.innerText = `แสดงจุดพิกัด ${totalItems.toLocaleString()} รายการ (${uniqueCoords.toLocaleString()} พิกัด)`;
+        }
+
+        const badgeText = document.getElementById('filter-count-text');
+        if (badgeText) {
+          badgeText.innerText = `${totalItems.toLocaleString()} จุด (${uniqueCoords.toLocaleString()} พิกัด)`;
+        }
+      }
+
+      function navigateStack(delta) {
+        if (!activeCoordStack || activeCoordStack.length <= 1) return;
+        let newIdx = activeCoordStackIndex + delta;
+        if (newIdx < 0) newIdx = activeCoordStack.length - 1;
+        if (newIdx >= activeCoordStack.length) newIdx = 0;
+        activeCoordStackIndex = newIdx;
+        showPropertyCard(activeCoordStack[activeCoordStackIndex], false);
+      }
+
+      function jumpToStackIndex(val) {
+        const idx = parseInt(val, 10);
+        if (!isNaN(idx) && activeCoordStack && idx >= 0 && idx < activeCoordStack.length) {
+          activeCoordStackIndex = idx;
+          showPropertyCard(activeCoordStack[activeCoordStackIndex], false);
+        }
+      }
+
+      let toastTimer = null;
+      function showToast(msg) {
+        const toast = document.getElementById('toast');
+        if (!toast) return;
+        toast.innerText = msg;
+        toast.classList.add('show');
+        if (toastTimer) clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => {
+          toast.classList.remove('show');
+        }, 2200);
+      }
+
+      function fallbackCopyText(text) {
+        const temp = document.createElement('textarea');
+        temp.value = text;
+        temp.style.position = 'fixed';
+        temp.style.opacity = '0';
+        document.body.appendChild(temp);
+        temp.select();
+        try {
+          document.execCommand('copy');
+          showToast(`คัดลอกรหัสทรัพย์: ${text} เรียบร้อยแล้ว`);
+        } catch (e) {
+          showToast(`ไม่สามารถคัดลอกได้`);
+        }
+        document.body.removeChild(temp);
+      }
+
+      function closePropertyCard() {
+        const card = document.getElementById('property-card');
+        if (card && card.classList.contains('show')) {
+          card.classList.remove('card-pop-in', 'card-pulse-bounce');
+          card.classList.add('card-fade-out');
+          setTimeout(() => {
+            card.classList.remove('show', 'card-fade-out');
+          }, 190);
+        }
+      }
+
+      function showPropertyCard(d, rebuildStack = true) {
+        activePropertyData = d;
+        const card = document.getElementById('property-card');
+        if (!card) return;
+
+        const wasOpen = card.classList.contains('show');
+
+        // Manage Multi-Asset Stack
+        if (rebuildStack) {
+          const key = getCoordKey(d);
+          activeCoordStack = (currentCoordMap && currentCoordMap.get(key)) || [d];
+          if (activeCoordStack.length > 1) {
+            activeCoordStack.sort(compareItemsByPriceAsc);
+          }
+          activeCoordStackIndex = 0;
+          if (activeCoordStack.length > 0) {
+            d = activeCoordStack[0];
+            activePropertyData = d;
+          }
+        }
+
+        const stackNav = document.getElementById('card-stack-navigator');
+        if (stackNav) {
+          if (activeCoordStack && activeCoordStack.length > 1) {
+            stackNav.style.display = 'flex';
+
+            const coMap = {};
+            activeCoordStack.forEach(item => {
+              const c = item._company || 'ไม่ระบุ';
+              coMap[c] = (coMap[c] || 0) + 1;
+            });
+            const numCos = Object.keys(coMap).length;
+
+            const summaryEl = document.getElementById('card-stack-summary');
+            if (summaryEl) {
+              summaryEl.innerHTML = `<i class="fa-solid fa-layer-group" style="color:#0284c7;"></i><span>พิกัดนี้มี <b>${activeCoordStack.length}</b> รายการ (<b>${numCos}</b> เจ้า) • เรียงราคาต่ำสุดขึ้นก่อน</span>`;
+            }
+
+            const counterEl = document.getElementById('card-stack-counter');
+            if (counterEl) {
+              counterEl.innerText = `${activeCoordStackIndex + 1} / ${activeCoordStack.length}`;
+            }
+
+            const chipsEl = document.getElementById('card-stack-chips');
+            if (chipsEl) {
+              chipsEl.innerHTML = Object.entries(coMap).map(([co, count]) => {
+                return `<span class="card-stack-chip"><b>${co}:</b> ${count}</span>`;
+              }).join('');
+            }
+
+            const selectEl = document.getElementById('card-stack-select');
+            if (selectEl) {
+              selectEl.innerHTML = activeCoordStack.map((item, i) => {
+                const co = item._company || '-';
+                const p = item._price_str || '-';
+                const uStr = (item._unit_price && item._unit_price > 0) ? ` • ฿${Math.round(item._unit_price).toLocaleString()}/หน่วย` : '';
+                const t = (item._title || 'ไม่มีชื่อ').substring(0, 20);
+                return `<option value="${i}" ${i === activeCoordStackIndex ? 'selected' : ''}>${i + 1}. [${co}] ${t} (${p}${uStr})</option>`;
+              }).join('');
+            }
+          } else {
+            stackNav.style.display = 'none';
+          }
+        }
+
+        const badge = document.getElementById('card-badge');
+        const title = document.getElementById('card-title');
+        const price = document.getElementById('card-price');
+        const id = document.getElementById('card-id');
+        const type = document.getElementById('card-type');
+        const prov = document.getElementById('card-prov');
+        const btnLink = document.getElementById('btn-open-link');
+
+        const companyName = d._company || 'ไม่ระบุ';
+        badge.innerText = companyName;
+        
+        // Dynamic badge color matching company theme
+        if (d.r !== undefined && d.g !== undefined && d.b !== undefined) {
+          badge.style.background = `rgb(${d.r}, ${d.g}, ${d.b})`;
+        } else {
+          badge.style.background = '#2563eb';
+        }
+
+        // Centroid (approximate coordinate) indicator
+        const isCentroid = (String(d._centroid) === '1');
+        const centroidBadge = document.getElementById('card-centroid-badge');
+        const centroidWarning = document.getElementById('card-centroid-warning');
+        if (centroidBadge) centroidBadge.style.display = isCentroid ? 'inline-flex' : 'none';
+        if (centroidWarning) centroidWarning.style.display = isCentroid ? 'flex' : 'none';
+
+        title.innerText = d._title || 'ไม่มีชื่อประกาศ';
+        price.innerText = d._price_str || 'ไม่ระบุราคา';
+        id.innerText = d._id || '-';
+        type.innerText = d._type || '-';
+        prov.innerText = d._prov || '-';
+
+        const dist = document.getElementById('card-dist');
+        if (dist) dist.innerText = d._district || '-';
+
+        const link = (d._link || '').trim();
+        if (link && link !== '-' && link !== 'nan' && link !== 'None') {
+          btnLink.style.display = 'inline-flex';
+          btnLink.innerHTML = '<i class="fa-solid fa-arrow-up-right-from-square"></i> เปิดดูทรัพย์สิน (เว็บไซต์)';
+          btnLink.disabled = false;
+          btnLink.style.opacity = '1';
+          btnLink.style.cursor = 'pointer';
+        } else {
+          btnLink.style.display = 'inline-flex';
+          btnLink.innerHTML = '<i class="fa-solid fa-link-slash"></i> ไม่มีลิงก์ประกาศ';
+          btnLink.disabled = true;
+          btnLink.style.opacity = '0.5';
+          btnLink.style.cursor = 'not-allowed';
+        }
+
+        const ledMapGroup = document.getElementById('led-map-group');
+        const isLedComp = (companyName === 'LED' || String(companyName).toUpperCase().indexOf('LED') !== -1 || String(companyName).indexOf('กรมบังคับคดี') !== -1);
+        if (ledMapGroup) {
+          ledMapGroup.style.display = isLedComp ? 'flex' : 'none';
+        }
+
+        // Snappy movement & animation feedback
+        card.classList.remove('card-pop-in', 'card-pulse-bounce', 'card-fade-out');
+        void card.offsetWidth; // Force CSS reflow so animation restarts reliably
+
+        card.classList.add('show');
+        if (wasOpen) {
+          card.classList.add('card-pulse-bounce');
+        } else {
+          card.classList.add('card-pop-in');
+        }
+
+        // Micro-pop for price and badge
+        if (price) {
+          price.classList.remove('content-pop');
+          void price.offsetWidth;
+          price.classList.add('content-pop');
+        }
+        if (badge) {
+          badge.classList.remove('content-pop');
+          void badge.offsetWidth;
+          badge.classList.add('content-pop');
+        }
+      }
+
+      function openPropertyLink() {
+        if (!activePropertyData) return;
+        const link = (activePropertyData._link || '').trim();
+        if (link && link !== '-' && link !== 'nan' && link !== 'None') {
+          window.open(link, '_blank');
+        } else {
+          showToast('ไม่พบลิงก์ประกาศสำหรับทรัพย์สินนี้');
+        }
+      }
+
+      function openLedMap() {
+        if (!activePropertyData) {
+          window.open('https://landsmaps.dol.go.th/', '_blank');
+          return;
+        }
+        const prov = (activePropertyData._prov || '').trim();
+        const dist = (activePropertyData._district || '').trim();
+        const id = (activePropertyData._id || '').trim();
+        let deed = (activePropertyData._deed || '').trim();
+        if (!deed && activePropertyData._title) {
+          const m = activePropertyData._title.match(/(?:โฉนด|สำเนาโฉนด)(?:เลขที่)?\s*([0-9,\/\-]+)/);
+          if (m) deed = m[1].trim();
+        }
+
+        const params = new URLSearchParams();
+        if (prov && prov !== '-') params.set('prov', prov);
+        if (dist && dist !== '-') params.set('dist', dist);
+        if (id && id !== '-') params.set('case', id);
+        if (deed && deed !== '-') params.set('deed', deed);
+
+        const hashPart = params.toString() ? '#' + params.toString() : '';
+        const landsUrl = 'https://landsmaps.dol.go.th/' + hashPart;
+
+        // Auto copy search terms to clipboard for easy fallback
+        const copyText = `${prov} ${dist} ${deed}`.trim();
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(copyText).catch(() => {});
+        }
+
+        const deedMsg = deed ? ` โฉนด ${deed}` : '';
+        showToast(`📍 กำลังเปิด LandsMaps (${prov} - ${dist}${deedMsg}) | กด Bookmarklet เพื่อค้นหาออโต้`);
+        window.open(landsUrl, '_blank');
+      }
+
+      function openLandsmapsHelperModal() {
+        const modal = document.getElementById('lands-helper-modal');
+        if (modal) modal.classList.add('show');
+      }
+
+      function closeLandsmapsHelperModal() {
+        const modal = document.getElementById('lands-helper-modal');
+        if (modal) modal.classList.remove('show');
+      }
+
+      function copyBookmarkletCode() {
+        const link = document.getElementById('bookmarklet-link');
+        if (!link) return;
+        const code = link.getAttribute('href');
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(code).then(() => {
+            showToast('📋 คัดลอกโค้ด Bookmarklet เรียบร้อยแล้ว! นำไปวางใน URL บุ๊กมาร์กได้เลย');
+          }).catch(() => {
+            fallbackCopyText(code);
+          });
+        } else {
+          fallbackCopyText(code);
+        }
+      }
+
+      function copyCardId() {
+        if (!activePropertyData || !activePropertyData._id || activePropertyData._id === '-') {
+          showToast('ไม่พบรหัสทรัพย์');
+          return;
+        }
+        const code = activePropertyData._id;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(code).then(() => {
+            showToast(`คัดลอกรหัสทรัพย์: ${code} เรียบร้อยแล้ว`);
+          }).catch(() => {
+            fallbackCopyText(code);
+          });
+        } else {
+          fallbackCopyText(code);
+        }
+      }
+
+      function openGoogleMaps() {
+        if (!activePropertyData || !activePropertyData.lat || !activePropertyData.lon) return;
+        const url = `https://www.google.com/maps/search/?api=1&query=${activePropertyData.lat},${activePropertyData.lon}`;
+        window.open(url, '_blank');
+      }
+      
+      const csvBase64 = "CSV_BASE64_PLACEHOLDER";
+      const lookupBase64 = "LOOKUP_BASE64_PLACEHOLDER";
+
+      // Native gzip decompression via browser DecompressionStream API
+      async function decompressGzip(b64str) {
+        const raw = atob(b64str);
+        const bytes = new Uint8Array(raw.length);
+        for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+        const ds = new DecompressionStream('gzip');
+        const writer = ds.writable.getWriter();
+        writer.write(bytes);
+        writer.close();
+        return await new Response(ds.readable).text();
+      }
+
+      function getTileUrls(styleName) {
+        if (styleName === 'dark') {
+          return [
+            'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}'
+          ];
+        } else if (styleName === 'satellite') {
+          return [
+            'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+          ];
+        } else if (styleName === 'osm') {
+          return [
+            'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
+          ];
+        } else {
+          // voyager → ESRI World Street Map (free, no API key)
+          return [
+            'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}'
+          ];
+        }
+      }
+
+      function updateActiveButtons(styleName) {
+        document.querySelectorAll('.style-btn').forEach(btn => btn.classList.remove('active'));
+        if (styleName === 'dark') {
+          document.getElementById('btn-dark')?.classList.add('active');
+        } else if (styleName === 'satellite') {
+          document.getElementById('btn-satellite')?.classList.add('active');
+        } else if (styleName === 'osm') {
+          document.getElementById('btn-osm')?.classList.add('active');
+        } else {
+          document.getElementById('btn-voyager')?.classList.add('active');
+        }
+      }
+
+      function createBasemapLayer(styleName) {
+        return new deck.TileLayer({
+          id: `basemap-tile-layer-${styleName}`,
+          data: getTileUrls(styleName),
+          minZoom: 0,
+          maxZoom: 19,
+          tileSize: 256,
+          renderSubLayers: props => {
+            const { bbox: {west, south, east, north} } = props.tile;
+            return new deck.BitmapLayer(props, {
+              data: null,
+              image: props.tile.data,
+              bounds: [west, south, east, north]
+            });
+          }
+        });
+      }
+
+      function handlePointClick(info) {
+        if (info.object) {
+          showPropertyCard(info.object, true);
+        }
+      }
+
+      function getMapTooltip(info) {
+        if (!info || !info.object) {
+          return null;
+        }
+        const d = info.object;
+        const coordKey = getCoordKey(d);
+        const stack = (currentCoordMap && currentCoordMap.get(coordKey)) || [d];
+        const hasOverlap = stack.length > 1;
+
+        let overlapHtml = '';
+        if (hasOverlap) {
+          const coCounts = {};
+          let minP = Infinity, maxP = -Infinity;
+          for (let i = 0; i < stack.length; i++) {
+            const item = stack[i];
+            const co = item._company || 'ไม่ระบุ';
+            coCounts[co] = (coCounts[co] || 0) + 1;
+            const p = Number(item._price) || 0;
+            if (p > 0) {
+              if (p < minP) minP = p;
+              if (p > maxP) maxP = p;
+            }
+          }
+          const numCo = Object.keys(coCounts).length;
+          const coSummary = Object.entries(coCounts).map(([co, c]) => `${co}: ${c}`).join(', ');
+          const priceRange = (minP !== Infinity && maxP !== -Infinity)
+            ? (minP === maxP ? `฿${formatPriceShort(minP)}` : `฿${formatPriceShort(minP)} - ฿${formatPriceShort(maxP)}`)
+            : 'ไม่ระบุราคา';
+
+          overlapHtml = `
+            <div style="background: linear-gradient(135deg, rgba(14,165,233,0.25), rgba(2,132,199,0.35)); border: 1px solid rgba(56,189,248,0.45); border-radius: 8px; padding: 6px 9px; margin-bottom: 6px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; font-size:11.5px; font-weight:800; color:#7dd3fc;">
+                <span><i class="fa-solid fa-layer-group" style="color:#38bdf8; margin-right:4px;"></i>พิกัดร่วม ${stack.length.toLocaleString()} รายการ (${numCo} เจ้า)</span>
+                <span style="color:#fef08a; font-size:11px;">${priceRange}</span>
+              </div>
+              <div style="font-size:10px; color:#e0f2fe; margin-top:3px; line-height:1.3;">
+                <b>เจ้าของ:</b> ${coSummary}
+              </div>
+            </div>
+          `;
+        }
+
+        const topItem = (stack && stack.length > 0) ? stack[0] : d;
+        const title = topItem._title || 'ไม่มีชื่อประกาศ';
+        const company = topItem._company || '-';
+        const id = topItem._id || '-';
+        const price = topItem._price_str || 'ไม่ระบุราคา';
+        const prov = topItem._prov || '-';
+        const type = topItem._type || '-';
+        const isCentroid = (String(topItem._centroid) === '1');
+        const centroidHtml = isCentroid
+          ? `<div style="background:#fffbeb; border:1px solid #fde68a; border-radius:6px; padding:3px 8px; margin-bottom:5px; font-size:10.5px; color:#92400e; font-weight:700; display:flex; align-items:center; gap:4px;"><i class="fa-solid fa-triangle-exclamation" style="color:#d97706;"></i> พิกัดโดยประมาณ (กึ่งกลางตำบล/อำเภอ)</div>`
+          : '';
+
+        const clickTip = hasOverlap
+          ? `<i class="fa-solid fa-arrow-pointer" style="margin-right:4px;"></i>คลิกเพื่อเปิดดูและกดเลื่อนดูครบทั้ง ${stack.length.toLocaleString()} รายการ`
+          : `<i class="fa-solid fa-arrow-pointer" style="margin-right:4px;"></i>คลิกที่จุดเพื่อดูรายละเอียดและเปิดลิงก์ประกาศ`;
+
+        return {
+          html: `
+            <div style="font-family: 'Noto Sans Thai', 'Inter', sans-serif; font-size: 12px; line-height: 1.5; color: #f8fafc; padding: 2px;">
+              ${overlapHtml}
+              ${centroidHtml}
+              <div style="font-weight: 700; font-size: 13px; margin-bottom: 5px; color: #ffffff; border-bottom: 1px solid rgba(255,255,255,0.15); padding-bottom: 4px;">
+                ${title}
+              </div>
+              <div style="display: grid; grid-template-columns: auto 1fr; gap: 3px 8px; margin-top: 4px;">
+                <span style="color: #94a3b8;"><i class="fa-solid fa-building" style="margin-right:4px;"></i>บริษัท:</span>
+                <b style="color: #ffffff;">${company}</b>
+                <span style="color: #94a3b8;"><i class="fa-solid fa-hashtag" style="margin-right:4px;"></i>รหัสทรัพย์:</span>
+                <b style="color: #ffffff;">${id}</b>
+                <span style="color: #38bdf8; font-weight: 600;"><i class="fa-solid fa-tag" style="margin-right:4px;"></i>ราคา:</span>
+                <b style="color: #38bdf8;">${price}</b>
+                <span style="color: #94a3b8;"><i class="fa-solid fa-location-dot" style="margin-right:4px;"></i>จังหวัด:</span>
+                <span style="color: #e2e8f0;">${prov}</span>
+                <span style="color: #94a3b8;"><i class="fa-solid fa-house-chimney" style="margin-right:4px;"></i>ประเภท:</span>
+                <span style="color: #e2e8f0;">${type}</span>
+              </div>
+              <div style="margin-top: 7px; padding-top: 5px; border-top: 1px dashed rgba(255,255,255,0.2); font-size: 10.5px; color: #38bdf8; font-weight: 600;">
+                ${clickTip}
+              </div>
+            </div>
+          `,
+          style: {
+            backgroundColor: 'rgba(15, 23, 42, 0.96)',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
+            color: '#ffffff',
+            borderRadius: '10px',
+            border: '1px solid rgba(255, 255, 255, 0.18)',
+            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.45)',
+            padding: '10px 14px',
+            maxWidth: '320px',
+            zIndex: '999999',
+            pointerEvents: 'none'
+          }
+        };
+      }
+
+      function createScatterLayer(data) {
+        return new deck.ScatterplotLayer({
+          id: 'scatterplot-layer',
+          data: data,
+          getPosition: d => [d.lon, d.lat],
+          getColor: d => [d.r, d.g, d.b, 200],
+          getRadius: 300,
+          radiusMinPixels: 2.5,
+          radiusMaxPixels: 12,
+          pickable: true,
+          autoHighlight: true,
+          highlightColor: [239, 68, 68, 230],
+          onClick: handlePointClick
+        });
+      }
+
+      let currentFilteredData = [];
+      const multiSelectData = {
+        comp: { all: [], selected: new Set(), counts: {}, singular: 'บริษัท' },
+        type: { all: [], selected: new Set(), counts: {}, singular: 'ประเภททรัพย์' },
+        sale: { all: [], selected: new Set(), counts: {}, singular: 'ประเภทการขาย' },
+        region: { all: [], selected: new Set(), counts: {}, singular: 'ภูมิภาค' },
+        prov: { all: [], selected: new Set(), counts: {}, singular: 'จังหวัด' },
+        district: { all: [], selected: new Set(), counts: {}, singular: 'อำเภอ/เขต' }
+      };
+      let priceFilter = { min: 0, max: 0 }; // 0 max means unlimited
+
+      function setPricePreset(min, max, btnEl) {
+        priceFilter.min = min;
+        priceFilter.max = max;
+        const minInp = document.getElementById('price-min-input');
+        const maxInp = document.getElementById('price-max-input');
+        if (minInp) minInp.value = min > 0 ? min : '';
+        if (maxInp) maxInp.value = max > 0 ? max : '';
+        
+        document.querySelectorAll('.price-preset-btn').forEach(b => b.classList.remove('active'));
+        if (btnEl) btnEl.classList.add('active');
+        
+        updatePriceLabel();
+        applyClientFilter();
+      }
+
+      function onPriceCustomInput() {
+        const minVal = parseFloat(document.getElementById('price-min-input').value) || 0;
+        const maxVal = parseFloat(document.getElementById('price-max-input').value) || 0;
+        priceFilter.min = minVal;
+        priceFilter.max = maxVal;
+        document.querySelectorAll('.price-preset-btn').forEach(b => b.classList.remove('active'));
+        updatePriceLabel();
+        applyClientFilter();
+      }
+
+      function resetPriceFilter() {
+        setPricePreset(0, 0, document.getElementById('btn-preset-all'));
+      }
+
+      function clearPricePill(e) {
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        resetPriceFilter();
+      }
+
+      function formatPriceShort(val) {
+        if (!val || val === 0) return '0';
+        if (val >= 1000000) return (val / 1000000).toFixed(val % 1000000 === 0 ? 0 : 1) + 'M';
+        if (val >= 1000) return (val / 1000).toFixed(0) + 'k';
+        return val.toLocaleString();
+      }
+
+      function updatePriceLabel() {
+        const labelEl = document.getElementById('ms-price-label');
+        const pillEl = document.getElementById('pill-price');
+        const clearEl = document.getElementById('ms-price-clear');
+        if (!labelEl || !pillEl) return;
+        
+        const min = priceFilter.min;
+        const max = priceFilter.max;
+        
+        if (min === 0 && max === 0) {
+          labelEl.innerText = 'ทุกช่วงราคา';
+          pillEl.classList.remove('active');
+          if (clearEl) clearEl.style.display = 'none';
+        } else {
+          pillEl.classList.add('active');
+          if (clearEl) clearEl.style.display = 'inline-flex';
+          if (min > 0 && max > 0) {
+            labelEl.innerText = `฿${formatPriceShort(min)} - ${formatPriceShort(max)}`;
+          } else if (min > 0) {
+            labelEl.innerText = `> ฿${formatPriceShort(min)}`;
+          } else if (max > 0) {
+            labelEl.innerText = `< ฿${formatPriceShort(max)}`;
+          }
+        }
+      }
+
+      function toggleMultiSelect(id) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const isOpen = el.classList.contains('open');
+        document.querySelectorAll('.custom-multiselect.open').forEach(m => m.classList.remove('open'));
+        if (!isOpen) {
+          el.classList.add('open');
+          const input = el.querySelector('.ms-search-input');
+          if (input) {
+            input.value = '';
+            filterDropdownList(id, '');
+            setTimeout(() => input.focus(), 50);
+          }
+        }
+      }
+
+      document.addEventListener('click', function(e) {
+        if (!e.target.closest('.custom-multiselect')) {
+          document.querySelectorAll('.custom-multiselect.open').forEach(el => el.classList.remove('open'));
+        }
+      });
+
+      function filterDropdownList(id, query) {
+        const q = (query || '').toLowerCase().trim();
+        const container = document.getElementById(id + '-options');
+        if (!container) return;
+        const items = container.querySelectorAll('.ms-option-item');
+        items.forEach(it => {
+          const val = (it.getAttribute('data-value') || '').toLowerCase();
+          if (!q || val.includes(q)) {
+            it.style.display = 'flex';
+          } else {
+            it.style.display = 'none';
+          }
+        });
+      }
+
+      function selectAllOptions(cat) {
+        const container = document.getElementById('ms-' + cat + '-options');
+        if (!container) return;
+        const cbs = container.querySelectorAll('input[type="checkbox"]');
+        cbs.forEach(cb => cb.checked = true);
+        multiSelectData[cat].selected = new Set(multiSelectData[cat].all);
+        updateDropdownLabel(cat);
+        applyClientFilter();
+      }
+
+      function deselectAllOptions(cat) {
+        const container = document.getElementById('ms-' + cat + '-options');
+        if (!container) return;
+        const cbs = container.querySelectorAll('input[type="checkbox"]');
+        cbs.forEach(cb => cb.checked = false);
+        multiSelectData[cat].selected.clear();
+        updateDropdownLabel(cat);
+        applyClientFilter();
+      }
+
+      function onCheckboxChange(cat) {
+        const container = document.getElementById('ms-' + cat + '-options');
+        if (!container) return;
+        const cbs = container.querySelectorAll('input[type="checkbox"]');
+        const selected = new Set();
+        cbs.forEach(cb => {
+          if (cb.checked) selected.add(cb.value);
+        });
+        multiSelectData[cat].selected = selected;
+        updateDropdownLabel(cat);
+        applyClientFilter();
+      }
+
+      function updateDropdownLabel(cat) {
+        const labelEl = document.getElementById('ms-' + cat + '-label');
+        const pillEl = document.getElementById('pill-' + cat);
+        const badgeEl = document.getElementById('ms-' + cat + '-badge');
+        const clearEl = document.getElementById('ms-' + cat + '-clear');
+        if (!labelEl || !pillEl) return;
+        const meta = multiSelectData[cat];
+        const count = meta.selected.size;
+        const total = meta.all.length;
+
+        if (count === 0) {
+          labelEl.innerText = `ไม่เลือก${meta.singular}`;
+          pillEl.classList.add('active');
+          if (badgeEl) { badgeEl.style.display = 'inline-flex'; badgeEl.innerText = '0'; }
+          if (clearEl) { clearEl.style.display = 'inline-flex'; }
+        } else if (count === total) {
+          labelEl.innerText = `ทุก${meta.singular}`;
+          pillEl.classList.remove('active');
+          if (badgeEl) { badgeEl.style.display = 'none'; }
+          if (clearEl) { clearEl.style.display = 'none'; }
+        } else if (count === 1) {
+          labelEl.innerText = Array.from(meta.selected)[0];
+          pillEl.classList.add('active');
+          if (badgeEl) { badgeEl.style.display = 'none'; }
+          if (clearEl) { clearEl.style.display = 'inline-flex'; }
+        } else if (count === 2) {
+          labelEl.innerText = Array.from(meta.selected).join(', ');
+          pillEl.classList.add('active');
+          if (badgeEl) { badgeEl.style.display = 'none'; }
+          if (clearEl) { clearEl.style.display = 'inline-flex'; }
+        } else {
+          labelEl.innerText = `${meta.singular}`;
+          pillEl.classList.add('active');
+          if (badgeEl) { badgeEl.style.display = 'inline-flex'; badgeEl.innerText = count; }
+          if (clearEl) { clearEl.style.display = 'inline-flex'; }
+        }
+      }
+
+      function clearCategoryPill(e, cat) {
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        selectAllOptions(cat);
+      }
+
+      function closeAllDropdowns() {
+        document.querySelectorAll('.custom-multiselect.open').forEach(el => el.classList.remove('open'));
+      }
+
+      function populateFilterDropdowns(lut, data) {
+        multiSelectData.comp.counts = {};
+        multiSelectData.type.counts = {};
+        multiSelectData.sale.counts = {};
+        multiSelectData.region.counts = {};
+        multiSelectData.prov.counts = {};
+        multiSelectData.district.counts = {};
+
+        data.forEach(d => {
+          if (d._company) multiSelectData.comp.counts[d._company] = (multiSelectData.comp.counts[d._company] || 0) + 1;
+          if (d._type) multiSelectData.type.counts[d._type] = (multiSelectData.type.counts[d._type] || 0) + 1;
+          if (d._sale) multiSelectData.sale.counts[d._sale] = (multiSelectData.sale.counts[d._sale] || 0) + 1;
+          if (d._region) multiSelectData.region.counts[d._region] = (multiSelectData.region.counts[d._region] || 0) + 1;
+          if (d._prov) multiSelectData.prov.counts[d._prov] = (multiSelectData.prov.counts[d._prov] || 0) + 1;
+          if (d._district) multiSelectData.district.counts[d._district] = (multiSelectData.district.counts[d._district] || 0) + 1;
+        });
+
+        multiSelectData.comp.all = (lut.co || []).filter(Boolean).sort();
+        multiSelectData.type.all = (lut.ty || []).filter(Boolean).sort();
+        multiSelectData.sale.all = (lut.st || []).filter(Boolean).sort();
+        multiSelectData.region.all = (lut.rg || []).filter(Boolean).sort();
+        multiSelectData.prov.all = (lut.pv || []).filter(Boolean).sort();
+        multiSelectData.district.all = (lut.dt || []).filter(Boolean).sort();
+
+        ['comp', 'type', 'sale', 'region', 'prov', 'district'].forEach(cat => {
+          const meta = multiSelectData[cat];
+          meta.selected = new Set(meta.all);
+          const container = document.getElementById('ms-' + cat + '-options');
+          if (!container) return;
+          container.innerHTML = '';
+
+          meta.all.forEach(item => {
+            const count = (meta.counts[item] || 0).toLocaleString();
+            const label = document.createElement('label');
+            label.className = 'ms-option-item';
+            label.setAttribute('data-value', item);
+            label.innerHTML = `
+              <input type="checkbox" value="${item}" checked onchange="onCheckboxChange('${cat}')" />
+              <span class="ms-option-name" title="${item}">${item}</span>
+              <span class="ms-option-num">${count}</span>
+            `;
+            container.appendChild(label);
+          });
+          updateDropdownLabel(cat);
+        });
+        updatePriceLabel();
+      }
+
+      function applyClientFilter() {
+        if (!deckglInstance || !cachedData || !cachedData.length) return;
+
+        const compSet = multiSelectData.comp.selected;
+        const typeSet = multiSelectData.type.selected;
+        const saleSet = multiSelectData.sale.selected;
+        const regionSet = multiSelectData.region.selected;
+        const provSet = multiSelectData.prov.selected;
+        const distSet = multiSelectData.district.selected;
+
+        const searchVal = document.getElementById('filter-search') ? document.getElementById('filter-search').value.trim().toLowerCase() : '';
+        const minP = priceFilter.min;
+        const maxP = priceFilter.max;
+
+        const allComps = compSet.size === multiSelectData.comp.all.length;
+        const allTypes = typeSet.size === multiSelectData.type.all.length;
+        const allSales = saleSet.size === multiSelectData.sale.all.length;
+        const allRegions = regionSet.size === multiSelectData.region.all.length;
+        const allProvs = provSet.size === multiSelectData.prov.all.length;
+        const allDists = distSet.size === multiSelectData.district.all.length;
+        const allPrices = (minP === 0 && maxP === 0);
+
+        if (compSet.size === 0 || typeSet.size === 0 || saleSet.size === 0 || regionSet.size === 0 || provSet.size === 0 || distSet.size === 0) {
+          currentFilteredData = [];
+        } else if (allComps && allTypes && allSales && allRegions && allProvs && allDists && allPrices && !searchVal) {
+          currentFilteredData = cachedData;
+        } else {
+          currentFilteredData = cachedData.filter(d => {
+            if (!allComps && !compSet.has(d._company)) return false;
+            if (!allTypes && !typeSet.has(d._type)) return false;
+            if (!allSales && !saleSet.has(d._sale)) return false;
+            if (!allRegions && !regionSet.has(d._region)) return false;
+            if (!allProvs && !provSet.has(d._prov)) return false;
+            if (!allDists && !distSet.has(d._district)) return false;
+            if (!allPrices) {
+              const p = d._price || 0;
+              if (minP > 0 && p < minP) return false;
+              if (maxP > 0 && p > maxP) return false;
+            }
+            if (searchVal) {
+              const t = (d._title || '').toLowerCase();
+              const id = (d._id || '').toLowerCase();
+              if (!t.includes(searchVal) && !id.includes(searchVal)) return false;
+            }
+            return true;
+          });
+        }
+
+        closePropertyCard();
+
+        const basemapLayer = createBasemapLayer(currentStyle);
+        const scatterLayer = createScatterLayer(currentFilteredData);
+
+        deckglInstance.setProps({
+          layers: [basemapLayer, scatterLayer]
+        });
+
+        currentCoordMap = buildCoordMap(currentFilteredData);
+        updateDuplicateStats(currentFilteredData, currentCoordMap);
+
+        const countText = `แสดงจุดพิกัด ${currentFilteredData.length.toLocaleString()} จาก ${cachedData.length.toLocaleString()} จุด`;
+        const countEl = document.getElementById('points-count');
+        if (countEl) countEl.innerText = countText;
+
+        const badgeEl = document.getElementById('filter-count-badge');
+        if (badgeEl) {
+          if (currentFilteredData.length < cachedData.length) {
+            badgeEl.classList.add('filtered');
+          } else {
+            badgeEl.classList.remove('filtered');
+          }
+        }
+      }
+
+      function resetClientFilters() {
+        ['comp', 'type', 'sale', 'region', 'prov', 'district'].forEach(cat => {
+          selectAllOptions(cat);
+        });
+        resetPriceFilter();
+        if (document.getElementById('filter-search')) document.getElementById('filter-search').value = '';
+        applyClientFilter();
+      }
+
+      function setBasemapStyle(styleName) {
+        currentStyle = styleName;
+        updateActiveButtons(styleName);
+        if (!deckglInstance || !cachedData) return;
+
+        const basemapLayer = createBasemapLayer(styleName);
+        const scatterLayer = createScatterLayer(currentFilteredData && currentFilteredData.length ? currentFilteredData : cachedData);
+
+        deckglInstance.setProps({
+          layers: [basemapLayer, scatterLayer]
+        });
+      }
+      
+      async function initMap() {
+        try {
+          loaderText.innerText = "GZIP: ถอดรหัส และ Decompress ข้อมูลพิกัด...";
+          await new Promise(r => setTimeout(r, 5));
+
+          // Decompress and parse lookup table (company/type/province/sale/region/district names)
+          let _lut = { co: [], ty: [], pv: [], st: [], rg: [], dt: [] };
+          try {
+            _lut = JSON.parse(await decompressGzip(lookupBase64));
+          } catch(e) { console.warn('Lookup decode failed', e); }
+
+          loaderText.innerText = "GZIP: Decompress ข้อมูล CSV...";
+          await new Promise(r => setTimeout(r, 5));
+          const csvText = await decompressGzip(csvBase64);
+
+          loaderText.innerText = "กำลังประมวลผลตารางพิกัด (Parsing CSV)...";
+          await new Promise(r => setTimeout(r, 5));
+          const data = d3.csvParse(csvText);
+
+          loaderText.innerText = "กำลังจัดเตรียมจุดแสดงผลพิกัด...";
+          await new Promise(r => setTimeout(r, 5));
+
+          data.forEach(d => {
+            d.lon = +d.lon;
+            d.lat = +d.lat;
+            d.r = +d.r;
+            d.g = +d.g;
+            d.b = +d.b;
+            // Resolve integer indices back to string values via lookup table
+            d._company  = (_lut.co && _lut.co[+d._ci]) || '-';
+            d._type     = (_lut.ty && _lut.ty[+d._ti]) || '-';
+            d._prov     = (_lut.pv && _lut.pv[+d._pi]) || '-';
+            d._sale     = (_lut.st && _lut.st[+d._sti]) || '-';
+            d._region   = (_lut.rg && _lut.rg[+d._rgi]) || '-';
+            d._district = (_lut.dt && _lut.dt[+d._dti]) || '-';
+            d._price      = +d._p || 0;
+            d._unit_price = +d._up || 0;
+          });
+
+          cachedData = data;
+          currentFilteredData = data;
+          currentCoordMap = buildCoordMap(data);
+          updateDuplicateStats(data, currentCoordMap);
+          populateFilterDropdowns(_lut, data);
+
+          loaderText.innerText = "กำลังเรนเดอร์จุดแผนที่ (WebGL)...";
+          await new Promise(r => setTimeout(r, 5));
+          
+          // Update points count in legend overlay dynamically
+          document.getElementById('points-count').innerText = `แสดงจุดพิกัดทั้งหมด ${data.length.toLocaleString()} จุด`;
+          const badgeInit = document.getElementById('filter-count-text');
+          if (badgeInit) badgeInit.innerText = `${data.length.toLocaleString()} จุด`;
+
+          updateActiveButtons(currentStyle);
+
+          const basemapLayer = createBasemapLayer(currentStyle);
+          const scatterLayer = createScatterLayer(cachedData);
+
+          deckglInstance = new deck.DeckGL({
+            container: 'map',
+            mapboxApiAccessToken: false,
+            initialViewState: {
+              longitude: 101.0,
+              latitude: 13.0,
+              zoom: 5.8,
+              minZoom: 4,
+              maxZoom: 18
+            },
+            controller: true,
+            getTooltip: getMapTooltip,
+            layers: [
+              basemapLayer,
+              scatterLayer
+            ]
+          });
+          
+          loader.style.display = 'none';
+        } catch(err) {
+          loaderText.innerHTML = `<span style="color: #ef4444;"><i class="fa-solid fa-circle-xmark" style="margin-right: 6px;"></i>โหลดแผนที่ล้มเหลว: ${err.message}</span>`;
+          console.error(err);
+        }
+      }
+      
+      initMap();
+    </script>
+  </body>
+</html>
