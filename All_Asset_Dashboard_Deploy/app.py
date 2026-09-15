@@ -3244,12 +3244,12 @@ if is_dark_mode:
 --kpi-hover-border: #10b981;
 --kpi-hover-shadow: rgba(16, 185, 129, 0.25);
 --kpi-accent-bar: #10b981;
---seg-track-bg: rgba(255, 255, 255, 0.08);
---seg-track-border: rgba(255, 255, 255, 0.12);
---seg-active-bg: #14352a;
---seg-active-border: rgba(52, 211, 153, 0.35);
+--seg-track-bg: rgba(15, 23, 42, 0.75);
+--seg-track-border: transparent;
+--seg-active-bg: rgba(16, 185, 129, 0.22);
+--seg-active-border: #10b981;
 --seg-active-text: #34d399;
---seg-active-shadow: 0 3px 12px rgba(0, 0, 0, 0.4), 0 0 10px rgba(16, 185, 129, 0.2);
+--seg-active-shadow: 0 0 16px rgba(16, 185, 129, 0.45), inset 0 0 8px rgba(16, 185, 129, 0.25);
 --seg-inactive-text: #94a3b8;"""
     plotly_template = "plotly_dark"
     mapbox_style = "carto-darkmatter"
@@ -3286,12 +3286,12 @@ else:
 --kpi-hover-border: #047857;
 --kpi-hover-shadow: rgba(4, 120, 87, 0.14);
 --kpi-accent-bar: #047857;
---seg-track-bg: rgba(148, 163, 184, 0.15);
---seg-track-border: rgba(148, 163, 184, 0.22);
---seg-active-bg: #ffffff;
---seg-active-border: rgba(0, 0, 0, 0.06);
---seg-active-text: #047857;
---seg-active-shadow: 0 3px 10px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
+--seg-track-bg: #f1f5f9;
+--seg-track-border: transparent;
+--seg-active-bg: rgba(16, 185, 129, 0.14);
+--seg-active-border: #059669;
+--seg-active-text: #065f46;
+--seg-active-shadow: 0 0 14px rgba(16, 185, 129, 0.38), inset 0 0 6px rgba(16, 185, 129, 0.16);
 --seg-inactive-text: #64748b;"""
     plotly_template = "plotly_white"
     mapbox_style = "carto-positron"
@@ -4241,10 +4241,11 @@ div[data-baseweb="tab"][aria-selected="true"] div {
 /* ========================================================================= */
 div[data-testid="stSegmentedControl"] {
     background: var(--seg-track-bg, rgba(148, 163, 184, 0.14)) !important;
-    border: 1px solid var(--seg-track-border, rgba(148, 163, 184, 0.22)) !important;
+    border: none !important;
+    border-color: transparent !important;
     border-radius: 9999px !important;
     padding: 2px !important;
-    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+    box-shadow: none !important;
     display: inline-flex !important;
     align-items: center !important;
     width: fit-content !important;
@@ -4297,19 +4298,20 @@ div[data-testid="stSegmentedControl"] button:hover {
     background: rgba(255, 255, 255, 0.3) !important;
 }
 
-/* Active Segment: Elevated Floating Card Pill */
+/* Active Segment: Cyber Frosted Glass & Neon Aura */
 div[data-testid="stSegmentedControl"] button[aria-checked="true"],
 div[data-testid="stSegmentedControl"] button[data-checked="true"],
 div[data-testid="stSegmentedControl"] button[aria-pressed="true"],
 div[data-testid="stSegmentedControl"] button[data-variant="segmented_control"][aria-checked="true"],
 div[data-testid="stSegmentedControl"] div[role="radiogroup"] > button[aria-checked="true"] {
-    background: var(--seg-active-bg, #ffffff) !important;
-    background-color: var(--seg-active-bg, #ffffff) !important;
-    color: var(--seg-active-text, #047857) !important;
-    -webkit-text-fill-color: var(--seg-active-text, #047857) !important;
-    border: 0.5px solid var(--seg-active-border, rgba(0, 0, 0, 0.06)) !important;
+    background: var(--seg-active-bg, rgba(16, 185, 129, 0.14)) !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+    color: var(--seg-active-text, #065f46) !important;
+    -webkit-text-fill-color: var(--seg-active-text, #065f46) !important;
+    border: 1.5px solid var(--seg-active-border, #059669) !important;
     border-radius: 9999px !important;
-    box-shadow: var(--seg-active-shadow, 0 2px 8px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04)) !important;
+    box-shadow: var(--seg-active-shadow, 0 0 14px rgba(16, 185, 129, 0.38)) !important;
     font-weight: 700 !important;
     transform: translateY(-0.5px) !important;
 }
@@ -4319,8 +4321,8 @@ div[data-testid="stSegmentedControl"] button[aria-checked="true"] *,
 div[data-testid="stSegmentedControl"] button[aria-checked="true"] p,
 div[data-testid="stSegmentedControl"] button[aria-checked="true"] span,
 div[data-testid="stSegmentedControl"] button[aria-checked="true"] [data-testid="stIconMaterial"] {
-    color: var(--seg-active-text, #047857) !important;
-    -webkit-text-fill-color: var(--seg-active-text, #047857) !important;
+    color: var(--seg-active-text, #065f46) !important;
+    -webkit-text-fill-color: var(--seg-active-text, #065f46) !important;
     font-weight: 700 !important;
 }
 
@@ -4590,10 +4592,11 @@ with tab1:
         .st-key-tab1_map_color_mode div[data-testid="stButtonGroup"],
         .st-key-tab1_map_color_mode div[role="radiogroup"] {
             background: var(--seg-track-bg, #f1f5f9) !important;
-            border: 1px solid var(--seg-track-border, #e2e8f0) !important;
+            border: none !important;
+            border-color: transparent !important;
             border-radius: 9999px !important;
             padding: 2px !important;
-            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+            box-shadow: none !important;
             display: inline-flex !important;
             flex-direction: row !important;
             align-items: center !important;
@@ -4675,13 +4678,14 @@ with tab1:
         .st-key-tab1_map_color_mode button[aria-checked="true"],
         .st-key-tab1_map_color_mode button[data-state="active"],
         .st-key-tab1_map_color_mode button[kind="segmented_controlActive"] {
-            background: var(--seg-active-bg, #ffffff) !important;
-            background-color: var(--seg-active-bg, #ffffff) !important;
-            color: var(--seg-active-text, #047857) !important;
-            -webkit-text-fill-color: var(--seg-active-text, #047857) !important;
-            border: 0.5px solid var(--seg-active-border, rgba(0, 0, 0, 0.06)) !important;
+            background: var(--seg-active-bg, rgba(16, 185, 129, 0.14)) !important;
+            backdrop-filter: blur(8px) !important;
+            -webkit-backdrop-filter: blur(8px) !important;
+            color: var(--seg-active-text, #065f46) !important;
+            -webkit-text-fill-color: var(--seg-active-text, #065f46) !important;
+            border: 1.5px solid var(--seg-active-border, #059669) !important;
             border-radius: 9999px !important;
-            box-shadow: var(--seg-active-shadow, 0 2px 8px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04)) !important;
+            box-shadow: var(--seg-active-shadow, 0 0 14px rgba(16, 185, 129, 0.38)) !important;
             font-weight: 700 !important;
             transform: translateY(-0.5px) !important;
         }
@@ -4693,8 +4697,8 @@ with tab1:
         .st-key-tab1_main_view_mode button[aria-checked="true"] *,
         .st-key-tab1_bubble_metric_radio button[aria-checked="true"] *,
         .st-key-tab1_map_color_mode button[aria-checked="true"] * {
-            color: var(--seg-active-text, #047857) !important;
-            -webkit-text-fill-color: var(--seg-active-text, #047857) !important;
+            color: var(--seg-active-text, #065f46) !important;
+            -webkit-text-fill-color: var(--seg-active-text, #065f46) !important;
             font-weight: 700 !important;
         }
 
@@ -8892,7 +8896,4 @@ with tab4:
         )
         render_import_export_section(df_table_source if not df_table_source.empty else df_filtered, filename_prefix="npa_property_listing", key_suffix="tab4")
 
-
-
-
-# reload trigger: 2026-09-15 13:37:45 (Compact Apple pill segmented control)
+# reload trigger: 2026-09-15 13:48:00 (Removed outer track border to eliminate nested border look)
