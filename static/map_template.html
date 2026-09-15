@@ -39,11 +39,12 @@
         animation: spin 0.8s linear infinite;
       }
 
-      /* Basemap Mode Switcher (Top-Left) */
+      /* Basemap Mode Switcher (Top-Right) */
       #map-style-controls {
         position: absolute;
         top: 16px;
-        left: 16px;
+        right: 16px;
+        left: auto;
         background: rgba(255, 255, 255, 0.92);
         backdrop-filter: blur(8px);
         padding: 6px;
@@ -51,7 +52,7 @@
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
         font-family: 'Noto Sans Thai', 'Inter', sans-serif;
         font-size: 12px;
-        z-index: 99;
+        z-index: 1000;
         display: flex;
         gap: 4px;
         border: 1px solid rgba(0, 0, 0, 0.08);
@@ -78,12 +79,12 @@
         box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);
       }
 
-      /* Floating Chip / Pill Filter Bar (Airbnb & Google Maps Style) */
+      /* Floating Chip / Pill Filter Bar (Airbnb & Google Maps Style) - Left Aligned */
       #map-filter-controls {
         position: absolute;
         top: 16px;
-        left: 50%;
-        transform: translateX(-50%);
+        left: 16px;
+        transform: none;
         background: rgba(255, 255, 255, 0.95);
         backdrop-filter: blur(16px);
         -webkit-backdrop-filter: blur(16px);
@@ -100,13 +101,14 @@
         flex-wrap: nowrap;
         white-space: nowrap;
         transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        max-width: calc(100vw - 420px);
       }
-      @media (max-width: 1280px) {
+      @media (max-width: 1360px) {
         #map-filter-controls {
           top: 64px;
-          left: 50%;
-          transform: translateX(-50%);
-          max-width: calc(100vw - 32px);
+          left: 16px;
+          transform: none;
+          max-width: calc(100vw - 200px);
           overflow-x: auto;
           scrollbar-width: none;
           padding: 6px 10px;
@@ -155,6 +157,25 @@
       }
       .filter-pill.active .pill-icon {
         color: #2563eb !important;
+      }
+      /* Disabled Pill (e.g. Subdistrict before District is selected) */
+      .filter-pill.disabled {
+        opacity: 0.55 !important;
+        cursor: not-allowed !important;
+        background: #f1f5f9 !important;
+        border-color: #cbd5e1 !important;
+        color: #94a3b8 !important;
+      }
+      .filter-pill.disabled:hover {
+        transform: none !important;
+        box-shadow: none !important;
+        border-color: #cbd5e1 !important;
+        color: #94a3b8 !important;
+        background: #f1f5f9 !important;
+      }
+      .filter-pill.disabled .pill-icon,
+      .filter-pill.disabled .pill-arrow {
+        color: #94a3b8 !important;
       }
       .pill-text {
         overflow: hidden;
@@ -566,6 +587,12 @@
       body.dark-theme .filter-pill.active .pill-icon {
         color: #60a5fa !important;
       }
+      body.dark-theme .filter-pill.disabled {
+        opacity: 0.45 !important;
+        background: #0f172a !important;
+        border-color: #334155 !important;
+        color: #64748b !important;
+      }
       body.dark-theme .pill-icon {
         color: #94a3b8 !important;
       }
@@ -676,10 +703,10 @@
         color: #ffffff !important;
       }
 
-      /* Legend Overlay (Top-Right) */
+      /* Legend Overlay (Top-Right, below Basemap Switcher) */
       #map-legend {
         position: absolute;
-        top: 16px;
+        top: 68px;
         right: 16px;
         background: rgba(255, 255, 255, 0.92);
         backdrop-filter: blur(8px);
@@ -693,7 +720,7 @@
         flex-direction: column;
         gap: 6px;
         border: 1px solid rgba(0, 0, 0, 0.05);
-        max-height: 80vh;
+        max-height: calc(100vh - 90px);
         overflow-y: auto;
       }
       .legend-item {
@@ -1368,6 +1395,8 @@
         <span id="card-prov" class="card-grid-val">-</span>
         <span class="card-grid-label"><i class="fa-solid fa-city" style="color: #64748b; margin-right: 4px;"></i>อำเภอ/เขต:</span>
         <span id="card-dist" class="card-grid-val">-</span>
+        <span class="card-grid-label"><i class="fa-solid fa-map-pin" style="color: #64748b; margin-right: 4px;"></i>ตำบล/แขวง:</span>
+        <span id="card-subdist" class="card-grid-val">-</span>
       </div>
       <div class="card-actions">
         <button id="btn-open-link" class="btn-primary-link" onclick="openPropertyLink()"><i class="fa-solid fa-arrow-up-right-from-square"></i> เปิดดูทรัพย์สิน (เว็บไซต์)</button>
@@ -1398,8 +1427,8 @@
           <div style="font-weight:700; color:#0f766e; margin-bottom:6px;"><i class="fa-solid fa-1" style="margin-right:4px;"></i> ติดตั้งปุ่มลัด (ทำครั้งเดียว)</div>
           <p style="margin:4px 0 8px;"><b>ลากปุ่มสีเขียวด้านล่างนี้</b> ขึ้นไปวางบนแถบบุ๊กมาร์ก (Bookmarks Bar) ของคุณ (กด <code>Ctrl + Shift + B</code> เพื่อเปิดแถบบุ๊กมาร์ก):</p>
           <div style="text-align:center;">
-            <a id="bookmarklet-link" href="javascript:(function(){var h=window.location.hash.substring(1);var p=new URLSearchParams(h);var prov=decodeURIComponent(p.get('prov')||'').trim();var dist=decodeURIComponent(p.get('dist')||'').trim();var deed=decodeURIComponent(p.get('deed')||'').trim();var cNo=decodeURIComponent(p.get('case')||'').trim();if(!prov&&!dist){prov=prompt('กรุณาระบุชื่อจังหวัด:')||'';dist=prompt('กรุณาระบุชื่ออำเภอ:')||'';if(!prov&&!dist)return;}function clean(s){return(s||'').replace(/^(จังหวัด|จ\.|อำเภอ|อ\.|เขต)/g,'').trim().toLowerCase();}function showBanner(msg,suc){var b=document.getElementById('all-asset-b');if(!b){b=document.createElement('div');b.id='all-asset-b';b.style.position='fixed';b.style.top='16px';b.style.left='50%';b.style.transform='translateX(-50%)';b.style.zIndex='9999999';b.style.padding='10px 22px';b.style.borderRadius='10px';b.style.fontFamily='sans-serif';b.style.fontSize='13px';b.style.fontWeight='bold';b.style.boxShadow='0 10px 25px rgba(0,0,0,0.3)';document.body.appendChild(b);}b.style.backgroundColor=suc?'#059669':'#0284c7';b.style.color='#fff';b.innerHTML=msg;setTimeout(function(){if(b)b.remove();},5000);}showBanner('⚡ All Asset: กำลังเลือก '+(prov?'จ.'+prov:'')+(dist?' อ.'+dist:'')+'...',false);var cP=clean(prov);var cD=clean(dist);var sels=Array.from(document.querySelectorAll('select'));var pSel=sels.find(function(s){var id=(s.id||'').toLowerCase();var n=(s.name||'').toLowerCase();return id.includes('prov')||n.includes('prov')||Array.from(s.options).some(function(o){return o.text.includes('กรุงเทพ')||o.text.includes('จังหวัด');});})||sels[0];if(!pSel){alert('❌ ไม่พบช่องเลือกจังหวัด กรุณารอหน้าเว็บโหลดเสร็จก่อนครับ');return;}var pOpt=Array.from(pSel.options).find(function(o){var t=clean(o.text);return t&&(t===cP||t.includes(cP)||cP.includes(t));});if(pOpt){pSel.value=pOpt.value;pSel.dispatchEvent(new Event('change',{bubbles:true}));if(window.jQuery){window.jQuery(pSel).trigger('change');}}var att=0;var tm=setInterval(function(){att++;var curSels=Array.from(document.querySelectorAll('select'));var dSel=curSels.find(function(s){var id=(s.id||'').toLowerCase();var n=(s.name||'').toLowerCase();return s!==pSel&&(id.includes('amp')||id.includes('dist')||n.includes('amp')||n.includes('dist')||Array.from(s.options).some(function(o){return o.text.includes('อำเภอ')||o.text.includes('เขต');}));})||curSels[1];if(dSel&&dSel.options&&dSel.options.length>1){var dOpt=Array.from(dSel.options).find(function(o){var t=clean(o.text);return t&&(t===cD||t.includes(cD)||cD.includes(t));});if(dOpt){clearInterval(tm);dSel.value=dOpt.value;dSel.dispatchEvent(new Event('change',{bubbles:true}));if(window.jQuery){window.jQuery(dSel).trigger('change');}var deedInp=document.querySelector('input[placeholder*=\'โฉนด\'], input[name*=\'deed\'], input[id*=\'deed\']');if(deed&&deedInp){deedInp.value=deed;deedInp.dispatchEvent(new Event('input',{bubbles:true}));deedInp.dispatchEvent(new Event('change',{bubbles:true}));setTimeout(function(){var btn=Array.from(document.querySelectorAll('button, input[type=\'button\'], a')).find(function(b){return(b.innerText||b.value||'').includes('ค้นหา');});if(btn)btn.click();showBanner('✅ เลือกจังหวัด อำเภอ และค้นหาโฉนด '+deed+' สำเร็จ!',true);},300);}else{if(deedInp)deedInp.focus();showBanner('✅ เลือก '+(prov?'จ.'+prov:'')+(dist?' อ.'+dist:'')+' สำเร็จแล้ว! '+(cNo?'(คดี:'+cNo+')':''),true);}}}if(att>=25){clearInterval(tm);showBanner('⚠️ กรุณาเลือกอำเภอด้วยตนเอง',false);}},200);})();" class="bookmarklet-drag-pill" title="ลากปุ่มนี้ขึ้นไปปล่อยที่แถบ Bookmarks Bar">
-              <i class="fa-solid fa-arrows-up-down-left-right"></i> 📍 ค้นหา LandsMaps ออโต้ (ลากฉันขึ้นแถบบุ๊กมาร์ก)
+            <a id="bookmarklet-link" href="javascript:(function(){var h=window.location.hash.substring(1);var p=new URLSearchParams(h);var prov=decodeURIComponent(p.get('prov')||'').trim();var dist=decodeURIComponent(p.get('dist')||'').trim();var deed=decodeURIComponent(p.get('deed')||'').trim();var cNo=decodeURIComponent(p.get('case')||'').trim();if(!prov&&!dist){prov=prompt('กรุณาระบุชื่อจังหวัด:')||'';dist=prompt('กรุณาระบุชื่ออำเภอ:')||'';if(!prov&&!dist)return;}function clean(s){return(s||'').replace(/^(จังหวัด|จ\.|อำเภอ|อ\.|เขต)/g,'').trim().toLowerCase();}function showBanner(msg,suc){var b=document.getElementById('all-asset-b');if(!b){b=document.createElement('div');b.id='all-asset-b';b.style.position='fixed';b.style.top='16px';b.style.left='50%';b.style.transform='translateX(-50%)';b.style.zIndex='9999999';b.style.padding='10px 22px';b.style.borderRadius='10px';b.style.fontFamily='sans-serif';b.style.fontSize='13px';b.style.fontWeight='bold';b.style.boxShadow='0 10px 25px rgba(0,0,0,0.3)';document.body.appendChild(b);}b.style.backgroundColor=suc?'#059669':'#0284c7';b.style.color='#fff';b.innerHTML=msg;setTimeout(function(){if(b)b.remove();},5000);}showBanner('All Asset: กำลังเลือก '+(prov?'จ.'+prov:'')+(dist?' อ.'+dist:'')+'...',false);var cP=clean(prov);var cD=clean(dist);var sels=Array.from(document.querySelectorAll('select'));var pSel=sels.find(function(s){var id=(s.id||'').toLowerCase();var n=(s.name||'').toLowerCase();return id.includes('prov')||n.includes('prov')||Array.from(s.options).some(function(o){return o.text.includes('กรุงเทพ')||o.text.includes('จังหวัด');});})||sels[0];if(!pSel){alert('ไม่พบช่องเลือกจังหวัด กรุณารอหน้าเว็บโหลดเสร็จก่อนครับ');return;}var pOpt=Array.from(pSel.options).find(function(o){var t=clean(o.text);return t&&(t===cP||t.includes(cP)||cP.includes(t));});if(pOpt){pSel.value=pOpt.value;pSel.dispatchEvent(new Event('change',{bubbles:true}));if(window.jQuery){window.jQuery(pSel).trigger('change');}}var att=0;var tm=setInterval(function(){att++;var curSels=Array.from(document.querySelectorAll('select'));var dSel=curSels.find(function(s){var id=(s.id||'').toLowerCase();var n=(s.name||'').toLowerCase();return s!==pSel&&(id.includes('amp')||id.includes('dist')||n.includes('amp')||n.includes('dist')||Array.from(s.options).some(function(o){return o.text.includes('อำเภอ')||o.text.includes('เขต');}));})||curSels[1];if(dSel&&dSel.options&&dSel.options.length>1){var dOpt=Array.from(dSel.options).find(function(o){var t=clean(o.text);return t&&(t===cD||t.includes(cD)||cD.includes(t));});if(dOpt){clearInterval(tm);dSel.value=dOpt.value;dSel.dispatchEvent(new Event('change',{bubbles:true}));if(window.jQuery){window.jQuery(dSel).trigger('change');}var deedInp=document.querySelector('input[placeholder*=\'โฉนด\'], input[name*=\'deed\'], input[id*=\'deed\']');if(deed&&deedInp){deedInp.value=deed;deedInp.dispatchEvent(new Event('input',{bubbles:true}));deedInp.dispatchEvent(new Event('change',{bubbles:true}));setTimeout(function(){var btn=Array.from(document.querySelectorAll('button, input[type=\'button\'], a')).find(function(b){return(b.innerText||b.value||'').includes('ค้นหา');});if(btn)btn.click();showBanner('เลือกจังหวัด อำเภอ และค้นหาโฉนด '+deed+' สำเร็จ!',true);},300);}else{if(deedInp)deedInp.focus();showBanner('เลือก '+(prov?'จ.'+prov:'')+(dist?' อ.'+dist:'')+' สำเร็จแล้ว! '+(cNo?'(คดี:'+cNo+')':''),true);}}}if(att>=25){clearInterval(tm);showBanner('กรุณาเลือกอำเภอด้วยตนเอง',false);}},200);})();" class="bookmarklet-drag-pill" title="ลากปุ่มนี้ขึ้นไปปล่อยที่แถบ Bookmarks Bar">
+              <i class="fa-solid fa-arrows-up-down-left-right"></i> <i class="fa-solid fa-location-dot" style="margin-left:4px; margin-right:2px;"></i> ค้นหา LandsMaps ออโต้ (ลากฉันขึ้นแถบบุ๊กมาร์ก)
             </a>
           </div>
           <div style="text-align:center; margin-top:6px;">
@@ -1411,7 +1440,7 @@
           <div style="font-weight:700; color:#0f766e; margin-bottom:6px;"><i class="fa-solid fa-2" style="margin-right:4px;"></i> วิธีใช้งานจริง</div>
           <ol style="margin:4px 0 0 16px; padding:0; line-height:1.6;">
             <li>คลิกปุ่ม <b>"ดูแปลงที่ดิน (LandsMaps)"</b> บนทรัพย์สินในแดชบอร์ดตามปกติ</li>
-            <li>เมื่อหน้า LandsMaps เปิดขึ้นมา ให้ <b>คลิกปุ่ม "📍 ค้นหา LandsMaps ออโต้" บนแถบบุ๊กมาร์กของคุณ 1 ครั้ง</b></li>
+            <li>เมื่อหน้า LandsMaps เปิดขึ้นมา ให้ <b>คลิกปุ่ม "<i class="fa-solid fa-location-dot" style="color:#0d9488;"></i> ค้นหา LandsMaps ออโต้" บนแถบบุ๊กมาร์กของคุณ 1 ครั้ง</b></li>
             <li>ระบบจะเลือก <b>จังหวัด</b> และ <b>อำเภอ</b> ให้ทันทีใน 1 วินาทีครับ!</li>
           </ol>
         </div>
@@ -1642,7 +1671,38 @@
         </div>
       </div>
 
-      <!-- 8. Quick Keyword Search Pill -->
+      <!-- 8. Subdistrict Multi-Select Pill (Enabled only when District is chosen) -->
+      <div class="custom-multiselect" id="ms-subdist">
+        <button type="button" class="filter-pill disabled" id="pill-subdist" onclick="toggleSubdistSelect()" title="กรุณาเลือกอำเภอ/เขตก่อนจึงจะเลือกตำบลได้">
+          <i class="fa-solid fa-map-pin pill-icon"></i>
+          <span class="pill-text" id="ms-subdist-label">ทุกตำบล (เลือกอำเภอก่อน)</span>
+          <span class="pill-badge" id="ms-subdist-badge" style="display:none;">0</span>
+          <span class="pill-clear" id="ms-subdist-clear" onclick="clearCategoryPill(event, 'subdist')" title="ล้างตำบล" style="display:none;"><i class="fa-solid fa-xmark"></i></span>
+          <i class="fa-solid fa-chevron-down pill-arrow"></i>
+        </button>
+        <div class="ms-dropdown align-right" id="ms-subdist-dropdown">
+          <div class="ms-dropdown-header">
+            <span class="ms-header-title"><i class="fa-solid fa-map-pin" style="color:#2563eb; margin-right:6px;"></i>เลือกตำบล / แขวง</span>
+            <div class="ms-actions">
+              <button type="button" class="ms-action-link" onclick="selectAllOptions('subdist')">เลือกทั้งหมด</button>
+              <span class="ms-action-sep">•</span>
+              <button type="button" class="ms-action-link" onclick="deselectAllOptions('subdist')">ล้าง</button>
+            </div>
+          </div>
+          <div class="ms-search-box">
+            <i class="fa-solid fa-magnifying-glass ms-search-icon"></i>
+            <input type="text" class="ms-search-input" placeholder="ค้นหาตำบล/แขวง..." oninput="filterDropdownList('ms-subdist', this.value)" />
+          </div>
+          <div class="ms-options-list" id="ms-subdist-options">
+            <div style="padding:16px; text-align:center; color:#94a3b8; font-size:11.5px;"><i class="fa-solid fa-circle-info" style="margin-right:4px;"></i>กรุณาเลือกอำเภอ/เขตที่ต้องการก่อน จึงจะสามารถเลือกตำบล/แขวงได้</div>
+          </div>
+          <div class="ms-dropdown-footer">
+            <button type="button" class="ms-btn-apply" onclick="closeAllDropdowns()"><i class="fa-solid fa-check"></i> เสร็จสิ้น</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 9. Quick Keyword Search Pill -->
       <div class="search-group">
         <i class="fa-solid fa-magnifying-glass search-icon"></i>
         <input id="filter-search" type="text" class="filter-input" placeholder="ค้นหาชื่อ/รหัส..." oninput="applyClientFilter()" />
@@ -1781,7 +1841,7 @@
       function showToast(msg) {
         const toast = document.getElementById('toast');
         if (!toast) return;
-        toast.innerText = msg;
+        toast.innerHTML = msg;
         toast.classList.add('show');
         if (toastTimer) clearTimeout(toastTimer);
         toastTimer = setTimeout(() => {
@@ -1798,9 +1858,9 @@
         temp.select();
         try {
           document.execCommand('copy');
-          showToast(`คัดลอกรหัสทรัพย์: ${text} เรียบร้อยแล้ว`);
+          showToast(`<i class="fa-regular fa-copy" style="color:#34d399; margin-right:4px;"></i>คัดลอกรหัสทรัพย์: ${text} เรียบร้อยแล้ว`);
         } catch (e) {
-          showToast(`ไม่สามารถคัดลอกได้`);
+          showToast(`<i class="fa-solid fa-circle-xmark" style="color:#f87171; margin-right:4px;"></i>ไม่สามารถคัดลอกได้`);
         }
         document.body.removeChild(temp);
       }
@@ -1914,6 +1974,8 @@
 
         const dist = document.getElementById('card-dist');
         if (dist) dist.innerText = d._district || '-';
+        const subdist = document.getElementById('card-subdist');
+        if (subdist) subdist.innerText = d._subdistrict || '-';
 
         const link = (d._link || '').trim();
         if (link && link !== '-' && link !== 'nan' && link !== 'None') {
@@ -1977,6 +2039,7 @@
         }
         const prov = (activePropertyData._prov || '').trim();
         const dist = (activePropertyData._district || '').trim();
+        const subdist = (activePropertyData._subdistrict || '').trim();
         const id = (activePropertyData._id || '').trim();
         let deed = (activePropertyData._deed || '').trim();
         if (!deed && activePropertyData._title) {
@@ -1987,6 +2050,7 @@
         const params = new URLSearchParams();
         if (prov && prov !== '-') params.set('prov', prov);
         if (dist && dist !== '-') params.set('dist', dist);
+        if (subdist && subdist !== '-') params.set('subdist', subdist);
         if (id && id !== '-') params.set('case', id);
         if (deed && deed !== '-') params.set('deed', deed);
 
@@ -2000,7 +2064,7 @@
         }
 
         const deedMsg = deed ? ` โฉนด ${deed}` : '';
-        showToast(`📍 กำลังเปิด LandsMaps (${prov} - ${dist}${deedMsg}) | กด Bookmarklet เพื่อค้นหาออโต้`);
+        showToast(`<i class="fa-solid fa-map-location-dot" style="color:#38bdf8; margin-right:6px;"></i>กำลังเปิด LandsMaps (${prov} - ${dist}${deedMsg}) | กด Bookmarklet เพื่อค้นหาออโต้`);
         window.open(landsUrl, '_blank');
       }
 
@@ -2020,7 +2084,7 @@
         const code = link.getAttribute('href');
         if (navigator.clipboard && navigator.clipboard.writeText) {
           navigator.clipboard.writeText(code).then(() => {
-            showToast('📋 คัดลอกโค้ด Bookmarklet เรียบร้อยแล้ว! นำไปวางใน URL บุ๊กมาร์กได้เลย');
+            showToast('<i class="fa-regular fa-clipboard" style="color:#34d399; margin-right:6px;"></i>คัดลอกโค้ด Bookmarklet เรียบร้อยแล้ว! นำไปวางใน URL บุ๊กมาร์กได้เลย');
           }).catch(() => {
             fallbackCopyText(code);
           });
@@ -2031,13 +2095,13 @@
 
       function copyCardId() {
         if (!activePropertyData || !activePropertyData._id || activePropertyData._id === '-') {
-          showToast('ไม่พบรหัสทรัพย์');
+          showToast('<i class="fa-solid fa-circle-exclamation" style="color:#f59e0b; margin-right:4px;"></i>ไม่พบรหัสทรัพย์');
           return;
         }
         const code = activePropertyData._id;
         if (navigator.clipboard && navigator.clipboard.writeText) {
           navigator.clipboard.writeText(code).then(() => {
-            showToast(`คัดลอกรหัสทรัพย์: ${code} เรียบร้อยแล้ว`);
+            showToast(`<i class="fa-regular fa-copy" style="color:#34d399; margin-right:4px;"></i>คัดลอกรหัสทรัพย์: ${code} เรียบร้อยแล้ว`);
           }).catch(() => {
             fallbackCopyText(code);
           });
@@ -2247,7 +2311,8 @@
         sale: { all: [], selected: new Set(), counts: {}, singular: 'ประเภทการขาย' },
         region: { all: [], selected: new Set(), counts: {}, singular: 'ภูมิภาค' },
         prov: { all: [], selected: new Set(), counts: {}, singular: 'จังหวัด' },
-        district: { all: [], selected: new Set(), counts: {}, singular: 'อำเภอ/เขต' }
+        district: { all: [], selected: new Set(), counts: {}, singular: 'อำเภอ/เขต' },
+        subdist: { all: [], selected: new Set(), counts: {}, singular: 'ตำบล/แขวง' }
       };
       let priceFilter = { min: 0, max: 0 }; // 0 max means unlimited
 
@@ -2337,6 +2402,16 @@
         }
       }
 
+      function toggleSubdistSelect() {
+        const pill = document.getElementById('pill-subdist');
+        if (pill && pill.classList.contains('disabled')) {
+          showToast('<i class="fa-solid fa-circle-exclamation" style="color:#f59e0b; margin-right:4px;"></i>กรุณาเลือกอำเภอ/เขตก่อน จึงจะเลือกตำบลได้');
+          toggleMultiSelect('ms-district');
+          return;
+        }
+        toggleMultiSelect('ms-subdist');
+      }
+
       document.addEventListener('click', function(e) {
         if (!e.target.closest('.custom-multiselect')) {
           document.querySelectorAll('.custom-multiselect.open').forEach(el => el.classList.remove('open'));
@@ -2365,6 +2440,11 @@
         cbs.forEach(cb => cb.checked = true);
         multiSelectData[cat].selected = new Set(multiSelectData[cat].all);
         updateDropdownLabel(cat);
+        if (cat === 'prov') {
+          updateDistrictOptionsFromProvince(false);
+        } else if (cat === 'district') {
+          updateSubdistrictOptionsFromDistrict();
+        }
         applyClientFilter();
       }
 
@@ -2375,6 +2455,11 @@
         cbs.forEach(cb => cb.checked = false);
         multiSelectData[cat].selected.clear();
         updateDropdownLabel(cat);
+        if (cat === 'prov') {
+          updateDistrictOptionsFromProvince(false);
+        } else if (cat === 'district') {
+          updateSubdistrictOptionsFromDistrict();
+        }
         applyClientFilter();
       }
 
@@ -2388,7 +2473,137 @@
         });
         multiSelectData[cat].selected = selected;
         updateDropdownLabel(cat);
+        if (cat === 'prov') {
+          updateDistrictOptionsFromProvince(false);
+        } else if (cat === 'district') {
+          updateSubdistrictOptionsFromDistrict();
+        }
         applyClientFilter();
+      }
+
+      function updateDistrictOptionsFromProvince(keepSelected) {
+        const provSet = multiSelectData.prov.selected;
+        const isAllProvs = (provSet.size === multiSelectData.prov.all.length);
+
+        const validDists = new Set();
+        const distCounts = {};
+
+        cachedData.forEach(d => {
+          if ((isAllProvs || provSet.has(d._prov)) && d._district && d._district !== '-' && d._district !== 'ไม่ระบุ') {
+            validDists.add(d._district);
+            distCounts[d._district] = (distCounts[d._district] || 0) + 1;
+          }
+        });
+
+        const sortedDists = Array.from(validDists).sort((a, b) => a.localeCompare(b, 'th'));
+        multiSelectData.district.all = sortedDists;
+        multiSelectData.district.counts = distCounts;
+
+        let newSelected = new Set();
+        if (keepSelected && multiSelectData.district.selected.size > 0) {
+          multiSelectData.district.selected.forEach(item => {
+            if (validDists.has(item)) newSelected.add(item);
+          });
+        }
+        if (newSelected.size === 0) {
+          newSelected = new Set(sortedDists);
+        }
+        multiSelectData.district.selected = newSelected;
+
+        const container = document.getElementById('ms-district-options');
+        if (container) {
+          container.innerHTML = '';
+          sortedDists.forEach(item => {
+            const count = (distCounts[item] || 0).toLocaleString();
+            const isChecked = newSelected.has(item);
+            const label = document.createElement('label');
+            label.className = 'ms-option-item';
+            label.setAttribute('data-value', item);
+            label.innerHTML = `
+              <input type="checkbox" value="${item}" ${isChecked ? 'checked' : ''} onchange="onCheckboxChange('district')" />
+              <span class="ms-option-name" title="${item}">${item}</span>
+              <span class="ms-option-num">${count}</span>
+            `;
+            container.appendChild(label);
+          });
+        }
+        updateDropdownLabel('district');
+        updateSubdistrictOptionsFromDistrict();
+      }
+
+      function updateSubdistrictOptionsFromDistrict() {
+        const provSet = multiSelectData.prov.selected;
+        const isAllProvs = (provSet.size === multiSelectData.prov.all.length);
+        const distSet = multiSelectData.district.selected;
+        // User has specifically chosen district(s) if size > 0 and size < all.length
+        const isDistrictChosen = (distSet.size > 0 && distSet.size < multiSelectData.district.all.length);
+
+        const pill = document.getElementById('pill-subdist');
+        const container = document.getElementById('ms-subdist-options');
+
+        if (!isDistrictChosen) {
+          // Locked state
+          if (pill) {
+            pill.classList.add('disabled');
+            pill.classList.remove('active');
+          }
+          const labelEl = document.getElementById('ms-subdist-label');
+          if (labelEl) labelEl.innerText = 'ทุกตำบล (เลือกอำเภอก่อน)';
+          const badgeEl = document.getElementById('ms-subdist-badge');
+          if (badgeEl) badgeEl.style.display = 'none';
+          const clearEl = document.getElementById('ms-subdist-clear');
+          if (clearEl) clearEl.style.display = 'none';
+          if (container) {
+            container.innerHTML = '<div style="padding:16px; text-align:center; color:#94a3b8; font-size:11.5px;"><i class="fa-solid fa-circle-info" style="margin-right:4px;"></i>กรุณาเลือกอำเภอ/เขตที่ต้องการก่อน จึงจะสามารถเลือกตำบล/แขวงได้</div>';
+          }
+          multiSelectData.subdist.all = [];
+          multiSelectData.subdist.selected.clear();
+          return;
+        }
+
+        // Unlocked state!
+        if (pill) {
+          pill.classList.remove('disabled');
+        }
+
+        const validSubdists = new Set();
+        const subdistCounts = {};
+
+        cachedData.forEach(d => {
+          if ((isAllProvs || provSet.has(d._prov)) && distSet.has(d._district)) {
+            const s = (d._subdistrict || '').trim();
+            if (s && s !== '-' && s !== 'ไม่ระบุ' && s !== 'nan' && s !== 'None') {
+              validSubdists.add(s);
+              subdistCounts[s] = (subdistCounts[s] || 0) + 1;
+            }
+          }
+        });
+
+        const sortedSubdists = Array.from(validSubdists).sort((a, b) => a.localeCompare(b, 'th'));
+        multiSelectData.subdist.all = sortedSubdists;
+        multiSelectData.subdist.counts = subdistCounts;
+        multiSelectData.subdist.selected = new Set(sortedSubdists);
+
+        if (container) {
+          container.innerHTML = '';
+          if (sortedSubdists.length === 0) {
+            container.innerHTML = '<div style="padding:16px; text-align:center; color:#94a3b8; font-size:11.5px;">ไม่พบข้อมูลตำบลในอำเภอที่เลือก</div>';
+          } else {
+            sortedSubdists.forEach(item => {
+              const count = (subdistCounts[item] || 0).toLocaleString();
+              const label = document.createElement('label');
+              label.className = 'ms-option-item';
+              label.setAttribute('data-value', item);
+              label.innerHTML = `
+                <input type="checkbox" value="${item}" checked onchange="onCheckboxChange('subdist')" />
+                <span class="ms-option-name" title="${item}">${item}</span>
+                <span class="ms-option-num">${count}</span>
+              `;
+              container.appendChild(label);
+            });
+          }
+        }
+        updateDropdownLabel('subdist');
       }
 
       function updateDropdownLabel(cat) {
@@ -2398,6 +2613,15 @@
         const clearEl = document.getElementById('ms-' + cat + '-clear');
         if (!labelEl || !pillEl) return;
         const meta = multiSelectData[cat];
+
+        if (cat === 'subdist' && pillEl.classList.contains('disabled')) {
+          labelEl.innerText = 'ทุกตำบล (เลือกอำเภอก่อน)';
+          pillEl.classList.remove('active');
+          if (badgeEl) badgeEl.style.display = 'none';
+          if (clearEl) clearEl.style.display = 'none';
+          return;
+        }
+
         const count = meta.selected.size;
         const total = meta.all.length;
 
@@ -2447,7 +2671,6 @@
         multiSelectData.sale.counts = {};
         multiSelectData.region.counts = {};
         multiSelectData.prov.counts = {};
-        multiSelectData.district.counts = {};
 
         data.forEach(d => {
           if (d._company) multiSelectData.comp.counts[d._company] = (multiSelectData.comp.counts[d._company] || 0) + 1;
@@ -2455,17 +2678,15 @@
           if (d._sale) multiSelectData.sale.counts[d._sale] = (multiSelectData.sale.counts[d._sale] || 0) + 1;
           if (d._region) multiSelectData.region.counts[d._region] = (multiSelectData.region.counts[d._region] || 0) + 1;
           if (d._prov) multiSelectData.prov.counts[d._prov] = (multiSelectData.prov.counts[d._prov] || 0) + 1;
-          if (d._district) multiSelectData.district.counts[d._district] = (multiSelectData.district.counts[d._district] || 0) + 1;
         });
 
-        multiSelectData.comp.all = (lut.co || []).filter(Boolean).sort();
-        multiSelectData.type.all = (lut.ty || []).filter(Boolean).sort();
-        multiSelectData.sale.all = (lut.st || []).filter(Boolean).sort();
-        multiSelectData.region.all = (lut.rg || []).filter(Boolean).sort();
-        multiSelectData.prov.all = (lut.pv || []).filter(Boolean).sort();
-        multiSelectData.district.all = (lut.dt || []).filter(Boolean).sort();
+        multiSelectData.comp.all = (lut.co || []).filter(Boolean).sort((a,b) => a.localeCompare(b, 'th'));
+        multiSelectData.type.all = (lut.ty || []).filter(Boolean).sort((a,b) => a.localeCompare(b, 'th'));
+        multiSelectData.sale.all = (lut.st || []).filter(Boolean).sort((a,b) => a.localeCompare(b, 'th'));
+        multiSelectData.region.all = (lut.rg || []).filter(Boolean).sort((a,b) => a.localeCompare(b, 'th'));
+        multiSelectData.prov.all = (lut.pv || []).filter(Boolean).sort((a,b) => a.localeCompare(b, 'th'));
 
-        ['comp', 'type', 'sale', 'region', 'prov', 'district'].forEach(cat => {
+        ['comp', 'type', 'sale', 'region', 'prov'].forEach(cat => {
           const meta = multiSelectData[cat];
           meta.selected = new Set(meta.all);
           const container = document.getElementById('ms-' + cat + '-options');
@@ -2486,6 +2707,9 @@
           });
           updateDropdownLabel(cat);
         });
+
+        // Initialize District options based on current province selection (all)
+        updateDistrictOptionsFromProvince(false);
         updatePriceLabel();
       }
 
@@ -2498,6 +2722,7 @@
         const regionSet = multiSelectData.region.selected;
         const provSet = multiSelectData.prov.selected;
         const distSet = multiSelectData.district.selected;
+        const subdistSet = multiSelectData.subdist.selected;
 
         const searchVal = document.getElementById('filter-search') ? document.getElementById('filter-search').value.trim().toLowerCase() : '';
         const minP = priceFilter.min;
@@ -2509,11 +2734,13 @@
         const allRegions = regionSet.size === multiSelectData.region.all.length;
         const allProvs = provSet.size === multiSelectData.prov.all.length;
         const allDists = distSet.size === multiSelectData.district.all.length;
+        const isSubdistActive = (!document.getElementById('pill-subdist')?.classList.contains('disabled') && multiSelectData.subdist.all.length > 0);
+        const allSubdists = (!isSubdistActive || subdistSet.size === multiSelectData.subdist.all.length);
         const allPrices = (minP === 0 && maxP === 0);
 
-        if (compSet.size === 0 || typeSet.size === 0 || saleSet.size === 0 || regionSet.size === 0 || provSet.size === 0 || distSet.size === 0) {
+        if (compSet.size === 0 || typeSet.size === 0 || saleSet.size === 0 || regionSet.size === 0 || provSet.size === 0 || distSet.size === 0 || (isSubdistActive && subdistSet.size === 0)) {
           currentFilteredData = [];
-        } else if (allComps && allTypes && allSales && allRegions && allProvs && allDists && allPrices && !searchVal) {
+        } else if (allComps && allTypes && allSales && allRegions && allProvs && allDists && allSubdists && allPrices && !searchVal) {
           currentFilteredData = cachedData;
         } else {
           currentFilteredData = cachedData.filter(d => {
@@ -2523,6 +2750,7 @@
             if (!allRegions && !regionSet.has(d._region)) return false;
             if (!allProvs && !provSet.has(d._prov)) return false;
             if (!allDists && !distSet.has(d._district)) return false;
+            if (isSubdistActive && !allSubdists && !subdistSet.has(d._subdistrict)) return false;
             if (!allPrices) {
               const p = d._price || 0;
               if (minP > 0 && p < minP) return false;
@@ -2564,9 +2792,10 @@
       }
 
       function resetClientFilters() {
-        ['comp', 'type', 'sale', 'region', 'prov', 'district'].forEach(cat => {
+        ['comp', 'type', 'sale', 'region', 'prov'].forEach(cat => {
           selectAllOptions(cat);
         });
+        updateDistrictOptionsFromProvince(false);
         resetPriceFilter();
         if (document.getElementById('filter-search')) document.getElementById('filter-search').value = '';
         applyClientFilter();
@@ -2590,8 +2819,8 @@
           loaderText.innerText = "GZIP: ถอดรหัส และ Decompress ข้อมูลพิกัด...";
           await new Promise(r => setTimeout(r, 5));
 
-          // Decompress and parse lookup table (company/type/province/sale/region/district names)
-          let _lut = { co: [], ty: [], pv: [], st: [], rg: [], dt: [] };
+          // Decompress and parse lookup table (company/type/province/sale/region/district/subdistrict names)
+          let _lut = { co: [], ty: [], pv: [], st: [], rg: [], dt: [], subdt: [] };
           try {
             _lut = JSON.parse(await decompressGzip(lookupBase64));
           } catch(e) { console.warn('Lookup decode failed', e); }
@@ -2614,14 +2843,15 @@
             d.g = +d.g;
             d.b = +d.b;
             // Resolve integer indices back to string values via lookup table
-            d._company  = (_lut.co && _lut.co[+d._ci]) || '-';
-            d._type     = (_lut.ty && _lut.ty[+d._ti]) || '-';
-            d._prov     = (_lut.pv && _lut.pv[+d._pi]) || '-';
-            d._sale     = (_lut.st && _lut.st[+d._sti]) || '-';
-            d._region   = (_lut.rg && _lut.rg[+d._rgi]) || '-';
-            d._district = (_lut.dt && _lut.dt[+d._dti]) || '-';
-            d._price      = +d._p || 0;
-            d._unit_price = +d._up || 0;
+            d._company     = (_lut.co && _lut.co[+d._ci]) || '-';
+            d._type        = (_lut.ty && _lut.ty[+d._ti]) || '-';
+            d._prov        = (_lut.pv && _lut.pv[+d._pi]) || '-';
+            d._sale        = (_lut.st && _lut.st[+d._sti]) || '-';
+            d._region      = (_lut.rg && _lut.rg[+d._rgi]) || '-';
+            d._district    = (_lut.dt && _lut.dt[+d._dti]) || '-';
+            d._subdistrict = (_lut.subdt && d._subdti !== undefined && _lut.subdt[+d._subdti]) || '-';
+            d._price       = +d._p || 0;
+            d._unit_price  = +d._up || 0;
           });
 
           cachedData = data;

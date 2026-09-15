@@ -269,6 +269,7 @@ def render_same_project_leaflet_map_html(proj_units, proj_name, is_dark_mode=Fal
                 "company": str(r.get('บริษัท', 'SAM')),
                 "code": str(r.get('รหัสทรัพย์', '-')),
                 "name": str(r.get('ชื่อประกาศ', proj_name)),
+                "proj": str(r.get('ชื่อโครงการ', proj_name)),
                 "type": str(r.get('ประเภททรัพย์', '-')),
                 "price": p_str,
                 "land_area": land_str,
@@ -542,7 +543,7 @@ def render_same_project_leaflet_map_html(proj_units, proj_name, is_dark_mode=Fal
                     (totalInGroup > 1 ? '<span style="background:#f1f5f9; border:1px solid #cbd5e1; color:#2563eb; font-size:10.5px; padding:1px 6px; border-radius:10px; font-weight:700;">' + (idxInGroup + 1) + '/' + totalInGroup + '</span>' : '') +
                     '</div>' +
 
-                    '<div style="font-weight:700; font-size:13.5px; color:#0f172a; line-height:1.35; margin-bottom:4px; word-break:break-word;">{proj_title_escaped}</div>' +
+                    '<div style="font-weight:700; font-size:13.5px; color:#0f172a; line-height:1.35; margin-bottom:4px; word-break:break-word;">' + (p.proj || '{proj_title_escaped}') + '</div>' +
 
                     '<div style="color:#64748b; font-size:11px; margin-bottom:8px;">' +
                     '<i class="fa-solid fa-barcode" style="margin-right:4px;"></i> รหัสทรัพย์: <b style="color:#0f172a;">' + (p.code || '-') + '</b>' +
@@ -948,30 +949,49 @@ def render_same_project_comparison(df_all_source, is_dark_mode=False, plotly_tem
         st.info("ไม่พบโครงการที่มีทรัพย์ SAM ตรงกับเงื่อนไขจังหวัดหรือประเภททรัพย์ที่เลือก")
         return
 
+    co_text = f" ของ {default_company_filter}" if default_company_filter else ""
+    state_key = f"{key_prefix}_selected_projs"
+    
+    # Sanitize session state if previous options are no longer in proj_options
+    if state_key in st.session_state:
+        cur_val = st.session_state[state_key]
+        if isinstance(cur_val, list):
+            valid_val = [p for p in cur_val if p in proj_options]
+            if not valid_val and proj_options:
+                valid_val = [proj_options[0]]
+            st.session_state[state_key] = valid_val
+        elif isinstance(cur_val, str) and cur_val in proj_options:
+            st.session_state[state_key] = [cur_val]
+        else:
+            st.session_state[state_key] = [proj_options[0]] if proj_options else []
+
     with col_f3:
-        selected_proj = st.selectbox(
-            f"เลือกโครงการที่ต้องการเปรียบเทียบ (พบ {len(proj_options):,} โครงการของ SAM):",
+        selected_projs = st.multiselect(
+            f"เลือกโครงการที่ต้องการเปรียบเทียบ (เลือกได้หลายโครงการ - พบ {len(proj_options):,} โครงการ{co_text}):",
             options=proj_options,
+            default=[proj_options[0]] if (state_key not in st.session_state and proj_options) else None,
             format_func=lambda x: label_dict.get(x, x),
-            index=0,
-            key=f"{key_prefix}_selected_proj"
+            key=state_key
         )
 
-    if not selected_proj:
-        st.info("กรุณาเลือกโครงการด้านบน")
+    if not selected_projs:
+        st.info("กรุณาเลือกอย่างน้อย 1 โครงการจากตัวเลือกด้านบน")
         return
 
-    # Get all units in the selected project from the full dataset
+    if isinstance(selected_projs, str):
+        selected_projs = [selected_projs]
+
+    # Get all units in the selected projects from the full dataset
     if 'proj_clean' in df_all_source.columns:
-        proj_units = df_all_source[df_all_source['proj_clean'] == selected_proj].copy()
+        proj_units = df_all_source[df_all_source['proj_clean'].isin(selected_projs)].copy()
     else:
         u_p = df_all_source['ชื่อโครงการ'].dropna().unique()
         p_lut = {p: clean_project_name(p) for p in u_p}
         clean_s = df_all_source['ชื่อโครงการ'].map(p_lut)
-        proj_units = df_all_source[clean_s == selected_proj].copy()
+        proj_units = df_all_source[clean_s.isin(selected_projs)].copy()
     
     if proj_units.empty:
-        st.warning(f"ไม่พบข้อมูลยูนิตในโครงการ '{selected_proj}'")
+        st.warning("ไม่พบข้อมูลยูนิตในโครงการที่เลือก")
         return
 
     # Ensure price numeric
@@ -1008,7 +1028,19 @@ def render_same_project_comparison(df_all_source, is_dark_mode=False, plotly_tem
     
     n_units = len(proj_units)
     companies_present = sorted(proj_units['บริษัท'].dropna().unique().tolist())
-    location_str = f"{proj_units['ตำบล'].dropna().iloc[0] if not proj_units['ตำบล'].dropna().empty else ''} {proj_units['อำเภอ'].dropna().iloc[0] if not proj_units['อำเภอ'].dropna().empty else ''} จ.{proj_units['จังหวัด'].dropna().iloc[0] if not proj_units['จังหวัด'].dropna().empty else ''}".strip()
+    is_multi_project = len(selected_projs) > 1
+
+    # Location summary
+    prov_unique = [str(x).strip() for x in proj_units['จังหวัด'].dropna().unique() if str(x).strip()]
+    dist_unique = [str(x).strip() for x in proj_units['อำเภอ'].dropna().unique() if str(x).strip()]
+    subd_unique = [str(x).strip() for x in proj_units['ตำบล'].dropna().unique() if str(x).strip()]
+    
+    if not is_multi_project:
+        location_str = f"{subd_unique[0] if subd_unique else ''} {dist_unique[0] if dist_unique else ''} จ.{prov_unique[0] if prov_unique else ''}".strip()
+    else:
+        prov_text = f"จ.{prov_unique[0]}" if len(prov_unique) == 1 else f"{len(prov_unique)} จังหวัด ({', '.join(prov_unique[:2])}{'...' if len(prov_unique)>2 else ''})"
+        dist_text = f"อ./เขต: {dist_unique[0]}" if len(dist_unique) == 1 else f"{len(dist_unique)} อำเภอ/เขต"
+        location_str = f"{dist_text} {prov_text}".strip()
 
     min_p = valid_prices.min() if not valid_prices.empty else 0
     med_p = valid_prices.median() if not valid_prices.empty else 0
@@ -1018,15 +1050,27 @@ def render_same_project_comparison(df_all_source, is_dark_mode=False, plotly_tem
     best_deal_unit = proj_units.loc[proj_units['ราคา'] == min_p].iloc[0] if not valid_prices.empty else None
 
     # Project Header Info Card
+    if not is_multi_project:
+        header_title = f"โครงการ: {selected_projs[0]}"
+        header_sub = f"ทำเล: <b>{location_str}</b> | พบทั้งหมด <b>{n_units:,}</b> ยูนิต จาก <b>{len(companies_present)}</b> สถาบัน ({', '.join(companies_present)})"
+        map_title = selected_projs[0]
+        csv_filename = f"Project_Comparison_{selected_projs[0]}_{pd.Timestamp.now().strftime('%Y%m%d')}"
+    else:
+        projs_disp = ", ".join(selected_projs[:3]) + ("..." if len(selected_projs) > 3 else "")
+        header_title = f"เปรียบเทียบ {len(selected_projs):,} โครงการ: {projs_disp}"
+        header_sub = f"ทำเล: <b>{location_str}</b> | รวมทั้งหมด <b>{n_units:,}</b> ยูนิต จาก <b>{len(companies_present)}</b> สถาบัน ใน <b>{len(selected_projs):,}</b> โครงการ"
+        map_title = f"{len(selected_projs)} โครงการที่เลือก"
+        csv_filename = f"Multi_Project_Comparison_{len(selected_projs)}_projects_{pd.Timestamp.now().strftime('%Y%m%d')}"
+
     st.markdown(f"""
     <div style="background: {'#1e293b' if is_dark_mode else '#f0fdf4'}; border: 1px solid {'#334155' if is_dark_mode else '#bbf7d0'}; border-radius: 14px; padding: 16px 20px; margin-top: 10px; margin-bottom: 18px;">
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
             <div>
                 <h3 style="margin: 0; color: {'#34d399' if is_dark_mode else '#15803d'}; font-size: 1.35rem; font-weight: 800;">
-                    โครงการ: {selected_proj}
+                    {header_title}
                 </h3>
                 <div style="color: {'#94a3b8' if is_dark_mode else '#475569'}; font-size: 0.85rem; margin-top: 3px;">
-                    ทำเล: <b>{location_str}</b> | พบทั้งหมด <b>{n_units:,}</b> ยูนิต จาก <b>{len(companies_present)}</b> สถาบัน ({', '.join(companies_present)})
+                    {header_sub}
                 </div>
             </div>
         </div>
@@ -1036,28 +1080,34 @@ def render_same_project_comparison(df_all_source, is_dark_mode=False, plotly_tem
     # Metric Cards
     best_co = str(best_deal_unit['บริษัท']) if best_deal_unit is not None else "-"
     best_code = str(best_deal_unit['รหัสทรัพย์']) if best_deal_unit is not None else "-"
+    best_proj = str(best_deal_unit.get('ชื่อโครงการ', '')) if best_deal_unit is not None else ""
+    best_sub = f"[{best_co}] {best_proj[:18]}" if (is_multi_project and best_proj) else f"โดย [{best_co}] รหัส: {best_code}"
     
+    card4_title = "โครงการที่เลือก" if is_multi_project else "สถาบันที่พบ"
+    card4_val = f"{len(selected_projs):,} โครงการ" if is_multi_project else f"{len(companies_present)} แห่ง"
+    card4_sub = f"{len(companies_present)} สถาบัน ({', '.join(companies_present[:2])})" if is_multi_project else f"{', '.join(companies_present[:3])}"
+
     st.markdown(f"""
     <div class="floating-kpi-container" style="margin-bottom: 20px;">
         <div class="floating-card">
             <div class="floating-card-title"><i class="fa fa-tag" style="color: #10b981;"></i> ราคาเริ่มต้นต่ำสุด (Best Entry)</div>
             <div class="floating-card-value">{format_price_short(min_p)}</div>
-            <div class="floating-card-sub">โดย [{best_co}] รหัส: {best_code}</div>
+            <div class="floating-card-sub">{best_sub}</div>
         </div>
         <div class="floating-card">
-            <div class="floating-card-title"><i class="fa fa-calculator" style="color: #3b82f6;"></i> ราคากลางโครงการ (Median)</div>
+            <div class="floating-card-title"><i class="fa fa-calculator" style="color: #3b82f6;"></i> ราคากลาง (Median Price)</div>
             <div class="floating-card-value">{format_price_short(med_p)}</div>
             <div class="floating-card-sub">ค่าเฉลี่ย: {format_price_short(mean_p)}</div>
         </div>
         <div class="floating-card">
-            <div class="floating-card-title"><i class="fa fa-arrow-up-right-dots" style="color: #f59e0b;"></i> ราคาสูงสุดในโครงการ</div>
+            <div class="floating-card-title"><i class="fa fa-arrow-up-right-dots" style="color: #f59e0b;"></i> ราคาสูงสุด</div>
             <div class="floating-card-value">{format_price_short(max_p)}</div>
             <div class="floating-card-sub">ส่วนต่าง Max-Min: {format_price_short(max_p - min_p)}</div>
         </div>
         <div class="floating-card">
-            <div class="floating-card-title"><i class="fa fa-building" style="color: #8b5cf6;"></i> สถาบันที่พบ</div>
-            <div class="floating-card-value">{len(companies_present)} แห่ง</div>
-            <div class="floating-card-sub">{', '.join(companies_present[:3])}</div>
+            <div class="floating-card-title"><i class="fa fa-city" style="color: #8b5cf6;"></i> {card4_title}</div>
+            <div class="floating-card-value">{card4_val}</div>
+            <div class="floating-card-sub">{card4_sub}</div>
         </div>
         <div class="floating-card">
             <div class="floating-card-title"><i class="fa fa-layer-group" style="color: #06b6d4;"></i> จำนวนยูนิตทั้งหมด</div>
@@ -1071,48 +1121,95 @@ def render_same_project_comparison(df_all_source, is_dark_mode=False, plotly_tem
     c_chart1, c_chart2 = st.columns([0.55, 0.45])
     
     with c_chart1:
-        proj_sorted = proj_units.sort_values('ราคา', ascending=True).copy()
-        proj_sorted['label'] = proj_sorted.apply(
-            lambda r: f"[{r['บริษัท']}] {str(r.get('รหัสทรัพย์', '')).strip()}", axis=1
-        )
-        proj_sorted['price_million'] = proj_sorted['ราคา'] / 1e6
-        
-        fig_bar = px.bar(
-            proj_sorted,
-            x='label',
-            y='price_million',
-            color='บริษัท',
-            title=f'ราคาขายรายยูนิตในโครงการ {selected_proj} (เรียงจากถูกไปแพง)',
-            color_discrete_map=COMPANY_COLORS,
-            template=plotly_template
-        )
-        fig_bar.add_hline(
-            y=med_p / 1e6, 
-            line_dash="dash", 
-            line_color="#f59e0b",
-            annotation_text=f"ราคากลาง ฿{med_p/1e6:,.2f}M", 
-            annotation_position="top right"
-        )
-        fig_bar.update_layout(
-            height=400,
-            xaxis_title="ยูนิตในโครงการ",
-            yaxis_title="ราคาขาย (ล้านบาท)",
-            margin=dict(t=40, b=10, l=10, r=10)
-        )
-        if style_plotly_fig:
-            fig_bar = style_plotly_fig(fig_bar)
-        st.plotly_chart(fig_bar, use_container_width=True, key=f"{key_prefix}_bar_chart")
+        if is_multi_project:
+            proj_summary = proj_units.groupby('ชื่อโครงการ').agg(
+                จำนวนยูนิต=('ราคา', 'count'),
+                ราคากลาง=('ราคา', 'median'),
+                ราคาต่ำสุด=('ราคา', 'min'),
+                ราคาสูงสุด=('ราคา', 'max')
+            ).reset_index()
+            proj_summary['ราคากลาง_ล้าน'] = proj_summary['ราคากลาง'] / 1e6
+            proj_summary = proj_summary.sort_values('ราคากลาง', ascending=True)
+            
+            fig_bar = px.bar(
+                proj_summary,
+                x='ชื่อโครงการ',
+                y='ราคากลาง_ล้าน',
+                color='ชื่อโครงการ',
+                text=proj_summary['ราคากลาง_ล้าน'].apply(lambda v: f"฿{v:,.2f}M" if pd.notna(v) and v > 0 else "-"),
+                title=f'เปรียบเทียบราคากลางรายโครงการ (Median Price Comparison)',
+                template=plotly_template
+            )
+            fig_bar.update_traces(textposition='outside')
+            fig_bar.update_layout(
+                height=400,
+                xaxis_title="ชื่อโครงการ",
+                yaxis_title="ราคากลาง (ล้านบาท)",
+                showlegend=False,
+                margin=dict(t=40, b=10, l=10, r=10)
+            )
+            if style_plotly_fig:
+                fig_bar = style_plotly_fig(fig_bar)
+            st.plotly_chart(fig_bar, use_container_width=True, key=f"{key_prefix}_bar_chart")
+        else:
+            proj_sorted = proj_units.sort_values('ราคา', ascending=True).copy()
+            proj_sorted['label'] = proj_sorted.apply(
+                lambda r: f"[{r['บริษัท']}] {str(r.get('รหัสทรัพย์', '')).strip()}", axis=1
+            )
+            proj_sorted['price_million'] = proj_sorted['ราคา'] / 1e6
+            
+            fig_bar = px.bar(
+                proj_sorted,
+                x='label',
+                y='price_million',
+                color='บริษัท',
+                title=f'ราคาขายรายยูนิตในโครงการ {selected_projs[0]} (เรียงจากถูกไปแพง)',
+                color_discrete_map=COMPANY_COLORS,
+                template=plotly_template
+            )
+            fig_bar.add_hline(
+                y=med_p / 1e6, 
+                line_dash="dash", 
+                line_color="#f59e0b",
+                annotation_text=f"ราคากลาง ฿{med_p/1e6:,.2f}M", 
+                annotation_position="top right"
+            )
+            fig_bar.update_layout(
+                height=400,
+                xaxis_title="ยูนิตในโครงการ",
+                yaxis_title="ราคาขาย (ล้านบาท)",
+                margin=dict(t=40, b=10, l=10, r=10)
+            )
+            if style_plotly_fig:
+                fig_bar = style_plotly_fig(fig_bar)
+            st.plotly_chart(fig_bar, use_container_width=True, key=f"{key_prefix}_bar_chart")
         
     with c_chart2:
-        if len(companies_present) > 1:
+        if is_multi_project:
+            proj_unit_counts = proj_units['ชื่อโครงการ'].value_counts().reset_index()
+            proj_unit_counts.columns = ['ชื่อโครงการ', 'count']
+            fig_pie = px.pie(
+                proj_unit_counts,
+                names='ชื่อโครงการ',
+                values='count',
+                hole=0,
+                title=f'สัดส่วนจำนวนยูนิตตามโครงการ (รวม {n_units:,} ยูนิต)',
+                template=plotly_template
+            )
+            fig_pie.update_traces(textposition='inside', textinfo='percent+label')
+            fig_pie.update_layout(height=400, margin=dict(t=40, b=10, l=10, r=10))
+            if style_plotly_fig:
+                fig_pie = style_plotly_fig(fig_pie)
+            st.plotly_chart(fig_pie, use_container_width=True, key=f"{key_prefix}_proj_pie")
+        elif len(companies_present) > 1:
             co_counts = proj_units['บริษัท'].value_counts().reset_index()
             co_counts.columns = ['บริษัท', 'count']
             fig_co_pie = px.pie(
                 co_counts,
                 names='บริษัท',
                 values='count',
-                hole=0.45,
-                title=f'สัดส่วนยูนิตแยกตามสถาบันใน {selected_proj}',
+                hole=0,
+                title=f'สัดส่วนยูนิตแยกตามสถาบันใน {selected_projs[0]}',
                 color='บริษัท',
                 color_discrete_map=COMPANY_COLORS,
                 template=plotly_template
@@ -1138,33 +1235,48 @@ def render_same_project_comparison(df_all_source, is_dark_mode=False, plotly_tem
                 if style_plotly_fig:
                     fig_scat = style_plotly_fig(fig_scat)
                 st.plotly_chart(fig_scat, use_container_width=True, key=f"{key_prefix}_scatter_chart")
+
     # Map Section
     st.markdown("---")
-    st.markdown(f"##### แผนที่ตำแหน่งที่ตั้งโครงการและยูนิต ({selected_proj})")
-    same_proj_map_html = render_same_project_leaflet_map_html(proj_units, selected_proj, is_dark_mode=is_dark_mode)
+    st.markdown(f"##### แผนที่ตำแหน่งที่ตั้งและยูนิต ({map_title})")
+    same_proj_map_html = render_same_project_leaflet_map_html(proj_units, map_title, is_dark_mode=is_dark_mode)
     if same_proj_map_html:
         st.components.v1.html(same_proj_map_html, height=680, scrolling=False)
     else:
         st.info("ไม่พบข้อมูลพิกัดละติจูด/ลองจิจูดสำหรับแสดงแผนที่ของโครงการนี้")
 
     # Detailed Unit Table
-    st.markdown("##### ตารางเปรียบเทียบรายละเอียดทุกยูนิตในโครงการ")
+    table_title = f"ตารางเปรียบเทียบรายละเอียดทุกยูนิต ({len(selected_projs):,} โครงการ | {len(proj_units):,} ยูนิต)" if is_multi_project else "ตารางเปรียบเทียบรายละเอียดทุกยูนิตในโครงการ"
+    st.markdown(f"##### {table_title}")
     
     table_units = proj_units.sort_values('ราคา', ascending=True).copy()
     table_units['ขนาดที่ดิน'] = table_units['พื้นที่_ตารางวา'].apply(format_rai_ngan_wah)
     table_units['ราคาขาย (บาท)'] = table_units['ราคา']
     
-    if med_p > 0:
-        table_units['เทียบราคากลาง (%)'] = table_units['ราคา'].apply(
-            lambda p: f"{(p - med_p) / med_p * 100:+.1f}%" if pd.notna(p) and p > 0 else "-"
+    if is_multi_project:
+        proj_medians = table_units.groupby('ชื่อโครงการ')['ราคา'].median().to_dict()
+        table_units['เทียบราคากลางโครงการ (%)'] = table_units.apply(
+            lambda r: f"{(r['ราคา'] - proj_medians.get(r['ชื่อโครงการ'], 0)) / proj_medians.get(r['ชื่อโครงการ'], 1) * 100:+.1f}%"
+            if pd.notna(r['ราคา']) and r['ราคา'] > 0 and proj_medians.get(r['ชื่อโครงการ'], 0) > 0 else "-",
+            axis=1
         )
+        cols_show = [
+            'ชื่อโครงการ', 'บริษัท', 'รหัสทรัพย์', 'ประเภททรัพย์', 'ราคาขาย (บาท)', 'เทียบราคากลางโครงการ (%)',
+            'ขนาดที่ดิน', 'พื้นที่ใช้สอย (ตร.ม.)', 'ราคาต่อตารางวา', 'ราคาต่อตารางเมตร', 'ตำบล', 'อำเภอ', 'ลิงก์'
+        ]
     else:
-        table_units['เทียบราคากลาง (%)'] = "-"
+        if med_p > 0:
+            table_units['เทียบราคากลาง (%)'] = table_units['ราคา'].apply(
+                lambda p: f"{(p - med_p) / med_p * 100:+.1f}%" if pd.notna(p) and p > 0 else "-"
+            )
+        else:
+            table_units['เทียบราคากลาง (%)'] = "-"
 
-    cols_show = [
-        'บริษัท', 'รหัสทรัพย์', 'ประเภททรัพย์', 'ราคาขาย (บาท)', 'เทียบราคากลาง (%)',
-        'ขนาดที่ดิน', 'พื้นที่ใช้สอย (ตร.ม.)', 'ราคาต่อตารางวา', 'ราคาต่อตารางเมตร', 'ตำบล', 'อำเภอ', 'ลิงก์'
-    ]
+        cols_show = [
+            'บริษัท', 'รหัสทรัพย์', 'ประเภททรัพย์', 'ราคาขาย (บาท)', 'เทียบราคากลาง (%)',
+            'ขนาดที่ดิน', 'พื้นที่ใช้สอย (ตร.ม.)', 'ราคาต่อตารางวา', 'ราคาต่อตารางเมตร', 'ตำบล', 'อำเภอ', 'ลิงก์'
+        ]
+
     cols_exist = [c for c in cols_show if c in table_units.columns]
     
     st.dataframe(
@@ -1186,9 +1298,9 @@ def render_same_project_comparison(df_all_source, is_dark_mode=False, plotly_tem
     with c_exp1:
         csv_proj = table_units.to_csv(index=False).encode('utf-8-sig')
         st.download_button(
-            label=f"ดาวน์โหลด CSV โครงการนี้ ({len(table_units):,} ยูนิต)",
+            label=f"ดาวน์โหลด CSV ({len(table_units):,} ยูนิต)",
             data=csv_proj,
-            file_name=f"Project_Comparison_{selected_proj}_{pd.Timestamp.now().strftime('%Y%m%d')}.csv",
+            file_name=f"{csv_filename}.csv",
             mime="text/csv",
             use_container_width=True,
             key=f"{key_prefix}_btn_csv"
@@ -1198,9 +1310,9 @@ def render_same_project_comparison(df_all_source, is_dark_mode=False, plotly_tem
         with pd.ExcelWriter(excel_buf, engine='openpyxl') as writer:
             table_units.to_excel(writer, index=False, sheet_name='Units')
         st.download_button(
-            label=f"ดาวน์โหลด Excel โครงการนี้ (.xlsx)",
+            label=f"ดาวน์โหลด Excel (.xlsx)",
             data=excel_buf.getvalue(),
-            file_name=f"Project_Comparison_{selected_proj}_{pd.Timestamp.now().strftime('%Y%m%d')}.xlsx",
+            file_name=f"{csv_filename}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=True,
             key=f"{key_prefix}_btn_excel"
@@ -2271,7 +2383,7 @@ def render_sam_tab(df_raw, df_filtered, is_dark_mode=False, plotly_template="plo
                 comp_units,
                 names='บริษัท',
                 values='count',
-                hole=0.4,
+                hole=0,
                 title='ส่วนแบ่งตลาดตามจำนวนทรัพย์สิน (Units Market Share)',
                 color='บริษัท',
                 color_discrete_map=COMPANY_COLORS,
@@ -2291,7 +2403,7 @@ def render_sam_tab(df_raw, df_filtered, is_dark_mode=False, plotly_template="plo
                 comp_vals,
                 names='บริษัท',
                 values='val_million',
-                hole=0.4,
+                hole=0,
                 title='ส่วนแบ่งตลาดตามมูลค่ารวมของพอร์ต (Portfolio Value Share)',
                 color='บริษัท',
                 color_discrete_map=COMPANY_COLORS,
@@ -2444,7 +2556,7 @@ def render_sam_tab(df_raw, df_filtered, is_dark_mode=False, plotly_template="plo
                     names='prop_type',
                     values='count',
                     title='สัดส่วนทรัพย์เชิงพาณิชย์และโรงงาน',
-                    hole=0.4,
+                    hole=0,
                     template=plotly_template
                 )
                 if style_plotly_fig:

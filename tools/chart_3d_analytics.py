@@ -309,7 +309,7 @@ def render_3d_property_type_donut(type_counts_df, is_dark_mode=False):
     fig = go.Figure(data=[go.Pie(
         labels=labels,
         values=values,
-        hole=0.48,
+        hole=0,
         pull=[0.05 if i == 0 else 0.02 for i in range(len(labels))],
         marker=dict(colors=colors, line=dict(color='#ffffff' if not is_dark_mode else '#1e293b', width=2.5)),
         textinfo='label+percent',

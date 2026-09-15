@@ -21,7 +21,6 @@ from dashboard_metrics import build_kpi_summary_text
 from bubble_chart import generate_3d_glossy_bubble_chart_html
 import sam_analytics
 from sam_analytics import render_same_project_comparison, clean_project_name
-from monthly_comparison import render_monthly_comparison
 
 def make_clean_dropdown_label(row, show_company=True):
     """Creates clean, highly informative dropdown labels with company, property type, name/project, code, location, and price."""
@@ -3244,7 +3243,14 @@ if is_dark_mode:
 --kpi-border: rgba(52, 211, 153, 0.25);
 --kpi-hover-border: #10b981;
 --kpi-hover-shadow: rgba(16, 185, 129, 0.25);
---kpi-accent-bar: #10b981;"""
+--kpi-accent-bar: #10b981;
+--seg-track-bg: rgba(255, 255, 255, 0.08);
+--seg-track-border: rgba(255, 255, 255, 0.12);
+--seg-active-bg: #14352a;
+--seg-active-border: rgba(52, 211, 153, 0.35);
+--seg-active-text: #34d399;
+--seg-active-shadow: 0 3px 12px rgba(0, 0, 0, 0.4), 0 0 10px rgba(16, 185, 129, 0.2);
+--seg-inactive-text: #94a3b8;"""
     plotly_template = "plotly_dark"
     mapbox_style = "carto-darkmatter"
 else:
@@ -3279,7 +3285,14 @@ else:
 --kpi-border: rgba(4, 120, 87, 0.16);
 --kpi-hover-border: #047857;
 --kpi-hover-shadow: rgba(4, 120, 87, 0.14);
---kpi-accent-bar: #047857;"""
+--kpi-accent-bar: #047857;
+--seg-track-bg: rgba(148, 163, 184, 0.15);
+--seg-track-border: rgba(148, 163, 184, 0.22);
+--seg-active-bg: #ffffff;
+--seg-active-border: rgba(0, 0, 0, 0.06);
+--seg-active-text: #047857;
+--seg-active-shadow: 0 3px 10px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
+--seg-inactive-text: #64748b;"""
     plotly_template = "plotly_white"
     mapbox_style = "carto-positron"
 
@@ -4216,20 +4229,6 @@ div[data-baseweb="tab"][aria-selected="true"] div {
     -webkit-font-smoothing: antialiased !important;
 }
 
-.st-key-main_tabs_container [role="tab"]:nth-child(5) p::before,
-.st-key-main_tabs_container div[role="tablist"] > div:nth-child(5) p::before {
-    font-family: "Font Awesome 6 Free", "FontAwesome" !important;
-    font-weight: 900 !important;
-    content: "\\f017\\a0" !important;
-    color: inherit !important;
-    -webkit-text-fill-color: inherit !important;
-    display: inline-block !important;
-    margin-right: 4px !important;
-    font-style: normal !important;
-    font-variant: normal !important;
-    text-rendering: auto !important;
-    -webkit-font-smoothing: antialiased !important;
-}
 
 .st-key-main_tabs_container [role="tab"][aria-selected="true"] p::before,
 .st-key-main_tabs_container div[role="tablist"] > div[aria-selected="true"] p::before {
@@ -4237,24 +4236,108 @@ div[data-baseweb="tab"][aria-selected="true"] div {
     -webkit-text-fill-color: var(--tab-active-border, #059669) !important;
 }
 
-/* Segmented Control Styling */
+/* ========================================================================= */
+/* Apple / macOS Elevated Floating Pill Segmented Control (Compact) */
+/* ========================================================================= */
 div[data-testid="stSegmentedControl"] {
-    background: var(--card-bg) !important;
-    border: 1px solid var(--card-border) !important;
-    border-radius: 12px !important;
-    padding: 3px !important;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.04) !important;
+    background: var(--seg-track-bg, rgba(148, 163, 184, 0.14)) !important;
+    border: 1px solid var(--seg-track-border, rgba(148, 163, 184, 0.22)) !important;
+    border-radius: 9999px !important;
+    padding: 2px !important;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    width: fit-content !important;
 }
-div[data-testid="stSegmentedControl"] button {
-    border-radius: 9px !important;
+
+div[data-testid="stSegmentedControl"] div[data-testid="stButtonGroup"],
+div[data-testid="stSegmentedControl"] div[role="radiogroup"] {
+    border: none !important;
+    background: transparent !important;
+    gap: 2px !important;
+    padding: 0 !important;
+    border-radius: 9999px !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+div[data-testid="stSegmentedControl"] button,
+div[data-testid="stSegmentedControl"] button[data-variant="segmented_control"],
+div[data-testid="stSegmentedControl"] button[data-testid*="stBaseButton"],
+div[data-testid="stSegmentedControl"] div[role="radiogroup"] > button {
+    border: none !important;
+    border-color: transparent !important;
+    outline: none !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    border-radius: 9999px !important;
+    padding: 3px 12px !important;
+    min-height: 28px !important;
     font-weight: 600 !important;
-    font-size: 0.86rem !important;
-    transition: all 0.2s ease !important;
+    font-size: 0.80rem !important;
+    letter-spacing: -0.01em !important;
+    color: var(--seg-inactive-text, #64748b) !important;
+    -webkit-text-fill-color: var(--seg-inactive-text, #64748b) !important;
+    transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    box-shadow: none !important;
+    cursor: pointer !important;
 }
-div[data-testid="stSegmentedControl"] button[aria-checked="true"] {
-    background: var(--primary-accent, #059669) !important;
-    color: #ffffff !important;
-    box-shadow: 0 2px 8px rgba(5, 150, 105, 0.3) !important;
+
+div[data-testid="stSegmentedControl"] button span[data-testid="stIconMaterial"] {
+    font-size: 15px !important;
+    width: 15px !important;
+    height: 15px !important;
+    line-height: 15px !important;
+    margin-right: 2px !important;
+}
+
+div[data-testid="stSegmentedControl"] button:hover {
+    color: var(--card-text, #0f172a) !important;
+    -webkit-text-fill-color: var(--card-text, #0f172a) !important;
+    background: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* Active Segment: Elevated Floating Card Pill */
+div[data-testid="stSegmentedControl"] button[aria-checked="true"],
+div[data-testid="stSegmentedControl"] button[data-checked="true"],
+div[data-testid="stSegmentedControl"] button[aria-pressed="true"],
+div[data-testid="stSegmentedControl"] button[data-variant="segmented_control"][aria-checked="true"],
+div[data-testid="stSegmentedControl"] div[role="radiogroup"] > button[aria-checked="true"] {
+    background: var(--seg-active-bg, #ffffff) !important;
+    background-color: var(--seg-active-bg, #ffffff) !important;
+    color: var(--seg-active-text, #047857) !important;
+    -webkit-text-fill-color: var(--seg-active-text, #047857) !important;
+    border: 0.5px solid var(--seg-active-border, rgba(0, 0, 0, 0.06)) !important;
+    border-radius: 9999px !important;
+    box-shadow: var(--seg-active-shadow, 0 2px 8px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04)) !important;
+    font-weight: 700 !important;
+    transform: translateY(-0.5px) !important;
+}
+
+/* Inner Text & Icons */
+div[data-testid="stSegmentedControl"] button[aria-checked="true"] *,
+div[data-testid="stSegmentedControl"] button[aria-checked="true"] p,
+div[data-testid="stSegmentedControl"] button[aria-checked="true"] span,
+div[data-testid="stSegmentedControl"] button[aria-checked="true"] [data-testid="stIconMaterial"] {
+    color: var(--seg-active-text, #047857) !important;
+    -webkit-text-fill-color: var(--seg-active-text, #047857) !important;
+    font-weight: 700 !important;
+}
+
+div[data-testid="stSegmentedControl"] button:not([aria-checked="true"]) *,
+div[data-testid="stSegmentedControl"] button:not([aria-checked="true"]) p,
+div[data-testid="stSegmentedControl"] button:not([aria-checked="true"]) span,
+div[data-testid="stSegmentedControl"] button:not([aria-checked="true"]) [data-testid="stIconMaterial"] {
+    color: var(--seg-inactive-text, #64748b) !important;
+    -webkit-text-fill-color: var(--seg-inactive-text, #64748b) !important;
+    font-weight: 600 !important;
+}
+
+div[data-testid="stSegmentedControl"] hr,
+div[data-testid="stSegmentedControl"] button::before,
+div[data-testid="stSegmentedControl"] button::after {
+    display: none !important;
+    border: none !important;
 }
 
 /* Tab Panel content area styling */
@@ -4461,14 +4544,13 @@ floating_kpi_html = f"""
 
 st.markdown(floating_kpi_html, unsafe_allow_html=True)
 
-# ----------------- MAIN NAVIGATION (5 Tabs with Font Awesome Solid Icons) -----------------
+# ----------------- MAIN NAVIGATION (4 Tabs with Font Awesome Solid Icons) -----------------
 with st.container(key="main_tabs_container"):
-    tab1, tab2, tab3, tab4, tab_monthly = st.tabs([
+    tab1, tab2, tab3, tab4 = st.tabs([
         "ภาพรวม & แผนที่",
         "สถิติ & วิเคราะห์",
         "เปรียบเทียบตำแหน่ง",
         "รายการทรัพย์สิน",
-        "ติดตามการเปลี่ยนแปลง",
     ], key="main_tabs")
 
 # ----- TAB 1: BUBBLE & MAP -----
@@ -4476,49 +4558,208 @@ with tab1:
     with st.container(key="tab_map"):
         st.markdown("""
         <style>
-        /* Push the 2nd segmented control (metric/color toggle) completely to the far right edge without leaking */
-        .st-key-tab_map div[data-testid="stSegmentedControl"] {
-            margin-left: auto !important;
+        /* Container sizing & alignment */
+        .st-key-tab1_view_toggle_container,
+        .st-key-tab1_metric_toggle_container,
+        .st-key-tab1_map_color_toggle_container {
+            width: auto !important;
+            display: inline-flex !important;
         }
-        .st-key-tab_map div[data-testid="column"]:last-child:has([data-testid="stSegmentedControl"]),
-        .st-key-tab_map div.stColumn:last-child:has(.stSegmentedControl) {
+
+        .st-key-tab1_metric_toggle_container,
+        .st-key-tab1_map_color_toggle_container {
+            margin-left: auto !important;
+            display: flex !important;
+            justify-content: flex-end !important;
+        }
+
+        /* Outer button group track (The Apple Pill Track - Compact) */
+        .st-key-tab1_view_toggle_container div[data-testid="stButtonGroup"],
+        .st-key-tab1_view_toggle_container div[role="radiogroup"],
+        .st-key-tab1_view_toggle_container [data-baseweb="button-group"],
+        .st-key-tab1_metric_toggle_container div[data-testid="stButtonGroup"],
+        .st-key-tab1_metric_toggle_container div[role="radiogroup"],
+        .st-key-tab1_metric_toggle_container [data-baseweb="button-group"],
+        .st-key-tab1_map_color_toggle_container div[data-testid="stButtonGroup"],
+        .st-key-tab1_map_color_toggle_container div[role="radiogroup"],
+        .st-key-tab1_map_color_toggle_container [data-baseweb="button-group"],
+        .st-key-tab1_main_view_mode div[data-testid="stButtonGroup"],
+        .st-key-tab1_main_view_mode div[role="radiogroup"],
+        .st-key-tab1_bubble_metric_radio div[data-testid="stButtonGroup"],
+        .st-key-tab1_bubble_metric_radio div[role="radiogroup"],
+        .st-key-tab1_map_color_mode div[data-testid="stButtonGroup"],
+        .st-key-tab1_map_color_mode div[role="radiogroup"] {
+            background: var(--seg-track-bg, #f1f5f9) !important;
+            border: 1px solid var(--seg-track-border, #e2e8f0) !important;
+            border-radius: 9999px !important;
+            padding: 2px !important;
+            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+            display: inline-flex !important;
+            flex-direction: row !important;
+            align-items: center !important;
+            gap: 2px !important;
+            width: fit-content !important;
+        }
+
+        /* All buttons inside - Compact Size */
+        .st-key-tab1_view_toggle_container button,
+        .st-key-tab1_view_toggle_container button[data-variant="segmented_control"],
+        .st-key-tab1_metric_toggle_container button,
+        .st-key-tab1_metric_toggle_container button[data-variant="segmented_control"],
+        .st-key-tab1_map_color_toggle_container button,
+        .st-key-tab1_map_color_toggle_container button[data-variant="segmented_control"],
+        .st-key-tab1_main_view_mode button,
+        .st-key-tab1_bubble_metric_radio button,
+        .st-key-tab1_map_color_mode button {
+            border: none !important;
+            border-color: transparent !important;
+            border-width: 0 !important;
+            outline: none !important;
+            background: transparent !important;
+            background-color: transparent !important;
+            border-radius: 9999px !important;
+            padding: 3px 12px !important;
+            min-height: 28px !important;
+            font-weight: 600 !important;
+            font-size: 0.80rem !important;
+            letter-spacing: -0.01em !important;
+            color: var(--seg-inactive-text, #64748b) !important;
+            -webkit-text-fill-color: var(--seg-inactive-text, #64748b) !important;
+            transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+            box-shadow: none !important;
+            cursor: pointer !important;
+        }
+
+        /* Compact icon sizing */
+        .st-key-tab1_view_toggle_container span[data-testid="stIconMaterial"],
+        .st-key-tab1_metric_toggle_container span[data-testid="stIconMaterial"],
+        .st-key-tab1_map_color_toggle_container span[data-testid="stIconMaterial"],
+        .st-key-tab1_main_view_mode span[data-testid="stIconMaterial"],
+        .st-key-tab1_bubble_metric_radio span[data-testid="stIconMaterial"],
+        .st-key-tab1_map_color_mode span[data-testid="stIconMaterial"] {
+            font-size: 15px !important;
+            width: 15px !important;
+            height: 15px !important;
+            line-height: 15px !important;
+            margin-right: 2px !important;
+        }
+
+        /* Inactive button hover */
+        .st-key-tab1_view_toggle_container button:hover,
+        .st-key-tab1_metric_toggle_container button:hover,
+        .st-key-tab1_map_color_toggle_container button:hover,
+        .st-key-tab1_main_view_mode button:hover,
+        .st-key-tab1_bubble_metric_radio button:hover,
+        .st-key-tab1_map_color_mode button:hover {
+            color: var(--card-text, #0f172a) !important;
+            -webkit-text-fill-color: var(--card-text, #0f172a) !important;
+            background: rgba(255, 255, 255, 0.45) !important;
+        }
+
+        /* ACTIVE / SELECTED BUTTON (Apple Floating Pill) */
+        .st-key-tab1_view_toggle_container button[aria-checked="true"],
+        .st-key-tab1_view_toggle_container button[data-state="active"],
+        .st-key-tab1_view_toggle_container button[kind="segmented_controlActive"],
+        .st-key-tab1_metric_toggle_container button[aria-checked="true"],
+        .st-key-tab1_metric_toggle_container button[data-state="active"],
+        .st-key-tab1_metric_toggle_container button[kind="segmented_controlActive"],
+        .st-key-tab1_map_color_toggle_container button[aria-checked="true"],
+        .st-key-tab1_map_color_toggle_container button[data-state="active"],
+        .st-key-tab1_map_color_toggle_container button[kind="segmented_controlActive"],
+        .st-key-tab1_main_view_mode button[aria-checked="true"],
+        .st-key-tab1_main_view_mode button[data-state="active"],
+        .st-key-tab1_main_view_mode button[kind="segmented_controlActive"],
+        .st-key-tab1_bubble_metric_radio button[aria-checked="true"],
+        .st-key-tab1_bubble_metric_radio button[data-state="active"],
+        .st-key-tab1_bubble_metric_radio button[kind="segmented_controlActive"],
+        .st-key-tab1_map_color_mode button[aria-checked="true"],
+        .st-key-tab1_map_color_mode button[data-state="active"],
+        .st-key-tab1_map_color_mode button[kind="segmented_controlActive"] {
+            background: var(--seg-active-bg, #ffffff) !important;
+            background-color: var(--seg-active-bg, #ffffff) !important;
+            color: var(--seg-active-text, #047857) !important;
+            -webkit-text-fill-color: var(--seg-active-text, #047857) !important;
+            border: 0.5px solid var(--seg-active-border, rgba(0, 0, 0, 0.06)) !important;
+            border-radius: 9999px !important;
+            box-shadow: var(--seg-active-shadow, 0 2px 8px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04)) !important;
+            font-weight: 700 !important;
+            transform: translateY(-0.5px) !important;
+        }
+
+        /* Inner elements for Active button */
+        .st-key-tab1_view_toggle_container button[aria-checked="true"] *,
+        .st-key-tab1_metric_toggle_container button[aria-checked="true"] *,
+        .st-key-tab1_map_color_toggle_container button[aria-checked="true"] *,
+        .st-key-tab1_main_view_mode button[aria-checked="true"] *,
+        .st-key-tab1_bubble_metric_radio button[aria-checked="true"] *,
+        .st-key-tab1_map_color_mode button[aria-checked="true"] * {
+            color: var(--seg-active-text, #047857) !important;
+            -webkit-text-fill-color: var(--seg-active-text, #047857) !important;
+            font-weight: 700 !important;
+        }
+
+        /* Inner elements for Inactive button */
+        .st-key-tab1_view_toggle_container button:not([aria-checked="true"]) *,
+        .st-key-tab1_metric_toggle_container button:not([aria-checked="true"]) *,
+        .st-key-tab1_map_color_toggle_container button:not([aria-checked="true"]) *,
+        .st-key-tab1_main_view_mode button:not([aria-checked="true"]) *,
+        .st-key-tab1_bubble_metric_radio button:not([aria-checked="true"]) *,
+        .st-key-tab1_map_color_mode button:not([aria-checked="true"]) * {
+            color: var(--seg-inactive-text, #64748b) !important;
+            -webkit-text-fill-color: var(--seg-inactive-text, #64748b) !important;
+            font-weight: 600 !important;
+        }
+
+        /* Remove default dividers / pseudo lines */
+        .st-key-tab1_view_toggle_container button::before,
+        .st-key-tab1_view_toggle_container button::after,
+        .st-key-tab1_metric_toggle_container button::before,
+        .st-key-tab1_metric_toggle_container button::after,
+        .st-key-tab1_map_color_toggle_container button::before,
+        .st-key-tab1_map_color_toggle_container button::after,
+        .st-key-tab1_main_view_mode button::before,
+        .st-key-tab1_main_view_mode button::after {
+            display: none !important;
+            content: none !important;
+            border: none !important;
+        }
+
+        /* Push the 2nd segmented control (metric toggle) to far right */
+        .st-key-tab_map div[data-testid="column"]:last-child:has([data-testid="stButtonGroup"]),
+        .st-key-tab_map div[data-testid="column"]:last-child:has([role="radiogroup"]),
+        .st-key-tab_map div.stColumn:last-child {
             display: flex !important;
             flex-direction: row !important;
             justify-content: flex-end !important;
             align-items: center !important;
         }
-        .st-key-tab_map div[data-testid="column"]:last-child:has([data-testid="stSegmentedControl"]) [data-testid="stElementContainer"]:has([data-testid="stSegmentedControl"]),
-        .st-key-tab_map div.stColumn:last-child:has(.stSegmentedControl) [data-testid="stElementContainer"]:has(.stSegmentedControl) {
-            width: auto !important;
-            margin-left: auto !important;
-            display: flex !important;
-            justify-content: flex-end !important;
-        }
         </style>
         """, unsafe_allow_html=True)
-        c_mode1, c_spacer, c_mode2 = st.columns([0.28, 0.48, 0.24])
+        c_mode1, c_spacer, c_mode2 = st.columns([0.34, 0.38, 0.28])
         with c_mode1:
-            t1_view = st.segmented_control(
-                label="view_mode",
-                options=[":material/bubble_chart: Bubble View", ":material/map: Interactive Map"],
-                default=":material/bubble_chart: Bubble View",
-                key="tab1_main_view_mode",
-                label_visibility="collapsed"
-            )
-            if not t1_view:
-                t1_view = ":material/bubble_chart: Bubble View"
+            with st.container(key="tab1_view_toggle_container"):
+                t1_view = st.segmented_control(
+                    label="view_mode",
+                    options=[":material/bubble_chart: Bubble View", ":material/map: Interactive Map"],
+                    default=":material/bubble_chart: Bubble View",
+                    key="tab1_main_view_mode",
+                    label_visibility="collapsed"
+                )
+                if not t1_view:
+                    t1_view = ":material/bubble_chart: Bubble View"
                 
         if "Bubble" in t1_view:
             with c_mode2:
-                bubble_metric = st.segmented_control(
-                    label="bubble_metric",
-                    options=[":material/tag: จำนวนทรัพย์สิน", ":material/payments: มูลค่ารวม"],
-                    default=":material/tag: จำนวนทรัพย์สิน",
-                    key="tab1_bubble_metric_radio",
-                    label_visibility="collapsed"
-                )
-                if not bubble_metric:
-                    bubble_metric = ":material/tag: จำนวนทรัพย์สิน"
+                with st.container(key="tab1_metric_toggle_container"):
+                    bubble_metric = st.segmented_control(
+                        label="bubble_metric",
+                        options=[":material/tag: จำนวนทรัพย์สิน", ":material/payments: มูลค่ารวม"],
+                        default=":material/tag: จำนวนทรัพย์สิน",
+                        key="tab1_bubble_metric_radio",
+                        label_visibility="collapsed"
+                    )
+                    if not bubble_metric:
+                        bubble_metric = ":material/tag: จำนวนทรัพย์สิน"
             
             # Render 3D Glossy Bubble Chart matching AMC NPA Monitor style
             bubble_html = generate_3d_glossy_bubble_chart_html(
@@ -4733,6 +4974,9 @@ with tab1:
                 _dt_col = map_data['อำเภอ'].fillna('ไม่ระบุ').astype(str).str.strip() if 'อำเภอ' in map_data.columns else pd.Series(['ไม่ระบุ'] * len(map_data), index=map_data.index)
                 _dt_cat = pd.Categorical(_dt_col)
 
+                _subdt_col = map_data['ตำบล'].fillna('ไม่ระบุ').astype(str).str.strip() if 'ตำบล' in map_data.columns else pd.Series(['ไม่ระบุ'] * len(map_data), index=map_data.index)
+                _subdt_cat = pd.Categorical(_subdt_col)
+
                 lookup_obj = {
                     'co': _co_cat.categories.tolist(),
                     'ty': _ty_cat.categories.tolist(),
@@ -4740,6 +4984,7 @@ with tab1:
                     'st': _st_cat.categories.tolist(),
                     'rg': _rg_cat.categories.tolist(),
                     'dt': _dt_cat.categories.tolist(),
+                    'subdt': _subdt_cat.categories.tolist(),
                 }
                 lookup_b64 = base64.b64encode(
                     gzip.compress(
@@ -4763,6 +5008,7 @@ with tab1:
                     '_sti':   _st_cat.codes.astype('int16'),
                     '_rgi':   _rg_cat.codes.astype('int16'),
                     '_dti':   _dt_cat.codes.astype('int16'),
+                    '_subdti': _subdt_cat.codes.astype('int16'),
                     '_p':     _prices_num.fillna(0).astype('float32').values,
                     '_up':    _unit_prices.astype('float32'),
                     '_price_str': prices_list,
@@ -4971,7 +5217,7 @@ with tab2:
                                 }},
                                 plotOptions: {{
                                     pie: {{
-                                        innerSize: '50%',
+                                        innerSize: 0,
                                         depth: 38,
                                         size: '72%',
                                         center: ['50%', '52%'],
@@ -5248,7 +5494,7 @@ with tab2:
                         }},
                         plotOptions: {{
                             pie: {{
-                                innerSize: '46%',
+                                innerSize: 0,
                                 depth: 36,
                                 size: '64%',
                                 center: ['50%', '50%'],
@@ -7323,8 +7569,9 @@ with tab3:
                                 key="tab3_main_nearby_table"
                             )
 
-                            if table_selection and hasattr(table_selection, "selection") and table_selection.selection and table_selection.selection.rows:
-                                selected_row_indices = table_selection.selection.rows
+                            if table_selection and hasattr(table_selection, "selection") and table_selection.selection and getattr(table_selection.selection, "rows", None):
+                                raw_rows = table_selection.selection.rows
+                                selected_row_indices = [int(r) for r in raw_rows if r is not None and (isinstance(r, (int, np.integer)) or (isinstance(r, str) and r.isdigit()))]
                                 if len(selected_row_indices) > 0:
                                     if st.button(f"➕ เพิ่ม {len(selected_row_indices)} รายการที่ติ๊กเลือก ลงในตารางเปรียบเทียบเฉพาะที่เลือก", icon=":material/add:", key="btn_add_selected_rows_tab3", type="primary"):
                                         for idx_r in selected_row_indices:
@@ -7499,8 +7746,9 @@ with tab3:
                                         key=f"tab3_coord_sub_table_{active_k}"
                                     )
 
-                                    if coord_table_selection and hasattr(coord_table_selection, "selection") and coord_table_selection.selection and coord_table_selection.selection.rows:
-                                        sel_coord_indices = coord_table_selection.selection.rows
+                                    if coord_table_selection and hasattr(coord_table_selection, "selection") and coord_table_selection.selection and getattr(coord_table_selection.selection, "rows", None):
+                                        raw_coord_rows = coord_table_selection.selection.rows
+                                        sel_coord_indices = [int(r) for r in raw_coord_rows if r is not None and (isinstance(r, (int, np.integer)) or (isinstance(r, str) and r.isdigit()))]
                                         if len(sel_coord_indices) > 0:
                                             if st.button(f"เพิ่ม {len(sel_coord_indices)} รายการที่ติ๊กเลือก ลงในตารางเปรียบเทียบเฉพาะที่เลือก", icon=":material/add:", key=f"btn_add_sel_coord_rows_{active_k}", type="primary"):
                                                 for idx_r in sel_coord_indices:
@@ -8642,18 +8890,9 @@ with tab4:
                 "รูปแปลงที่ดิน": st.column_config.LinkColumn("รูปแปลงที่ดิน (LED)", display_text="LandsMaps", help="คลิกเพื่อเปิดระบบค้นหารูปแปลงที่ดิน กรมที่ดิน (เฉพาะกรมบังคับคดี)")
             }
         )
-        with st.expander("นำเข้าและส่งออกข้อมูล (Import & Export Data)", icon=":material/import_export:", expanded=False):
-            render_import_export_section(df_table_source if not df_table_source.empty else df_filtered, filename_prefix="npa_property_listing", key_suffix="tab4")
-
-# ----- TAB 5: MONTHLY TRACKING -----
-with tab_monthly:
-    # Render MoM Tracking & Comparison
-    render_monthly_comparison(
-        df_raw=df_raw,
-        is_dark_mode=is_dark_mode,
-        plotly_template=plotly_template,
-        style_plotly_fig=style_plotly_fig
-    )
+        render_import_export_section(df_table_source if not df_table_source.empty else df_filtered, filename_prefix="npa_property_listing", key_suffix="tab4")
 
 
-# reload trigger
+
+
+# reload trigger: 2026-09-15 13:37:45 (Compact Apple pill segmented control)

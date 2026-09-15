@@ -21,7 +21,6 @@ from dashboard_metrics import build_kpi_summary_text
 from bubble_chart import generate_3d_glossy_bubble_chart_html
 import sam_analytics
 from sam_analytics import render_same_project_comparison, clean_project_name
-from monthly_comparison import render_monthly_comparison
 
 def make_clean_dropdown_label(row, show_company=True):
     """Creates clean, highly informative dropdown labels with company, property type, name/project, code, location, and price."""
@@ -2472,27 +2471,55 @@ def ensure_derived_cols(df):
             "บ้าน": "บ้านเดี่ยว",
             "บ้านครึ่งตึกครึ่งไม้": "บ้านเดี่ยว",
             "บ้านพร้อมกิจการ": "บ้านเดี่ยว",
+            "Detached House": "บ้านเดี่ยว",
+            "Single House": "บ้านเดี่ยว",
+            "House": "บ้านเดี่ยว",
             
             # 2. หมวดคอนโดมิเนียม / ห้องชุด
             "คอนโด": "ห้องชุดพักอาศัย",
             "คอนโดมิเนียม": "ห้องชุดพักอาศัย",
+            "ห้องชุด": "ห้องชุดพักอาศัย",
             "ห้องชุด/คอนโดมิเนียม": "ห้องชุดพักอาศัย",
             "ห้องชุด/ตอนโดมิเนียม": "ห้องชุดพักอาศัย",
             "คอนโดมิเนียม/อาคารชุด": "ห้องชุดพักอาศัย",
             "คอนโด/อาคารชุด/ห้องชุด": "ห้องชุดพักอาศัย",
+            "Condo": "ห้องชุดพักอาศัย",
+            "Condominium": "ห้องชุดพักอาศัย",
+            "Penthouse": "ห้องชุดพักอาศัย",
+            "Duplex": "ห้องชุดพักอาศัย",
             
             # 3. หมวดทาวน์เฮ้าส์ / ทาวน์โฮม
             "ทาวน์โฮม": "ทาวน์เฮ้าส์",
             "ทาวน์เฮาส์": "ทาวน์เฮ้าส์",
+            "Townhouse": "ทาวน์เฮ้าส์",
+            "Townhome": "ทาวน์เฮ้าส์",
+            "Town House": "ทาวน์เฮ้าส์",
+            "Town Home": "ทาวน์เฮ้าส์",
             
             # 4. หมวดที่ดิน
             "ที่ดิน": "ที่ดินเปล่า",
             "ที่ดินเปล่า": "ที่ดินเปล่า",
             "ที่ดินเกษตรกรรม": "ที่ดินเปล่า",
             "ที่ดินว่างเปล่า": "ที่ดินเปล่า",
+            "ที่ดินพร้อมสิ่งปลูกสร้าง": "ที่ดินพร้อมสิ่งปลูกสร้าง",
             "สวนเกษตร": "ที่ดินเปล่า",
+            "Land": "ที่ดินเปล่า",
+            "Land with Building": "ที่ดินพร้อมสิ่งปลูกสร้าง",
+            "Land with Buildings": "ที่ดินพร้อมสิ่งปลูกสร้าง",
             
-            # 5. หมวดโรงงาน / โกดัง
+            # 5. หมวดบ้านแฝด
+            "บ้านแฝด": "บ้านแฝด",
+            "Semi-Detached House (Twin House)": "บ้านแฝด",
+            "Semi-Detached House": "บ้านแฝด",
+            "Semi-detached House": "บ้านแฝด",
+            "Twin House": "บ้านแฝด",
+            
+            # 6. หมวดวิลล่า
+            "วิลล่า": "วิลล่า",
+            "Villa": "วิลล่า",
+            "Pool Villa": "วิลล่า",
+            
+            # 7. หมวดโรงงาน / โกดัง
             "โรงงาน": "โรงงาน/โกดัง",
             "โกดัง": "โรงงาน/โกดัง",
             "อาคารโรงงาน": "โรงงาน/โกดัง",
@@ -2500,8 +2527,11 @@ def ensure_derived_cols(df):
             "โกดัง / โรงงาน": "โรงงาน/โกดัง",
             "มินิแฟคตอรี่": "โรงงาน/โกดัง",
             "โรงสี": "โรงงาน/โกดัง",
+            "Factory": "โรงงาน/โกดัง",
+            "Warehouse": "โรงงาน/โกดัง",
+            "Mini Factory": "โรงงาน/โกดัง",
             
-            # 6. หมวดอพาร์ทเมนท์ / หอพัก
+            # 8. หมวดอพาร์ทเมนท์ / หอพัก
             "อพาร์ทเม้นท์": "อพาร์ทเมนท์",
             "อพาร์ตเมนต์": "อพาร์ทเมนท์",
             "อพาตเมนต์": "อพาร์ทเมนท์",
@@ -2510,8 +2540,11 @@ def ensure_derived_cols(df):
             "อพาร์ทเม้นท์/หอพัก": "อพาร์ทเมนท์",
             "แฟลต": "อพาร์ทเมนท์",
             "อาคารพักอาศัย": "อพาร์ทเมนท์",
+            "Apartment": "อพาร์ทเมนท์",
+            "Dormitory": "อพาร์ทเมนท์",
+            "Flat": "อพาร์ทเมนท์",
             
-            # 7. หมวดอาคารพาณิชย์ / ตึกแถว / ร้านค้า
+            # 9. หมวดอาคารพาณิชย์ / ตึกแถว / ร้านค้า
             "ตึกแถว": "อาคารพาณิชย์",
             "ห้องแถว": "อาคารพาณิชย์",
             "ร้านค้า": "อาคารพาณิชย์",
@@ -2520,20 +2553,32 @@ def ensure_derived_cols(df):
             "ศูนย์จำหน่ายสินค้า": "อาคารพาณิชย์",
             "ห้างสรรพสินค้า": "อาคารพาณิชย์",
             "โชว์รูม": "อาคารพาณิชย์",
+            "Commercial Property": "อาคารพาณิชย์",
+            "Commercial Space": "อาคารพาณิชย์",
+            "Commercial Building": "อาคารพาณิชย์",
+            "Shophouse": "อาคารพาณิชย์",
+            "Shop House": "อาคารพาณิชย์",
+            "Retail": "อาคารพาณิชย์",
+            "Showroom": "อาคารพาณิชย์",
             
-            # 8. หมวดสำนักงาน
+            # 10. หมวดสำนักงาน
             "สำนักงาน": "อาคารสำนักงาน",
             "โฮมออฟฟิศ": "อาคารสำนักงาน",
             "อาคารที่ทำการสาขา": "อาคารสำนักงาน",
             "ห้องชุดสำนักงาน": "ห้องชุดพาณิชยกรรม/สำนักงาน",
             "ห้องชุดพาณิชยกรรม": "ห้องชุดพาณิชยกรรม/สำนักงาน",
+            "Office": "อาคารสำนักงาน",
+            "Office Building": "อาคารสำนักงาน",
+            "Home Office": "อาคารสำนักงาน",
             
-            # 9. หมวดโรงแรม / รีสอร์ท
+            # 11. หมวดโรงแรม / รีสอร์ท
             "Hotel Building": "โรงแรม/รีสอร์ท",
             "โรงแรม": "โรงแรม/รีสอร์ท",
             "รีสอร์ท": "โรงแรม/รีสอร์ท",
+            "Hotel": "โรงแรม/รีสอร์ท",
+            "Resort": "โรงแรม/รีสอร์ท",
             
-            # 10. หมวดสังหาริมทรัพย์ & อื่นๆ
+            # 12. หมวดสังหาริมทรัพย์ & อื่นๆ
             "เครื่องจักร": "สังหาริมทรัพย์",
             "บัตรสมาชิกสนามกอล์ฟ": "สังหาริมทรัพย์",
             "ส่วนโล่งหลังคาคลุม": "อื่นๆ",
@@ -2551,7 +2596,40 @@ def ensure_derived_cols(df):
             "อสังหาริมทรัพย์อื่นๆ": "อื่นๆ",
         }
         u_types = df['ประเภททรัพย์'].dropna().unique()
-        type_lut = {t: prop_type_map.get(str(t).strip(), str(t).strip()) for t in u_types}
+        lower_prop_map = {k.lower(): v for k, v in prop_type_map.items()}
+
+        def _resolve_single_type(t):
+            s = str(t).strip()
+            if s in prop_type_map:
+                return prop_type_map[s]
+            sl = s.lower()
+            if sl in lower_prop_map:
+                return lower_prop_map[sl]
+            if sl.startswith('semi-detached') or 'twin house' in sl:
+                return 'บ้านแฝด'
+            if sl.startswith('town'):
+                return 'ทาวน์เฮ้าส์'
+            if 'condo' in sl or sl in ['penthouse', 'duplex']:
+                return 'ห้องชุดพักอาศัย'
+            if sl.startswith('villa'):
+                return 'วิลล่า'
+            if sl == 'land' or sl.startswith('land '):
+                return 'ที่ดินพร้อมสิ่งปลูกสร้าง' if 'building' in sl else 'ที่ดินเปล่า'
+            if 'detached house' in sl or sl == 'single house' or sl == 'house':
+                return 'บ้านเดี่ยว'
+            if 'shophouse' in sl or 'commercial' in sl or sl == 'retail':
+                return 'อาคารพาณิชย์'
+            if 'apartment' in sl:
+                return 'อพาร์ทเมนท์'
+            if 'warehouse' in sl or 'factory' in sl:
+                return 'โรงงาน/โกดัง'
+            if 'office' in sl:
+                return 'อาคารสำนักงาน'
+            if 'hotel' in sl or 'resort' in sl:
+                return 'โรงแรม/รีสอร์ท'
+            return s
+
+        type_lut = {t: _resolve_single_type(t) for t in u_types}
         df['ประเภททรัพย์'] = df['ประเภททรัพย์'].map(type_lut).fillna('อื่นๆ')
         
         # Resolve any mixed types (e.g. บ้านเดี่ยว/ทาวน์เฮาส์) based on title/project name
@@ -3244,7 +3322,14 @@ if is_dark_mode:
 --kpi-border: rgba(52, 211, 153, 0.25);
 --kpi-hover-border: #10b981;
 --kpi-hover-shadow: rgba(16, 185, 129, 0.25);
---kpi-accent-bar: #10b981;"""
+--kpi-accent-bar: #10b981;
+--seg-track-bg: rgba(255, 255, 255, 0.06);
+--seg-track-border: rgba(255, 255, 255, 0.12);
+--seg-active-bg: linear-gradient(135deg, #059669 0%, #10b981 100%);
+--seg-active-border: rgba(52, 211, 153, 0.4);
+--seg-active-text: #ffffff;
+--seg-active-shadow: 0 3px 14px rgba(16, 185, 129, 0.45), 0 1px 3px rgba(0, 0, 0, 0.15);
+--seg-inactive-text: #94a3b8;"""
     plotly_template = "plotly_dark"
     mapbox_style = "carto-darkmatter"
 else:
@@ -3279,7 +3364,14 @@ else:
 --kpi-border: rgba(4, 120, 87, 0.16);
 --kpi-hover-border: #047857;
 --kpi-hover-shadow: rgba(4, 120, 87, 0.14);
---kpi-accent-bar: #047857;"""
+--kpi-accent-bar: #047857;
+--seg-track-bg: #f1f5f9;
+--seg-track-border: #e2e8f0;
+--seg-active-bg: linear-gradient(135deg, #059669 0%, #10b981 100%);
+--seg-active-border: rgba(5, 150, 105, 0.25);
+--seg-active-text: #ffffff;
+--seg-active-shadow: 0 3px 12px rgba(16, 185, 129, 0.38), 0 1px 3px rgba(0, 0, 0, 0.08);
+--seg-inactive-text: #64748b;"""
     plotly_template = "plotly_white"
     mapbox_style = "carto-positron"
 
@@ -4216,20 +4308,6 @@ div[data-baseweb="tab"][aria-selected="true"] div {
     -webkit-font-smoothing: antialiased !important;
 }
 
-.st-key-main_tabs_container [role="tab"]:nth-child(5) p::before,
-.st-key-main_tabs_container div[role="tablist"] > div:nth-child(5) p::before {
-    font-family: "Font Awesome 6 Free", "FontAwesome" !important;
-    font-weight: 900 !important;
-    content: "\\f017\\a0" !important;
-    color: inherit !important;
-    -webkit-text-fill-color: inherit !important;
-    display: inline-block !important;
-    margin-right: 4px !important;
-    font-style: normal !important;
-    font-variant: normal !important;
-    text-rendering: auto !important;
-    -webkit-font-smoothing: antialiased !important;
-}
 
 .st-key-main_tabs_container [role="tab"][aria-selected="true"] p::before,
 .st-key-main_tabs_container div[role="tablist"] > div[aria-selected="true"] p::before {
@@ -4237,24 +4315,107 @@ div[data-baseweb="tab"][aria-selected="true"] div {
     -webkit-text-fill-color: var(--tab-active-border, #059669) !important;
 }
 
-/* Segmented Control Styling */
+/* ========================================================================= */
+/* Apple / macOS Elevated Floating Pill Segmented Control (Compact) */
+/* ========================================================================= */
 div[data-testid="stSegmentedControl"] {
-    background: var(--card-bg) !important;
-    border: 1px solid var(--card-border) !important;
-    border-radius: 12px !important;
-    padding: 3px !important;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.04) !important;
+    background: var(--seg-track-bg, rgba(148, 163, 184, 0.14)) !important;
+    border: 1px solid var(--seg-track-border, rgba(148, 163, 184, 0.22)) !important;
+    border-radius: 9999px !important;
+    padding: 2px !important;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    width: fit-content !important;
 }
-div[data-testid="stSegmentedControl"] button {
-    border-radius: 9px !important;
+
+div[data-testid="stSegmentedControl"] div[data-testid="stButtonGroup"],
+div[data-testid="stSegmentedControl"] div[role="radiogroup"] {
+    border: none !important;
+    background: transparent !important;
+    gap: 2px !important;
+    padding: 0 !important;
+    border-radius: 9999px !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+div[data-testid="stSegmentedControl"] button,
+div[data-testid="stSegmentedControl"] button[data-variant="segmented_control"],
+div[data-testid="stSegmentedControl"] button[data-testid*="stBaseButton"],
+div[data-testid="stSegmentedControl"] div[role="radiogroup"] > button {
+    border: none !important;
+    border-color: transparent !important;
+    outline: none !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    border-radius: 9999px !important;
+    padding: 3px 12px !important;
+    min-height: 28px !important;
     font-weight: 600 !important;
-    font-size: 0.86rem !important;
-    transition: all 0.2s ease !important;
+    font-size: 0.80rem !important;
+    letter-spacing: -0.01em !important;
+    color: var(--seg-inactive-text, #64748b) !important;
+    -webkit-text-fill-color: var(--seg-inactive-text, #64748b) !important;
+    transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    box-shadow: none !important;
+    cursor: pointer !important;
 }
-div[data-testid="stSegmentedControl"] button[aria-checked="true"] {
-    background: var(--primary-accent, #059669) !important;
+
+div[data-testid="stSegmentedControl"] button span[data-testid="stIconMaterial"] {
+    font-size: 15px !important;
+    width: 15px !important;
+    height: 15px !important;
+    line-height: 15px !important;
+    margin-right: 2px !important;
+}
+
+div[data-testid="stSegmentedControl"] button:hover {
+    color: var(--card-text, #0f172a) !important;
+    -webkit-text-fill-color: var(--card-text, #0f172a) !important;
+    background: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* Active Segment: Vibrant Emerald Tech Gradient */
+div[data-testid="stSegmentedControl"] button[aria-checked="true"],
+div[data-testid="stSegmentedControl"] button[data-checked="true"],
+div[data-testid="stSegmentedControl"] button[aria-pressed="true"],
+div[data-testid="stSegmentedControl"] button[data-variant="segmented_control"][aria-checked="true"],
+div[data-testid="stSegmentedControl"] div[role="radiogroup"] > button[aria-checked="true"] {
+    background: var(--seg-active-bg, linear-gradient(135deg, #059669 0%, #10b981 100%)) !important;
     color: #ffffff !important;
-    box-shadow: 0 2px 8px rgba(5, 150, 105, 0.3) !important;
+    -webkit-text-fill-color: #ffffff !important;
+    border: 0.5px solid var(--seg-active-border, rgba(52, 211, 153, 0.4)) !important;
+    border-radius: 9999px !important;
+    box-shadow: var(--seg-active-shadow, 0 3px 12px rgba(16, 185, 129, 0.38)) !important;
+    font-weight: 700 !important;
+    transform: translateY(-0.5px) !important;
+}
+
+/* Inner Text & Icons */
+div[data-testid="stSegmentedControl"] button[aria-checked="true"] *,
+div[data-testid="stSegmentedControl"] button[aria-checked="true"] p,
+div[data-testid="stSegmentedControl"] button[aria-checked="true"] span,
+div[data-testid="stSegmentedControl"] button[aria-checked="true"] [data-testid="stIconMaterial"] {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    font-weight: 700 !important;
+}
+
+div[data-testid="stSegmentedControl"] button:not([aria-checked="true"]) *,
+div[data-testid="stSegmentedControl"] button:not([aria-checked="true"]) p,
+div[data-testid="stSegmentedControl"] button:not([aria-checked="true"]) span,
+div[data-testid="stSegmentedControl"] button:not([aria-checked="true"]) [data-testid="stIconMaterial"] {
+    color: var(--seg-inactive-text, #64748b) !important;
+    -webkit-text-fill-color: var(--seg-inactive-text, #64748b) !important;
+    font-weight: 600 !important;
+}
+
+div[data-testid="stSegmentedControl"] hr,
+div[data-testid="stSegmentedControl"] button::before,
+div[data-testid="stSegmentedControl"] button::after {
+    display: none !important;
+    border: none !important;
 }
 
 /* Tab Panel content area styling */
@@ -4461,14 +4622,13 @@ floating_kpi_html = f"""
 
 st.markdown(floating_kpi_html, unsafe_allow_html=True)
 
-# ----------------- MAIN NAVIGATION (5 Tabs with Font Awesome Solid Icons) -----------------
+# ----------------- MAIN NAVIGATION (4 Tabs with Font Awesome Solid Icons) -----------------
 with st.container(key="main_tabs_container"):
-    tab1, tab2, tab3, tab4, tab_monthly = st.tabs([
+    tab1, tab2, tab3, tab4 = st.tabs([
         "ภาพรวม & แผนที่",
         "สถิติ & วิเคราะห์",
         "เปรียบเทียบตำแหน่ง",
         "รายการทรัพย์สิน",
-        "ติดตามการเปลี่ยนแปลง",
     ], key="main_tabs")
 
 # ----- TAB 1: BUBBLE & MAP -----
@@ -4476,49 +4636,207 @@ with tab1:
     with st.container(key="tab_map"):
         st.markdown("""
         <style>
-        /* Push the 2nd segmented control (metric/color toggle) completely to the far right edge without leaking */
-        .st-key-tab_map div[data-testid="stSegmentedControl"] {
-            margin-left: auto !important;
+        /* Container sizing & alignment */
+        .st-key-tab1_view_toggle_container,
+        .st-key-tab1_metric_toggle_container,
+        .st-key-tab1_map_color_toggle_container {
+            width: auto !important;
+            display: inline-flex !important;
         }
-        .st-key-tab_map div[data-testid="column"]:last-child:has([data-testid="stSegmentedControl"]),
-        .st-key-tab_map div.stColumn:last-child:has(.stSegmentedControl) {
+
+        .st-key-tab1_metric_toggle_container,
+        .st-key-tab1_map_color_toggle_container {
+            margin-left: auto !important;
+            display: flex !important;
+            justify-content: flex-end !important;
+        }
+
+        /* Outer button group track (The Apple Pill Track - Compact) */
+        .st-key-tab1_view_toggle_container div[data-testid="stButtonGroup"],
+        .st-key-tab1_view_toggle_container div[role="radiogroup"],
+        .st-key-tab1_view_toggle_container [data-baseweb="button-group"],
+        .st-key-tab1_metric_toggle_container div[data-testid="stButtonGroup"],
+        .st-key-tab1_metric_toggle_container div[role="radiogroup"],
+        .st-key-tab1_metric_toggle_container [data-baseweb="button-group"],
+        .st-key-tab1_map_color_toggle_container div[data-testid="stButtonGroup"],
+        .st-key-tab1_map_color_toggle_container div[role="radiogroup"],
+        .st-key-tab1_map_color_toggle_container [data-baseweb="button-group"],
+        .st-key-tab1_main_view_mode div[data-testid="stButtonGroup"],
+        .st-key-tab1_main_view_mode div[role="radiogroup"],
+        .st-key-tab1_bubble_metric_radio div[data-testid="stButtonGroup"],
+        .st-key-tab1_bubble_metric_radio div[role="radiogroup"],
+        .st-key-tab1_map_color_mode div[data-testid="stButtonGroup"],
+        .st-key-tab1_map_color_mode div[role="radiogroup"] {
+            background: var(--seg-track-bg, #f1f5f9) !important;
+            border: 1px solid var(--seg-track-border, #e2e8f0) !important;
+            border-radius: 9999px !important;
+            padding: 2px !important;
+            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+            display: inline-flex !important;
+            flex-direction: row !important;
+            align-items: center !important;
+            gap: 2px !important;
+            width: fit-content !important;
+        }
+
+        /* All buttons inside - Compact Size */
+        .st-key-tab1_view_toggle_container button,
+        .st-key-tab1_view_toggle_container button[data-variant="segmented_control"],
+        .st-key-tab1_metric_toggle_container button,
+        .st-key-tab1_metric_toggle_container button[data-variant="segmented_control"],
+        .st-key-tab1_map_color_toggle_container button,
+        .st-key-tab1_map_color_toggle_container button[data-variant="segmented_control"],
+        .st-key-tab1_main_view_mode button,
+        .st-key-tab1_bubble_metric_radio button,
+        .st-key-tab1_map_color_mode button {
+            border: none !important;
+            border-color: transparent !important;
+            border-width: 0 !important;
+            outline: none !important;
+            background: transparent !important;
+            background-color: transparent !important;
+            border-radius: 9999px !important;
+            padding: 3px 12px !important;
+            min-height: 28px !important;
+            font-weight: 600 !important;
+            font-size: 0.80rem !important;
+            letter-spacing: -0.01em !important;
+            color: var(--seg-inactive-text, #64748b) !important;
+            -webkit-text-fill-color: var(--seg-inactive-text, #64748b) !important;
+            transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+            box-shadow: none !important;
+            cursor: pointer !important;
+        }
+
+        /* Compact icon sizing */
+        .st-key-tab1_view_toggle_container span[data-testid="stIconMaterial"],
+        .st-key-tab1_metric_toggle_container span[data-testid="stIconMaterial"],
+        .st-key-tab1_map_color_toggle_container span[data-testid="stIconMaterial"],
+        .st-key-tab1_main_view_mode span[data-testid="stIconMaterial"],
+        .st-key-tab1_bubble_metric_radio span[data-testid="stIconMaterial"],
+        .st-key-tab1_map_color_mode span[data-testid="stIconMaterial"] {
+            font-size: 15px !important;
+            width: 15px !important;
+            height: 15px !important;
+            line-height: 15px !important;
+            margin-right: 2px !important;
+        }
+
+        /* Inactive button hover */
+        .st-key-tab1_view_toggle_container button:hover,
+        .st-key-tab1_metric_toggle_container button:hover,
+        .st-key-tab1_map_color_toggle_container button:hover,
+        .st-key-tab1_main_view_mode button:hover,
+        .st-key-tab1_bubble_metric_radio button:hover,
+        .st-key-tab1_map_color_mode button:hover {
+            color: #047857 !important;
+            -webkit-text-fill-color: #047857 !important;
+            background: rgba(16, 185, 129, 0.09) !important;
+        }
+
+        /* ACTIVE / SELECTED BUTTON (Vibrant Emerald Tech Gradient) */
+        .st-key-tab1_view_toggle_container button[aria-checked="true"],
+        .st-key-tab1_view_toggle_container button[data-state="active"],
+        .st-key-tab1_view_toggle_container button[kind="segmented_controlActive"],
+        .st-key-tab1_metric_toggle_container button[aria-checked="true"],
+        .st-key-tab1_metric_toggle_container button[data-state="active"],
+        .st-key-tab1_metric_toggle_container button[kind="segmented_controlActive"],
+        .st-key-tab1_map_color_toggle_container button[aria-checked="true"],
+        .st-key-tab1_map_color_toggle_container button[data-state="active"],
+        .st-key-tab1_map_color_toggle_container button[kind="segmented_controlActive"],
+        .st-key-tab1_main_view_mode button[aria-checked="true"],
+        .st-key-tab1_main_view_mode button[data-state="active"],
+        .st-key-tab1_main_view_mode button[kind="segmented_controlActive"],
+        .st-key-tab1_bubble_metric_radio button[aria-checked="true"],
+        .st-key-tab1_bubble_metric_radio button[data-state="active"],
+        .st-key-tab1_bubble_metric_radio button[kind="segmented_controlActive"],
+        .st-key-tab1_map_color_mode button[aria-checked="true"],
+        .st-key-tab1_map_color_mode button[data-state="active"],
+        .st-key-tab1_map_color_mode button[kind="segmented_controlActive"] {
+            background: var(--seg-active-bg, linear-gradient(135deg, #059669 0%, #10b981 100%)) !important;
+            color: #ffffff !important;
+            -webkit-text-fill-color: #ffffff !important;
+            border: 0.5px solid var(--seg-active-border, rgba(52, 211, 153, 0.4)) !important;
+            border-radius: 9999px !important;
+            box-shadow: var(--seg-active-shadow, 0 3px 12px rgba(16, 185, 129, 0.38)) !important;
+            font-weight: 700 !important;
+            transform: translateY(-0.5px) !important;
+        }
+
+        /* Inner elements for Active button */
+        .st-key-tab1_view_toggle_container button[aria-checked="true"] *,
+        .st-key-tab1_metric_toggle_container button[aria-checked="true"] *,
+        .st-key-tab1_map_color_toggle_container button[aria-checked="true"] *,
+        .st-key-tab1_main_view_mode button[aria-checked="true"] *,
+        .st-key-tab1_bubble_metric_radio button[aria-checked="true"] *,
+        .st-key-tab1_map_color_mode button[aria-checked="true"] * {
+            color: #ffffff !important;
+            -webkit-text-fill-color: #ffffff !important;
+            font-weight: 700 !important;
+        }
+
+        /* Inner elements for Inactive button */
+        .st-key-tab1_view_toggle_container button:not([aria-checked="true"]) *,
+        .st-key-tab1_metric_toggle_container button:not([aria-checked="true"]) *,
+        .st-key-tab1_map_color_toggle_container button:not([aria-checked="true"]) *,
+        .st-key-tab1_main_view_mode button:not([aria-checked="true"]) *,
+        .st-key-tab1_bubble_metric_radio button:not([aria-checked="true"]) *,
+        .st-key-tab1_map_color_mode button:not([aria-checked="true"]) * {
+            color: var(--seg-inactive-text, #64748b) !important;
+            -webkit-text-fill-color: var(--seg-inactive-text, #64748b) !important;
+            font-weight: 600 !important;
+        }
+
+        /* Remove default dividers / pseudo lines */
+        .st-key-tab1_view_toggle_container button::before,
+        .st-key-tab1_view_toggle_container button::after,
+        .st-key-tab1_metric_toggle_container button::before,
+        .st-key-tab1_metric_toggle_container button::after,
+        .st-key-tab1_map_color_toggle_container button::before,
+        .st-key-tab1_map_color_toggle_container button::after,
+        .st-key-tab1_main_view_mode button::before,
+        .st-key-tab1_main_view_mode button::after {
+            display: none !important;
+            content: none !important;
+            border: none !important;
+        }
+
+        /* Push the 2nd segmented control (metric toggle) to far right */
+        .st-key-tab_map div[data-testid="column"]:last-child:has([data-testid="stButtonGroup"]),
+        .st-key-tab_map div[data-testid="column"]:last-child:has([role="radiogroup"]),
+        .st-key-tab_map div.stColumn:last-child {
             display: flex !important;
             flex-direction: row !important;
             justify-content: flex-end !important;
             align-items: center !important;
         }
-        .st-key-tab_map div[data-testid="column"]:last-child:has([data-testid="stSegmentedControl"]) [data-testid="stElementContainer"]:has([data-testid="stSegmentedControl"]),
-        .st-key-tab_map div.stColumn:last-child:has(.stSegmentedControl) [data-testid="stElementContainer"]:has(.stSegmentedControl) {
-            width: auto !important;
-            margin-left: auto !important;
-            display: flex !important;
-            justify-content: flex-end !important;
-        }
         </style>
         """, unsafe_allow_html=True)
-        c_mode1, c_spacer, c_mode2 = st.columns([0.28, 0.48, 0.24])
+        c_mode1, c_spacer, c_mode2 = st.columns([0.34, 0.38, 0.28])
         with c_mode1:
-            t1_view = st.segmented_control(
-                label="view_mode",
-                options=[":material/bubble_chart: Bubble View", ":material/map: Interactive Map"],
-                default=":material/bubble_chart: Bubble View",
-                key="tab1_main_view_mode",
-                label_visibility="collapsed"
-            )
-            if not t1_view:
-                t1_view = ":material/bubble_chart: Bubble View"
+            with st.container(key="tab1_view_toggle_container"):
+                t1_view = st.segmented_control(
+                    label="view_mode",
+                    options=[":material/bubble_chart: Bubble View", ":material/map: Interactive Map"],
+                    default=":material/bubble_chart: Bubble View",
+                    key="tab1_main_view_mode",
+                    label_visibility="collapsed"
+                )
+                if not t1_view:
+                    t1_view = ":material/bubble_chart: Bubble View"
                 
         if "Bubble" in t1_view:
             with c_mode2:
-                bubble_metric = st.segmented_control(
-                    label="bubble_metric",
-                    options=[":material/tag: จำนวนทรัพย์สิน", ":material/payments: มูลค่ารวม"],
-                    default=":material/tag: จำนวนทรัพย์สิน",
-                    key="tab1_bubble_metric_radio",
-                    label_visibility="collapsed"
-                )
-                if not bubble_metric:
-                    bubble_metric = ":material/tag: จำนวนทรัพย์สิน"
+                with st.container(key="tab1_metric_toggle_container"):
+                    bubble_metric = st.segmented_control(
+                        label="bubble_metric",
+                        options=[":material/tag: จำนวนทรัพย์สิน", ":material/payments: มูลค่ารวม"],
+                        default=":material/tag: จำนวนทรัพย์สิน",
+                        key="tab1_bubble_metric_radio",
+                        label_visibility="collapsed"
+                    )
+                    if not bubble_metric:
+                        bubble_metric = ":material/tag: จำนวนทรัพย์สิน"
             
             # Render 3D Glossy Bubble Chart matching AMC NPA Monitor style
             bubble_html = generate_3d_glossy_bubble_chart_html(
@@ -4535,15 +4853,16 @@ with tab1:
                 
         else:
             with c_mode2:
-                map_color_mode = st.segmented_control(
-                    label="map_color",
-                    options=[":material/corporate_fare: By Company", ":material/category: By Property Type"],
-                    default=":material/corporate_fare: By Company",
-                    key="tab1_map_color_mode",
-                    label_visibility="collapsed"
-                )
-                if not map_color_mode:
-                    map_color_mode = ":material/corporate_fare: By Company"
+                with st.container(key="tab1_map_color_toggle_container"):
+                    map_color_mode = st.segmented_control(
+                        label="map_color",
+                        options=[":material/corporate_fare: By Company", ":material/category: By Property Type"],
+                        default=":material/corporate_fare: By Company",
+                        key="tab1_map_color_mode",
+                        label_visibility="collapsed"
+                    )
+                    if not map_color_mode:
+                        map_color_mode = ":material/corporate_fare: By Company"
 
             # Map Rendering (Deck.gl OpenStreetMap Scatterplot Map with dynamic color mode)
             progress_bar = st.progress(0, text="กำลังเตรียมข้อมูลแผนที่...")
@@ -4733,6 +5052,9 @@ with tab1:
                 _dt_col = map_data['อำเภอ'].fillna('ไม่ระบุ').astype(str).str.strip() if 'อำเภอ' in map_data.columns else pd.Series(['ไม่ระบุ'] * len(map_data), index=map_data.index)
                 _dt_cat = pd.Categorical(_dt_col)
 
+                _subdt_col = map_data['ตำบล'].fillna('ไม่ระบุ').astype(str).str.strip() if 'ตำบล' in map_data.columns else pd.Series(['ไม่ระบุ'] * len(map_data), index=map_data.index)
+                _subdt_cat = pd.Categorical(_subdt_col)
+
                 lookup_obj = {
                     'co': _co_cat.categories.tolist(),
                     'ty': _ty_cat.categories.tolist(),
@@ -4740,6 +5062,7 @@ with tab1:
                     'st': _st_cat.categories.tolist(),
                     'rg': _rg_cat.categories.tolist(),
                     'dt': _dt_cat.categories.tolist(),
+                    'subdt': _subdt_cat.categories.tolist(),
                 }
                 lookup_b64 = base64.b64encode(
                     gzip.compress(
@@ -4763,6 +5086,7 @@ with tab1:
                     '_sti':   _st_cat.codes.astype('int16'),
                     '_rgi':   _rg_cat.codes.astype('int16'),
                     '_dti':   _dt_cat.codes.astype('int16'),
+                    '_subdti': _subdt_cat.codes.astype('int16'),
                     '_p':     _prices_num.fillna(0).astype('float32').values,
                     '_up':    _unit_prices.astype('float32'),
                     '_price_str': prices_list,
@@ -4971,7 +5295,7 @@ with tab2:
                                 }},
                                 plotOptions: {{
                                     pie: {{
-                                        innerSize: '50%',
+                                        innerSize: 0,
                                         depth: 38,
                                         size: '72%',
                                         center: ['50%', '52%'],
@@ -5248,7 +5572,7 @@ with tab2:
                         }},
                         plotOptions: {{
                             pie: {{
-                                innerSize: '46%',
+                                innerSize: 0,
                                 depth: 36,
                                 size: '64%',
                                 center: ['50%', '50%'],
@@ -7323,8 +7647,9 @@ with tab3:
                                 key="tab3_main_nearby_table"
                             )
 
-                            if table_selection and hasattr(table_selection, "selection") and table_selection.selection and table_selection.selection.rows:
-                                selected_row_indices = table_selection.selection.rows
+                            if table_selection and hasattr(table_selection, "selection") and table_selection.selection and getattr(table_selection.selection, "rows", None):
+                                raw_rows = table_selection.selection.rows
+                                selected_row_indices = [int(r) for r in raw_rows if r is not None and (isinstance(r, (int, np.integer)) or (isinstance(r, str) and r.isdigit()))]
                                 if len(selected_row_indices) > 0:
                                     if st.button(f"➕ เพิ่ม {len(selected_row_indices)} รายการที่ติ๊กเลือก ลงในตารางเปรียบเทียบเฉพาะที่เลือก", icon=":material/add:", key="btn_add_selected_rows_tab3", type="primary"):
                                         for idx_r in selected_row_indices:
@@ -7499,8 +7824,9 @@ with tab3:
                                         key=f"tab3_coord_sub_table_{active_k}"
                                     )
 
-                                    if coord_table_selection and hasattr(coord_table_selection, "selection") and coord_table_selection.selection and coord_table_selection.selection.rows:
-                                        sel_coord_indices = coord_table_selection.selection.rows
+                                    if coord_table_selection and hasattr(coord_table_selection, "selection") and coord_table_selection.selection and getattr(coord_table_selection.selection, "rows", None):
+                                        raw_coord_rows = coord_table_selection.selection.rows
+                                        sel_coord_indices = [int(r) for r in raw_coord_rows if r is not None and (isinstance(r, (int, np.integer)) or (isinstance(r, str) and r.isdigit()))]
                                         if len(sel_coord_indices) > 0:
                                             if st.button(f"เพิ่ม {len(sel_coord_indices)} รายการที่ติ๊กเลือก ลงในตารางเปรียบเทียบเฉพาะที่เลือก", icon=":material/add:", key=f"btn_add_sel_coord_rows_{active_k}", type="primary"):
                                                 for idx_r in sel_coord_indices:
@@ -8659,18 +8985,9 @@ with tab4:
                 "รูปแปลงที่ดิน": st.column_config.LinkColumn("รูปแปลงที่ดิน (LED)", display_text="LandsMaps", help="คลิกเพื่อเปิดระบบค้นหารูปแปลงที่ดิน กรมที่ดิน (เฉพาะกรมบังคับคดี)")
             }
         )
-        with st.expander("นำเข้าและส่งออกข้อมูล (Import & Export Data)", icon=":material/import_export:", expanded=False):
-            render_import_export_section(df_table_source if not df_table_source.empty else df_filtered, filename_prefix="npa_property_listing", key_suffix="tab4")
-
-# ----- TAB 5: MONTHLY TRACKING -----
-with tab_monthly:
-    # Render MoM Tracking & Comparison
-    render_monthly_comparison(
-        df_raw=df_raw,
-        is_dark_mode=is_dark_mode,
-        plotly_template=plotly_template,
-        style_plotly_fig=style_plotly_fig
-    )
+        render_import_export_section(df_table_source if not df_table_source.empty else df_filtered, filename_prefix="npa_property_listing", key_suffix="tab4")
 
 
-# reload trigger
+
+
+# reload trigger: 2026-09-15 13:40:00 (Style 2: Vibrant Emerald Tech Gradient)
