@@ -2822,6 +2822,28 @@ def load_properties_data(data_version=0):
         return None
 
 @st.cache_data(show_spinner=False)
+def get_official_gis_reference():
+    gis_candidates = [
+        os.path.join(os.path.dirname(__file__), "references", "thailand_provinces_districts_subdistricts.json"),
+        os.path.join(os.path.dirname(os.path.dirname(__file__)), "references", "thailand_provinces_districts_subdistricts.json"),
+        os.path.join(os.getcwd(), "references", "thailand_provinces_districts_subdistricts.json")
+    ]
+    gis_path = next((p for p in gis_candidates if os.path.exists(p)), None)
+    if not gis_path:
+        return set(), set(), set()
+    try:
+        with open(gis_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        pairs = {(item['อำเภอ/เขต (ไทย)'].strip(), item['จังหวัด (ไทย)'].strip()) for item in data if 'อำเภอ/เขต (ไทย)' in item and 'จังหวัด (ไทย)' in item}
+        provs = {item['จังหวัด (ไทย)'].strip() for item in data if 'จังหวัด (ไทย)' in item}
+        dists = {item['อำเภอ/เขต (ไทย)'].strip() for item in data if 'อำเภอ/เขต (ไทย)' in item}
+        return pairs, provs, dists
+    except Exception:
+        return set(), set(), set()
+
+INVALID_LOC_VALUES = {"", "nan", "none", "null", "undefined", "-", "ไม่มีข้อมูล", "ไม่ระบุ"}
+
+@st.cache_data(show_spinner=False)
 def get_cached_sidebar_metadata(_df):
     """Pre-computes and caches unique values for sidebar dropdowns and pills to prevent recalculation overhead."""
     if _df is None or _df.empty:
@@ -2859,54 +2881,73 @@ def get_cached_sidebar_metadata(_df):
         r_series = _df['ภาค'].dropna().astype(str).str.strip()
         region_counts = r_series.value_counts().to_dict()
 
-    provinces_pool = sorted([str(p) for p in _df['จังหวัด'].dropna().unique() if str(p).strip() not in ['', 'nan', 'None']])
+    official_pairs, official_provs, official_dists = get_official_gis_reference()
+    INVALID_LOC_VALUES = {"", "nan", "none", "null", "undefined", "-", "ไม่มีข้อมูล", "ไม่ระบุ"}
+
+    provinces_pool = sorted([
+        str(p).strip() for p in _df['จังหวัด'].dropna().unique()
+        if str(p).strip() and str(p).strip().lower() not in INVALID_LOC_VALUES
+    ])
+    if official_provs:
+        provinces_pool = [p for p in provinces_pool if p in official_provs]
     if "ไม่ระบุ" in provinces_pool:
         provinces_pool.remove("ไม่ระบุ")
-        provinces_pool.append("ไม่ระบุ")
 
     # Pre-compute full district lookup (province -> sorted list of districts)
     district_by_province = {}
     all_districts_formatted = []
     if 'อำเภอ' in _df.columns and 'จังหวัด' in _df.columns:
         dist_cols = _df[['อำเภอ', 'จังหวัด']].drop_duplicates().dropna()
-        dist_cols = dist_cols[~dist_cols['อำเภอ'].astype(str).str.strip().str.lower().isin(["", "nan", "none", "null", "undefined", "-"])]
-        dist_cols = dist_cols[~dist_cols['จังหวัด'].astype(str).str.strip().str.lower().isin(["", "nan", "none", "null", "undefined", "-"])]
+        dist_cols = dist_cols[
+            ~dist_cols['อำเภอ'].astype(str).str.strip().str.lower().isin(INVALID_LOC_VALUES) &
+            ~dist_cols['จังหวัด'].astype(str).str.strip().str.lower().isin(INVALID_LOC_VALUES) &
+            (dist_cols['อำเภอ'].astype(str).str.strip().str.len() > 1)
+        ]
         for a, p in zip(dist_cols['อำเภอ'], dist_cols['จังหวัด']):
             p_str, a_str = str(p).strip(), str(a).strip()
+            # Enforce official GIS pairing if available
+            if official_pairs and (a_str, p_str) not in official_pairs:
+                continue
             if p_str not in district_by_province:
                 district_by_province[p_str] = []
             district_by_province[p_str].append(a_str)
         for p_str in district_by_province:
             district_by_province[p_str] = sorted(set(district_by_province[p_str]))
 
-        all_districts_formatted = sorted(
-            (dist_cols['อำเภอ'].astype(str).str.strip() + " (" + dist_cols['จังหวัด'].astype(str).str.strip() + ")").unique().tolist()
-        )
+        all_dist_formatted_list = []
+        for p_str, d_list in district_by_province.items():
+            for d_str in d_list:
+                all_dist_formatted_list.append(f"{d_str} ({p_str})")
+        all_districts_formatted = sorted(set(all_dist_formatted_list))
 
     # Pre-compute subdistrict lookup per (province, district) key
     subdistrict_by_province = {}
     subdistrict_by_district = {}
     if all(c in _df.columns for c in ['ตำบล', 'อำเภอ', 'จังหวัด']):
         sub_cols = _df[['ตำบล', 'อำเภอ', 'จังหวัด']].drop_duplicates().dropna()
-        sub_cols = sub_cols[~sub_cols['ตำบล'].astype(str).str.strip().str.lower().isin(["", "nan", "none", "null", "undefined", "-"])]
-        sub_cols = sub_cols[~sub_cols['อำเภอ'].astype(str).str.strip().str.lower().isin(["", "nan", "none", "null", "undefined", "-"])]
-        sub_cols = sub_cols[~sub_cols['จังหวัด'].astype(str).str.strip().str.lower().isin(["", "nan", "none", "null", "undefined", "-"])]
-        sub_formatted = sub_cols['ตำบล'].astype(str).str.strip() + " (" + sub_cols['อำเภอ'].astype(str).str.strip() + ", " + sub_cols['จังหวัด'].astype(str).str.strip() + ")"
-        sub_cols['formatted'] = sub_formatted
+        sub_cols = sub_cols[
+            ~sub_cols['ตำบล'].astype(str).str.strip().str.lower().isin(INVALID_LOC_VALUES) &
+            ~sub_cols['อำเภอ'].astype(str).str.strip().str.lower().isin(INVALID_LOC_VALUES) &
+            ~sub_cols['จังหวัด'].astype(str).str.strip().str.lower().isin(INVALID_LOC_VALUES) &
+            (sub_cols['ตำบล'].astype(str).str.strip().str.len() > 1)
+        ]
 
-        for p, f in zip(sub_cols['จังหวัด'], sub_cols['formatted']):
-            p_str = str(p)
+        for p, d, t in zip(sub_cols['จังหวัด'], sub_cols['อำเภอ'], sub_cols['ตำบล']):
+            p_str, d_str, t_str = str(p).strip(), str(d).strip(), str(t).strip()
+            if official_pairs and (d_str, p_str) not in official_pairs:
+                continue
+            fmt = f"{t_str} ({d_str}, {p_str})"
             if p_str not in subdistrict_by_province:
                 subdistrict_by_province[p_str] = []
-            subdistrict_by_province[p_str].append(f)
-        for p_str in subdistrict_by_province:
-            subdistrict_by_province[p_str] = sorted(set(subdistrict_by_province[p_str]))
+            subdistrict_by_province[p_str].append(fmt)
 
-        for p, d, f in zip(sub_cols['จังหวัด'], sub_cols['อำเภอ'], sub_cols['formatted']):
-            k = (str(p), str(d))
+            k = (p_str, d_str)
             if k not in subdistrict_by_district:
                 subdistrict_by_district[k] = []
-            subdistrict_by_district[k].append(f)
+            subdistrict_by_district[k].append(fmt)
+
+        for p_str in subdistrict_by_province:
+            subdistrict_by_province[p_str] = sorted(set(subdistrict_by_province[p_str]))
         for k in subdistrict_by_district:
             subdistrict_by_district[k] = sorted(set(subdistrict_by_district[k]))
 
@@ -2985,13 +3026,11 @@ with st.sidebar:
     
     if df_raw is not None and not df_raw.empty:
         src_name = getattr(df_raw, 'attrs', {}).get('source', 'all_assets.parquet')
-        month_year_str, exact_date_str = get_dataset_month_year(df_raw)
+        _, exact_date_str = get_dataset_month_year(df_raw)
         st.markdown(f"""
         <div style="background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(110, 231, 183, 0.25); border-radius: 8px; padding: 7px 10px; margin-top: 5px; margin-bottom: 8px; font-size: 0.8rem; color: #f0fdf4; font-weight: 600;">
             <i class="fa fa-database" style="color:#34d399;"></i> แหล่งข้อมูล: <code style="background:rgba(0,0,0,0.25); color:#a7f3d0; padding:1px 5px; border-radius:4px;">{src_name}</code><br/>
-            <span style="font-size: 0.75rem; color: #d1fae5; font-weight: normal;"><i class="fa fa-list" style="margin-right: 3px; color:#34d399;"></i>ข้อมูลพร้อมใช้งาน: <b style="color:#ffffff;">{len(df_raw):,}</b> รายการ</span><br/>
-            <span style="font-size: 0.75rem; color: #6ee7b7; font-weight: 600;"><i class="fa fa-calendar-check"></i> ข้อมูลประจำเดือน: <b style="color:#ffffff;">{month_year_str}</b></span><br/>
-            <span style="font-size: 0.72rem; color: #a7f3d0; font-weight: normal;">(ดึงข้อมูล: <b style="color:#ffffff;">{exact_date_str}</b>)</span>
+            <span style="font-size: 0.75rem; color: #6ee7b7; font-weight: 600;"><i class="fa fa-calendar-check" style="margin-right: 3px; color:#34d399;"></i> ดึงข้อมูล: <b style="color:#ffffff;">{exact_date_str}</b></span>
         </div>
         """, unsafe_allow_html=True)
         
@@ -3071,144 +3110,165 @@ with st.sidebar:
         if not selected_companies:
             selected_companies = []
         
-        # Property Type Filter (using cached type distributions)
-        common_types = side_meta.get('common_types', [])
-        rare_types = side_meta.get('rare_types', [])
-        type_counts = side_meta.get('type_counts', {})
-        
-        display_type_keys = list(common_types)
-        if len(rare_types) > 0:
-            display_type_keys.append("เพิ่มเติม")
-            
-        sanitize_session_state("filter_types", display_type_keys)
-        rare_count_sum = sum(type_counts.get(t, 0) for t in rare_types)
-        selected_types = st.pills(
-            "ประเภททรัพย์สิน", 
-            options=display_type_keys, 
-            format_func=lambda x: f"เพิ่มเติม ({rare_count_sum:,})" if x == "เพิ่มเติม" else f"{x} ({type_counts.get(x, 0):,})",
-            selection_mode="multi", 
-            default=None,
-            key="filter_types"
-        )
-        if not selected_types:
-            selected_types = []
-        
-        # If "เพิ่มเติม" is selected, show a multiselect for rare types
-        if "เพิ่มเติม" in selected_types:
-            rare_types_sorted = list(rare_types)
-            rare_types_sorted.sort()
-            rare_options = [f"{t} ({type_counts.get(t, 0):,})" for t in rare_types_sorted]
-            sanitize_session_state("selected_rare_types", rare_options)
-            st.multiselect(
-                "เลือกประเภททรัพย์สินเพิ่มเติม",
-                options=rare_options,
-                default=[],
-                key="selected_rare_types"
+        # Unified Filter Section (ประเภททรัพย์สิน, ประเภทการขาย, ภูมิภาค, จังหวัด, อำเภอ, ตำบล) wrapped in st.fragment
+        fragment_fn = getattr(st, "fragment", None)
+
+        def _render_sidebar_filters_body():
+            # 1. Property Type Filter (ประเภททรัพย์สิน Dropdown)
+            type_counts = side_meta.get('type_counts', {})
+            all_property_types = list(type_counts.keys())
+            if "filter_types" not in st.session_state:
+                st.session_state["filter_types"] = []
+            sanitize_session_state("filter_types", all_property_types)
+            loc_types = st.multiselect(
+                "ประเภททรัพย์สิน",
+                options=all_property_types,
+                format_func=lambda x: f"{x} ({type_counts.get(x, 0):,})",
+                key="filter_types",
+                placeholder="เลือกประเภททรัพย์สิน..."
             )
-        
-        # Sale Type Filter (ประเภทการขาย)
-        sale_type_counts = side_meta.get('sale_type_counts', {})
-        available_sale_types = list(sale_type_counts.keys())
-        
-        sanitize_session_state("filter_sale_types", available_sale_types)
-        selected_sale_types = st.pills(
-            "ประเภทการขาย",
-            options=available_sale_types,
-            format_func=lambda x: f"{x} ({sale_type_counts.get(x, 0):,})",
-            selection_mode="multi",
-            default=None,
-            key="filter_sale_types"
-        )
-        if not selected_sale_types:
-            selected_sale_types = []
-        
-        # Region Filter (ภูมิภาค)
-        region_counts = side_meta.get('region_counts', {})
-        all_ordered_regions = ["ภาคกลาง", "ภาคเหนือ", "ภาคตะวันออกเฉียงเหนือ", "ภาคตะวันออก", "ภาคตะวันตก", "ภาคใต้"]
-        available_regions = [r for r in all_ordered_regions if r in region_counts]
-        for r in region_counts:
-            if r not in available_regions and r not in ['', 'nan', 'None', 'อื่นๆ / ไม่ระบุ']:
-                available_regions.append(r)
-        if 'อื่นๆ / ไม่ระบุ' in region_counts:
-            available_regions.append('อื่นๆ / ไม่ระบุ')
-            
-        sanitize_session_state("selected_regions", available_regions)
-        selected_regions = st.multiselect(
-            "ภูมิภาค",
-            options=available_regions,
-            default=[],
-            key="selected_regions",
-            format_func=lambda x: f"{x} ({region_counts.get(x, 0):,})",
-            placeholder="เลือกภูมิภาค (เช่น ภาคกลาง, ภาคเหนือ...)"
-        )
-        
-        # Province Filter (cascaded by selected regions if chosen)
-        if selected_regions:
-            provinces_pool = sorted([
-                str(p) for p in df_raw[df_raw['ภาค'].isin(selected_regions)]['จังหวัด'].dropna().unique()
-                if str(p).strip() not in ['', 'nan', 'None']
-            ])
-        else:
-            provinces_pool = side_meta.get('unique_provinces', [])
-        unique_provinces = sorted(provinces_pool)
-        # Clean up province lists, removing "ไม่ระบุ" or blank
-        if "ไม่ระบุ" in unique_provinces:
-            unique_provinces.remove("ไม่ระบุ")
-            unique_provinces.append("ไม่ระบุ")
-        sanitize_session_state("selected_provinces", unique_provinces)
-        selected_provinces = st.multiselect("จังหวัด", options=unique_provinces, default=[], key="selected_provinces", placeholder="เลือกจังหวัด...")
-        
-        # District Filter - use pre-cached lookup (zero recompute cost)
-        district_by_province = side_meta.get('district_by_province', {})
-        all_districts_formatted = side_meta.get('all_districts_formatted', [])
-        subdistrict_by_province = side_meta.get('subdistrict_by_province', {})
-        subdistrict_by_district = side_meta.get('subdistrict_by_district', {})
 
-        if selected_provinces:
-            unique_districts_formatted = sorted(set(
-                d for prov in selected_provinces
-                for d in [f"{dist} ({prov})" for dist in district_by_province.get(prov, [])]
-            ))
-        elif selected_regions:
-            region_provs = [p for p in side_meta.get('unique_provinces', []) if get_region_by_province(p) in selected_regions]
-            unique_districts_formatted = sorted(set(
-                d for prov in region_provs
-                for d in [f"{dist} ({prov})" for dist in district_by_province.get(prov, [])]
-            ))
-        else:
-            unique_districts_formatted = all_districts_formatted
-
-        selected_districts_formatted = st.multiselect("อำเภอ / เขต", options=unique_districts_formatted, default=[], placeholder="เลือกอำเภอ / เขต...")
-
-        # Parse selected districts into tuples for subdistrict option filtering
-        selected_districts_tuples = []
-        for d_f in selected_districts_formatted:
-            if " (" in d_f:
-                parts = d_f.split(" (")
-                d_name = parts[0].strip()
-                p_name = parts[1].replace(")", "").strip()
-                selected_districts_tuples.append((d_name, p_name))
-
-        # Subdistrict Filter - use pre-cached lookup (zero recompute cost)
-        if selected_districts_tuples:
-            unique_subdistricts_formatted = sorted(set(
-                s for (d_name, p_name) in selected_districts_tuples
-                for s in subdistrict_by_district.get((p_name, d_name), [])
-            ))
-            selected_subdistricts_formatted = st.multiselect("ตำบล / แขวง", options=unique_subdistricts_formatted, default=[])
-        elif selected_provinces:
-            unique_subdistricts_formatted = sorted(set(
-                s for prov in selected_provinces
-                for s in subdistrict_by_province.get(prov, [])
-            ))
-            selected_subdistricts_formatted = st.multiselect("ตำบล / แขวง", options=unique_subdistricts_formatted, default=[], placeholder="เลือกตำบลในจังหวัดที่เลือก...")
-        else:
-            selected_subdistricts_formatted = st.multiselect(
-                "ตำบล / แขวง",
-                options=[],
-                default=[],
-                placeholder="เลือกจังหวัดหรืออำเภอก่อนเพื่อค้นหาตำบล"
+            # 2. Sale Type Filter (ประเภทการขาย Dropdown)
+            sale_type_counts = side_meta.get('sale_type_counts', {})
+            available_sale_types = list(sale_type_counts.keys())
+            if "filter_sale_types" not in st.session_state:
+                st.session_state["filter_sale_types"] = []
+            sanitize_session_state("filter_sale_types", available_sale_types)
+            loc_sale_types = st.multiselect(
+                "ประเภทการขาย",
+                options=available_sale_types,
+                format_func=lambda x: f"{x} ({sale_type_counts.get(x, 0):,})",
+                key="filter_sale_types",
+                placeholder="เลือกประเภทการขาย..."
             )
+
+            # 3. Region Filter (ภูมิภาค Dropdown)
+            region_counts = side_meta.get('region_counts', {})
+            all_ordered_regions = ["ภาคกลาง", "ภาคเหนือ", "ภาคตะวันออกเฉียงเหนือ", "ภาคตะวันออก", "ภาคตะวันตก", "ภาคใต้"]
+            available_regions = [r for r in all_ordered_regions if r in region_counts]
+            for r in region_counts:
+                if r not in available_regions and r not in ['', 'nan', 'None', 'อื่นๆ / ไม่ระบุ']:
+                    available_regions.append(r)
+            if 'อื่นๆ / ไม่ระบุ' in region_counts:
+                available_regions.append('อื่นๆ / ไม่ระบุ')
+                
+            if "selected_regions" not in st.session_state:
+                st.session_state["selected_regions"] = []
+            sanitize_session_state("selected_regions", available_regions)
+            loc_reg = st.multiselect(
+                "ภูมิภาค",
+                options=available_regions,
+                key="selected_regions",
+                format_func=lambda x: f"{x} ({region_counts.get(x, 0):,})",
+                placeholder="เลือกภูมิภาค (เช่น ภาคกลาง, ภาคเหนือ...)"
+            )
+
+            # 4. Province Filter (จังหวัด Dropdown)
+            if loc_reg:
+                provinces_pool = sorted([
+                    str(p) for p in df_raw[df_raw['ภาค'].isin(loc_reg)]['จังหวัด'].dropna().unique()
+                    if str(p).strip() and str(p).strip().lower() not in INVALID_LOC_VALUES
+                ])
+            else:
+                provinces_pool = side_meta.get('unique_provinces', [])
+            unique_provinces = sorted(provinces_pool)
+            if "ไม่ระบุ" in unique_provinces:
+                unique_provinces.remove("ไม่ระบุ")
+            if "selected_provinces" not in st.session_state:
+                st.session_state["selected_provinces"] = []
+            sanitize_session_state("selected_provinces", unique_provinces)
+            loc_prov = st.multiselect("จังหวัด", options=unique_provinces, key="selected_provinces", placeholder="เลือกจังหวัด...")
+            
+            # 5. District Filter (อำเภอ / เขต Dropdown)
+            district_by_province = side_meta.get('district_by_province', {})
+            all_districts_formatted = side_meta.get('all_districts_formatted', [])
+            subdistrict_by_province = side_meta.get('subdistrict_by_province', {})
+            subdistrict_by_district = side_meta.get('subdistrict_by_district', {})
+
+            if loc_prov:
+                unique_districts_formatted = sorted(set(
+                    d for prov in loc_prov
+                    for d in [f"{dist} ({prov})" for dist in district_by_province.get(prov, [])]
+                ))
+            elif loc_reg:
+                region_provs = [p for p in side_meta.get('unique_provinces', []) if get_region_by_province(p) in loc_reg]
+                unique_districts_formatted = sorted(set(
+                    d for prov in region_provs
+                    for d in [f"{dist} ({prov})" for dist in district_by_province.get(prov, [])]
+                ))
+            else:
+                unique_districts_formatted = all_districts_formatted
+
+            if "selected_districts_formatted" not in st.session_state:
+                st.session_state["selected_districts_formatted"] = []
+            sanitize_session_state("selected_districts_formatted", unique_districts_formatted)
+            loc_dist = st.multiselect("อำเภอ / เขต", options=unique_districts_formatted, key="selected_districts_formatted", placeholder="เลือกอำเภอ / เขต...")
+
+            selected_districts_tuples = []
+            for d_f in loc_dist:
+                if " (" in d_f:
+                    parts = d_f.split(" (")
+                    d_name = parts[0].strip()
+                    p_name = parts[1].replace(")", "").strip()
+                    selected_districts_tuples.append((d_name, p_name))
+
+            # 6. Subdistrict Filter (ตำบล / แขวง Dropdown)
+            if "selected_subdistricts_formatted" not in st.session_state:
+                st.session_state["selected_subdistricts_formatted"] = []
+                
+            if selected_districts_tuples:
+                unique_subdistricts_formatted = sorted(set(
+                    s for (d_name, p_name) in selected_districts_tuples
+                    for s in subdistrict_by_district.get((p_name, d_name), [])
+                ))
+                sanitize_session_state("selected_subdistricts_formatted", unique_subdistricts_formatted)
+                loc_sub = st.multiselect("ตำบล / แขวง", options=unique_subdistricts_formatted, key="selected_subdistricts_formatted")
+            elif loc_prov:
+                unique_subdistricts_formatted = sorted(set(
+                    s for prov in loc_prov
+                    for s in subdistrict_by_province.get(prov, [])
+                ))
+                sanitize_session_state("selected_subdistricts_formatted", unique_subdistricts_formatted)
+                loc_sub = st.multiselect("ตำบล / แขวง", options=unique_subdistricts_formatted, key="selected_subdistricts_formatted", placeholder="เลือกตำบลในจังหวัดที่เลือก...")
+            else:
+                sanitize_session_state("selected_subdistricts_formatted", [])
+                loc_sub = st.multiselect(
+                    "ตำบล / แขวง",
+                    options=[],
+                    key="selected_subdistricts_formatted",
+                    placeholder="เลือกจังหวัดหรืออำเภอก่อนเพื่อค้นหาตำบล"
+                )
+
+            # Check if selection actually changed compared to the last applied state
+            current_filter_state = (
+                tuple(loc_types or []),
+                tuple(loc_sale_types or []),
+                tuple(loc_reg or []),
+                tuple(loc_prov or []),
+                tuple(loc_dist or []),
+                tuple(loc_sub or [])
+            )
+            if "_applied_sidebar_state" not in st.session_state:
+                st.session_state["_applied_sidebar_state"] = current_filter_state
+            elif current_filter_state != st.session_state["_applied_sidebar_state"]:
+                st.session_state["_applied_sidebar_state"] = current_filter_state
+                try:
+                    st.rerun(scope="app")
+                except TypeError:
+                    st.rerun()
+
+        if fragment_fn:
+            _filter_frag = fragment_fn(_render_sidebar_filters_body)
+            _filter_frag()
+        else:
+            _render_sidebar_filters_body()
+
+        selected_types = st.session_state.get("filter_types", [])
+        selected_sale_types = st.session_state.get("filter_sale_types", [])
+        selected_regions = st.session_state.get("selected_regions", [])
+        selected_provinces = st.session_state.get("selected_provinces", [])
+        selected_districts_formatted = st.session_state.get("selected_districts_formatted", [])
+        selected_subdistricts_formatted = st.session_state.get("selected_subdistricts_formatted", [])
         
         # Price Filter - อิงราคาจริงที่มีในฐานข้อมูล
         valid_prices = df_raw['ราคา'].dropna()
@@ -4252,7 +4312,7 @@ div[data-baseweb="tab"][aria-selected="true"] div {
 .st-key-main_tabs_container div[role="tablist"] > div:nth-child(1) p::before {
     font-family: "Font Awesome 6 Free", "FontAwesome" !important;
     font-weight: 900 !important;
-    content: "\\f279\\a0" !important;
+    content: "\\f200\\a0" !important;
     color: inherit !important;
     -webkit-text-fill-color: inherit !important;
     display: inline-block !important;
@@ -4267,7 +4327,7 @@ div[data-baseweb="tab"][aria-selected="true"] div {
 .st-key-main_tabs_container div[role="tablist"] > div:nth-child(2) p::before {
     font-family: "Font Awesome 6 Free", "FontAwesome" !important;
     font-weight: 900 !important;
-    content: "\\f080\\a0" !important;
+    content: "\\f279\\a0" !important;
     color: inherit !important;
     -webkit-text-fill-color: inherit !important;
     display: inline-block !important;
@@ -4282,7 +4342,7 @@ div[data-baseweb="tab"][aria-selected="true"] div {
 .st-key-main_tabs_container div[role="tablist"] > div:nth-child(3) p::before {
     font-family: "Font Awesome 6 Free", "FontAwesome" !important;
     font-weight: 900 !important;
-    content: "\\f3c5\\a0" !important;
+    content: "\\f080\\a0" !important;
     color: inherit !important;
     -webkit-text-fill-color: inherit !important;
     display: inline-block !important;
@@ -4295,6 +4355,21 @@ div[data-baseweb="tab"][aria-selected="true"] div {
 
 .st-key-main_tabs_container [role="tab"]:nth-child(4) p::before,
 .st-key-main_tabs_container div[role="tablist"] > div:nth-child(4) p::before {
+    font-family: "Font Awesome 6 Free", "FontAwesome" !important;
+    font-weight: 900 !important;
+    content: "\\f3c5\\a0" !important;
+    color: inherit !important;
+    -webkit-text-fill-color: inherit !important;
+    display: inline-block !important;
+    margin-right: 4px !important;
+    font-style: normal !important;
+    font-variant: normal !important;
+    text-rendering: auto !important;
+    -webkit-font-smoothing: antialiased !important;
+}
+
+.st-key-main_tabs_container [role="tab"]:nth-child(5) p::before,
+.st-key-main_tabs_container div[role="tablist"] > div:nth-child(5) p::before {
     font-family: "Font Awesome 6 Free", "FontAwesome" !important;
     font-weight: 900 !important;
     content: "\\f03a\\a0" !important;
@@ -4625,47 +4700,37 @@ floating_kpi_html = f"""
 
 st.markdown(floating_kpi_html, unsafe_allow_html=True)
 
-# ----------------- MAIN NAVIGATION (4 Tabs with Font Awesome Solid Icons) -----------------
+# ----------------- MAIN NAVIGATION (5 Tabs with Font Awesome Solid Icons) -----------------
 with st.container(key="main_tabs_container"):
-    tab1, tab2, tab3, tab4 = st.tabs([
-        "ภาพรวม & แผนที่",
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        "ภาพรวม (Bubble Chart)",
+        "แผนที่ (Interactive Map)",
         "สถิติ & วิเคราะห์",
         "เปรียบเทียบตำแหน่ง",
         "รายการทรัพย์สิน",
     ], key="main_tabs")
 
-# ----- TAB 1: BUBBLE & MAP -----
+# ----- TAB 1: BUBBLE CHART -----
 with tab1:
-    with st.container(key="tab_map"):
+    with st.container(key="tab_bubble"):
         st.markdown("""
         <style>
         /* Container sizing & alignment */
-        .st-key-tab1_view_toggle_container,
         .st-key-tab1_metric_toggle_container,
         .st-key-tab1_map_color_toggle_container {
             width: auto !important;
             display: inline-flex !important;
-        }
-
-        .st-key-tab1_metric_toggle_container,
-        .st-key-tab1_map_color_toggle_container {
             margin-left: auto !important;
-            display: flex !important;
             justify-content: flex-end !important;
         }
 
         /* Outer button group track (The Apple Pill Track - Compact) */
-        .st-key-tab1_view_toggle_container div[data-testid="stButtonGroup"],
-        .st-key-tab1_view_toggle_container div[role="radiogroup"],
-        .st-key-tab1_view_toggle_container [data-baseweb="button-group"],
         .st-key-tab1_metric_toggle_container div[data-testid="stButtonGroup"],
         .st-key-tab1_metric_toggle_container div[role="radiogroup"],
         .st-key-tab1_metric_toggle_container [data-baseweb="button-group"],
         .st-key-tab1_map_color_toggle_container div[data-testid="stButtonGroup"],
         .st-key-tab1_map_color_toggle_container div[role="radiogroup"],
         .st-key-tab1_map_color_toggle_container [data-baseweb="button-group"],
-        .st-key-tab1_main_view_mode div[data-testid="stButtonGroup"],
-        .st-key-tab1_main_view_mode div[role="radiogroup"],
         .st-key-tab1_bubble_metric_radio div[data-testid="stButtonGroup"],
         .st-key-tab1_bubble_metric_radio div[role="radiogroup"],
         .st-key-tab1_map_color_mode div[data-testid="stButtonGroup"],
@@ -4684,13 +4749,10 @@ with tab1:
         }
 
         /* All buttons inside - Compact Size */
-        .st-key-tab1_view_toggle_container button,
-        .st-key-tab1_view_toggle_container button[data-variant="segmented_control"],
         .st-key-tab1_metric_toggle_container button,
         .st-key-tab1_metric_toggle_container button[data-variant="segmented_control"],
         .st-key-tab1_map_color_toggle_container button,
         .st-key-tab1_map_color_toggle_container button[data-variant="segmented_control"],
-        .st-key-tab1_main_view_mode button,
         .st-key-tab1_bubble_metric_radio button,
         .st-key-tab1_map_color_mode button {
             border: none !important;
@@ -4713,10 +4775,8 @@ with tab1:
         }
 
         /* Compact icon sizing */
-        .st-key-tab1_view_toggle_container span[data-testid="stIconMaterial"],
         .st-key-tab1_metric_toggle_container span[data-testid="stIconMaterial"],
         .st-key-tab1_map_color_toggle_container span[data-testid="stIconMaterial"],
-        .st-key-tab1_main_view_mode span[data-testid="stIconMaterial"],
         .st-key-tab1_bubble_metric_radio span[data-testid="stIconMaterial"],
         .st-key-tab1_map_color_mode span[data-testid="stIconMaterial"] {
             font-size: 15px !important;
@@ -4727,10 +4787,8 @@ with tab1:
         }
 
         /* Inactive button hover */
-        .st-key-tab1_view_toggle_container button:hover,
         .st-key-tab1_metric_toggle_container button:hover,
         .st-key-tab1_map_color_toggle_container button:hover,
-        .st-key-tab1_main_view_mode button:hover,
         .st-key-tab1_bubble_metric_radio button:hover,
         .st-key-tab1_map_color_mode button:hover {
             color: #047857 !important;
@@ -4739,18 +4797,12 @@ with tab1:
         }
 
         /* ACTIVE / SELECTED BUTTON (Vibrant Emerald Tech Gradient) */
-        .st-key-tab1_view_toggle_container button[aria-checked="true"],
-        .st-key-tab1_view_toggle_container button[data-state="active"],
-        .st-key-tab1_view_toggle_container button[kind="segmented_controlActive"],
         .st-key-tab1_metric_toggle_container button[aria-checked="true"],
         .st-key-tab1_metric_toggle_container button[data-state="active"],
         .st-key-tab1_metric_toggle_container button[kind="segmented_controlActive"],
         .st-key-tab1_map_color_toggle_container button[aria-checked="true"],
         .st-key-tab1_map_color_toggle_container button[data-state="active"],
         .st-key-tab1_map_color_toggle_container button[kind="segmented_controlActive"],
-        .st-key-tab1_main_view_mode button[aria-checked="true"],
-        .st-key-tab1_main_view_mode button[data-state="active"],
-        .st-key-tab1_main_view_mode button[kind="segmented_controlActive"],
         .st-key-tab1_bubble_metric_radio button[aria-checked="true"],
         .st-key-tab1_bubble_metric_radio button[data-state="active"],
         .st-key-tab1_bubble_metric_radio button[kind="segmented_controlActive"],
@@ -4770,10 +4822,8 @@ with tab1:
         }
 
         /* Inner elements for Active button */
-        .st-key-tab1_view_toggle_container button[aria-checked="true"] *,
         .st-key-tab1_metric_toggle_container button[aria-checked="true"] *,
         .st-key-tab1_map_color_toggle_container button[aria-checked="true"] *,
-        .st-key-tab1_main_view_mode button[aria-checked="true"] *,
         .st-key-tab1_bubble_metric_radio button[aria-checked="true"] *,
         .st-key-tab1_map_color_mode button[aria-checked="true"] * {
             color: var(--seg-active-text, #065f46) !important;
@@ -4782,10 +4832,8 @@ with tab1:
         }
 
         /* Inner elements for Inactive button */
-        .st-key-tab1_view_toggle_container button:not([aria-checked="true"]) *,
         .st-key-tab1_metric_toggle_container button:not([aria-checked="true"]) *,
         .st-key-tab1_map_color_toggle_container button:not([aria-checked="true"]) *,
-        .st-key-tab1_main_view_mode button:not([aria-checked="true"]) *,
         .st-key-tab1_bubble_metric_radio button:not([aria-checked="true"]) *,
         .st-key-tab1_map_color_mode button:not([aria-checked="true"]) * {
             color: var(--seg-inactive-text, #64748b) !important;
@@ -4794,22 +4842,17 @@ with tab1:
         }
 
         /* Remove default dividers / pseudo lines */
-        .st-key-tab1_view_toggle_container button::before,
-        .st-key-tab1_view_toggle_container button::after,
         .st-key-tab1_metric_toggle_container button::before,
         .st-key-tab1_metric_toggle_container button::after,
         .st-key-tab1_map_color_toggle_container button::before,
-        .st-key-tab1_map_color_toggle_container button::after,
-        .st-key-tab1_main_view_mode button::before,
-        .st-key-tab1_main_view_mode button::after {
+        .st-key-tab1_map_color_toggle_container button::after {
             display: none !important;
             content: none !important;
             border: none !important;
         }
 
-        /* Push the 2nd segmented control (metric toggle) to far right */
-        .st-key-tab_map div[data-testid="column"]:last-child:has([data-testid="stButtonGroup"]),
-        .st-key-tab_map div[data-testid="column"]:last-child:has([role="radiogroup"]),
+        /* Push segmented control to far right */
+        .st-key-tab_bubble div.stColumn:last-child,
         .st-key-tab_map div.stColumn:last-child {
             display: flex !important;
             flex-direction: row !important;
@@ -4818,331 +4861,321 @@ with tab1:
         }
         </style>
         """, unsafe_allow_html=True)
-        c_mode1, c_spacer, c_mode2 = st.columns([0.34, 0.38, 0.28])
-        with c_mode1:
-            with st.container(key="tab1_view_toggle_container"):
-                t1_view = st.segmented_control(
-                    label="view_mode",
-                    options=[":material/bubble_chart: Bubble View", ":material/map: Interactive Map"],
-                    default=":material/bubble_chart: Bubble View",
-                    key="tab1_main_view_mode",
+        col_b1, col_b2 = st.columns([0.65, 0.35])
+        with col_b1:
+            st.markdown(
+                "### <i class='fa-solid fa-chart-pie' style='color:#059669; margin-right:8px;'></i>ภาพรวมตลาด (3D Bubble Chart)",
+                unsafe_allow_html=True
+            )
+        with col_b2:
+            with st.container(key="tab1_metric_toggle_container"):
+                bubble_metric = st.segmented_control(
+                    label="bubble_metric",
+                    options=[":material/tag: จำนวนทรัพย์สิน", ":material/payments: มูลค่ารวม"],
+                    default=":material/tag: จำนวนทรัพย์สิน",
+                    key="tab1_bubble_metric_radio",
                     label_visibility="collapsed"
                 )
-                if not t1_view:
-                    t1_view = ":material/bubble_chart: Bubble View"
-                
-        if "Bubble" in t1_view:
-            with c_mode2:
-                with st.container(key="tab1_metric_toggle_container"):
-                    bubble_metric = st.segmented_control(
-                        label="bubble_metric",
-                        options=[":material/tag: จำนวนทรัพย์สิน", ":material/payments: มูลค่ารวม"],
-                        default=":material/tag: จำนวนทรัพย์สิน",
-                        key="tab1_bubble_metric_radio",
-                        label_visibility="collapsed"
-                    )
-                    if not bubble_metric:
-                        bubble_metric = ":material/tag: จำนวนทรัพย์สิน"
+                if not bubble_metric:
+                    bubble_metric = ":material/tag: จำนวนทรัพย์สิน"
+
+        # Render 3D Glossy Bubble Chart matching AMC NPA Monitor style
+        bubble_html = generate_3d_glossy_bubble_chart_html(
+            df_filtered, 
+            bubble_metric=bubble_metric, 
+            is_dark_mode=is_dark_mode
+        )
+        
+        try:
+            import streamlit.components.v1 as stc
+            stc.html(bubble_html, height=770)
+        except Exception:
+            st.html(bubble_html)
+
+
+# ----- TAB 2: INTERACTIVE MAP -----
+with tab2:
+    with st.container(key="tab_map"):
+        st.markdown(
+            "### <i class='fa-solid fa-map-location-dot' style='color:#059669; margin-right:8px;'></i>แผนที่ตำแหน่งทรัพย์สิน (Interactive Map)",
+            unsafe_allow_html=True
+        )
+        map_color_mode = ":material/corporate_fare: By Company"
+
+        # Map Rendering (Deck.gl OpenStreetMap Scatterplot Map with dynamic color mode)
+        progress_bar = st.progress(0, text="กำลังเตรียมข้อมูลแผนที่...")
+        
+        # Step 1: Filter rows with coordinates (20%)
+        progress_bar.progress(20, text="กำลังกรองจุดพิกัดในประเทศไทย (20%)...")
+        map_data = df_filtered[
+            df_filtered['ละติจูด'].notna() & df_filtered['ลองจิจูด'].notna() &
+            df_filtered['ละติจูด'].between(5, 21) & df_filtered['ลองจิจูด'].between(97, 106)
+        ].copy()
+        
+        map_data_full_len = len(map_data)
             
-            # Render 3D Glossy Bubble Chart matching AMC NPA Monitor style
-            bubble_html = generate_3d_glossy_bubble_chart_html(
-                df_filtered, 
-                bubble_metric=bubble_metric, 
-                is_dark_mode=is_dark_mode
+        if not map_data.empty:
+            # Step 2: Vectorized price formatting (no .apply() loop)
+            progress_bar.progress(40, text="กำลังจัดรูปแบบราคาและชื่อประกาศ (40%)...")
+            _prices_num = pd.to_numeric(map_data['ราคา'], errors='coerce')
+            _valid_price = _prices_num.notna() & (_prices_num > 0)
+            map_data['ราคาขาย'] = 'ไม่ระบุ'
+            if _valid_price.any():
+                map_data.loc[_valid_price, 'ราคาขาย'] = (
+                    '฿' + _prices_num[_valid_price].map('{:,.0f}'.format) + ' บาท'
+                )
+
+            # Vectorized unit price (฿/ตร.ว. หรือ ฿/ตร.ม.)
+            _p_wah = pd.to_numeric(map_data['ราคาต่อตารางวา'], errors='coerce') if 'ราคาต่อตารางวา' in map_data.columns else pd.Series(np.nan, index=map_data.index)
+            _p_sqm = pd.to_numeric(map_data['ราคาต่อตารางเมตร'], errors='coerce') if 'ราคาต่อตารางเมตร' in map_data.columns else pd.Series(np.nan, index=map_data.index)
+            _sqw_calc = pd.to_numeric(map_data.get('พื้นที่_ตารางวา', np.nan), errors='coerce')
+            _sqm_calc = pd.to_numeric(map_data.get('พื้นที่ใช้สอย (ตร.ม.)', np.nan), errors='coerce')
+            _p_wah_calc = np.where((_p_wah > 0), _p_wah, np.where((_sqw_calc > 0) & (_prices_num > 0), _prices_num / _sqw_calc, np.nan))
+            _p_sqm_calc = np.where((_p_sqm > 0), _p_sqm, np.where((_sqm_calc > 0) & (_prices_num > 0), _prices_num / _sqm_calc, np.nan))
+            _ptype_str = map_data['ประเภททรัพย์'].astype(str) if 'ประเภททรัพย์' in map_data.columns else pd.Series('', index=map_data.index)
+            _is_condo = _ptype_str.str.contains('ห้องชุด|คอนโด|อาคารชุด', na=False)
+            _unit_prices = np.where(
+                _is_condo,
+                np.where(pd.notna(_p_sqm_calc) & (_p_sqm_calc > 0), _p_sqm_calc, np.where(pd.notna(_p_wah_calc) & (_p_wah_calc > 0), _p_wah_calc, 0.0)),
+                np.where(pd.notna(_p_wah_calc) & (_p_wah_calc > 0), _p_wah_calc, np.where(pd.notna(_p_sqm_calc) & (_p_sqm_calc > 0), _p_sqm_calc, 0.0))
             )
             
+        if map_data.empty:
+            progress_bar.empty()
+            st.warning("ไม่พบพิกัดตำแหน่ง ละติจูด/ลองจิจูด ในรายการทรัพย์สินที่คุณเลือกค้นหา")
+        else:
+            # Strategy 1: Vectorized string column extraction (no list comprehensions)
+            title_col = 'ชื่อประกาศ' if 'ชื่อประกาศ' in map_data.columns else ('ชื่อโครงการ' if 'ชื่อโครงการ' in map_data.columns else 'รหัสทรัพย์')
+            titles  = map_data[title_col].fillna('ไม่มีชื่อ').astype(str).str.strip().str[:80].tolist()
+            ids     = map_data['รหัสทรัพย์'].fillna('-').astype(str).str.strip().tolist()
+            prices_list = map_data['ราคาขาย'].astype(str).tolist()
+
+            # Centroid flag: is_centroid column OR LED company (vectorized)
+            led_mask = map_data['บริษัท'].fillna('').astype(str).str.upper().str.strip() == 'LED'
+            if 'is_centroid' in map_data.columns:
+                centroid_mask = (map_data['is_centroid'].fillna(False).astype(bool)) | led_mask
+            else:
+                centroid_mask = led_mask
+            centroid_flags = centroid_mask.astype('uint8').tolist()
+
+            # Vectorized centroid count per company & per property type
+            centroid_per_company = (
+                map_data.loc[centroid_mask, 'บริษัท'].fillna('-').value_counts().to_dict()
+            )
+            centroid_per_type = (
+                map_data.loc[centroid_mask, 'ประเภททรัพย์'].fillna('-').value_counts().to_dict()
+            )
+
+            # Step 3: Vectorized color mapping — no per-row Python loops
+            if "Property Type" in map_color_mode:
+                progress_bar.progress(60, text="กำลังจัดเตรียมสีตามประเภททรัพย์สิน (60%)...")
+                PROP_TYPE_COLORS = {
+                    "บ้านเดี่ยว": [37, 99, 235],
+                    "ห้องชุดพักอาศัย": [139, 92, 246],
+                    "ทาวน์เฮ้าส์": [245, 158, 11],
+                    "ที่ดินเปล่า": [16, 185, 129],
+                    "ที่ดินพร้อมสิ่งปลูกสร้าง": [5, 150, 105],
+                    "อาคารพาณิชย์": [244, 63, 94],
+                    "วิลล่า": [236, 72, 153],
+                    "โรงงาน/โกดัง": [6, 182, 212],
+                    "บ้านแฝด": [99, 102, 241],
+                    "อพาร์ทเมนท์": [168, 85, 247],
+                    "อาคารสำนักงาน": [100, 116, 139],
+                    "โรงแรม/รีสอร์ท": [234, 179, 8],
+                    "ห้องชุดพาณิชยกรรม/สำนักงาน": [14, 165, 233],
+                    "ปั๊มน้ำมัน": [217, 119, 6],
+                    "โชว์รูม": [249, 115, 22],
+                    "โฮมออฟฟิศ": [79, 70, 229],
+                    "สังหาริมทรัพย์": [120, 113, 108]
+                }
+                DEFAULT_PROP_COLOR = [148, 163, 184]
+                _upt = map_data['ประเภททรัพย์'].unique()
+                _r_pt = {t: PROP_TYPE_COLORS.get(t, DEFAULT_PROP_COLOR)[0] for t in _upt}
+                _g_pt = {t: PROP_TYPE_COLORS.get(t, DEFAULT_PROP_COLOR)[1] for t in _upt}
+                _b_pt = {t: PROP_TYPE_COLORS.get(t, DEFAULT_PROP_COLOR)[2] for t in _upt}
+                r_arr = map_data['ประเภททรัพย์'].map(_r_pt).fillna(DEFAULT_PROP_COLOR[0]).astype('uint8')
+                g_arr = map_data['ประเภททรัพย์'].map(_g_pt).fillna(DEFAULT_PROP_COLOR[1]).astype('uint8')
+                b_arr = map_data['ประเภททรัพย์'].map(_b_pt).fillna(DEFAULT_PROP_COLOR[2]).astype('uint8')
+
+                # Dynamic Legend for Property Types (with centroid counts)
+                type_counts = map_data['ประเภททรัพย์'].value_counts()
+                legend_items_html = ['<div style="font-weight: 600; font-size: 11px; text-transform: uppercase; color: #64748b; margin-bottom: 4px; letter-spacing: 0.5px;">ประเภททรัพย์สิน</div>']
+                for p_name, p_rgb in PROP_TYPE_COLORS.items():
+                    c_cnt = type_counts.get(p_name, 0)
+                    if c_cnt > 0:
+                        hex_c = f"rgb({p_rgb[0]},{p_rgb[1]},{p_rgb[2]})"
+                        c_centroid = centroid_per_type.get(p_name, 0)
+                        centroid_tag = f' <span class="legend-centroid-badge" style="background:#fef3c7; color:#92400e; font-size:9.5px; font-weight:800; padding:0px 4px; border-radius:4px; border:1px solid #fde68a;">&#9651; {c_centroid:,}</span>' if c_centroid > 0 else ''
+                        legend_items_html.append(f'<div class="legend-item"><span class="legend-color" style="background:{hex_c};"></span>{p_name} ({c_cnt:,}){centroid_tag}</div>')
+                other_cnt = sum(cnt for t, cnt in type_counts.items() if t not in PROP_TYPE_COLORS)
+                if other_cnt > 0:
+                    other_types = [t for t in type_counts.index if t not in PROP_TYPE_COLORS]
+                    other_pt_centroid = sum(centroid_per_type.get(t, 0) for t in other_types)
+                    other_centroid_tag = f' <span class="legend-centroid-badge" style="background:#fef3c7; color:#92400e; font-size:9.5px; font-weight:800; padding:0px 4px; border-radius:4px; border:1px solid #fde68a;">&#9651; {other_pt_centroid:,}</span>' if other_pt_centroid > 0 else ''
+                    legend_items_html.append(f'<div class="legend-item"><span class="legend-color" style="background:#94a3b8;"></span>อื่นๆ ({other_cnt:,}){other_centroid_tag}</div>')
+                total_centroid_count = sum(centroid_per_type.values())
+                if total_centroid_count > 0:
+                    legend_items_html.append(f'<div class="legend-centroid-summary" style="border-top:1px dashed #e2e8f0; margin-top:5px; padding-top:5px; font-size:10.5px; color:#92400e; font-weight:700;">&#9651; พิกัดกึ่งกลาง {total_centroid_count:,} จาก {len(map_data):,} จุด</div>')
+                legend_content = "\n".join(legend_items_html)
+            else:
+                progress_bar.progress(60, text="กำลังจัดเตรียมสีตามบริษัทคู่แข่ง (60%)...")
+                COMPANY_MAP_RGB = {
+                    "LED": [8, 145, 178],
+                    "SAM": [16, 185, 129],
+                    "BAM": [59, 130, 246],
+                    "Chayo555": [249, 115, 22],
+                    "GHB": [202, 138, 4],
+                    "KBANK": [5, 150, 105],
+                    "KTB": [2, 132, 199],
+                    "SCB": [126, 34, 206],
+                    "GSB": [235, 25, 133],
+                    "DDproperty": [168, 85, 247],
+                    "Livinginsider": [20, 184, 166],
+                    "NaYoo": [139, 92, 246],
+                    "ZmyHome": [236, 72, 153],
+                    "Baania": [245, 158, 11]
+                }
+                DEFAULT_COLOR = [148, 163, 184]
+                _uco = map_data['บริษัท'].unique()
+                _r_co = {c: COMPANY_MAP_RGB.get(c, DEFAULT_COLOR)[0] for c in _uco}
+                _g_co = {c: COMPANY_MAP_RGB.get(c, DEFAULT_COLOR)[1] for c in _uco}
+                _b_co = {c: COMPANY_MAP_RGB.get(c, DEFAULT_COLOR)[2] for c in _uco}
+                r_arr = map_data['บริษัท'].map(_r_co).fillna(DEFAULT_COLOR[0]).astype('uint8')
+                g_arr = map_data['บริษัท'].map(_g_co).fillna(DEFAULT_COLOR[1]).astype('uint8')
+                b_arr = map_data['บริษัท'].map(_b_co).fillna(DEFAULT_COLOR[2]).astype('uint8')
+
+                # Dynamic Legend for Companies (with centroid counts)
+                co_counts = map_data['บริษัท'].value_counts()
+                legend_items_html = ['<div style="font-weight: 600; font-size: 11px; text-transform: uppercase; color: #64748b; margin-bottom: 4px; letter-spacing: 0.5px;">บริษัททรัพย์สิน</div>']
+                for co_name, co_rgb in COMPANY_MAP_RGB.items():
+                    c_cnt = co_counts.get(co_name, 0)
+                    if c_cnt > 0:
+                        hex_c = f"rgb({co_rgb[0]},{co_rgb[1]},{co_rgb[2]})"
+                        c_centroid = centroid_per_company.get(co_name, 0)
+                        centroid_tag = f' <span class="legend-centroid-badge" style="background:#fef3c7; color:#92400e; font-size:9.5px; font-weight:800; padding:0px 4px; border-radius:4px; border:1px solid #fde68a;">&#9651; {c_centroid:,}</span>' if c_centroid > 0 else ''
+                        legend_items_html.append(f'<div class="legend-item"><span class="legend-color" style="background:{hex_c};"></span>{co_name} ({c_cnt:,}){centroid_tag}</div>')
+                other_co_cnt = sum(cnt for co, cnt in co_counts.items() if co not in COMPANY_MAP_RGB)
+                if other_co_cnt > 0:
+                    other_co_names = [co for co in co_counts.index if co not in COMPANY_MAP_RGB]
+                    other_co_centroid = sum(centroid_per_company.get(co, 0) for co in other_co_names)
+                    other_centroid_tag = f' <span class="legend-centroid-badge" style="background:#fef3c7; color:#92400e; font-size:9.5px; font-weight:800; padding:0px 4px; border-radius:4px; border:1px solid #fde68a;">&#9651; {other_co_centroid:,}</span>' if other_co_centroid > 0 else ''
+                    legend_items_html.append(f'<div class="legend-item"><span class="legend-color" style="background:#94a3b8;"></span>อื่นๆ ({other_co_cnt:,}){other_centroid_tag}</div>')
+                total_centroid_count = sum(centroid_per_company.values())
+                if total_centroid_count > 0:
+                    legend_items_html.append(f'<div class="legend-centroid-summary" style="border-top:1px dashed #e2e8f0; margin-top:5px; padding-top:5px; font-size:10.5px; color:#92400e; font-weight:700;">&#9651; พิกัดกึ่งกลาง {total_centroid_count:,} จาก {len(map_data):,} จุด</div>')
+                legend_content = "\n".join(legend_items_html)
+
+            # Vectorized links extraction
+            if 'ลิงก์' in map_data.columns:
+                _lnk = map_data['ลิงก์'].fillna('').astype(str).str.strip()
+                links = _lnk.where(~_lnk.isin(['', 'nan', 'None', '-']), '').tolist()
+            else:
+                links = [''] * len(map_data)
+
+            # Step 4: Build compact CSV + lookup table, then GZIP compress both (80%)
+            # GZIP reduces payload 6-10x → much faster browser decode
+            progress_bar.progress(80, text="กำลังบีบอัด GZIP และแปลงเป็น Base64 (80%)...")
+
+            # Lookup table for column compression (company / type / province / sale_type / region / district)
+            _co_cat = pd.Categorical(map_data['บริษัท'].fillna('-').astype(str).str.strip())
+            _ty_cat = pd.Categorical(map_data['ประเภททรัพย์'].fillna('-').astype(str).str.strip())
+            _pv_cat = pd.Categorical(map_data['จังหวัด'].fillna('-').astype(str).str.strip())
+            
+            _st_col = map_data['ประเภทการขาย'].fillna('ไม่ระบุ').astype(str).str.strip() if 'ประเภทการขาย' in map_data.columns else pd.Series(['ไม่ระบุ'] * len(map_data), index=map_data.index)
+            _st_cat = pd.Categorical(_st_col)
+
+            _rg_col = map_data['ภาค'].fillna('ไม่ระบุ').astype(str).str.strip() if 'ภาค' in map_data.columns else pd.Series(['ไม่ระบุ'] * len(map_data), index=map_data.index)
+            _rg_cat = pd.Categorical(_rg_col)
+
+            _dt_col = map_data['อำเภอ'].fillna('ไม่ระบุ').astype(str).str.strip() if 'อำเภอ' in map_data.columns else pd.Series(['ไม่ระบุ'] * len(map_data), index=map_data.index)
+            _dt_cat = pd.Categorical(_dt_col)
+
+            _subdt_col = map_data['ตำบล'].fillna('ไม่ระบุ').astype(str).str.strip() if 'ตำบล' in map_data.columns else pd.Series(['ไม่ระบุ'] * len(map_data), index=map_data.index)
+            _subdt_cat = pd.Categorical(_subdt_col)
+
+            lookup_obj = {
+                'co': _co_cat.categories.tolist(),
+                'ty': _ty_cat.categories.tolist(),
+                'pv': _pv_cat.categories.tolist(),
+                'st': _st_cat.categories.tolist(),
+                'rg': _rg_cat.categories.tolist(),
+                'dt': _dt_cat.categories.tolist(),
+                'subdt': _subdt_cat.categories.tolist(),
+            }
+            lookup_b64 = base64.b64encode(
+                gzip.compress(
+                    json.dumps(lookup_obj, ensure_ascii=False).encode('utf-8'),
+                    compresslevel=1
+                )
+            ).decode('utf-8')
+
+            deeds = map_data['เลขโฉนด'].fillna('').astype(str).values if 'เลขโฉนด' in map_data.columns else [''] * len(map_data)
+            csv_df = pd.DataFrame({
+                'lon': map_data['ลองจิจูด'].values.astype('float32'),
+                'lat': map_data['ละติจูด'].values.astype('float32'),
+                'r':   r_arr.values,
+                'g':   g_arr.values,
+                'b':   b_arr.values,
+                '_title': titles,
+                '_id':    ids,
+                '_ci':    _co_cat.codes.astype('int16'),
+                '_ti':    _ty_cat.codes.astype('int16'),
+                '_pi':    _pv_cat.codes.astype('int16'),
+                '_sti':   _st_cat.codes.astype('int16'),
+                '_rgi':   _rg_cat.codes.astype('int16'),
+                '_dti':   _dt_cat.codes.astype('int16'),
+                '_subdti': _subdt_cat.codes.astype('int16'),
+                '_p':     _prices_num.fillna(0).astype('float32').values,
+                '_up':    _unit_prices.astype('float32'),
+                '_price_str': prices_list,
+                '_link':     links,
+                '_centroid': centroid_flags,
+                '_deed':     deeds,
+            })
+
+            # GZIP compress the CSV before base64 encoding
+            csv_base64 = base64.b64encode(
+                gzip.compress(
+                    csv_df.to_csv(index=False).encode('utf-8'),
+                    compresslevel=1
+                )
+            ).decode('utf-8')
+            
+            # Step 5: Render map template (90%)
+            _tmpl_path = "static/map_template.html"
+            _tmpl_mtime = os.path.getmtime(_tmpl_path) if os.path.exists(_tmpl_path) else None
+            base_tmpl = get_base_map_html(_tmpl_mtime)
+            html_content = base_tmpl.replace("CSV_BASE64_PLACEHOLDER", csv_base64)
+            html_content = html_content.replace("LOOKUP_BASE64_PLACEHOLDER", lookup_b64)
+            html_content = html_content.replace("LEGEND_ITEMS_PLACEHOLDER", legend_content)
+            body_theme_class = "dark-theme" if is_dark_mode else ""
+            html_content = html_content.replace("BODY_CLASS_PLACEHOLDER", body_theme_class)
+            
+            # Step 6: Finish (100%)
+            progress_bar.progress(100, text="เรนเดอร์แผนที่สำเร็จแล้ว (100%)")
+            progress_bar.empty()
+            
+            map_rendered = False
             try:
                 import streamlit.components.v1 as stc
-                stc.html(bubble_html, height=770)
+                stc.html(html_content, height=870)
+                map_rendered = True
             except Exception:
-                st.html(bubble_html)
-                
-        else:
-            with c_mode2:
-                with st.container(key="tab1_map_color_toggle_container"):
-                    map_color_mode = st.segmented_control(
-                        label="map_color",
-                        options=[":material/corporate_fare: By Company", ":material/category: By Property Type"],
-                        default=":material/corporate_fare: By Company",
-                        key="tab1_map_color_mode",
-                        label_visibility="collapsed"
-                    )
-                    if not map_color_mode:
-                        map_color_mode = ":material/corporate_fare: By Company"
-
-            # Map Rendering (Deck.gl OpenStreetMap Scatterplot Map with dynamic color mode)
-            progress_bar = st.progress(0, text="กำลังเตรียมข้อมูลแผนที่...")
+                pass
             
-            # Step 1: Filter rows with coordinates (20%)
-            progress_bar.progress(20, text="กำลังกรองจุดพิกัดในประเทศไทย (20%)...")
-            map_data = df_filtered[
-                df_filtered['ละติจูด'].notna() & df_filtered['ลองจิจูด'].notna() &
-                df_filtered['ละติจูด'].between(5, 21) & df_filtered['ลองจิจูด'].between(97, 106)
-            ].copy()
-            
-            map_data_full_len = len(map_data)
-                
-            if not map_data.empty:
-                # Step 2: Vectorized price formatting (no .apply() loop)
-                progress_bar.progress(40, text="กำลังจัดรูปแบบราคาและชื่อประกาศ (40%)...")
-                _prices_num = pd.to_numeric(map_data['ราคา'], errors='coerce')
-                _valid_price = _prices_num.notna() & (_prices_num > 0)
-                map_data['ราคาขาย'] = 'ไม่ระบุ'
-                if _valid_price.any():
-                    map_data.loc[_valid_price, 'ราคาขาย'] = (
-                        '฿' + _prices_num[_valid_price].map('{:,.0f}'.format) + ' บาท'
-                    )
-
-                # Vectorized unit price (฿/ตร.ว. หรือ ฿/ตร.ม.)
-                _p_wah = pd.to_numeric(map_data['ราคาต่อตารางวา'], errors='coerce') if 'ราคาต่อตารางวา' in map_data.columns else pd.Series(np.nan, index=map_data.index)
-                _p_sqm = pd.to_numeric(map_data['ราคาต่อตารางเมตร'], errors='coerce') if 'ราคาต่อตารางเมตร' in map_data.columns else pd.Series(np.nan, index=map_data.index)
-                _sqw_calc = pd.to_numeric(map_data.get('พื้นที่_ตารางวา', np.nan), errors='coerce')
-                _sqm_calc = pd.to_numeric(map_data.get('พื้นที่ใช้สอย (ตร.ม.)', np.nan), errors='coerce')
-                _p_wah_calc = np.where((_p_wah > 0), _p_wah, np.where((_sqw_calc > 0) & (_prices_num > 0), _prices_num / _sqw_calc, np.nan))
-                _p_sqm_calc = np.where((_p_sqm > 0), _p_sqm, np.where((_sqm_calc > 0) & (_prices_num > 0), _prices_num / _sqm_calc, np.nan))
-                _ptype_str = map_data['ประเภททรัพย์'].astype(str) if 'ประเภททรัพย์' in map_data.columns else pd.Series('', index=map_data.index)
-                _is_condo = _ptype_str.str.contains('ห้องชุด|คอนโด|อาคารชุด', na=False)
-                _unit_prices = np.where(
-                    _is_condo,
-                    np.where(pd.notna(_p_sqm_calc) & (_p_sqm_calc > 0), _p_sqm_calc, np.where(pd.notna(_p_wah_calc) & (_p_wah_calc > 0), _p_wah_calc, 0.0)),
-                    np.where(pd.notna(_p_wah_calc) & (_p_wah_calc > 0), _p_wah_calc, np.where(pd.notna(_p_sqm_calc) & (_p_sqm_calc > 0), _p_sqm_calc, 0.0))
-                )
-                
-            if map_data.empty:
-                progress_bar.empty()
-                st.warning("ไม่พบพิกัดตำแหน่ง ละติจูด/ลองจิจูด ในรายการทรัพย์สินที่คุณเลือกค้นหา")
-            else:
-                # Strategy 1: Vectorized string column extraction (no list comprehensions)
-                title_col = 'ชื่อประกาศ' if 'ชื่อประกาศ' in map_data.columns else ('ชื่อโครงการ' if 'ชื่อโครงการ' in map_data.columns else 'รหัสทรัพย์')
-                titles  = map_data[title_col].fillna('ไม่มีชื่อ').astype(str).str.strip().str[:80].tolist()
-                ids     = map_data['รหัสทรัพย์'].fillna('-').astype(str).str.strip().tolist()
-                prices_list = map_data['ราคาขาย'].astype(str).tolist()
-
-                # Centroid flag: is_centroid column OR LED company (vectorized)
-                led_mask = map_data['บริษัท'].fillna('').astype(str).str.upper().str.strip() == 'LED'
-                if 'is_centroid' in map_data.columns:
-                    centroid_mask = (map_data['is_centroid'].fillna(False).astype(bool)) | led_mask
-                else:
-                    centroid_mask = led_mask
-                centroid_flags = centroid_mask.astype('uint8').tolist()
-
-                # Vectorized centroid count per company & per property type
-                centroid_per_company = (
-                    map_data.loc[centroid_mask, 'บริษัท'].fillna('-').value_counts().to_dict()
-                )
-                centroid_per_type = (
-                    map_data.loc[centroid_mask, 'ประเภททรัพย์'].fillna('-').value_counts().to_dict()
-                )
-
-                # Step 3: Vectorized color mapping — no per-row Python loops
-                if "Property Type" in map_color_mode:
-                    progress_bar.progress(60, text="กำลังจัดเตรียมสีตามประเภททรัพย์สิน (60%)...")
-                    PROP_TYPE_COLORS = {
-                        "บ้านเดี่ยว": [37, 99, 235],
-                        "ห้องชุดพักอาศัย": [139, 92, 246],
-                        "ทาวน์เฮ้าส์": [245, 158, 11],
-                        "ที่ดินเปล่า": [16, 185, 129],
-                        "ที่ดินพร้อมสิ่งปลูกสร้าง": [5, 150, 105],
-                        "อาคารพาณิชย์": [244, 63, 94],
-                        "วิลล่า": [236, 72, 153],
-                        "โรงงาน/โกดัง": [6, 182, 212],
-                        "บ้านแฝด": [99, 102, 241],
-                        "อพาร์ทเมนท์": [168, 85, 247],
-                        "อาคารสำนักงาน": [100, 116, 139],
-                        "โรงแรม/รีสอร์ท": [234, 179, 8],
-                        "ห้องชุดพาณิชยกรรม/สำนักงาน": [14, 165, 233],
-                        "ปั๊มน้ำมัน": [217, 119, 6],
-                        "โชว์รูม": [249, 115, 22],
-                        "โฮมออฟฟิศ": [79, 70, 229],
-                        "สังหาริมทรัพย์": [120, 113, 108]
-                    }
-                    DEFAULT_PROP_COLOR = [148, 163, 184]
-                    _upt = map_data['ประเภททรัพย์'].unique()
-                    _r_pt = {t: PROP_TYPE_COLORS.get(t, DEFAULT_PROP_COLOR)[0] for t in _upt}
-                    _g_pt = {t: PROP_TYPE_COLORS.get(t, DEFAULT_PROP_COLOR)[1] for t in _upt}
-                    _b_pt = {t: PROP_TYPE_COLORS.get(t, DEFAULT_PROP_COLOR)[2] for t in _upt}
-                    r_arr = map_data['ประเภททรัพย์'].map(_r_pt).fillna(DEFAULT_PROP_COLOR[0]).astype('uint8')
-                    g_arr = map_data['ประเภททรัพย์'].map(_g_pt).fillna(DEFAULT_PROP_COLOR[1]).astype('uint8')
-                    b_arr = map_data['ประเภททรัพย์'].map(_b_pt).fillna(DEFAULT_PROP_COLOR[2]).astype('uint8')
-
-                    # Dynamic Legend for Property Types (with centroid counts)
-                    type_counts = map_data['ประเภททรัพย์'].value_counts()
-                    legend_items_html = ['<div style="font-weight: 600; font-size: 11px; text-transform: uppercase; color: #64748b; margin-bottom: 4px; letter-spacing: 0.5px;">ประเภททรัพย์สิน</div>']
-                    for p_name, p_rgb in PROP_TYPE_COLORS.items():
-                        c_cnt = type_counts.get(p_name, 0)
-                        if c_cnt > 0:
-                            hex_c = f"rgb({p_rgb[0]},{p_rgb[1]},{p_rgb[2]})"
-                            c_centroid = centroid_per_type.get(p_name, 0)
-                            centroid_tag = f' <span class="legend-centroid-badge" style="background:#fef3c7; color:#92400e; font-size:9.5px; font-weight:800; padding:0px 4px; border-radius:4px; border:1px solid #fde68a;">&#9651; {c_centroid:,}</span>' if c_centroid > 0 else ''
-                            legend_items_html.append(f'<div class="legend-item"><span class="legend-color" style="background:{hex_c};"></span>{p_name} ({c_cnt:,}){centroid_tag}</div>')
-                    other_cnt = sum(cnt for t, cnt in type_counts.items() if t not in PROP_TYPE_COLORS)
-                    if other_cnt > 0:
-                        other_types = [t for t in type_counts.index if t not in PROP_TYPE_COLORS]
-                        other_pt_centroid = sum(centroid_per_type.get(t, 0) for t in other_types)
-                        other_centroid_tag = f' <span class="legend-centroid-badge" style="background:#fef3c7; color:#92400e; font-size:9.5px; font-weight:800; padding:0px 4px; border-radius:4px; border:1px solid #fde68a;">&#9651; {other_pt_centroid:,}</span>' if other_pt_centroid > 0 else ''
-                        legend_items_html.append(f'<div class="legend-item"><span class="legend-color" style="background:#94a3b8;"></span>อื่นๆ ({other_cnt:,}){other_centroid_tag}</div>')
-                    total_centroid_count = sum(centroid_per_type.values())
-                    if total_centroid_count > 0:
-                        legend_items_html.append(f'<div class="legend-centroid-summary" style="border-top:1px dashed #e2e8f0; margin-top:5px; padding-top:5px; font-size:10.5px; color:#92400e; font-weight:700;">&#9651; พิกัดกึ่งกลาง {total_centroid_count:,} จาก {len(map_data):,} จุด</div>')
-                    legend_content = "\n".join(legend_items_html)
-                else:
-                    progress_bar.progress(60, text="กำลังจัดเตรียมสีตามบริษัทคู่แข่ง (60%)...")
-                    COMPANY_MAP_RGB = {
-                        "LED": [8, 145, 178],
-                        "SAM": [16, 185, 129],
-                        "BAM": [59, 130, 246],
-                        "Chayo555": [249, 115, 22],
-                        "GHB": [202, 138, 4],
-                        "KBANK": [5, 150, 105],
-                        "KTB": [2, 132, 199],
-                        "SCB": [126, 34, 206],
-                        "GSB": [235, 25, 133],
-                        "DDproperty": [168, 85, 247],
-                        "Livinginsider": [20, 184, 166],
-                        "NaYoo": [139, 92, 246],
-                        "ZmyHome": [236, 72, 153],
-                        "Baania": [245, 158, 11]
-                    }
-                    DEFAULT_COLOR = [148, 163, 184]
-                    _uco = map_data['บริษัท'].unique()
-                    _r_co = {c: COMPANY_MAP_RGB.get(c, DEFAULT_COLOR)[0] for c in _uco}
-                    _g_co = {c: COMPANY_MAP_RGB.get(c, DEFAULT_COLOR)[1] for c in _uco}
-                    _b_co = {c: COMPANY_MAP_RGB.get(c, DEFAULT_COLOR)[2] for c in _uco}
-                    r_arr = map_data['บริษัท'].map(_r_co).fillna(DEFAULT_COLOR[0]).astype('uint8')
-                    g_arr = map_data['บริษัท'].map(_g_co).fillna(DEFAULT_COLOR[1]).astype('uint8')
-                    b_arr = map_data['บริษัท'].map(_b_co).fillna(DEFAULT_COLOR[2]).astype('uint8')
-
-                    # Dynamic Legend for Companies (with centroid counts)
-                    co_counts = map_data['บริษัท'].value_counts()
-                    legend_items_html = ['<div style="font-weight: 600; font-size: 11px; text-transform: uppercase; color: #64748b; margin-bottom: 4px; letter-spacing: 0.5px;">บริษัททรัพย์สิน</div>']
-                    for co_name, co_rgb in COMPANY_MAP_RGB.items():
-                        c_cnt = co_counts.get(co_name, 0)
-                        if c_cnt > 0:
-                            hex_c = f"rgb({co_rgb[0]},{co_rgb[1]},{co_rgb[2]})"
-                            c_centroid = centroid_per_company.get(co_name, 0)
-                            centroid_tag = f' <span class="legend-centroid-badge" style="background:#fef3c7; color:#92400e; font-size:9.5px; font-weight:800; padding:0px 4px; border-radius:4px; border:1px solid #fde68a;">&#9651; {c_centroid:,}</span>' if c_centroid > 0 else ''
-                            legend_items_html.append(f'<div class="legend-item"><span class="legend-color" style="background:{hex_c};"></span>{co_name} ({c_cnt:,}){centroid_tag}</div>')
-                    other_co_cnt = sum(cnt for co, cnt in co_counts.items() if co not in COMPANY_MAP_RGB)
-                    if other_co_cnt > 0:
-                        other_co_names = [co for co in co_counts.index if co not in COMPANY_MAP_RGB]
-                        other_co_centroid = sum(centroid_per_company.get(co, 0) for co in other_co_names)
-                        other_centroid_tag = f' <span class="legend-centroid-badge" style="background:#fef3c7; color:#92400e; font-size:9.5px; font-weight:800; padding:0px 4px; border-radius:4px; border:1px solid #fde68a;">&#9651; {other_co_centroid:,}</span>' if other_co_centroid > 0 else ''
-                        legend_items_html.append(f'<div class="legend-item"><span class="legend-color" style="background:#94a3b8;"></span>อื่นๆ ({other_co_cnt:,}){other_centroid_tag}</div>')
-                    total_centroid_count = sum(centroid_per_company.values())
-                    if total_centroid_count > 0:
-                        legend_items_html.append(f'<div class="legend-centroid-summary" style="border-top:1px dashed #e2e8f0; margin-top:5px; padding-top:5px; font-size:10.5px; color:#92400e; font-weight:700;">&#9651; พิกัดกึ่งกลาง {total_centroid_count:,} จาก {len(map_data):,} จุด</div>')
-                    legend_content = "\n".join(legend_items_html)
-
-                # Vectorized links extraction
-                if 'ลิงก์' in map_data.columns:
-                    _lnk = map_data['ลิงก์'].fillna('').astype(str).str.strip()
-                    links = _lnk.where(~_lnk.isin(['', 'nan', 'None', '-']), '').tolist()
-                else:
-                    links = [''] * len(map_data)
-
-                # Step 4: Build compact CSV + lookup table, then GZIP compress both (80%)
-                # GZIP reduces payload 6-10x → much faster browser decode
-                progress_bar.progress(80, text="กำลังบีบอัด GZIP และแปลงเป็น Base64 (80%)...")
-
-                # Lookup table for column compression (company / type / province / sale_type / region / district)
-                _co_cat = pd.Categorical(map_data['บริษัท'].fillna('-').astype(str).str.strip())
-                _ty_cat = pd.Categorical(map_data['ประเภททรัพย์'].fillna('-').astype(str).str.strip())
-                _pv_cat = pd.Categorical(map_data['จังหวัด'].fillna('-').astype(str).str.strip())
-                
-                _st_col = map_data['ประเภทการขาย'].fillna('ไม่ระบุ').astype(str).str.strip() if 'ประเภทการขาย' in map_data.columns else pd.Series(['ไม่ระบุ'] * len(map_data), index=map_data.index)
-                _st_cat = pd.Categorical(_st_col)
-
-                _rg_col = map_data['ภาค'].fillna('ไม่ระบุ').astype(str).str.strip() if 'ภาค' in map_data.columns else pd.Series(['ไม่ระบุ'] * len(map_data), index=map_data.index)
-                _rg_cat = pd.Categorical(_rg_col)
-
-                _dt_col = map_data['อำเภอ'].fillna('ไม่ระบุ').astype(str).str.strip() if 'อำเภอ' in map_data.columns else pd.Series(['ไม่ระบุ'] * len(map_data), index=map_data.index)
-                _dt_cat = pd.Categorical(_dt_col)
-
-                _subdt_col = map_data['ตำบล'].fillna('ไม่ระบุ').astype(str).str.strip() if 'ตำบล' in map_data.columns else pd.Series(['ไม่ระบุ'] * len(map_data), index=map_data.index)
-                _subdt_cat = pd.Categorical(_subdt_col)
-
-                lookup_obj = {
-                    'co': _co_cat.categories.tolist(),
-                    'ty': _ty_cat.categories.tolist(),
-                    'pv': _pv_cat.categories.tolist(),
-                    'st': _st_cat.categories.tolist(),
-                    'rg': _rg_cat.categories.tolist(),
-                    'dt': _dt_cat.categories.tolist(),
-                    'subdt': _subdt_cat.categories.tolist(),
-                }
-                lookup_b64 = base64.b64encode(
-                    gzip.compress(
-                        json.dumps(lookup_obj, ensure_ascii=False).encode('utf-8'),
-                        compresslevel=1
-                    )
-                ).decode('utf-8')
-
-                deeds = map_data['เลขโฉนด'].fillna('').astype(str).values if 'เลขโฉนด' in map_data.columns else [''] * len(map_data)
-                csv_df = pd.DataFrame({
-                    'lon': map_data['ลองจิจูด'].values.astype('float32'),
-                    'lat': map_data['ละติจูด'].values.astype('float32'),
-                    'r':   r_arr.values,
-                    'g':   g_arr.values,
-                    'b':   b_arr.values,
-                    '_title': titles,
-                    '_id':    ids,
-                    '_ci':    _co_cat.codes.astype('int16'),
-                    '_ti':    _ty_cat.codes.astype('int16'),
-                    '_pi':    _pv_cat.codes.astype('int16'),
-                    '_sti':   _st_cat.codes.astype('int16'),
-                    '_rgi':   _rg_cat.codes.astype('int16'),
-                    '_dti':   _dt_cat.codes.astype('int16'),
-                    '_subdti': _subdt_cat.codes.astype('int16'),
-                    '_p':     _prices_num.fillna(0).astype('float32').values,
-                    '_up':    _unit_prices.astype('float32'),
-                    '_price_str': prices_list,
-                    '_link':     links,
-                    '_centroid': centroid_flags,
-                    '_deed':     deeds,
-                })
-
-                # GZIP compress the CSV before base64 encoding
-                csv_base64 = base64.b64encode(
-                    gzip.compress(
-                        csv_df.to_csv(index=False).encode('utf-8'),
-                        compresslevel=1
-                    )
-                ).decode('utf-8')
-                
-                # Step 5: Render map template (90%)
-                _tmpl_path = "static/map_template.html"
-                _tmpl_mtime = os.path.getmtime(_tmpl_path) if os.path.exists(_tmpl_path) else None
-                base_tmpl = get_base_map_html(_tmpl_mtime)
-                html_content = base_tmpl.replace("CSV_BASE64_PLACEHOLDER", csv_base64)
-                html_content = html_content.replace("LOOKUP_BASE64_PLACEHOLDER", lookup_b64)
-                html_content = html_content.replace("LEGEND_ITEMS_PLACEHOLDER", legend_content)
-                body_theme_class = "dark-theme" if is_dark_mode else ""
-                html_content = html_content.replace("BODY_CLASS_PLACEHOLDER", body_theme_class)
-                
-                # Step 6: Finish (100%)
-                progress_bar.progress(100, text="เรนเดอร์แผนที่สำเร็จแล้ว (100%)")
-                progress_bar.empty()
-                
-                map_rendered = False
+            if not map_rendered:
                 try:
-                    import streamlit.components.v1 as stc
-                    stc.html(html_content, height=870)
+                    st.html(html_content, unsafe_allow_javascript=True)
                     map_rendered = True
                 except Exception:
                     pass
-                
-                if not map_rendered:
-                    try:
-                        st.html(html_content, unsafe_allow_javascript=True)
-                        map_rendered = True
-                    except Exception:
-                        pass
-                
-                if not map_rendered:
-                    st.error("ไม่สามารถแสดงแผนที่ได้ กรุณาลองรีเฟรชหน้าเว็บ")
+            
+            if not map_rendered:
+                st.error("ไม่สามารถแสดงแผนที่ได้ กรุณาลองรีเฟรชหน้าเว็บ")
 
-# ----- TAB 2: ANALYTICS -----
-with tab2:
+
+# ----- TAB 3: ANALYTICS -----
+with tab3:
     st.markdown("### <i class='fa-solid fa-chart-line' style='color:#059669; margin-right:8px;'></i>วิเคราะห์เชิงลึกและเปรียบเทียบสถิติของคู่แข่ง", unsafe_allow_html=True)
     
     if df_filtered.empty:
@@ -6222,8 +6255,8 @@ with tab2:
                     st.plotly_chart(style_plotly_fig(fig_box), width="stretch", theme=None)
 
 
-# ----- TAB 3: COMPARISON -----
-with tab3:
+# ----- TAB 4: COMPARISON -----
+with tab4:
     comp_sub_tab1, comp_sub_tab2, comp_sub_tab3 = st.tabs([
         "เปรียบเทียบตามรัศมีทำเล (Radius Location Analysis)",
         "เปรียบเทียบในโครงการเดียวกัน (Same-Project Comparison)",
@@ -8262,9 +8295,9 @@ with tab3:
                 sel_region = st.selectbox("ภาค", ["ทั้งหมดทุกภาค"] + list(REGION_PROVINCES.keys()), key="sub4_sel_region")
 
             if sel_region != "ทั้งหมดทุกภาค":
-                avail_provinces = sorted([p for p in df_filtered['จังหวัด'].dropna().unique() if get_province_region(p) == sel_region and str(p).strip() not in ['', '-', 'nan', 'None']])
+                avail_provinces = sorted([p for p in df_filtered['จังหวัด'].dropna().unique() if get_province_region(p) == sel_region and str(p).strip() not in ['', '-', 'nan', 'None', 'ไม่มีข้อมูล', 'ไม่ระบุ']])
             else:
-                avail_provinces = sorted([p for p in df_filtered['จังหวัด'].dropna().unique() if str(p).strip() not in ['', '-', 'nan', 'None']])
+                avail_provinces = sorted([p for p in df_filtered['จังหวัด'].dropna().unique() if str(p).strip() not in ['', '-', 'nan', 'None', 'ไม่มีข้อมูล', 'ไม่ระบุ']])
 
             if st.session_state.get("sub4_sel_province") not in ["ทั้งหมดทุกจังหวัด"] + avail_provinces:
                 st.session_state["sub4_sel_province"] = "ทั้งหมดทุกจังหวัด"
@@ -8278,7 +8311,7 @@ with tab3:
             if sel_province != "ทั้งหมดทุกจังหวัด":
                 df_prov_scoped = df_prov_scoped[df_prov_scoped['จังหวัด'] == sel_province]
 
-            avail_districts = sorted([d for d in df_prov_scoped['อำเภอ'].dropna().unique() if str(d).strip() not in ['', '-', 'nan', 'None']])
+            avail_districts = sorted([d for d in df_prov_scoped['อำเภอ'].dropna().unique() if str(d).strip() not in ['', '-', 'nan', 'None', 'ไม่มีข้อมูล', 'ไม่ระบุ'] and len(str(d).strip()) > 1])
             if st.session_state.get("sub4_sel_district") not in ["ทั้งหมดทุกอำเภอ/เขต"] + avail_districts:
                 st.session_state["sub4_sel_district"] = "ทั้งหมดทุกอำเภอ/เขต"
 
@@ -8289,7 +8322,7 @@ with tab3:
             if sel_district != "ทั้งหมดทุกอำเภอ/เขต":
                 df_dist_scoped = df_dist_scoped[df_dist_scoped['อำเภอ'] == sel_district]
 
-            avail_subdistricts = sorted([s for s in df_dist_scoped['ตำบล'].dropna().unique() if str(s).strip() not in ['', '-', 'nan', 'None']])
+            avail_subdistricts = sorted([s for s in df_dist_scoped['ตำบล'].dropna().unique() if str(s).strip() not in ['', '-', 'nan', 'None', 'ไม่มีข้อมูล', 'ไม่ระบุ'] and len(str(s).strip()) > 1])
             if st.session_state.get("sub4_sel_subdistrict") not in ["ทั้งหมดทุกตำบล/แขวง"] + avail_subdistricts:
                 st.session_state["sub4_sel_subdistrict"] = "ทั้งหมดทุกตำบล/แขวง"
 
@@ -8805,8 +8838,8 @@ with tab3:
 
 
 
-# ----- TAB 4: PROPERTY LISTING -----
-with tab4:
+# ----- TAB 5: PROPERTY LISTING -----
+with tab5:
     st.markdown(f"### <i class='fa-solid fa-table-list' style='color:#059669; margin-right:8px;'></i>รายการทรัพย์สินที่ค้นพบ ({len(df_filtered):,} รายการ)", unsafe_allow_html=True)
     
     if df_filtered.empty:
@@ -8993,4 +9026,4 @@ with tab4:
         )
         render_import_export_section(df_table_source if not df_table_source.empty else df_filtered, filename_prefix="npa_property_listing", key_suffix="tab4")
 
-# reload trigger: 2026-09-15 13:48:00 (Removed outer track border to eliminate nested border look)
+# reload trigger: 2026-09-15 17:25:00 (Converted Property Type and Sale Type into multiselect dropdowns inside unified fragment)

@@ -2743,6 +2743,28 @@ def load_properties_data(data_version=0):
         return None
 
 @st.cache_data(show_spinner=False)
+def get_official_gis_reference():
+    gis_candidates = [
+        os.path.join(os.path.dirname(__file__), "references", "thailand_provinces_districts_subdistricts.json"),
+        os.path.join(os.path.dirname(os.path.dirname(__file__)), "references", "thailand_provinces_districts_subdistricts.json"),
+        os.path.join(os.getcwd(), "references", "thailand_provinces_districts_subdistricts.json")
+    ]
+    gis_path = next((p for p in gis_candidates if os.path.exists(p)), None)
+    if not gis_path:
+        return set(), set(), set()
+    try:
+        with open(gis_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        pairs = {(item['อำเภอ/เขต (ไทย)'].strip(), item['จังหวัด (ไทย)'].strip()) for item in data if 'อำเภอ/เขต (ไทย)' in item and 'จังหวัด (ไทย)' in item}
+        provs = {item['จังหวัด (ไทย)'].strip() for item in data if 'จังหวัด (ไทย)' in item}
+        dists = {item['อำเภอ/เขต (ไทย)'].strip() for item in data if 'อำเภอ/เขต (ไทย)' in item}
+        return pairs, provs, dists
+    except Exception:
+        return set(), set(), set()
+
+INVALID_LOC_VALUES = {"", "nan", "none", "null", "undefined", "-", "ไม่มีข้อมูล", "ไม่ระบุ"}
+
+@st.cache_data(show_spinner=False)
 def get_cached_sidebar_metadata(_df):
     """Pre-computes and caches unique values for sidebar dropdowns and pills to prevent recalculation overhead."""
     if _df is None or _df.empty:
@@ -2780,54 +2802,73 @@ def get_cached_sidebar_metadata(_df):
         r_series = _df['ภาค'].dropna().astype(str).str.strip()
         region_counts = r_series.value_counts().to_dict()
 
-    provinces_pool = sorted([str(p) for p in _df['จังหวัด'].dropna().unique() if str(p).strip() not in ['', 'nan', 'None']])
+    official_pairs, official_provs, official_dists = get_official_gis_reference()
+    INVALID_LOC_VALUES = {"", "nan", "none", "null", "undefined", "-", "ไม่มีข้อมูล", "ไม่ระบุ"}
+
+    provinces_pool = sorted([
+        str(p).strip() for p in _df['จังหวัด'].dropna().unique()
+        if str(p).strip() and str(p).strip().lower() not in INVALID_LOC_VALUES
+    ])
+    if official_provs:
+        provinces_pool = [p for p in provinces_pool if p in official_provs]
     if "ไม่ระบุ" in provinces_pool:
         provinces_pool.remove("ไม่ระบุ")
-        provinces_pool.append("ไม่ระบุ")
 
     # Pre-compute full district lookup (province -> sorted list of districts)
     district_by_province = {}
     all_districts_formatted = []
     if 'อำเภอ' in _df.columns and 'จังหวัด' in _df.columns:
         dist_cols = _df[['อำเภอ', 'จังหวัด']].drop_duplicates().dropna()
-        dist_cols = dist_cols[~dist_cols['อำเภอ'].astype(str).str.strip().str.lower().isin(["", "nan", "none", "null", "undefined", "-"])]
-        dist_cols = dist_cols[~dist_cols['จังหวัด'].astype(str).str.strip().str.lower().isin(["", "nan", "none", "null", "undefined", "-"])]
+        dist_cols = dist_cols[
+            ~dist_cols['อำเภอ'].astype(str).str.strip().str.lower().isin(INVALID_LOC_VALUES) &
+            ~dist_cols['จังหวัด'].astype(str).str.strip().str.lower().isin(INVALID_LOC_VALUES) &
+            (dist_cols['อำเภอ'].astype(str).str.strip().str.len() > 1)
+        ]
         for a, p in zip(dist_cols['อำเภอ'], dist_cols['จังหวัด']):
             p_str, a_str = str(p).strip(), str(a).strip()
+            # Enforce official GIS pairing if available
+            if official_pairs and (a_str, p_str) not in official_pairs:
+                continue
             if p_str not in district_by_province:
                 district_by_province[p_str] = []
             district_by_province[p_str].append(a_str)
         for p_str in district_by_province:
             district_by_province[p_str] = sorted(set(district_by_province[p_str]))
 
-        all_districts_formatted = sorted(
-            (dist_cols['อำเภอ'].astype(str).str.strip() + " (" + dist_cols['จังหวัด'].astype(str).str.strip() + ")").unique().tolist()
-        )
+        all_dist_formatted_list = []
+        for p_str, d_list in district_by_province.items():
+            for d_str in d_list:
+                all_dist_formatted_list.append(f"{d_str} ({p_str})")
+        all_districts_formatted = sorted(set(all_dist_formatted_list))
 
     # Pre-compute subdistrict lookup per (province, district) key
     subdistrict_by_province = {}
     subdistrict_by_district = {}
     if all(c in _df.columns for c in ['ตำบล', 'อำเภอ', 'จังหวัด']):
         sub_cols = _df[['ตำบล', 'อำเภอ', 'จังหวัด']].drop_duplicates().dropna()
-        sub_cols = sub_cols[~sub_cols['ตำบล'].astype(str).str.strip().str.lower().isin(["", "nan", "none", "null", "undefined", "-"])]
-        sub_cols = sub_cols[~sub_cols['อำเภอ'].astype(str).str.strip().str.lower().isin(["", "nan", "none", "null", "undefined", "-"])]
-        sub_cols = sub_cols[~sub_cols['จังหวัด'].astype(str).str.strip().str.lower().isin(["", "nan", "none", "null", "undefined", "-"])]
-        sub_formatted = sub_cols['ตำบล'].astype(str).str.strip() + " (" + sub_cols['อำเภอ'].astype(str).str.strip() + ", " + sub_cols['จังหวัด'].astype(str).str.strip() + ")"
-        sub_cols['formatted'] = sub_formatted
+        sub_cols = sub_cols[
+            ~sub_cols['ตำบล'].astype(str).str.strip().str.lower().isin(INVALID_LOC_VALUES) &
+            ~sub_cols['อำเภอ'].astype(str).str.strip().str.lower().isin(INVALID_LOC_VALUES) &
+            ~sub_cols['จังหวัด'].astype(str).str.strip().str.lower().isin(INVALID_LOC_VALUES) &
+            (sub_cols['ตำบล'].astype(str).str.strip().str.len() > 1)
+        ]
 
-        for p, f in zip(sub_cols['จังหวัด'], sub_cols['formatted']):
-            p_str = str(p)
+        for p, d, t in zip(sub_cols['จังหวัด'], sub_cols['อำเภอ'], sub_cols['ตำบล']):
+            p_str, d_str, t_str = str(p).strip(), str(d).strip(), str(t).strip()
+            if official_pairs and (d_str, p_str) not in official_pairs:
+                continue
+            fmt = f"{t_str} ({d_str}, {p_str})"
             if p_str not in subdistrict_by_province:
                 subdistrict_by_province[p_str] = []
-            subdistrict_by_province[p_str].append(f)
-        for p_str in subdistrict_by_province:
-            subdistrict_by_province[p_str] = sorted(set(subdistrict_by_province[p_str]))
+            subdistrict_by_province[p_str].append(fmt)
 
-        for p, d, f in zip(sub_cols['จังหวัด'], sub_cols['อำเภอ'], sub_cols['formatted']):
-            k = (str(p), str(d))
+            k = (p_str, d_str)
             if k not in subdistrict_by_district:
                 subdistrict_by_district[k] = []
-            subdistrict_by_district[k].append(f)
+            subdistrict_by_district[k].append(fmt)
+
+        for p_str in subdistrict_by_province:
+            subdistrict_by_province[p_str] = sorted(set(subdistrict_by_province[p_str]))
         for k in subdistrict_by_district:
             subdistrict_by_district[k] = sorted(set(subdistrict_by_district[k]))
 
@@ -2906,13 +2947,11 @@ with st.sidebar:
     
     if df_raw is not None and not df_raw.empty:
         src_name = getattr(df_raw, 'attrs', {}).get('source', 'all_assets.parquet')
-        month_year_str, exact_date_str = get_dataset_month_year(df_raw)
+        _, exact_date_str = get_dataset_month_year(df_raw)
         st.markdown(f"""
         <div style="background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(110, 231, 183, 0.25); border-radius: 8px; padding: 7px 10px; margin-top: 5px; margin-bottom: 8px; font-size: 0.8rem; color: #f0fdf4; font-weight: 600;">
             <i class="fa fa-database" style="color:#34d399;"></i> แหล่งข้อมูล: <code style="background:rgba(0,0,0,0.25); color:#a7f3d0; padding:1px 5px; border-radius:4px;">{src_name}</code><br/>
-            <span style="font-size: 0.75rem; color: #d1fae5; font-weight: normal;"><i class="fa fa-list" style="margin-right: 3px; color:#34d399;"></i>ข้อมูลพร้อมใช้งาน: <b style="color:#ffffff;">{len(df_raw):,}</b> รายการ</span><br/>
-            <span style="font-size: 0.75rem; color: #6ee7b7; font-weight: 600;"><i class="fa fa-calendar-check"></i> ข้อมูลประจำเดือน: <b style="color:#ffffff;">{month_year_str}</b></span><br/>
-            <span style="font-size: 0.72rem; color: #a7f3d0; font-weight: normal;">(ดึงข้อมูล: <b style="color:#ffffff;">{exact_date_str}</b>)</span>
+            <span style="font-size: 0.75rem; color: #6ee7b7; font-weight: 600;"><i class="fa fa-calendar-check" style="margin-right: 3px; color:#34d399;"></i> ดึงข้อมูล: <b style="color:#ffffff;">{exact_date_str}</b></span>
         </div>
         """, unsafe_allow_html=True)
         
@@ -2992,144 +3031,165 @@ with st.sidebar:
         if not selected_companies:
             selected_companies = []
         
-        # Property Type Filter (using cached type distributions)
-        common_types = side_meta.get('common_types', [])
-        rare_types = side_meta.get('rare_types', [])
-        type_counts = side_meta.get('type_counts', {})
-        
-        display_type_keys = list(common_types)
-        if len(rare_types) > 0:
-            display_type_keys.append("เพิ่มเติม")
-            
-        sanitize_session_state("filter_types", display_type_keys)
-        rare_count_sum = sum(type_counts.get(t, 0) for t in rare_types)
-        selected_types = st.pills(
-            "ประเภททรัพย์สิน", 
-            options=display_type_keys, 
-            format_func=lambda x: f"เพิ่มเติม ({rare_count_sum:,})" if x == "เพิ่มเติม" else f"{x} ({type_counts.get(x, 0):,})",
-            selection_mode="multi", 
-            default=None,
-            key="filter_types"
-        )
-        if not selected_types:
-            selected_types = []
-        
-        # If "เพิ่มเติม" is selected, show a multiselect for rare types
-        if "เพิ่มเติม" in selected_types:
-            rare_types_sorted = list(rare_types)
-            rare_types_sorted.sort()
-            rare_options = [f"{t} ({type_counts.get(t, 0):,})" for t in rare_types_sorted]
-            sanitize_session_state("selected_rare_types", rare_options)
-            st.multiselect(
-                "เลือกประเภททรัพย์สินเพิ่มเติม",
-                options=rare_options,
-                default=[],
-                key="selected_rare_types"
+        # Unified Filter Section (ประเภททรัพย์สิน, ประเภทการขาย, ภูมิภาค, จังหวัด, อำเภอ, ตำบล) wrapped in st.fragment
+        fragment_fn = getattr(st, "fragment", None)
+
+        def _render_sidebar_filters_body():
+            # 1. Property Type Filter (ประเภททรัพย์สิน Dropdown)
+            type_counts = side_meta.get('type_counts', {})
+            all_property_types = list(type_counts.keys())
+            if "filter_types" not in st.session_state:
+                st.session_state["filter_types"] = []
+            sanitize_session_state("filter_types", all_property_types)
+            loc_types = st.multiselect(
+                "ประเภททรัพย์สิน",
+                options=all_property_types,
+                format_func=lambda x: f"{x} ({type_counts.get(x, 0):,})",
+                key="filter_types",
+                placeholder="เลือกประเภททรัพย์สิน..."
             )
-        
-        # Sale Type Filter (ประเภทการขาย)
-        sale_type_counts = side_meta.get('sale_type_counts', {})
-        available_sale_types = list(sale_type_counts.keys())
-        
-        sanitize_session_state("filter_sale_types", available_sale_types)
-        selected_sale_types = st.pills(
-            "ประเภทการขาย",
-            options=available_sale_types,
-            format_func=lambda x: f"{x} ({sale_type_counts.get(x, 0):,})",
-            selection_mode="multi",
-            default=None,
-            key="filter_sale_types"
-        )
-        if not selected_sale_types:
-            selected_sale_types = []
-        
-        # Region Filter (ภูมิภาค)
-        region_counts = side_meta.get('region_counts', {})
-        all_ordered_regions = ["ภาคกลาง", "ภาคเหนือ", "ภาคตะวันออกเฉียงเหนือ", "ภาคตะวันออก", "ภาคตะวันตก", "ภาคใต้"]
-        available_regions = [r for r in all_ordered_regions if r in region_counts]
-        for r in region_counts:
-            if r not in available_regions and r not in ['', 'nan', 'None', 'อื่นๆ / ไม่ระบุ']:
-                available_regions.append(r)
-        if 'อื่นๆ / ไม่ระบุ' in region_counts:
-            available_regions.append('อื่นๆ / ไม่ระบุ')
-            
-        sanitize_session_state("selected_regions", available_regions)
-        selected_regions = st.multiselect(
-            "ภูมิภาค",
-            options=available_regions,
-            default=[],
-            key="selected_regions",
-            format_func=lambda x: f"{x} ({region_counts.get(x, 0):,})",
-            placeholder="เลือกภูมิภาค (เช่น ภาคกลาง, ภาคเหนือ...)"
-        )
-        
-        # Province Filter (cascaded by selected regions if chosen)
-        if selected_regions:
-            provinces_pool = sorted([
-                str(p) for p in df_raw[df_raw['ภาค'].isin(selected_regions)]['จังหวัด'].dropna().unique()
-                if str(p).strip() not in ['', 'nan', 'None']
-            ])
-        else:
-            provinces_pool = side_meta.get('unique_provinces', [])
-        unique_provinces = sorted(provinces_pool)
-        # Clean up province lists, removing "ไม่ระบุ" or blank
-        if "ไม่ระบุ" in unique_provinces:
-            unique_provinces.remove("ไม่ระบุ")
-            unique_provinces.append("ไม่ระบุ")
-        sanitize_session_state("selected_provinces", unique_provinces)
-        selected_provinces = st.multiselect("จังหวัด", options=unique_provinces, default=[], key="selected_provinces", placeholder="เลือกจังหวัด...")
-        
-        # District Filter - use pre-cached lookup (zero recompute cost)
-        district_by_province = side_meta.get('district_by_province', {})
-        all_districts_formatted = side_meta.get('all_districts_formatted', [])
-        subdistrict_by_province = side_meta.get('subdistrict_by_province', {})
-        subdistrict_by_district = side_meta.get('subdistrict_by_district', {})
 
-        if selected_provinces:
-            unique_districts_formatted = sorted(set(
-                d for prov in selected_provinces
-                for d in [f"{dist} ({prov})" for dist in district_by_province.get(prov, [])]
-            ))
-        elif selected_regions:
-            region_provs = [p for p in side_meta.get('unique_provinces', []) if get_region_by_province(p) in selected_regions]
-            unique_districts_formatted = sorted(set(
-                d for prov in region_provs
-                for d in [f"{dist} ({prov})" for dist in district_by_province.get(prov, [])]
-            ))
-        else:
-            unique_districts_formatted = all_districts_formatted
-
-        selected_districts_formatted = st.multiselect("อำเภอ / เขต", options=unique_districts_formatted, default=[], placeholder="เลือกอำเภอ / เขต...")
-
-        # Parse selected districts into tuples for subdistrict option filtering
-        selected_districts_tuples = []
-        for d_f in selected_districts_formatted:
-            if " (" in d_f:
-                parts = d_f.split(" (")
-                d_name = parts[0].strip()
-                p_name = parts[1].replace(")", "").strip()
-                selected_districts_tuples.append((d_name, p_name))
-
-        # Subdistrict Filter - use pre-cached lookup (zero recompute cost)
-        if selected_districts_tuples:
-            unique_subdistricts_formatted = sorted(set(
-                s for (d_name, p_name) in selected_districts_tuples
-                for s in subdistrict_by_district.get((p_name, d_name), [])
-            ))
-            selected_subdistricts_formatted = st.multiselect("ตำบล / แขวง", options=unique_subdistricts_formatted, default=[])
-        elif selected_provinces:
-            unique_subdistricts_formatted = sorted(set(
-                s for prov in selected_provinces
-                for s in subdistrict_by_province.get(prov, [])
-            ))
-            selected_subdistricts_formatted = st.multiselect("ตำบล / แขวง", options=unique_subdistricts_formatted, default=[], placeholder="เลือกตำบลในจังหวัดที่เลือก...")
-        else:
-            selected_subdistricts_formatted = st.multiselect(
-                "ตำบล / แขวง",
-                options=[],
-                default=[],
-                placeholder="เลือกจังหวัดหรืออำเภอก่อนเพื่อค้นหาตำบล"
+            # 2. Sale Type Filter (ประเภทการขาย Dropdown)
+            sale_type_counts = side_meta.get('sale_type_counts', {})
+            available_sale_types = list(sale_type_counts.keys())
+            if "filter_sale_types" not in st.session_state:
+                st.session_state["filter_sale_types"] = []
+            sanitize_session_state("filter_sale_types", available_sale_types)
+            loc_sale_types = st.multiselect(
+                "ประเภทการขาย",
+                options=available_sale_types,
+                format_func=lambda x: f"{x} ({sale_type_counts.get(x, 0):,})",
+                key="filter_sale_types",
+                placeholder="เลือกประเภทการขาย..."
             )
+
+            # 3. Region Filter (ภูมิภาค Dropdown)
+            region_counts = side_meta.get('region_counts', {})
+            all_ordered_regions = ["ภาคกลาง", "ภาคเหนือ", "ภาคตะวันออกเฉียงเหนือ", "ภาคตะวันออก", "ภาคตะวันตก", "ภาคใต้"]
+            available_regions = [r for r in all_ordered_regions if r in region_counts]
+            for r in region_counts:
+                if r not in available_regions and r not in ['', 'nan', 'None', 'อื่นๆ / ไม่ระบุ']:
+                    available_regions.append(r)
+            if 'อื่นๆ / ไม่ระบุ' in region_counts:
+                available_regions.append('อื่นๆ / ไม่ระบุ')
+                
+            if "selected_regions" not in st.session_state:
+                st.session_state["selected_regions"] = []
+            sanitize_session_state("selected_regions", available_regions)
+            loc_reg = st.multiselect(
+                "ภูมิภาค",
+                options=available_regions,
+                key="selected_regions",
+                format_func=lambda x: f"{x} ({region_counts.get(x, 0):,})",
+                placeholder="เลือกภูมิภาค (เช่น ภาคกลาง, ภาคเหนือ...)"
+            )
+
+            # 4. Province Filter (จังหวัด Dropdown)
+            if loc_reg:
+                provinces_pool = sorted([
+                    str(p) for p in df_raw[df_raw['ภาค'].isin(loc_reg)]['จังหวัด'].dropna().unique()
+                    if str(p).strip() and str(p).strip().lower() not in INVALID_LOC_VALUES
+                ])
+            else:
+                provinces_pool = side_meta.get('unique_provinces', [])
+            unique_provinces = sorted(provinces_pool)
+            if "ไม่ระบุ" in unique_provinces:
+                unique_provinces.remove("ไม่ระบุ")
+            if "selected_provinces" not in st.session_state:
+                st.session_state["selected_provinces"] = []
+            sanitize_session_state("selected_provinces", unique_provinces)
+            loc_prov = st.multiselect("จังหวัด", options=unique_provinces, key="selected_provinces", placeholder="เลือกจังหวัด...")
+            
+            # 5. District Filter (อำเภอ / เขต Dropdown)
+            district_by_province = side_meta.get('district_by_province', {})
+            all_districts_formatted = side_meta.get('all_districts_formatted', [])
+            subdistrict_by_province = side_meta.get('subdistrict_by_province', {})
+            subdistrict_by_district = side_meta.get('subdistrict_by_district', {})
+
+            if loc_prov:
+                unique_districts_formatted = sorted(set(
+                    d for prov in loc_prov
+                    for d in [f"{dist} ({prov})" for dist in district_by_province.get(prov, [])]
+                ))
+            elif loc_reg:
+                region_provs = [p for p in side_meta.get('unique_provinces', []) if get_region_by_province(p) in loc_reg]
+                unique_districts_formatted = sorted(set(
+                    d for prov in region_provs
+                    for d in [f"{dist} ({prov})" for dist in district_by_province.get(prov, [])]
+                ))
+            else:
+                unique_districts_formatted = all_districts_formatted
+
+            if "selected_districts_formatted" not in st.session_state:
+                st.session_state["selected_districts_formatted"] = []
+            sanitize_session_state("selected_districts_formatted", unique_districts_formatted)
+            loc_dist = st.multiselect("อำเภอ / เขต", options=unique_districts_formatted, key="selected_districts_formatted", placeholder="เลือกอำเภอ / เขต...")
+
+            selected_districts_tuples = []
+            for d_f in loc_dist:
+                if " (" in d_f:
+                    parts = d_f.split(" (")
+                    d_name = parts[0].strip()
+                    p_name = parts[1].replace(")", "").strip()
+                    selected_districts_tuples.append((d_name, p_name))
+
+            # 6. Subdistrict Filter (ตำบล / แขวง Dropdown)
+            if "selected_subdistricts_formatted" not in st.session_state:
+                st.session_state["selected_subdistricts_formatted"] = []
+                
+            if selected_districts_tuples:
+                unique_subdistricts_formatted = sorted(set(
+                    s for (d_name, p_name) in selected_districts_tuples
+                    for s in subdistrict_by_district.get((p_name, d_name), [])
+                ))
+                sanitize_session_state("selected_subdistricts_formatted", unique_subdistricts_formatted)
+                loc_sub = st.multiselect("ตำบล / แขวง", options=unique_subdistricts_formatted, key="selected_subdistricts_formatted")
+            elif loc_prov:
+                unique_subdistricts_formatted = sorted(set(
+                    s for prov in loc_prov
+                    for s in subdistrict_by_province.get(prov, [])
+                ))
+                sanitize_session_state("selected_subdistricts_formatted", unique_subdistricts_formatted)
+                loc_sub = st.multiselect("ตำบล / แขวง", options=unique_subdistricts_formatted, key="selected_subdistricts_formatted", placeholder="เลือกตำบลในจังหวัดที่เลือก...")
+            else:
+                sanitize_session_state("selected_subdistricts_formatted", [])
+                loc_sub = st.multiselect(
+                    "ตำบล / แขวง",
+                    options=[],
+                    key="selected_subdistricts_formatted",
+                    placeholder="เลือกจังหวัดหรืออำเภอก่อนเพื่อค้นหาตำบล"
+                )
+
+            # Check if selection actually changed compared to the last applied state
+            current_filter_state = (
+                tuple(loc_types or []),
+                tuple(loc_sale_types or []),
+                tuple(loc_reg or []),
+                tuple(loc_prov or []),
+                tuple(loc_dist or []),
+                tuple(loc_sub or [])
+            )
+            if "_applied_sidebar_state" not in st.session_state:
+                st.session_state["_applied_sidebar_state"] = current_filter_state
+            elif current_filter_state != st.session_state["_applied_sidebar_state"]:
+                st.session_state["_applied_sidebar_state"] = current_filter_state
+                try:
+                    st.rerun(scope="app")
+                except TypeError:
+                    st.rerun()
+
+        if fragment_fn:
+            _filter_frag = fragment_fn(_render_sidebar_filters_body)
+            _filter_frag()
+        else:
+            _render_sidebar_filters_body()
+
+        selected_types = st.session_state.get("filter_types", [])
+        selected_sale_types = st.session_state.get("filter_sale_types", [])
+        selected_regions = st.session_state.get("selected_regions", [])
+        selected_provinces = st.session_state.get("selected_provinces", [])
+        selected_districts_formatted = st.session_state.get("selected_districts_formatted", [])
+        selected_subdistricts_formatted = st.session_state.get("selected_subdistricts_formatted", [])
         
         # Price Filter - อิงราคาจริงที่มีในฐานข้อมูล
         valid_prices = df_raw['ราคา'].dropna()
@@ -8896,4 +8956,4 @@ with tab4:
         )
         render_import_export_section(df_table_source if not df_table_source.empty else df_filtered, filename_prefix="npa_property_listing", key_suffix="tab4")
 
-# reload trigger: 2026-09-15 13:48:00 (Removed outer track border to eliminate nested border look)
+# reload trigger: 2026-09-15 17:25:00 (Converted Property Type and Sale Type into multiselect dropdowns inside unified fragment)
