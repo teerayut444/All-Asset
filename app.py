@@ -5109,37 +5109,34 @@ with tab1:
 # ----- TAB 2: INTERACTIVE MAP -----
 with tab2:
     with st.container(key="tab_map"):
-        # 1. TOP IN-PAGE FILTERS (Property Type & Cascading Location: Region -> Province -> District -> Subdistrict)
-        with st.container(key="tab2_filter_container"):
-            st.markdown("""
-            <style>
-            .tab2-filter-label {
-                font-size: 0.82rem;
-                font-weight: 700;
-                color: var(--card-subtext, #475569);
-                margin-bottom: 3px;
-                display: flex;
-                align-items: center;
-                gap: 4px;
-            }
-            div[data-testid="stExpander"] {
-                border-radius: 10px !important;
-            }
-            </style>
-            """, unsafe_allow_html=True)
+        # TOP IN-PAGE FILTERS & REFERENCE POINT PICKER (No Border, FontAwesome Icons)
+        with st.container(key="tab2_unified_control_card"):
+            # Ensure FontAwesome is available
+            st.markdown('<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">', unsafe_allow_html=True)
             
+            def render_tab2_label(container, icon_cls, text, help_text=None):
+                help_html = f'<span title="{help_text}" style="margin-left: 5px; color: #94a3b8; font-size: 0.78rem; cursor: help;"><i class="fa-regular fa-circle-question"></i></span>' if help_text else ''
+                label_color = "#f1f5f9" if is_dark_mode else "#334155"
+                raw_html = f'<div style="display: flex; align-items: center; font-size: 0.84rem; font-weight: 600; color: {label_color}; margin-bottom: 4px; min-height: 22px;"><i class="{icon_cls}" style="color: #059669; margin-right: 6px; font-size: 0.88rem;"></i><span>{text}</span>{help_html}</div>'
+                if hasattr(container, "html"):
+                    container.html(raw_html)
+                else:
+                    container.markdown(raw_html, unsafe_allow_html=True)
+
             fragment_fn = getattr(st, "fragment", None)
 
             def _render_tab2_filters_body():
-                f_col1, f_col2, f_col3, f_col4 = st.columns([1.0, 1.2, 1.2, 1.2])
+                f_col1, f_col2, f_col3, f_col4 = st.columns([1.0, 1.15, 1.25, 1.25])
                 
                 # ภูมิภาค
                 ordered_regions = ["ภาคกลาง", "ภาคเหนือ", "ภาคตะวันออกเฉียงเหนือ", "ภาคตะวันออก", "ภาคตะวันตก", "ภาคใต้"]
+                render_tab2_label(f_col1, "fa-solid fa-earth-asia", "ภูมิภาค")
                 tab2_regions = f_col1.multiselect(
                     "ภูมิภาค",
                     options=ordered_regions,
                     key="tab2_filter_regions",
-                    placeholder="ทุกภูมิภาค..."
+                    placeholder="ทุกภูมิภาค...",
+                    label_visibility="collapsed"
                 )
                 
                 # จังหวัด (Cascading from Region)
@@ -5150,11 +5147,13 @@ with tab2:
                     avail_provs = sorted([p for p in df_raw['จังหวัด'].dropna().unique() if str(p).strip()])
                 sanitize_session_state("tab2_filter_provinces", avail_provs)
                 
+                render_tab2_label(f_col2, "fa-solid fa-city", "จังหวัด")
                 tab2_provs = f_col2.multiselect(
                     "จังหวัด",
                     options=avail_provs,
                     key="tab2_filter_provinces",
-                    placeholder="เลือกจังหวัด..."
+                    placeholder="เลือกจังหวัด...",
+                    label_visibility="collapsed"
                 )
                 
                 # อำเภอ (Cascading from Province - เชื่อมโยงกับจังหวัดที่เลือกเสมอ)
@@ -5165,14 +5164,17 @@ with tab2:
                     avail_dists = sorted([d for d in df_raw['อำเภอ'].dropna().unique() if str(d).strip()])
                 sanitize_session_state("tab2_filter_districts", avail_dists)
                     
+                render_tab2_label(f_col3, "fa-solid fa-map-location-dot", "อำเภอ/เขต")
                 tab2_dists = f_col3.multiselect(
                     "อำเภอ/เขต",
                     options=avail_dists,
                     key="tab2_filter_districts",
-                    placeholder="เลือกอำเภอ/เขต..." if prov_context else "ทุกอำเภอ..."
+                    placeholder="เลือกอำเภอ/เขต..." if prov_context else "ทุกอำเภอ...",
+                    label_visibility="collapsed"
                 )
                 
                 # ตำบล (ต้องเลือกอำเภอก่อน และเชื่อมโยงกับอำเภอที่เลือก)
+                render_tab2_label(f_col4, "fa-solid fa-house-chimney", "ตำบล/แขวง")
                 if tab2_dists:
                     clean_dists = [d.split(' (')[0] if ' (' in d else d for d in tab2_dists]
                     sub_mask = df_raw['อำเภอ'].isin(clean_dists)
@@ -5184,7 +5186,8 @@ with tab2:
                         "ตำบล/แขวง",
                         options=avail_subdists,
                         key="tab2_filter_subdistricts",
-                        placeholder="เลือกตำบล/แขวง..."
+                        placeholder="เลือกตำบล/แขวง...",
+                        label_visibility="collapsed"
                     )
                 else:
                     # ยังไม่ได้เลือกอำเภอ -> ไม่อนุญาตให้เลือกตำบล
@@ -5194,7 +5197,8 @@ with tab2:
                         options=[],
                         key="tab2_filter_subdistricts",
                         disabled=True,
-                        placeholder="กรุณาเลือกอำเภอก่อน..."
+                        placeholder="กรุณาเลือกอำเภอก่อน...",
+                        label_visibility="collapsed"
                     )
 
                 # Check if selection actually changed compared to the last applied state
@@ -5225,38 +5229,50 @@ with tab2:
             tab2_subdists = st.session_state.get("tab2_filter_subdistricts", [])
             tab2_types = []
 
-        # 2. REFERENCE POINT PICKER (Search by Property ID or manual coordinates)
-        with st.container(key="tab2_ref_picker_container"):
-            rc1, rc2, rc3 = st.columns([2.5, 2.0, 1.2])
+            # Row 2: Reference point input row
+            init_lat_val = float(st.query_params.get("map_ref_lat", st.session_state.get("tab2_ref_lat", 0.0)))
+            init_lon_val = float(st.query_params.get("map_ref_lon", st.session_state.get("tab2_ref_lon", 0.0)))
+            has_active_ref = (init_lat_val > 0 or bool(st.session_state.get("tab2_search_prop_id")) or bool(st.query_params.get("map_ref_lat")))
+
+            try:
+                rc1, rc2, rc3, rc4 = st.columns([2.3, 1.15, 1.15, 0.9], vertical_alignment="bottom")
+            except TypeError:
+                rc1, rc2, rc3, rc4 = st.columns([2.3, 1.15, 1.15, 0.9])
+
             with rc1:
+                render_tab2_label(rc1, "fa-solid fa-magnifying-glass", "กำหนดจุดอ้างอิงจากรหัสทรัพย์สิน (Property ID)", "ระบบจะค้นหาพิกัด ละติจูด/ลองจิจูด ของทรัพย์สินนี้ เพื่อใช้เป็นจุดศูนย์กลางอ้างอิงบนแผนที่ทันที")
                 search_prop_id = st.text_input(
-                    "📍 กำหนดจุดอ้างอิงจากรหัสทรัพย์สิน (Property ID)",
+                    "รหัสทรัพย์สิน",
                     value=st.session_state.get("tab2_search_prop_id", ""),
                     placeholder="พิมพ์รหัสทรัพย์ เช่น 11604053 แล้วกด Enter...",
                     key="tab2_input_prop_id",
-                    help="ระบบจะค้นหาพิกัด ละติจูด/ลองจิจูด ของทรัพย์สินนี้ เพื่อใช้เป็นจุดศูนย์กลางอ้างอิงบนแผนที่ทันที"
+                    label_visibility="collapsed"
                 )
             with rc2:
-                c_lat_inp, c_lon_inp = st.columns(2)
-                init_lat_val = float(st.query_params.get("map_ref_lat", st.session_state.get("tab2_ref_lat", 0.0)))
-                init_lon_val = float(st.query_params.get("map_ref_lon", st.session_state.get("tab2_ref_lon", 0.0)))
-                manual_lat = c_lat_inp.number_input(
-                    "ละติจูด (Latitude)",
+                render_tab2_label(rc2, "fa-solid fa-crosshairs", "ละติจูด (Latitude)", "กรอกละติจูดของจุดอ้างอิง เช่น 13.75633")
+                manual_lat = st.number_input(
+                    "ละติจูด",
                     value=init_lat_val,
                     format="%.6f",
                     key="tab2_manual_lat",
-                    help="กรอกละติจูดของจุดอ้างอิง เช่น 13.75633"
+                    label_visibility="collapsed"
                 )
-                manual_lon = c_lon_inp.number_input(
-                    "ลองจิจูด (Longitude)",
+            with rc3:
+                render_tab2_label(rc3, "fa-solid fa-crosshairs", "ลองจิจูด (Longitude)", "กรอกลองจิจูดของจุดอ้างอิง เช่น 100.50176")
+                manual_lon = st.number_input(
+                    "ลองจิจูด",
                     value=init_lon_val,
                     format="%.6f",
                     key="tab2_manual_lon",
-                    help="กรอกลองจิจูดของจุดอ้างอิง เช่น 100.50176"
+                    label_visibility="collapsed"
                 )
-            with rc3:
-                st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
-                if st.button("✕ ล้างจุดอ้างอิง", key="tab2_clear_ref_btn", use_container_width=True, help="ยกเลิกจุดอ้างอิงและกลับสู่หน้าแผนที่เริ่มต้น"):
+            with rc4:
+                spacer_html = '<div style="min-height: 22px; margin-bottom: 4px;"></div>'
+                if hasattr(rc4, "html"):
+                    rc4.html(spacer_html)
+                else:
+                    rc4.markdown(spacer_html, unsafe_allow_html=True)
+                if st.button("✕ ล้างจุดอ้างอิง", key="tab2_clear_ref_btn", use_container_width=True, disabled=not has_active_ref, help="ยกเลิกจุดอ้างอิงและกลับสู่หน้าแผนที่เริ่มต้น"):
                     if "map_ref_lat" in st.query_params: del st.query_params["map_ref_lat"]
                     if "map_ref_lon" in st.query_params: del st.query_params["map_ref_lon"]
                     if "map_ref_radius" in st.query_params: del st.query_params["map_ref_radius"]
