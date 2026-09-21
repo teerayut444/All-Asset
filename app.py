@@ -606,7 +606,7 @@ _app_icon_file = os.path.join("assets", "app_icon.ico")
 _app_page_icon = Image.open(_app_icon_file) if os.path.exists(_app_icon_file) else ":material/analytics:"
 
 st.set_page_config(
-    page_title="All Asset NPA Dashboard",
+    page_title="NOVA NPA Dashboard",
     page_icon=_app_page_icon,
     layout="wide",
     initial_sidebar_state="expanded"
@@ -2803,13 +2803,16 @@ def render_tab2_reference_analytics_fragment(
     active_ref_radius,
     tab2_types=None
 ):
-    # 0. Hidden synchronization button — Bridge between map iframe and Streamlit
+    # 0. Hidden synchronization bridge between map iframe and Streamlit
     st.markdown("""
     <style>
-    /* Position sync button offscreen while remaining active and clickable via JS */
+    /* Position sync button and bridge input offscreen while remaining active and clickable via JS */
     .st-key-btn_map_filter_sync,
     div[data-testid="stElementContainer"]:has(.st-key-btn_map_filter_sync),
-    div[data-testid="stButton"]:has(.st-key-btn_map_filter_sync) {
+    div[data-testid="stButton"]:has(.st-key-btn_map_filter_sync),
+    .st-key-map_sync_bridge_payload,
+    div[data-testid="stElementContainer"]:has(.st-key-map_sync_bridge_payload),
+    div[data-testid="stTextInput"]:has(.st-key-map_sync_bridge_payload) {
         position: fixed !important;
         bottom: -9999px !important;
         right: -9999px !important;
@@ -2819,51 +2822,156 @@ def render_tab2_reference_analytics_fragment(
     </style>
     <div id="map-sync-anchor" style="position:fixed; bottom:-9999px; right:-9999px;"></div>
     """, unsafe_allow_html=True)
-    if st.button("sync_map_filter", key="btn_map_filter_sync"):
-        q_prov = st.query_params.get("map_prov", None)
-        if q_prov is not None:
-            q_p = str(q_prov).strip()
-            if q_p and q_p not in ["ALL", "__ALL__", "all"]:
-                st.session_state["tab2_filter_provinces"] = [q_p]
-            else:
-                st.session_state["tab2_filter_provinces"] = []
-
-        q_dist = st.query_params.get("map_dist", None)
-        if q_dist is not None:
-            q_d = str(q_dist).strip()
-            if q_d and q_d not in ["ALL", "__ALL__", "all"]:
-                st.session_state["tab2_filter_districts"] = [q_d]
-            else:
-                st.session_state["tab2_filter_districts"] = []
-
-        q_subdist = st.query_params.get("map_subdist", None)
-        if q_subdist is not None:
-            q_s = str(q_subdist).strip()
-            if q_s and q_s not in ["ALL", "__ALL__", "all"]:
-                st.session_state["tab2_filter_subdistricts"] = [q_s]
-            else:
-                st.session_state["tab2_filter_subdistricts"] = []
-
-        q_lat = st.query_params.get("map_ref_lat")
-        q_lon = st.query_params.get("map_ref_lon")
-        if q_lat and q_lon:
+    
+    sync_bridge_val = st.text_input("map_sync_bridge", key="map_sync_bridge_payload", label_visibility="collapsed")
+    sync_btn_clicked = st.button("sync_map_filter", key="btn_map_filter_sync")
+    
+    if sync_bridge_val or sync_btn_clicked:
+        payload_obj = None
+        if sync_bridge_val and str(sync_bridge_val).strip():
             try:
-                active_ref_lat = float(q_lat)
-                active_ref_lon = float(q_lon)
-                st.session_state["tab2_ref_lat"] = active_ref_lat
-                st.session_state["tab2_ref_lon"] = active_ref_lon
-                st.session_state["tab2_compared_active"] = True
-            except (ValueError, TypeError):
+                payload_obj = json.loads(str(sync_bridge_val).strip())
+            except Exception:
                 pass
 
-        # Auto-compare when location filter is synced (province/district/subdistrict selected on map)
-        has_loc_synced = (
-            (q_prov is not None and str(q_prov).strip() not in ["", "ALL", "__ALL__", "all"]) or
-            (q_dist is not None and str(q_dist).strip() not in ["", "ALL", "__ALL__", "all"]) or
-            (q_subdist is not None and str(q_subdist).strip() not in ["", "ALL", "__ALL__", "all"])
-        )
-        if has_loc_synced:
-            st.session_state["tab2_compared_active"] = True
+        if payload_obj and isinstance(payload_obj, dict):
+            p_prov = str(payload_obj.get("prov", "")).strip()
+            if p_prov and p_prov not in ["ALL", "__ALL__", "all", "-"]:
+                st.session_state["tab2_filter_provinces"] = [p_prov]
+                st.query_params["map_prov"] = p_prov
+            elif "prov" in payload_obj:
+                st.session_state["tab2_filter_provinces"] = []
+                st.query_params.pop("map_prov", None)
+
+            p_dist = str(payload_obj.get("dist", "")).strip()
+            if p_dist and p_dist not in ["ALL", "__ALL__", "all", "-"]:
+                st.session_state["tab2_filter_districts"] = [p_dist]
+                st.query_params["map_dist"] = p_dist
+            elif "dist" in payload_obj:
+                st.session_state["tab2_filter_districts"] = []
+                st.query_params.pop("map_dist", None)
+
+            p_subdist = str(payload_obj.get("subdist", "")).strip()
+            if p_subdist and p_subdist not in ["ALL", "__ALL__", "all", "-"]:
+                st.session_state["tab2_filter_subdistricts"] = [p_subdist]
+                st.query_params["map_subdist"] = p_subdist
+            elif "subdist" in payload_obj:
+                st.session_state["tab2_filter_subdistricts"] = []
+                st.query_params.pop("map_subdist", None)
+
+            p_id = str(payload_obj.get("id", "")).strip()
+            if p_id:
+                st.session_state["tab2_search_prop_id"] = p_id
+                st.query_params["map_ref_id"] = p_id
+                if df_raw is not None and not df_raw.empty:
+                    m = df_raw[df_raw['รหัสทรัพย์'].astype(str).str.strip().str.lower() == p_id.lower()]
+                    if not m.empty:
+                        active_ref_prop = m.iloc[0].to_dict()
+                        st.session_state["tab2_ref_prop"] = active_ref_prop
+                        prop_p = str(active_ref_prop.get('จังหวัด', '')).strip()
+                        prop_d = str(active_ref_prop.get('อำเภอ', '')).strip()
+                        prop_s = str(active_ref_prop.get('ตำบล', '')).strip()
+                        if prop_p and prop_p not in ['-', 'ไม่มีข้อมูล', 'nan']:
+                            st.session_state["tab2_filter_provinces"] = [prop_p]
+                            st.query_params["map_prov"] = prop_p
+                        if prop_d and prop_d not in ['-', 'ไม่มีข้อมูล', 'nan']:
+                            st.session_state["tab2_filter_districts"] = [prop_d]
+                            st.query_params["map_dist"] = prop_d
+                        if prop_s and prop_s not in ['-', 'ไม่มีข้อมูล', 'nan']:
+                            st.session_state["tab2_filter_subdistricts"] = [prop_s]
+                            st.query_params["map_subdist"] = prop_s
+
+            p_lat = payload_obj.get("lat")
+            p_lon = payload_obj.get("lon")
+            if p_lat and p_lon:
+                try:
+                    active_ref_lat = float(p_lat)
+                    active_ref_lon = float(p_lon)
+                    st.session_state["tab2_ref_lat"] = active_ref_lat
+                    st.session_state["tab2_ref_lon"] = active_ref_lon
+                except (ValueError, TypeError):
+                    pass
+
+            p_rad = payload_obj.get("radius")
+            if p_rad:
+                try:
+                    active_ref_radius = float(p_rad)
+                    st.session_state["tab2_ref_radius"] = active_ref_radius
+                except (ValueError, TypeError):
+                    pass
+
+            p_mode = payload_obj.get("mode")
+            if p_mode:
+                st.session_state["tab2_pin_mode"] = str(p_mode).strip()
+
+            if payload_obj.get("compare_active", True):
+                st.session_state["tab2_compared_active"] = True
+
+        else:
+            q_prov = st.query_params.get("map_prov", None)
+            if q_prov is not None:
+                q_p = str(q_prov).strip()
+                if q_p and q_p not in ["ALL", "__ALL__", "all"]:
+                    st.session_state["tab2_filter_provinces"] = [q_p]
+                else:
+                    st.session_state["tab2_filter_provinces"] = []
+
+            q_dist = st.query_params.get("map_dist", None)
+            if q_dist is not None:
+                q_d = str(q_dist).strip()
+                if q_d and q_d not in ["ALL", "__ALL__", "all"]:
+                    st.session_state["tab2_filter_districts"] = [q_d]
+                else:
+                    st.session_state["tab2_filter_districts"] = []
+
+            q_subdist = st.query_params.get("map_subdist", None)
+            if q_subdist is not None:
+                q_s = str(q_subdist).strip()
+                if q_s and q_s not in ["ALL", "__ALL__", "all"]:
+                    st.session_state["tab2_filter_subdistricts"] = [q_s]
+                else:
+                    st.session_state["tab2_filter_subdistricts"] = []
+
+            q_lat = st.query_params.get("map_ref_lat")
+            q_lon = st.query_params.get("map_ref_lon")
+            if q_lat and q_lon:
+                try:
+                    active_ref_lat = float(q_lat)
+                    active_ref_lon = float(q_lon)
+                    st.session_state["tab2_ref_lat"] = active_ref_lat
+                    st.session_state["tab2_ref_lon"] = active_ref_lon
+                    st.session_state["tab2_compared_active"] = True
+                except (ValueError, TypeError):
+                    pass
+
+            q_id = st.query_params.get("map_ref_id")
+            if q_id and df_raw is not None and not df_raw.empty:
+                clean_id = str(q_id).strip()
+                st.session_state["tab2_search_prop_id"] = clean_id
+                f_prop = df_raw[df_raw['รหัสทรัพย์'].astype(str).str.strip().str.lower() == clean_id.lower()]
+                if not f_prop.empty:
+                    prop_row = f_prop.iloc[0]
+                    active_ref_prop = prop_row.to_dict()
+                    st.session_state["tab2_ref_prop"] = active_ref_prop
+                    r_prov = str(prop_row.get('จังหวัด', '')).strip()
+                    r_dist = str(prop_row.get('อำเภอ', '')).strip()
+                    r_subdist = str(prop_row.get('ตำบล', '')).strip()
+                    if r_prov and r_prov not in ['-', 'ไม่มีข้อมูล', 'nan']:
+                        st.session_state["tab2_filter_provinces"] = [r_prov]
+                    if r_dist and r_dist not in ['-', 'ไม่มีข้อมูล', 'nan']:
+                        st.session_state["tab2_filter_districts"] = [r_dist]
+                    if r_subdist and r_subdist not in ['-', 'ไม่มีข้อมูล', 'nan']:
+                        st.session_state["tab2_filter_subdistricts"] = [r_subdist]
+
+            # Auto-compare when location filter is synced (province/district/subdistrict selected on map)
+            has_loc_synced = (
+                (q_prov is not None and str(q_prov).strip() not in ["", "ALL", "__ALL__", "all"]) or
+                (q_dist is not None and str(q_dist).strip() not in ["", "ALL", "__ALL__", "all"]) or
+                (q_subdist is not None and str(q_subdist).strip() not in ["", "ALL", "__ALL__", "all"]) or
+                bool(q_id)
+            )
+            if has_loc_synced:
+                st.session_state["tab2_compared_active"] = True
 
         try:
             st.rerun(scope="fragment")
@@ -2914,15 +3022,28 @@ def render_tab2_reference_analytics_fragment(
             active_ref_lon = s_lon
 
     # Auto-resolve active_ref_prop if missing or if query params has map_ref_id
-    q_id = st.query_params.get("map_ref_id")
+    q_id = st.query_params.get("map_ref_id") or st.session_state.get("tab2_search_prop_id")
     if q_id and df_raw is not None and not df_raw.empty:
         clean_id = str(q_id).strip()
-        if active_ref_prop is None or str(active_ref_prop.get('รหัสทรัพย์', '')).strip() != clean_id:
-            found = df_raw[df_raw['รหัสทรัพย์'].astype(str).str.strip() == clean_id]
+        if active_ref_prop is None or str(active_ref_prop.get('รหัสทรัพย์', '')).strip().lower() != clean_id.lower():
+            found = df_raw[df_raw['รหัสทรัพย์'].astype(str).str.strip().str.lower() == clean_id.lower()]
             if not found.empty:
                 active_ref_prop = found.iloc[0].to_dict()
                 st.session_state["tab2_ref_prop"] = active_ref_prop
                 st.session_state["tab2_search_prop_id"] = clean_id
+                # Sync found property's location
+                p_prov = str(active_ref_prop.get('จังหวัด', '')).strip()
+                p_dist = str(active_ref_prop.get('อำเภอ', '')).strip()
+                p_subdist = str(active_ref_prop.get('ตำบล', '')).strip()
+                if p_prov and p_prov not in ['-', 'ไม่มีข้อมูล', 'nan']:
+                    st.session_state["tab2_filter_provinces"] = [p_prov]
+                    st.query_params["map_prov"] = p_prov
+                if p_dist and p_dist not in ['-', 'ไม่มีข้อมูล', 'nan']:
+                    st.session_state["tab2_filter_districts"] = [p_dist]
+                    st.query_params["map_dist"] = p_dist
+                if p_subdist and p_subdist not in ['-', 'ไม่มีข้อมูล', 'nan']:
+                    st.session_state["tab2_filter_subdistricts"] = [p_subdist]
+                    st.query_params["map_subdist"] = p_subdist
     elif active_ref_prop is None and active_ref_lat and active_ref_lon and df_raw is not None and not df_raw.empty:
         if 'ละติจูด' in df_raw.columns and 'ลองจิจูด' in df_raw.columns:
             match = df_raw[
@@ -3338,30 +3459,13 @@ def render_tab2_reference_analytics_fragment(
         filtered_nearby = nearby_df.copy()
         active_cos = map_cos
         active_types = map_types
-        active_prov = st.session_state.get("tab2_filter_provinces", [])
-        if not active_prov:
-            q_prov_str = st.query_params.get("map_prov", "")
-            if q_prov_str and str(q_prov_str).strip() not in ["ALL", "__ALL__", "all"]:
-                active_prov = [str(q_prov_str).strip()]
 
         if active_prov and not filtered_nearby.empty and 'จังหวัด' in filtered_nearby.columns:
             filtered_nearby = filtered_nearby[filtered_nearby['จังหวัด'].astype(str).str.strip().isin(active_prov)]
 
-        active_dist = st.session_state.get("tab2_filter_districts", [])
-        if not active_dist:
-            q_dist_str = st.query_params.get("map_dist", "")
-            if q_dist_str and str(q_dist_str).strip() not in ["ALL", "__ALL__", "all"]:
-                active_dist = [str(q_dist_str).strip()]
-
         if active_dist and not filtered_nearby.empty and 'อำเภอ' in filtered_nearby.columns:
             clean_target_dists = [d.split(' (')[0].strip() for d in active_dist]
             filtered_nearby = filtered_nearby[filtered_nearby['อำเภอ'].astype(str).str.strip().isin(clean_target_dists)]
-
-        active_subdist = st.session_state.get("tab2_filter_subdistricts", [])
-        if not active_subdist:
-            q_subdist_str = st.query_params.get("map_subdist", "")
-            if q_subdist_str and str(q_subdist_str).strip() not in ["ALL", "__ALL__", "all"]:
-                active_subdist = [str(q_subdist_str).strip()]
 
         if active_subdist and not filtered_nearby.empty and 'ตำบล' in filtered_nearby.columns:
             clean_target_subs = [s.split(' (')[0].strip() for s in active_subdist]
@@ -3726,9 +3830,21 @@ def render_tab2_reference_analytics_fragment(
                 return ""
 
             diff_target_cols = [c for c in ['เทียบราคากลางต่อ ตร.ว.', 'เทียบราคากับ ตร.ว. ของที่ดินเปล่า', 'เทียบราคากลางต่อ ตร.ม.'] if c in show_df.columns]
-            styled_show_df = show_df.style.map(highlight_diff_cells, subset=diff_target_cols)
+            
+            # Pandas Styler has a cell rendering cap (default 262,144 cells).
+            # When viewing large datasets (e.g. nationwide or thousands of rows), render show_df
+            # directly via Arrow to maintain ultra-fast virtualized scrolling and avoid Styler memory exceptions.
+            df_to_render = show_df
+            if diff_target_cols and show_df.size <= 200_000:
+                try:
+                    df_to_render = show_df.style.map(highlight_diff_cells, subset=diff_target_cols)
+                except Exception:
+                    df_to_render = show_df
 
-            st.dataframe(styled_show_df, use_container_width=True, height=380, column_config=table_col_config)
+            try:
+                st.dataframe(df_to_render, use_container_width=True, height=380, column_config=table_col_config)
+            except Exception:
+                st.dataframe(show_df, use_container_width=True, height=380, column_config=table_col_config)
             # ── Import / Export (same style as Tab 1) ──
             render_import_export_section(show_df, filename_prefix=f"comparison_{scope_header.replace(' ', '_')}", key_suffix="tab2_compare")
         else:
@@ -3922,7 +4038,7 @@ with st.sidebar:
         <div style="display: flex; align-items: center; gap: 9px; margin-bottom: 2px; padding-top: 2px;">
             {sb_logo_img}
             <div style="display: flex; flex-direction: column;">
-                <div style="font-size: 1.35rem; font-weight: 800; color: #ffffff; line-height: 1.1; letter-spacing: -0.5px;">All Asset</div>
+                <div style="font-size: 1.35rem; font-weight: 800; color: #ffffff; line-height: 1.1; letter-spacing: -0.5px;">NOVA</div>
                 <div style="font-size: 0.68rem; font-weight: 700; color: #a7f3d0; letter-spacing: 0.8px;">NPA DASHBOARD</div>
             </div>
         </div>
@@ -6138,9 +6254,17 @@ with tab2:
                         st.session_state["tab2_ref_prop"] = active_ref_prop
                         st.session_state["tab2_search_prop_id"] = clean_id
                         p_prov = str(r0.get('จังหวัด', '')).strip()
-                        if p_prov and p_prov not in ['-', 'ไม่มีข้อมูล']:
+                        p_dist = str(r0.get('อำเภอ', '')).strip()
+                        p_subdist = str(r0.get('ตำบล', '')).strip()
+                        if p_prov and p_prov not in ['-', 'ไม่มีข้อมูล', 'nan']:
                             st.session_state["tab2_filter_provinces"] = [p_prov]
                             st.query_params["map_prov"] = p_prov
+                        if p_dist and p_dist not in ['-', 'ไม่มีข้อมูล', 'nan']:
+                            st.session_state["tab2_filter_districts"] = [p_dist]
+                            st.query_params["map_dist"] = p_dist
+                        if p_subdist and p_subdist not in ['-', 'ไม่มีข้อมูล', 'nan']:
+                            st.session_state["tab2_filter_subdistricts"] = [p_subdist]
+                            st.query_params["map_subdist"] = p_subdist
             else:
                 active_ref_lat = float(active_ref_prop['ละติจูด'])
                 active_ref_lon = float(active_ref_prop['ลองจิจูด'])

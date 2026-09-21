@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>All Asset NPA Map</title>
+    <title>NOVA NPA Map</title>
     <meta charset="utf-8" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+Thai:wght@300;400;500;600;700;800&display=swap">
@@ -10,6 +10,12 @@
       body:not(.dark-theme) { background-color: #f8fafc; }
       #map { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; background-color: #0f172a; }
       body:not(.dark-theme) #map { background-color: #e2e8f0; }
+
+      /* Elevate Deck.gl hover tooltip above SVG dashed boundaries (z-index: 10) and centroid badges (z-index: 25) */
+      .deck-tooltip {
+        z-index: 999999 !important;
+        pointer-events: none !important;
+      }
 
       #loader {
         position: absolute;
@@ -2901,29 +2907,42 @@
           smoothFlyTo(lon, lat, 15, 1200);
         }
 
-        // Synchronize to Streamlit analytics cards and table below map
         try {
           var u = new URL(window.parent.location.href);
           u.searchParams.set('map_ref_lat', lat.toFixed(6));
           u.searchParams.set('map_ref_lon', lon.toFixed(6));
           u.searchParams.set('map_ref_radius', currentRadiusKm);
+          u.searchParams.set('map_pin_mode', 'radius');
           if (id && id !== '-') {
             u.searchParams.set('map_ref_id', id);
           }
-          if (activePropertyData._prov && activePropertyData._prov !== '-' && activePropertyData._prov !== 'ไม่มีข้อมูล') {
+          if (activePropertyData && activePropertyData._prov && activePropertyData._prov !== '-' && activePropertyData._prov !== 'ไม่มีข้อมูล') {
             u.searchParams.set('map_prov', activePropertyData._prov);
           }
-          if (activePropertyData._district && activePropertyData._district !== '-' && activePropertyData._district !== 'ไม่มีข้อมูล') {
+          if (activePropertyData && activePropertyData._district && activePropertyData._district !== '-' && activePropertyData._district !== 'ไม่มีข้อมูล') {
             u.searchParams.set('map_dist', activePropertyData._district);
           }
-          if (activePropertyData._subdistrict && activePropertyData._subdistrict !== '-' && activePropertyData._subdistrict !== 'ไม่มีข้อมูล') {
+          if (activePropertyData && activePropertyData._subdistrict && activePropertyData._subdistrict !== '-' && activePropertyData._subdistrict !== 'ไม่มีข้อมูล') {
             u.searchParams.set('map_subdist', activePropertyData._subdistrict);
           }
           window.parent.history.replaceState({}, '', u.toString());
+          try {
+            window.parent.dispatchEvent(new PopStateEvent('popstate', { state: {} }));
+          } catch(pe) {}
         } catch(e) {
           console.warn('Sync to Streamlit error:', e);
         }
-        triggerStreamlitSync();
+        triggerStreamlitSync({
+          prov: (activePropertyData && activePropertyData._prov) || '',
+          dist: (activePropertyData && activePropertyData._district) || '',
+          subdist: (activePropertyData && activePropertyData._subdistrict) || '',
+          id: (id && id !== '-') ? id : '',
+          lat: lat,
+          lon: lon,
+          radius: currentRadiusKm || 5.0,
+          mode: 'radius',
+          compare_active: true
+        });
       }
       
       const csvBase64 = "CSV_BASE64_PLACEHOLDER";
@@ -3007,6 +3026,14 @@
           if (info.layer && info.layer.id !== 'point-icons') {
             return null;
           }
+
+          // Ensure .deck-tooltip is reparented to document.body so it floats above SVG boundary layers
+          setTimeout(function() {
+            var tt = document.querySelector('.deck-tooltip');
+            if (tt && tt.parentElement && tt.parentElement !== document.body) {
+              document.body.appendChild(tt);
+            }
+          }, 0);
           const d = info.object;
           const coordKey = getCoordKey(d);
           const stack = (currentCoordMap && currentCoordMap.get(coordKey)) || [d];
@@ -3825,13 +3852,24 @@
             }
             u.searchParams.delete('map_dist');
             u.searchParams.delete('map_subdist');
+            u.searchParams.delete('map_ref_id');
             window.parent.history.replaceState({}, '', u.toString());
+            try {
+              window.parent.dispatchEvent(new PopStateEvent('popstate', { state: {} }));
+            } catch(pe) {}
           }
         } catch(e) {
           console.warn('onMapProvinceChange error:', e);
         }
         // 7. Auto-sync to Streamlit for realtime comparison
-        triggerStreamlitSync();
+        triggerStreamlitSync({
+          prov: (selectedProv && selectedProv !== '__ALL__') ? selectedProv.trim() : '',
+          dist: '',
+          subdist: '',
+          id: '',
+          mode: 'location',
+          compare_active: true
+        });
       }
 
       function onMapDistrictChange(dist) {
@@ -3874,13 +3912,24 @@
               u.searchParams.delete('map_dist');
             }
             u.searchParams.delete('map_subdist');
+            u.searchParams.delete('map_ref_id');
             window.parent.history.replaceState({}, '', u.toString());
+            try {
+              window.parent.dispatchEvent(new PopStateEvent('popstate', { state: {} }));
+            } catch(pe) {}
           }
         } catch(e) {
           console.warn('onMapDistrictChange error:', e);
         }
         // 7. Auto-sync to Streamlit for realtime comparison
-        triggerStreamlitSync();
+        triggerStreamlitSync({
+          prov: (currentSelectedProv && currentSelectedProv !== '__ALL__') ? currentSelectedProv.trim() : '',
+          dist: (selectedDist && selectedDist !== '__ALL__') ? selectedDist.trim() : '',
+          subdist: '',
+          id: '',
+          mode: 'location',
+          compare_active: true
+        });
       }
 
       function onMapSubdistrictChange(subdist) {
@@ -3917,13 +3966,24 @@
             } else {
               u.searchParams.delete('map_subdist');
             }
+            u.searchParams.delete('map_ref_id');
             window.parent.history.replaceState({}, '', u.toString());
+            try {
+              window.parent.dispatchEvent(new PopStateEvent('popstate', { state: {} }));
+            } catch(pe) {}
           }
         } catch(e) {
           console.warn('onMapSubdistrictChange error:', e);
         }
         // 5. Auto-sync to Streamlit for realtime comparison
-        triggerStreamlitSync();
+        triggerStreamlitSync({
+          prov: (currentSelectedProv && currentSelectedProv !== '__ALL__') ? currentSelectedProv.trim() : '',
+          dist: (currentSelectedDist && currentSelectedDist !== '__ALL__') ? currentSelectedDist.trim() : '',
+          subdist: (selectedSubdist && selectedSubdist !== '__ALL__') ? selectedSubdist.trim() : '',
+          id: '',
+          mode: 'location',
+          compare_active: true
+        });
       }
 
       function toggleProjectOption(proj, query = '') {
@@ -4073,7 +4133,7 @@
               u.searchParams.set('map_ref_lat', lat.toFixed(6));
               u.searchParams.set('map_ref_lon', lon.toFixed(6));
               u.searchParams.set('map_ref_radius', currentRadiusKm);
-              u.searchParams.set('map_pin_mode', mapPinMode || 'radius');
+              u.searchParams.set('map_pin_mode', mapPinMode || 'location');
               if (match._prov && match._prov !== '-' && match._prov !== 'ไม่มีข้อมูล') {
                 u.searchParams.set('map_prov', match._prov);
               }
@@ -4084,9 +4144,22 @@
                 u.searchParams.set('map_subdist', match._subdistrict);
               }
               window.parent.history.replaceState({}, '', u.toString());
+              try {
+                window.parent.dispatchEvent(new PopStateEvent('popstate', { state: {} }));
+              } catch(pe) {}
             }
           } catch(e) {}
-          triggerStreamlitSync();
+          triggerStreamlitSync({
+            prov: (match._prov && match._prov !== '-' && match._prov !== 'ไม่มีข้อมูล') ? match._prov.trim() : '',
+            dist: (match._district && match._district !== '-' && match._district !== 'ไม่มีข้อมูล') ? match._district.trim() : '',
+            subdist: (match._subdistrict && match._subdistrict !== '-' && match._subdistrict !== 'ไม่มีข้อมูล') ? match._subdistrict.trim() : '',
+            id: match._id || '',
+            lat: lat,
+            lon: lon,
+            radius: currentRadiusKm || 5.0,
+            mode: mapPinMode || 'location',
+            compare_active: true
+          });
         } else {
           showToast(`<i class="fa-solid fa-triangle-exclamation" style="color:#ef4444; margin-right:4px;"></i>ไม่พบรหัสทรัพย์ "${idStr.trim()}" ในฐานข้อมูล`);
         }
@@ -5388,21 +5461,71 @@
               u.searchParams.delete('map_filter_max_sqm');
             }
             window.parent.history.replaceState({}, '', u.toString());
+            try {
+              window.parent.dispatchEvent(new PopStateEvent('popstate', { state: {} }));
+            } catch(pe) {}
+            triggerStreamlitSync();
           } catch(e) {
             console.warn('notifyParentFilterChange error:', e);
           }
         }, 150);
       }
 
-      function triggerStreamlitSync() {
+      function getMapSyncPayload() {
+        var p = (currentSelectedProv && currentSelectedProv !== '__ALL__') ? currentSelectedProv.trim() : '';
+        var d = (currentSelectedDist && currentSelectedDist !== '__ALL__') ? currentSelectedDist.trim() : '';
+        var s = (currentSelectedSubdist && currentSelectedSubdist !== '__ALL__') ? currentSelectedSubdist.trim() : '';
+        var id = currentRefProp ? (currentRefProp._id || '') : (currentRefId || '');
+        var lat = referencePoint ? referencePoint.lat : (currentRefProp && currentRefProp.lat ? parseFloat(currentRefProp.lat) : 0);
+        var lon = referencePoint ? referencePoint.lon : (currentRefProp && currentRefProp.lon ? parseFloat(currentRefProp.lon) : 0);
+        return {
+          prov: p,
+          dist: d,
+          subdist: s,
+          id: id,
+          lat: lat,
+          lon: lon,
+          radius: currentRadiusKm || 5.0,
+          mode: mapPinMode || 'location',
+          compare_active: true
+        };
+      }
+
+      function triggerStreamlitSync(customPayload) {
         try {
           if (!window.parent) return;
-          var syncBtn = window.parent.document.querySelector('.st-key-btn_map_filter_sync button');
+          var pdoc = window.parent.document;
+          var payload = customPayload || getMapSyncPayload();
+          var jsonStr = JSON.stringify(payload);
+
+          // 1. Dispatch popstate on window.parent to sync URL params
+          try {
+            window.parent.dispatchEvent(new PopStateEvent('popstate', { state: {} }));
+          } catch(pe) {}
+
+          // 2. Set hidden bridge input to pass exact data directly to Streamlit Python
+          try {
+            if (pdoc) {
+              var bridgeInput = pdoc.querySelector('.st-key-map_sync_bridge_payload input') ||
+                                pdoc.querySelector('input[aria-label="map_sync_bridge"]');
+              if (bridgeInput) {
+                var nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+                nativeSetter.call(bridgeInput, jsonStr);
+                bridgeInput.dispatchEvent(new Event('input', { bubbles: true }));
+                bridgeInput.dispatchEvent(new Event('change', { bubbles: true }));
+              }
+            }
+          } catch(ie) {
+            console.warn('bridgeInput sync error:', ie);
+          }
+
+          // 3. Click sync button as primary/fallback trigger
+          var syncBtn = pdoc.querySelector('.st-key-btn_map_filter_sync button');
           if (!syncBtn) {
-            syncBtn = window.parent.document.querySelector('button[key="btn_map_filter_sync"]');
+            syncBtn = pdoc.querySelector('button[key="btn_map_filter_sync"]');
           }
           if (!syncBtn) {
-            var anchor = window.parent.document.querySelector('#map-sync-anchor');
+            var anchor = pdoc.querySelector('#map-sync-anchor');
             if (anchor) {
               var parentContainer = anchor.closest('[data-testid="stElementContainer"]') || anchor.parentElement;
               if (parentContainer && parentContainer.nextElementSibling) {
@@ -5411,7 +5534,7 @@
             }
           }
           if (!syncBtn) {
-            var allBtns = window.parent.document.querySelectorAll('button');
+            var allBtns = pdoc.querySelectorAll('button');
             for (var i = 0; i < allBtns.length; i++) {
               var txt = allBtns[i].textContent ? allBtns[i].textContent.trim() : '';
               if (txt === 'sync_map_filter') {
@@ -6049,8 +6172,21 @@
           u.searchParams.delete('map_ref_id');
           u.searchParams.set('map_ref_cleared', '1');
           window.parent.history.replaceState({}, '', u.toString());
+          try {
+            window.parent.dispatchEvent(new PopStateEvent('popstate', { state: {} }));
+          } catch(pe) {}
         } catch(e) {}
-        triggerStreamlitSync();
+        triggerStreamlitSync({
+          prov: (currentSelectedProv && currentSelectedProv !== '__ALL__') ? currentSelectedProv.trim() : '',
+          dist: (currentSelectedDist && currentSelectedDist !== '__ALL__') ? currentSelectedDist.trim() : '',
+          subdist: (currentSelectedSubdist && currentSelectedSubdist !== '__ALL__') ? currentSelectedSubdist.trim() : '',
+          id: '',
+          lat: 0,
+          lon: 0,
+          radius: currentRadiusKm || 5.0,
+          mode: mapPinMode || 'location',
+          compare_active: false
+        });
       }
 
       function confirmPendingReferencePoint() {
@@ -6368,6 +6504,22 @@
             },
             layers: initialLayers
           });
+
+          // Ensure deck.gl tooltip is always attached to document.body,
+          // guaranteeing it stays above boundary-svg (z-index: 10) and all overlays
+          try {
+            var mapContainer = document.getElementById('map');
+            if (mapContainer) {
+              var ttObserver = new MutationObserver(function(mutations) {
+                var tt = mapContainer.querySelector('.deck-tooltip');
+                if (tt) {
+                  tt.style.zIndex = '999999';
+                  document.body.appendChild(tt);
+                }
+              });
+              ttObserver.observe(mapContainer, { childList: true });
+            }
+          } catch(e) {}
 
           setTimeout(() => {
             try { updateSvgBoundaries(); } catch(e) {}
