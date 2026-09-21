@@ -218,7 +218,7 @@ def optimize_and_clean_dataframe(df, exclude_unwanted=True):
     # คำนวณพิกัดกึ่งกลาง (Centroid Imputation) จากฐานข้อมูล GIS ให้แถวที่ไม่มีพิกัดจริง
     try:
         base_dir = os.path.dirname(os.path.abspath(__file__))
-        monthly_dir = os.path.join(base_dir, "Monthly all new")
+        monthly_dir = os.path.join(base_dir, "Py Scraper") if os.path.exists(os.path.join(base_dir, "Py Scraper")) else os.path.join(base_dir, "Monthly all new")
         if monthly_dir not in sys.path:
             sys.path.insert(0, monthly_dir)
         from clean_location_util import forward_geocode_location, init_gis
@@ -314,6 +314,10 @@ def optimize_and_clean_dataframe(df, exclude_unwanted=True):
     for c in cat_cols:
         if c in df.columns:
             df[c] = df[c].fillna('ไม่มีข้อมูล').astype(str).str.strip()
+            if c in ['จังหวัด', 'อำเภอ', 'ตำบล']:
+                df[c] = df[c].str.strip(" ,;.-'\"/\\")
+                if c == 'จังหวัด':
+                    df[c] = df[c].str.replace(r'^(จ\.|จังหวัด)\s*', '', regex=True)
             df[c] = df[c].astype('category')
 
     # 11. ตรวจสอบชื่อประกาศและลิงก์
@@ -355,6 +359,7 @@ def find_best_input_csv(input_path=None):
         search_paths.append(input_path)
     search_paths.extend([
         "CSV_Output",
+        "Py Scraper/CSV_Output",
         "Monthly all new/CSV_Output",
         "."
     ])

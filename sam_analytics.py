@@ -776,15 +776,25 @@ def render_same_project_leaflet_map_html(proj_units, proj_name, is_dark_mode=Fal
 
 
 COMMON_PROJECT_PROVINCES = [
-    'กรุงเทพมหานคร', 'กรุงเทพ', 'กทม.', 'กทม', 'ชลบุรี', 'เชียงใหม่', 'นนทบุรี', 'ปทุมธานี', 
-    'สมุทรปราการ', 'ภูเก็ต', 'ระยอง', 'ประจวบคีรีขันธ์', 'ขอนแก่น', 'นครราชสีมา', 'สุราษฎร์ธานี',
-    'สงขลา', 'นครปฐม', 'พระนครศรีอยุธยา', 'เชียงราย', 'พิษณุโลก', 'อุดรธานี', 'หัวหิน', 'พัทยา'
+    'กรุงเทพมหานคร', 'กรุงเทพ', 'กทม.', 'กทม', 'นนทบุรี', 'ปทุมธานี', 'สมุทรปราการ', 'สมุทรสาคร', 'สมุทรสงคราม',
+    'นครปฐม', 'พระนครศรีอยุธยา', 'อยุธยา', 'สระบุรี', 'ลพบุรี', 'สุพรรณบุรี', 'ชัยนาท', 'สิงห์บุรี', 'อ่างทอง',
+    'เชียงใหม่', 'เชียงราย', 'ลำปาง', 'ลำพูน', 'แม่ฮ่องสอน', 'น่าน', 'พะเยา', 'แพร่', 'อุตรดิตถ์', 'พิษณุโลก',
+    'สุโขทัย', 'เพชรบูรณ์', 'พิจิตร', 'กำแพงเพชร', 'นครสวรรค์', 'อุทัยธานี', 'ตาก',
+    'นครราชสีมา', 'โคราช', 'ขอนแก่น', 'อุดรธานี', 'อุบลราชธานี', 'ร้อยเอ็ด', 'บุรีรัมย์', 'สุรินทร์', 'ศรีสะเกษ',
+    'มหาสารคาม', 'ชัยภูมิ', 'กาฬสินธุ์', 'สกลนคร', 'นครพนม', 'มุกดาหาร', 'ยโสธร', 'อำนาจเจริญ', 'หนองคาย', 'เลย',
+    'หนองบัวลำภู', 'บึงกาฬ',
+    'ชลบุรี', 'พัทยา', 'ระยอง', 'ฉะเชิงเทรา', 'จันทบุรี', 'ตราด', 'นครนายก', 'ปราจีนบุรี', 'สระแก้ว',
+    'กาญจนบุรี', 'ราชบุรี', 'เพชรบุรี', 'ประจวบคีรีขันธ์', 'หัวหิน', 'ชะอำ',
+    'ภูเก็ต', 'สุราษฎร์ธานี', 'สมุย', 'สงขลา', 'หาดใหญ่', 'นครศรีธรรมราช', 'กระบี่', 'พังงา', 'ตรัง',
+    'ชุมพร', 'ระนอง', 'พัทลุง', 'สตูล', 'ปัตตานี', 'ยะลา', 'นราธิวาส'
 ]
 
 GENERIC_TYPES_SET = {
     'บ้าน', 'บ้านเดี่ยว', 'บ้านแฝด', 'คอนโด', 'คอนโดมิเนียม', 'ห้องชุด', 'ทาวน์เฮ้าส์', 'ทาวน์โฮม', 
     'ที่ดิน', 'ที่ดินเปล่า', 'อาคารพาณิชย์', 'ตึกแถว', 'วิลล่า', 'โรงงาน', 'โกดัง', 'อพาร์ทเมนท์',
-    'โฮมออฟฟิศ', 'สำนักงาน', 'โรงแรม', 'รีสอร์ท', 'สิ่งปลูกสร้าง', 'อสังหาริมทรัพย์', 'ทรัพย์สิน'
+    'โฮมออฟฟิศ', 'สำนักงาน', 'โรงแรม', 'รีสอร์ท', 'สิ่งปลูกสร้าง', 'อสังหาริมทรัพย์', 'ทรัพย์สิน',
+    'อสังหาริมทรัพย์เพื่อการพาณิชย์', 'ห้องชุดพักอาศัย', 'สิ่งปลูกสร้างพร้อมที่ดิน', 'อาคาร',
+    'house', 'condo', 'townhouse', 'villa', 'land', 'apartment'
 }
 
 BEDROOM_ONLY_REGEX = re.compile(
@@ -793,19 +803,47 @@ BEDROOM_ONLY_REGEX = re.compile(
 )
 
 STOREY_ONLY_REGEX = re.compile(
-    r'^(บ้าน|บ้านเดี่ยว|คอนโด|ห้องชุด|ทาวน์เฮ้าส์|ทาวน์โฮม|วิลล่า|อาคารพาณิชย์|ตึกแถว|อาคาร)?\s*\d+\s*ชั้น(\s*ครึ่ง)?$',
+    r'^(บ้าน|บ้านเดี่ยว|บ้านแฝด|คอนโด|ห้องชุด|ทาวน์เฮ้าส์|ทาวน์โฮม|วิลล่า|อาคารพาณิชย์|ตึกแถว|อาคาร)?\s*\d+\s*ชั้น(\s*ครึ่ง)?$',
+    re.IGNORECASE
+)
+
+AD_PREFIX_REGEX = re.compile(
+    r'^(ขาย|ให้เช่า|เช่า|ขายด่วน|ขายด่วนมาก|ต้องการขาย|ฝากขาย|รับสร้างบ้าน|ขาย/เช่า|ขายหรือให้เช่า)\s*(บ้าน|ที่ดิน|คอนโด|อาคาร|ทาวน์|ตึก|ห้องชุด|อพาร์ทเม้นท์|โกดัง|โรงงาน|สิทธิ์)?(\s*|\b)',
+    re.IGNORECASE
+)
+
+AREA_SPEC_REGEX = re.compile(
+    r'(\d+\s*(ไร่|งาน|ตารางวา|ตร\.ว|ตารางเมตร|ตร\.ม|ตรม|sq\.?m|sqm)|เนื้อที่\s*\d+|ขนาดพื้นที่\s*\d+|หน้ากว้าง\s*\d+)',
+    re.IGNORECASE
+)
+
+CONTACT_PHRASE_REGEX = re.compile(
+    r'(เจ้าของขายเอง|งดรับนายหน้า|ราคาถูกเพียง|พร้อมอยู่|แถมฟรี|เฟอร์ครบ|ติดต่อ\s*\d|โทร\s*\d|0\d{1,2}[- ]?\d{3,4}[- ]?\d{3,4}|line\s*id)',
+    re.IGNORECASE
+)
+
+BANK_PREFIX_REGEX = re.compile(
+    r'^(บ้านเดี่ยว|บ้านแฝด|บ้าน|คอนโดมิเนียม|คอนโด|ห้องชุด|ทาวน์เฮ้าส์|ทาวน์โฮม|อาคารพาณิชย์|ตึกแถว|ที่ดินเปล่า|ที่ดิน|อาคารชุด)?\s*(\d+\s*ชั้น(\s*ครึ่ง)?)?\s*(โครงการ|หมู่บ้าน|อาคารชุด|ม\.)\s*',
+    re.IGNORECASE
+)
+
+CONDITION_SUFFIX_REGEX = re.compile(
+    r'(\s*:\s*(ปรับปรุง|ปรับปรุงแล้ว|สภาพดี|รอการปรับปรุง|ขายตามสภาพ).*$|\s*\(.*ปรับปรุง.*\)$|\s*\*.*\*$)',
     re.IGNORECASE
 )
 
 def clean_project_name(name):
-    """Standardizes project name, removes undefined/junk labels, bedroom/bathroom descriptors, and trailing province suffixes."""
+    """Standardizes project name, removes undefined/junk labels, extracts real names from bank prefixes,
+    filters out ad titles, storey/bedroom descriptors, specs, and trailing province suffixes."""
     if not name or pd.isna(name):
         return None
     n = str(name).strip()
     nl = n.lower()
     
-    # 1. Junk words
-    if nl in ['', 'nan', 'none', 'null', 'undefined', '-', '--', '---', '.', '..', '...', '?', '#name?', 'ไม่มีชื่อ', 'ไม่ระบุ', 'ไม่ระบุชื่อ', 'ทรัพย์สิน npa', 'ทรัพย์ npa', 'npa', 'โครงการ']:
+    # 1. Obvious Junk / Placeholder
+    if nl in ['', 'nan', 'none', 'null', 'undefined', '-', '--', '---', '.', '..', '...', '?', '#name?', 
+              'ไม่มีชื่อ', 'ไม่ระบุ', 'ไม่ระบุชื่อ', 'ทรัพย์สิน npa', 'ทรัพย์ npa', 'npa', 'โครงการ',
+              '(ต้นฉบับชำรุด)', 'นอกโครงการ', 'ไม่ปรากฏชื่อโครงการ', 'ไม่มีชื่อโครงการ', 'หมู่บ้านไม่มีชื่อ']:
         return None
     if nl.startswith('undefined') or nl.startswith('ไม่มีชื่อ') or nl.startswith('โครงการไม่มีชื่อ') or nl.startswith('ไม่ระบุ'):
         return None
@@ -814,7 +852,11 @@ def clean_project_name(name):
     if len(n) <= 1:
         return None
         
-    # 2. Trailing province suffix
+    # 2. Pure digits or punctuation
+    if re.match(r'^\d+$', n) or re.match(r'^[.\-_/*+?#! @$%^&*()+=~`:;]+$', n):
+        return None
+
+    # 3. Trailing province suffix with comma (e.g. ", กรุงเทพ")
     if ',' in n:
         for p in COMMON_PROJECT_PROVINCES:
             if n.endswith(f', {p}') or n.endswith(f',{p}') or n.endswith(f' , {p}'):
@@ -823,23 +865,61 @@ def clean_project_name(name):
             
     n = n.strip()
     nl = n.lower()
-    
-    # 3. Exact generic property type match (e.g. "บ้าน", "คอนโด", "ที่ดินเปล่า")
-    if n in GENERIC_TYPES_SET or nl in ['house', 'condo', 'townhouse', 'villa', 'land', 'apartment']:
+
+    # 4. Strip bank condition suffixes (e.g. ": ปรับปรุง")
+    n = CONDITION_SUFFIX_REGEX.sub('', n).strip()
+
+    # 5. Check if it's pure ad or listing text (e.g. "ขายที่ดิน", "ให้เช่าบ้าน ติดบีทีเอส")
+    if AD_PREFIX_REGEX.match(n):
         return None
-        
-    # 4. Bedroom descriptor only (e.g. "บ้าน 3-ห้องนอน", "บ้าน 4-ห้องนอน", "วิลล่า 3-ห้องนอน", "2-ห้องนอน", "3 ห้องนอน")
-    if 'ห้องนอน' in n or 'bedroom' in nl or 'ห้องน้ำ' in n:
-        if BEDROOM_ONLY_REGEX.match(n):
-            return None
-        if re.match(r'^\d+\s*(-)?\s*ห้องนอน', n) or re.match(r'^\d+\s*(-)?\s*bedroom', nl):
-            return None
-            
-    # 5. Storey descriptor only (e.g. "บ้าน 2 ชั้น", "ตึกแถว 3 ชั้น", "2 ชั้น")
-    if STOREY_ONLY_REGEX.match(n):
+    if CONTACT_PHRASE_REGEX.search(n):
         return None
 
-    return n if len(n) > 1 else None
+    # 6. Check address leakage
+    if ('ตำบล' in n and 'อำเภอ' in n) or ('แขวง' in n and 'เขต' in n) or n.startswith('ถนน สาย') or n.startswith('ซอย '):
+        return None
+
+    # 7. Strip bank property type prefix: "บ้านเดี่ยว 2 ชั้น โครงการบางกอก บูเลอวาร์ด" -> "บางกอก บูเลอวาร์ด"
+    match_prefix = BANK_PREFIX_REGEX.match(n)
+    if match_prefix:
+        remainder = n[match_prefix.end():].strip()
+        if remainder and len(remainder) > 2:
+            n = remainder
+
+    # 8. Check Area specs (e.g. "1งาน 41ตารางวา", "เนื้อที่ 50 ตร.ว.")
+    if AREA_SPEC_REGEX.search(n):
+        return None
+
+    # 9. Trailing provinces with space (e.g. "วงทองเลคไซค์ สงขลา" -> "วงทองเลคไซค์")
+    for p in COMMON_PROJECT_PROVINCES:
+        if n.endswith(f' {p}'):
+            candidate = n[:-len(p)-1].strip()
+            if len(candidate) > 2:
+                n = candidate
+                break
+
+    # 10. Re-check generic types / storey / bedroom after stripping prefixes and provinces
+    if n in GENERIC_TYPES_SET or nl in GENERIC_TYPES_SET:
+        return None
+    if STOREY_ONLY_REGEX.match(n):
+        return None
+    if BEDROOM_ONLY_REGEX.match(n) or re.match(r'^\d+\s*(-)?\s*ห้องนอน', n) or re.match(r'^\d+\s*(-)?\s*bedroom', nl):
+        return None
+
+    # 11. Length check
+    if len(n) > 75:
+        if ':' in n:
+            parts = n.split(':')
+            if len(parts) == 2 and len(parts[0].strip()) < 45 and len(parts[1].strip()) < 45:
+                pass
+            else:
+                return None
+        else:
+            return None
+
+    # Clean punctuation
+    n = n.rstrip(' :-/,(').lstrip(' :-/,(').strip()
+    return n if len(n) > 1 and n not in GENERIC_TYPES_SET else None
 
 
 # ==============================================================================

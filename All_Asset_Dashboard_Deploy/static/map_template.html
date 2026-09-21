@@ -79,6 +79,52 @@
         box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);
       }
 
+      /* Segmented Pin Display Mode Switcher (Location vs Radius) inside floating bar */
+      .map-pin-mode-toggle {
+        display: inline-flex;
+        align-items: center;
+        background: #f1f5f9;
+        border: 1px solid #cbd5e1;
+        border-radius: 9999px;
+        padding: 2px;
+        gap: 2px;
+        user-select: none;
+      }
+      body.dark-theme .map-pin-mode-toggle {
+        background: #1e293b;
+        border-color: #334155;
+      }
+      .pin-mode-btn {
+        border: none;
+        background: transparent;
+        border-radius: 9999px;
+        padding: 3.5px 11px;
+        font-family: inherit;
+        font-size: 11px;
+        font-weight: 700;
+        color: #64748b;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        white-space: nowrap;
+      }
+      body.dark-theme .pin-mode-btn {
+        color: #94a3b8;
+      }
+      .pin-mode-btn:hover {
+        color: #0f172a;
+      }
+      body.dark-theme .pin-mode-btn:hover {
+        color: #f8fafc;
+      }
+      .pin-mode-btn.active {
+        background: #059669 !important;
+        color: #ffffff !important;
+        box-shadow: 0 2px 8px rgba(5, 150, 105, 0.4) !important;
+      }
+
       /* Floating Top Radius Selector Bar (Apple / Airbnb Floating Pill) */
       #map-radius-controls {
         position: absolute;
@@ -361,13 +407,21 @@
         flex-direction: column;
         gap: 3px;
         padding: 0 4px;
-        min-width: 175px;
+        width: 290px;
+        min-width: 290px;
       }
       .radius-slider-top-row {
         display: flex;
         justify-content: space-between;
         align-items: center;
         width: 100%;
+      }
+      .radius-slider-wrap {
+        position: relative;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        margin: 4px 0 2px 0;
       }
       .radius-slider-box input[type="range"] {
         -webkit-appearance: none;
@@ -378,7 +432,9 @@
         border-radius: 9999px;
         outline: none;
         cursor: pointer;
-        transition: background 0.2s;
+        position: relative;
+        z-index: 2;
+        margin: 0;
       }
       body.dark-theme .radius-slider-box input[type="range"] {
         background: #334155;
@@ -391,12 +447,12 @@
         border-radius: 50%;
         background: #10b981;
         border: 2px solid #ffffff;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.28);
         cursor: pointer;
-        transition: transform 0.15s ease;
+        transition: transform 0.15s ease, background 0.15s ease;
       }
       .radius-slider-box input[type="range"]::-webkit-slider-thumb:hover {
-        transform: scale(1.25);
+        transform: scale(1.22);
         background: #059669;
       }
       .radius-slider-label {
@@ -408,15 +464,61 @@
       body.dark-theme .radius-slider-label {
         color: #34d399;
       }
-      .radius-ticks-marks {
-        display: flex;
-        justify-content: space-between;
+      .radius-track-ticks {
+        position: absolute;
+        top: 50%;
+        left: 0;
         width: 100%;
-        font-size: 9.5px;
+        height: 0;
+        pointer-events: none;
+        z-index: 1;
+      }
+      .radius-track-tick {
+        position: absolute;
+        top: -5px;
+        transform: translateX(-50%);
+        width: 2px;
+        height: 10px;
+        background: #94a3b8;
+        border-radius: 1px;
+        transition: all 0.2s ease;
+      }
+      body.dark-theme .radius-track-tick {
+        background: #475569;
+      }
+      .radius-track-tick.active {
+        background: #10b981;
+        height: 12px;
+        top: -6px;
+        box-shadow: 0 0 5px rgba(16, 185, 129, 0.5);
+      }
+      .radius-ticks-marks {
+        position: relative;
+        width: 100%;
+        height: 15px;
+        user-select: none;
+        margin-top: 1px;
+      }
+      .radius-tick-num {
+        position: absolute;
+        transform: translateX(-50%);
+        font-size: 10.5px;
         color: #94a3b8;
         font-weight: 600;
-        margin-top: 1px;
-        user-select: none;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        padding: 0 2px;
+      }
+      .radius-tick-num:hover {
+        color: #0f172a;
+      }
+      body.dark-theme .radius-tick-num:hover {
+        color: #f8fafc;
+      }
+      .radius-tick-num.active {
+        color: #10b981;
+        font-weight: 800;
+        font-size: 11px;
       }
 
       /* Floating Confirmation Bar for Changing Reference Point */
@@ -533,37 +635,59 @@
         display: none;
         font-family: 'Noto Sans Thai', 'Inter', sans-serif;
         box-sizing: border-box;
-        transform: translate(-50%, -100%);
-        margin-top: -24px;
-        transform-origin: bottom center;
+        transform-origin: left center;
         pointer-events: auto;
+      }
+      #property-card.popup-on-left {
+        transform-origin: right center;
+      }
+      #property-card.popup-on-right,
+      #property-card {
+        transform-origin: left center;
       }
       #property-card::after {
         content: '';
         position: absolute;
-        bottom: -10px;
-        left: 50%;
-        transform: translateX(-50%);
+        left: -10px;
+        right: auto;
+        bottom: auto;
+        top: var(--arrow-top, 50%);
+        transform: translateY(-50%);
         width: 0;
         height: 0;
-        border-left: 10px solid transparent;
-        border-right: 10px solid transparent;
-        border-top: 10px solid rgba(255, 255, 255, 0.98);
+        border-top: 10px solid transparent;
+        border-bottom: 10px solid transparent;
+        border-right: 10px solid rgba(255, 255, 255, 0.98);
+        border-left: none;
+        transition: top 0.1s ease;
       }
       body.dark-theme #property-card::after {
-        border-top-color: rgba(15, 23, 42, 0.96);
+        border-right-color: rgba(15, 23, 42, 0.96);
+      }
+      #property-card.popup-on-left::after {
+        left: auto;
+        right: -10px;
+        top: var(--arrow-top, 50%);
+        transform: translateY(-50%);
+        border-top: 10px solid transparent;
+        border-bottom: 10px solid transparent;
+        border-left: 10px solid rgba(255, 255, 255, 0.98);
+        border-right: none;
+      }
+      body.dark-theme #property-card.popup-on-left::after {
+        border-left-color: rgba(15, 23, 42, 0.96);
       }
       #property-card.show {
         display: block;
       }
       #property-card.card-pop-in {
-        animation: cardPopIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        animation: cardPopIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
       }
       #property-card.card-pulse-bounce {
-        animation: cardBounceUpdateLight 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        animation: cardBounceUpdateLight 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
       }
       #property-card.card-fade-out {
-        animation: cardFadeOut 0.18s cubic-bezier(0.4, 0, 1, 1) forwards;
+        animation: cardFadeOut 0.15s cubic-bezier(0.4, 0, 1, 1) forwards;
       }
 
       body.dark-theme #property-card {
@@ -573,49 +697,49 @@
         box-shadow: 0 20px 45px -8px rgba(0, 0, 0, 0.65);
       }
       body.dark-theme #property-card.card-pulse-bounce {
-        animation: cardBounceUpdateDark 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        animation: cardBounceUpdateDark 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
       }
 
       @keyframes cardPopIn {
         0% {
           opacity: 0;
-          transform: translate(-50%, -85%) scale(0.92);
+          transform: scale(0.92);
         }
         100% {
           opacity: 1;
-          transform: translate(-50%, -100%) scale(1);
+          transform: scale(1);
         }
       }
       @keyframes cardBounceUpdateLight {
         0% {
-          transform: translate(-50%, -100%) scale(0.97);
+          transform: scale(0.97);
         }
         50% {
-          transform: translate(-50%, -100%) scale(1.02);
+          transform: scale(1.02);
         }
         100% {
-          transform: translate(-50%, -100%) scale(1);
+          transform: scale(1);
         }
       }
       @keyframes cardBounceUpdateDark {
         0% {
-          transform: translate(-50%, -100%) scale(0.97);
+          transform: scale(0.97);
         }
         50% {
-          transform: translate(-50%, -100%) scale(1.02);
+          transform: scale(1.02);
         }
         100% {
-          transform: translate(-50%, -100%) scale(1);
+          transform: scale(1);
         }
       }
       @keyframes cardFadeOut {
         0% {
           opacity: 1;
-          transform: translate(-50%, -100%) scale(1);
+          transform: scale(1);
         }
         100% {
           opacity: 0;
-          transform: translate(-50%, -92%) scale(0.94);
+          transform: scale(0.94);
         }
       }
 
@@ -626,6 +750,34 @@
         left: 16px;
         z-index: 999;
         font-family: 'Noto Sans Thai', 'Inter', sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+        pointer-events: auto;
+      }
+      .map-filter-controls-stack {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+      }
+      #map-location-group {
+        position: relative;
+        z-index: 1000;
+      }
+      .map-filter-subrow {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+        position: relative;
+      }
+      .map-filter-controls-stack > .map-filter-subrow:nth-child(2) {
+        z-index: 900;
+      }
+      .map-filter-controls-stack > .map-filter-subrow:nth-child(3) {
+        z-index: 800;
       }
       .map-filter-toggle-btn {
         background: rgba(255, 255, 255, 0.95);
@@ -664,6 +816,273 @@
         font-weight: 800;
         padding: 1px 6px;
         border-radius: 9999px;
+      }
+      /* In-Map Unified Location Selector Bar (Province | District | Subdistrict) */
+      .map-location-group {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1.5px solid rgba(16, 185, 129, 0.35);
+        border-radius: 9999px;
+        padding: 4px 12px;
+        font-family: inherit;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        user-select: none;
+        max-width: calc(100vw - 160px);
+        overflow: visible;
+      }
+      .map-location-group:hover {
+        background: #ffffff;
+        border-color: #10b981;
+        box-shadow: 0 6px 20px rgba(16, 185, 129, 0.22);
+      }
+      body.dark-theme .map-location-group {
+        background: rgba(15, 23, 42, 0.94);
+        border-color: rgba(16, 185, 129, 0.4);
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+      }
+      .map-loc-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        flex-shrink: 0;
+      }
+      .loc-sep {
+        width: 1px;
+        height: 16px;
+        background: #cbd5e1;
+        flex-shrink: 0;
+      }
+      body.dark-theme .loc-sep {
+        background: #334155;
+      }
+      .combobox-container {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+      }
+      .inmap-loc-input {
+        border: none;
+        background: transparent;
+        font-family: inherit;
+        font-size: 12px;
+        font-weight: 700;
+        color: #065f46;
+        cursor: text;
+        outline: none;
+        padding: 2px 2px;
+        width: 95px;
+        transition: width 0.2s ease, color 0.15s ease;
+      }
+      #inmap-province-input { width: 92px; }
+      #inmap-district-input { width: 85px; }
+      #inmap-subdistrict-input { width: 85px; }
+      #inmap-project-input { width: 125px; }
+
+      .inmap-loc-input:focus {
+        color: #047857;
+      }
+      .inmap-loc-input::placeholder {
+        color: #059669;
+        font-weight: 600;
+        opacity: 0.85;
+      }
+      body.dark-theme .inmap-loc-input {
+        color: #34d399;
+      }
+      body.dark-theme .inmap-loc-input::placeholder {
+        color: #6ee7b7;
+        opacity: 0.75;
+      }
+      .inmap-loc-input:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+        color: #94a3b8;
+      }
+      body.dark-theme .inmap-loc-input:disabled {
+        color: #64748b;
+      }
+      .combobox-chevron {
+        font-size: 9px;
+        color: #059669;
+        cursor: pointer;
+        transition: transform 0.2s ease, color 0.15s ease;
+        padding: 2px 3px;
+        display: inline-flex;
+        align-items: center;
+      }
+      body.dark-theme .combobox-chevron {
+        color: #34d399;
+      }
+      .combobox-chevron.open {
+        transform: rotate(180deg);
+      }
+      .combobox-menu {
+        position: absolute;
+        top: calc(100% + 8px);
+        left: 0;
+        min-width: 175px;
+        max-width: 290px;
+        max-height: 240px;
+        overflow-y: auto;
+        background: rgba(255, 255, 255, 0.98);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1.5px solid rgba(16, 185, 129, 0.2);
+        border-radius: 12px;
+        box-shadow: 0 16px 36px -6px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(0, 0, 0, 0.06);
+        z-index: 100005;
+        padding: 5px;
+        box-sizing: border-box;
+      }
+      body.dark-theme .combobox-menu {
+        background: rgba(15, 23, 42, 0.96);
+        border-color: rgba(52, 211, 153, 0.25);
+        box-shadow: 0 16px 36px -6px rgba(0, 0, 0, 0.65);
+      }
+      .combobox-option {
+        padding: 6px 10px;
+        font-size: 12px;
+        font-weight: 600;
+        color: #1e293b;
+        border-radius: 7px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        transition: background 0.1s ease, color 0.1s ease;
+      }
+      body.dark-theme .combobox-option {
+        color: #f1f5f9;
+      }
+      .combobox-option:hover,
+      .combobox-option.highlighted {
+        background: #ecfdf5;
+        color: #047857;
+      }
+      body.dark-theme .combobox-option:hover,
+      body.dark-theme .combobox-option.highlighted {
+        background: rgba(16, 185, 129, 0.2);
+        color: #34d399;
+      }
+      .combobox-option.selected {
+        background: #10b981;
+        color: #ffffff;
+        font-weight: 700;
+      }
+      body.dark-theme .combobox-option.selected {
+        background: #059669;
+        color: #ffffff;
+      }
+      .combobox-empty {
+        padding: 8px 10px;
+        font-size: 11.5px;
+        color: #94a3b8;
+        text-align: center;
+        font-style: italic;
+      }
+      .inmap-loc-dropdown {
+        border: none;
+        background: transparent;
+        font-family: inherit;
+        font-size: 12px;
+        font-weight: 700;
+        color: #065f46;
+        cursor: pointer;
+        outline: none;
+        padding: 2px 4px;
+        max-width: 140px;
+      }
+      body.dark-theme .inmap-loc-dropdown {
+        color: #34d399;
+      }
+      .inmap-loc-dropdown:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+        color: #94a3b8;
+      }
+      body.dark-theme .inmap-loc-dropdown:disabled {
+        color: #64748b;
+      }
+      .inmap-loc-dropdown option {
+        background: #ffffff;
+        color: #1e293b;
+      }
+      body.dark-theme .inmap-loc-dropdown option {
+        background: #0f172a;
+        color: #f8fafc;
+      }
+      .inmap-search-input {
+        border: none;
+        background: transparent;
+        font-family: inherit;
+        font-size: 12px;
+        font-weight: 600;
+        color: #065f46;
+        outline: none;
+        padding: 2px 4px;
+        width: 105px;
+        transition: width 0.2s ease;
+      }
+      .inmap-search-input:focus {
+        width: 130px;
+        color: #047857;
+      }
+      #inmap-coord-input {
+        width: 140px;
+      }
+      #inmap-coord-input:focus {
+        width: 175px;
+      }
+      body.dark-theme .inmap-search-input {
+        color: #34d399;
+      }
+      body.dark-theme .inmap-search-input::placeholder {
+        color: #64748b;
+      }
+      .inmap-search-btn {
+        border: none;
+        background: #10b981;
+        color: #ffffff;
+        border-radius: 9999px;
+        width: 20px;
+        height: 20px;
+        font-size: 10px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.15s ease;
+      }
+      .inmap-search-btn:hover {
+        background: #059669;
+        transform: scale(1.08);
+      }
+      .inmap-clear-btn {
+        border: none;
+        background: rgba(239, 68, 68, 0.15);
+        color: #ef4444;
+        border-radius: 9999px;
+        width: 18px;
+        height: 18px;
+        font-size: 9.5px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.15s ease;
+      }
+      .inmap-clear-btn:hover {
+        background: #ef4444;
+        color: #ffffff;
       }
       .map-filter-panel {
         margin-top: 8px;
@@ -1312,26 +1731,68 @@
       .district-label-pill {
         position: absolute;
         transform: translate(-50%, -50%);
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(6px);
-        border: 1.5px solid #10b981;
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.97), rgba(236, 253, 245, 0.95));
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        border: 2.5px solid #059669;
         color: #065f46;
         font-family: 'Noto Sans Thai', 'Inter', sans-serif;
-        font-size: 11.5px;
-        font-weight: 700;
-        padding: 2.5px 8px;
+        font-size: 12.5px;
+        font-weight: 800;
+        padding: 4px 12px;
         border-radius: 9999px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.16);
+        box-shadow: 0 3px 14px rgba(5, 150, 105, 0.3), 0 0 0 2px rgba(255, 255, 255, 0.9);
         white-space: nowrap;
         pointer-events: none;
         z-index: 15;
         transition: opacity 0.2s ease;
+        letter-spacing: 0.2px;
       }
       body.dark-theme .district-label-pill {
-        background: rgba(15, 23, 42, 0.92);
-        border: 1.5px solid #34d399;
-        color: #34d399;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.94), rgba(6, 78, 59, 0.25));
+        border: 2.5px solid #10b981;
+        color: #6ee7b7;
+        box-shadow: 0 3px 14px rgba(16, 185, 129, 0.4), 0 0 0 2px rgba(16, 185, 129, 0.3);
+      }
+      .district-label-pill.active-subdist {
+        background: linear-gradient(135deg, #059669, #10b981) !important;
+        border: 2.5px solid #ffffff !important;
+        color: #ffffff !important;
+        font-weight: 800 !important;
+        box-shadow: 0 4px 16px rgba(16, 185, 129, 0.6) !important;
+        transform: translate(-50%, -50%) scale(1.12) !important;
+        z-index: 25 !important;
+      }
+      body.dark-theme .district-label-pill.active-subdist {
+        background: linear-gradient(135deg, #059669, #10b981) !important;
+        border: 2.5px solid #ffffff !important;
+        color: #ffffff !important;
+        box-shadow: 0 4px 18px rgba(16, 185, 129, 0.8) !important;
+      }
+
+      /* Active Reference Point Pill in Toolbar */
+      #active-ref-pill {
+        display: none;
+        align-items: center;
+        gap: 6px;
+        background: rgba(16, 185, 129, 0.14);
+        border: 1.5px solid #10b981;
+        border-radius: 9999px;
+        padding: 4px 12px;
+        font-size: 11.5px;
+        color: #047857;
+        font-weight: 700;
+        white-space: nowrap;
+        box-shadow: 0 2px 6px rgba(16, 185, 129, 0.15);
+      }
+      body.dark-theme #active-ref-pill {
+        background: rgba(16, 185, 129, 0.22);
+        border-color: #34d399;
+        color: #6ee7b7;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+      }
+      body.dark-theme #active-ref-pill b {
+        color: #a7f3d0 !important;
       }
 
       /* In-Map Anchored Confirmation Bubble */
@@ -1444,16 +1905,90 @@
     <div id="map"></div>
     <!-- Vector-Crisp SVG Boundary Overlay (Dashed District Lines) -->
     <svg id="boundary-svg" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; overflow: hidden;"></svg>
-    <!-- District Centroid Name Labels -->
-    <div id="district-labels-container" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 15; overflow: hidden;"></div>
+    <!-- District & Subdistrict Centroid Name Badges -->
+    <div id="district-labels-container" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 25;"></div>
 
     <!-- In-Map Realtime Floating Filter Bar (Top-Left) -->
     <div id="map-filter-controls">
-      <button type="button" class="map-filter-toggle-btn" id="map-filter-toggle-btn" onclick="toggleFilterPanel()" title="กรองข้อมูลทรัพย์สินในแผนที่">
-        <i class="fa-solid fa-sliders" style="color: #2563eb;"></i>
-        <span>ตัวกรองในแผนที่</span>
-        <span class="filter-count-badge" id="inmap-filter-badge" style="display:none;">0</span>
-      </button>
+      <div class="map-filter-controls-stack">
+        <!-- แถวที่ 1: ตัวกรองทำเลที่ตั้ง (จังหวัด | อำเภอ | ตำบล) แบบพิมพ์กรอก/ค้นหาได้ -->
+        <div class="map-location-group" id="map-location-group" title="เลือก/พิมพ์ค้นหาทำเลที่ตั้ง (จังหวัด / อำเภอ / ตำบล)">
+          <div class="map-loc-item combobox-container" id="combo-container-prov" title="เลือก/พิมพ์ค้นหาจังหวัด">
+            <i class="fa-solid fa-city" style="color: #10b981; font-size: 12px;"></i>
+            <input type="text" id="inmap-province-input" class="inmap-loc-input" placeholder="ทุกจังหวัด" autocomplete="off" onfocus="openCombobox('prov')" oninput="handleComboboxInput('prov', this)" onkeydown="handleComboboxKeydown('prov', event)" />
+            <i class="fa-solid fa-chevron-down combobox-chevron" id="combo-chevron-prov" onclick="toggleCombobox('prov')" title="เปิดรายการ"></i>
+            <div class="combobox-menu" id="combo-menu-prov" style="display: none;"></div>
+          </div>
+
+          <div class="loc-sep"></div>
+
+          <div class="map-loc-item combobox-container" id="combo-container-dist" title="เลือก/พิมพ์ค้นหาอำเภอ/เขต">
+            <i class="fa-solid fa-map-location-dot" style="color: #06b6d4; font-size: 12px;"></i>
+            <input type="text" id="inmap-district-input" class="inmap-loc-input" placeholder="ทุกอำเภอ/เขต" autocomplete="off" disabled onfocus="openCombobox('dist')" oninput="handleComboboxInput('dist', this)" onkeydown="handleComboboxKeydown('dist', event)" />
+            <i class="fa-solid fa-chevron-down combobox-chevron" id="combo-chevron-dist" onclick="toggleCombobox('dist')" title="เปิดรายการ"></i>
+            <div class="combobox-menu" id="combo-menu-dist" style="display: none;"></div>
+          </div>
+
+          <div class="loc-sep"></div>
+
+          <div class="map-loc-item combobox-container" id="combo-container-subdist" title="เลือก/พิมพ์ค้นหาตำบล/แขวง">
+            <i class="fa-solid fa-house-chimney" style="color: #8b5cf6; font-size: 12px;"></i>
+            <input type="text" id="inmap-subdistrict-input" class="inmap-loc-input" placeholder="ทุกตำบล/แขวง" autocomplete="off" disabled onfocus="openCombobox('subdist')" oninput="handleComboboxInput('subdist', this)" onkeydown="handleComboboxKeydown('subdist', event)" />
+            <i class="fa-solid fa-chevron-down combobox-chevron" id="combo-chevron-subdist" onclick="toggleCombobox('subdist')" title="เปิดรายการ"></i>
+            <div class="combobox-menu" id="combo-menu-subdist" style="display: none;"></div>
+          </div>
+        </div>
+
+        <!-- แถวที่ 2: รหัสทรัพย์ + โครงการ SAM (แบบพิมพ์ค้นหาได้) -->
+        <div class="map-filter-subrow">
+          <!-- In-Map Property ID Reference Search Input -->
+          <div class="map-location-group" id="map-prop-search-group" title="กำหนดจุดอ้างอิงจากรหัสทรัพย์สิน (Property ID)">
+            <div class="map-loc-item" style="gap: 5px;">
+              <i class="fa-solid fa-magnifying-glass" style="color: #059669; font-size: 11.5px;"></i>
+              <input type="text" id="inmap-prop-search-input" class="inmap-search-input" placeholder="รหัสทรัพย์..." onkeydown="if(event.key==='Enter') searchPropertyIdAsReference(this.value)" />
+              <button type="button" class="inmap-search-btn" onclick="searchPropertyIdAsReference(document.getElementById('inmap-prop-search-input').value)" title="ค้นหาและปักหมุดอ้างอิง">
+                <i class="fa-solid fa-crosshairs"></i>
+              </button>
+              <button type="button" id="inmap-clear-search-btn" class="inmap-clear-btn" style="display: none;" onclick="clearInMapPropSearch()" title="ล้างรหัสทรัพย์">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- In-Map Custom Coordinate Input -->
+          <div class="map-location-group" id="map-coord-search-group" title="กรอกพิกัดเอง (ละติจูด, ลองจิจูด) เช่น 13.7563, 100.5018">
+            <div class="map-loc-item" style="gap: 5px;">
+              <i class="fa-solid fa-location-crosshairs" style="color: #10b981; font-size: 11.5px;"></i>
+              <input type="text" id="inmap-coord-input" class="inmap-search-input" placeholder="พิกัด ละติจูด, ลองจิจูด..." onkeydown="if(event.key==='Enter') searchCustomCoordinatesAsReference(this.value)" />
+              <button type="button" class="inmap-search-btn" onclick="searchCustomCoordinatesAsReference(document.getElementById('inmap-coord-input').value)" title="ปักหมุดจุดอ้างอิงตามพิกัดนี้">
+                <i class="fa-solid fa-arrow-right-to-bracket"></i>
+              </button>
+              <button type="button" id="inmap-clear-coord-btn" class="inmap-clear-btn" style="display: none;" onclick="clearInMapCustomCoord()" title="ล้างพิกัด">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- แถวที่ 3: ตัวกรองตามแผนที่ + โครงการ SAM -->
+        <div class="map-filter-subrow">
+          <button type="button" class="map-filter-toggle-btn" id="map-filter-toggle-btn" onclick="toggleFilterPanel()" title="กรองข้อมูลทรัพย์สินในแผนที่">
+            <i class="fa-solid fa-sliders" style="color: #2563eb;"></i>
+            <span>ตัวกรองตามแผนที่</span>
+            <span class="filter-count-badge" id="inmap-filter-badge" style="display:none;">0</span>
+          </button>
+
+          <!-- In-Map Dedicated Project Selector Pill (Searchable Combobox for SAM Projects) -->
+          <div class="map-location-group" id="map-project-group" title="เลือก/พิมพ์ค้นหาโครงการเดียวกับ SAM (ดึงทรัพย์สินทั้งหมดในโครงการนี้จากทุกสถาบัน/คู่แข่ง)">
+            <div class="map-loc-item combobox-container" id="combo-container-prj">
+              <i class="fa-solid fa-building-flag" style="color: #059669; font-size: 12px;"></i>
+              <input type="text" id="inmap-project-input" class="inmap-loc-input" placeholder="ทุกโครงการ SAM" autocomplete="off" style="width: 135px;" onfocus="openCombobox('prj')" oninput="handleComboboxInput('prj', this)" onkeydown="handleComboboxKeydown('prj', event)" />
+              <i class="fa-solid fa-chevron-down combobox-chevron" id="combo-chevron-prj" onclick="toggleCombobox('prj')" title="เปิดรายการโครงการ SAM"></i>
+              <div class="combobox-menu" id="combo-menu-prj" style="display: none;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <div class="map-filter-panel" id="map-filter-panel" style="display: none;">
         <div class="filter-panel-header">
@@ -1482,12 +2017,52 @@
         </div>
 
         <!-- Filter 4: ช่วงราคา -->
-        <div class="filter-section" style="margin-bottom: 0;">
+        <div class="filter-section">
           <div class="filter-section-title"><i class="fa-solid fa-tags"></i> ช่วงราคา (บาท)</div>
           <div style="display: flex; align-items: center; gap: 6px;">
             <input type="number" id="filter-min-price" class="inmap-price-input" placeholder="ราคาต่ำสุด" oninput="applyInMapFilters()">
             <span style="font-size: 11px; color: #94a3b8;">-</span>
             <input type="number" id="filter-max-price" class="inmap-price-input" placeholder="ราคาสูงสุด" oninput="applyInMapFilters()">
+          </div>
+        </div>
+
+        <!-- Filter 5: ขนาดเนื้อที่ดิน (ตร.ว.) -->
+        <div class="filter-section">
+          <div class="filter-section-title"><i class="fa-solid fa-vector-square"></i> ขนาดเนื้อที่ดิน (ตร.ว.)</div>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <input type="number" id="filter-min-sqw" class="inmap-price-input" placeholder="ต่ำสุด (ตร.ว.)" oninput="applyInMapFilters()">
+            <span style="font-size: 11px; color: #94a3b8;">-</span>
+            <input type="number" id="filter-max-sqw" class="inmap-price-input" placeholder="สูงสุด (ตร.ว.)" oninput="applyInMapFilters()">
+          </div>
+        </div>
+
+        <!-- Filter 6: พื้นที่ใช้สอย (ตร.ม.) -->
+        <div class="filter-section">
+          <div class="filter-section-title"><i class="fa-solid fa-ruler-combined"></i> พื้นที่ใช้สอย (ตร.ม.)</div>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <input type="number" id="filter-min-sqm" class="inmap-price-input" placeholder="ต่ำสุด (ตร.ม.)" oninput="applyInMapFilters()">
+            <span style="font-size: 11px; color: #94a3b8;">-</span>
+            <input type="number" id="filter-max-sqm" class="inmap-price-input" placeholder="สูงสุด (ตร.ม.)" oninput="applyInMapFilters()">
+          </div>
+        </div>
+
+        <!-- Filter 7: ราคาต่อ ตร.ว. (บาท/ตร.ว.) -->
+        <div class="filter-section">
+          <div class="filter-section-title"><i class="fa-solid fa-chart-line"></i> ราคาต่อ ตร.ว. (บาท)</div>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <input type="number" id="filter-min-puw" class="inmap-price-input" placeholder="ต่ำสุด (฿/ตร.ว.)" oninput="applyInMapFilters()">
+            <span style="font-size: 11px; color: #94a3b8;">-</span>
+            <input type="number" id="filter-max-puw" class="inmap-price-input" placeholder="สูงสุด (฿/ตร.ว.)" oninput="applyInMapFilters()">
+          </div>
+        </div>
+
+        <!-- Filter 8: ราคาต่อ ตร.ม. (บาท/ตร.ม.) -->
+        <div class="filter-section" style="margin-bottom: 0;">
+          <div class="filter-section-title"><i class="fa-solid fa-building"></i> ราคาต่อ ตร.ม. (บาท)</div>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <input type="number" id="filter-min-pum" class="inmap-price-input" placeholder="ต่ำสุด (฿/ตร.ม.)" oninput="applyInMapFilters()">
+            <span style="font-size: 11px; color: #94a3b8;">-</span>
+            <input type="number" id="filter-max-pum" class="inmap-price-input" placeholder="สูงสุด (฿/ตร.ม.)" oninput="applyInMapFilters()">
           </div>
         </div>
       </div>
@@ -1542,11 +2117,23 @@
       </div>
       <div id="card-title" class="card-title">ชื่อประกาศทรัพย์สิน</div>
       <div id="card-price" class="card-price">฿0 บาท</div>
+      <div id="card-unit-price-pills" style="display:flex; gap:6px; flex-wrap:wrap; margin: -2px 0 8px 0;">
+        <span id="card-pill-puw" class="card-unit-pill" style="display:none; font-size:11px; font-weight:700; background:rgba(16,185,129,0.12); color:#059669; padding:2px 8px; border-radius:6px; border:1px solid rgba(16,185,129,0.25);"><i class="fa-solid fa-chart-line" style="margin-right:3px;"></i><span id="card-pill-puw-val">-</span></span>
+        <span id="card-pill-pum" class="card-unit-pill" style="display:none; font-size:11px; font-weight:700; background:rgba(2,132,199,0.12); color:#0284c7; padding:2px 8px; border-radius:6px; border:1px solid rgba(2,132,199,0.25);"><i class="fa-solid fa-building" style="margin-right:3px;"></i><span id="card-pill-pum-val">-</span></span>
+      </div>
       <div class="card-grid">
         <span class="card-grid-label"><i class="fa-solid fa-hashtag" style="color: #64748b; margin-right: 4px;"></i>รหัสทรัพย์:</span>
         <span id="card-id" class="card-grid-val">-</span>
         <span class="card-grid-label"><i class="fa-solid fa-house-chimney" style="color: #64748b; margin-right: 4px;"></i>ประเภท:</span>
         <span id="card-type" class="card-grid-val">-</span>
+        <span class="card-grid-label"><i class="fa-solid fa-vector-square" style="color: #64748b; margin-right: 4px;"></i>เนื้อที่:</span>
+        <span id="card-sqw" class="card-grid-val">-</span>
+        <span class="card-grid-label"><i class="fa-solid fa-ruler-combined" style="color: #64748b; margin-right: 4px;"></i>พื้นที่ใช้สอย:</span>
+        <span id="card-sqm" class="card-grid-val">-</span>
+        <span class="card-grid-label"><i class="fa-solid fa-chart-line" style="color: #64748b; margin-right: 4px;"></i>ราคา/ตร.ว.:</span>
+        <span id="card-puw" class="card-grid-val" style="color:#059669; font-weight:700;">-</span>
+        <span class="card-grid-label"><i class="fa-solid fa-building" style="color: #64748b; margin-right: 4px;"></i>ราคา/ตร.ม.:</span>
+        <span id="card-pum" class="card-grid-val" style="color:#0284c7; font-weight:700;">-</span>
         <span class="card-grid-label"><i class="fa-solid fa-location-dot" style="color: #64748b; margin-right: 4px;"></i>จังหวัด:</span>
         <span id="card-prov" class="card-grid-val">-</span>
         <span class="card-grid-label"><i class="fa-solid fa-city" style="color: #64748b; margin-right: 4px;"></i>อำเภอ/เขต:</span>
@@ -1562,7 +2149,7 @@
           <button id="btn-led-help" type="button" class="btn-secondary-action" style="padding:0 12px; font-size:11.5px; flex:0 0 auto; color:#0d9488; font-weight:700; border-color:rgba(13,148,136,0.4);" onclick="openLandsmapsHelperModal()" title="วิธีตั้งค่าปุ่มค้นหาอัตโนมัติ 1-คลิก บน LandsMaps"><i class="fa-solid fa-wand-magic-sparkles"></i> ตั้งค่าออโต้</button>
         </div>
         <button id="btn-gmap" class="btn-secondary-action" onclick="openGoogleMaps()"><i class="fa-solid fa-map"></i> แผนที่ Google</button>
-        <button id="btn-set-ref-card" class="btn-primary-link" style="background: linear-gradient(135deg, #059669, #047857); color: #ffffff; width: 100%; margin-top: 4px; box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);" onclick="setCardAsReferencePoint()"><i class="fa-solid fa-crosshairs"></i> วิเคราะห์ราคากลางรอบทรัพย์นี้ (Card ด้านล่าง)</button>
+        <button id="btn-set-ref-card" class="btn-primary-link" style="background: linear-gradient(135deg, #059669, #047857); color: #ffffff; width: 100%; margin-top: 4px; box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);" onclick="setCardAsReferencePoint()"><i class="fa-solid fa-crosshairs"></i> ตั้งเป็นจุดอ้างอิงเปรียบเทียบ (ดูด้านล่าง)</button>
       </div>
     </div>
 
@@ -1640,36 +2227,48 @@
 
       <div class="radius-sep"></div>
 
-      <!-- Interactive Radius Range Slider (Slider Only with Ticks & Min Indicator) -->
+      <!-- Interactive Radius Range Slider (Continuous Smooth Slider from 50m to 20km) -->
       <div class="radius-slider-box">
         <div class="radius-slider-top-row">
           <span class="radius-header-title" style="font-size: 11.5px;"><i class="fa-solid fa-crosshairs" style="color:#10b981; margin-right:4px;"></i>รัศมีตรวจ:</span>
-          <span id="radius-slider-val" class="radius-slider-label">5.0 กม. (ต่ำสุด 0.5k)</span>
+          <span id="radius-slider-val" class="radius-slider-label" onclick="promptCustomRadius()" title="คลิกเพื่อพิมพ์ระบุรัศมีที่ต้องการ (เช่น 0.05, 0.8, 3.5)" style="cursor:pointer;">5.0 กม.</span>
         </div>
-        <input type="range" id="radius-range-slider" min="0.5" max="20" step="0.5" value="5" list="radius-marks-list" oninput="onRadiusSliderInput(this.value)">
-        <datalist id="radius-marks-list">
-          <option value="0.5"></option>
-          <option value="2"></option>
-          <option value="5"></option>
-          <option value="10"></option>
-          <option value="15"></option>
-          <option value="20"></option>
-        </datalist>
+        <div class="radius-slider-wrap">
+          <div class="radius-track-ticks">
+            <div class="radius-track-tick" data-val="0.05" style="left: calc(8px + (100% - 16px) * 0.0);"></div>
+            <div class="radius-track-tick" data-val="0.5" style="left: calc(8px + (100% - 16px) * 0.2);"></div>
+            <div class="radius-track-tick" data-val="2" style="left: calc(8px + (100% - 16px) * 0.4);"></div>
+            <div class="radius-track-tick active" data-val="5" style="left: calc(8px + (100% - 16px) * 0.6);"></div>
+            <div class="radius-track-tick" data-val="10" style="left: calc(8px + (100% - 16px) * 0.8);"></div>
+            <div class="radius-track-tick" data-val="20" style="left: calc(8px + (100% - 16px) * 1.0);"></div>
+          </div>
+          <input type="range" id="radius-range-slider" min="0" max="100" step="0.5" value="60" oninput="onContinuousRadiusInput(this.value)">
+        </div>
         <div class="radius-ticks-marks">
-          <span style="color:#10b981; font-weight:700;">0.5k (ต่ำสุด)</span>
-          <span>2k</span>
-          <span>5k</span>
-          <span>10k</span>
-          <span>15k</span>
-          <span>20k</span>
+          <span class="radius-tick-num" data-val="0.05" style="left: calc(8px + (100% - 16px) * 0.0);" onclick="setInspectionRadius(0.05)" title="50 เมตร">50m</span>
+          <span class="radius-tick-num" data-val="0.5" style="left: calc(8px + (100% - 16px) * 0.2);" onclick="setInspectionRadius(0.5)" title="0.5 กม. (500 ม.)">0.5</span>
+          <span class="radius-tick-num" data-val="2" style="left: calc(8px + (100% - 16px) * 0.4);" onclick="setInspectionRadius(2)" title="2 กม.">2</span>
+          <span class="radius-tick-num active" data-val="5" style="left: calc(8px + (100% - 16px) * 0.6);" onclick="setInspectionRadius(5)" title="5 กม.">5</span>
+          <span class="radius-tick-num" data-val="10" style="left: calc(8px + (100% - 16px) * 0.8);" onclick="setInspectionRadius(10)" title="10 กม.">10</span>
+          <span class="radius-tick-num" data-val="20" style="left: calc(8px + (100% - 16px) * 1.0);" onclick="setInspectionRadius(20)" title="20 กม.">20</span>
         </div>
       </div>
 
       <div class="radius-sep"></div>
 
-      <div id="radius-status-badge" class="radius-status-badge">
-        <i class="fa-solid fa-location-crosshairs" id="radius-status-icon" style="color: #10b981;"></i>
-        <span id="radius-status-text">คลิกบนแผนที่เพื่อกำหนดจุดอ้างอิง</span>
+      <!-- In-Map Pin Display Mode Toggle (Location vs Radius) -->
+      <div class="map-pin-mode-toggle" id="map-pin-mode-toggle" title="เลือกรูปแบบการแสดงหมุดทรัพย์สิน">
+        <button type="button" class="pin-mode-btn" id="btn-mode-location" onclick="setMapPinMode('location')" title="แสดงหมุดทั้งหมดตามทำเล (จังหวัด / อำเภอ / ตำบล)">
+          <i class="fa-solid fa-map-pin"></i> <span>ตามทำเล</span>
+        </button>
+        <button type="button" class="pin-mode-btn active" id="btn-mode-radius" onclick="setMapPinMode('radius')" title="แสดงหมุดเฉพาะในวงรัศมีรอบจุดอ้างอิง">
+          <i class="fa-solid fa-bullseye"></i> <span>ตามรัศมี</span>
+        </button>
+      </div>
+
+      <div id="active-ref-pill" title="พิกัดจุดอ้างอิงปัจจุบัน">
+        <i class="fa-solid fa-location-crosshairs" style="color:#10b981;"></i>
+        <span>พิกัด: <b id="active-ref-coord-text" style="color:#047857;">-</b></span>
       </div>
 
       <button type="button" id="btn-clear-ref" class="radius-action-btn" style="display:none;" onclick="clearReferencePoint()" title="ล้างจุดอ้างอิงและซ่อนจุด">
@@ -1704,6 +2303,8 @@
     <!-- Load JS libraries from CDN -->
     <script src="https://cdn.jsdelivr.net/npm/d3-dsv@3/dist/d3-dsv.min.js"></script>
     <script src="https://unpkg.com/deck.gl@9.0.16/dist.min.js"></script>
+    <script src="/app/static/provinces_geojson.js"></script>
+    <script src="provinces_geojson.js"></script>
 
     <script>
       const loader = document.getElementById('loader');
@@ -1859,11 +2460,49 @@
         const viewport = getDeckViewport();
         if (!viewport) return;
         const [px, py] = viewport.project(activeCardCoord);
+        if (isNaN(px) || isNaN(py)) return;
 
-        // Always anchor popup directly centered above the pin
-        card.style.left = `${px.toFixed(1)}px`;
-        card.style.top = `${py.toFixed(1)}px`;
-        card.style.transform = 'translate(-50%, -100%)';
+        const mapEl = document.getElementById('map');
+        const mapW = (mapEl && mapEl.clientWidth) || window.innerWidth || 800;
+        const mapH = (mapEl && mapEl.clientHeight) || window.innerHeight || 600;
+
+        // Card dimensions
+        const cardW = card.offsetWidth || 340;
+        const cardH = card.offsetHeight || 380;
+
+        // Anchor popup to the RIGHT of the property pin
+        let isRightSide = true;
+        let left = px + 18; // 18px clearance to the right of the pin
+        let top = py - (cardH / 2); // vertically centered with pin
+
+        // Guard: If not enough room on the right edge of screen, flip to the left
+        if (left + cardW > mapW - 12 && px - cardW - 18 >= 12) {
+          left = px - cardW - 18;
+          isRightSide = false;
+        }
+
+        // Horizontal boundary guard
+        const minLeft = 12;
+        const maxLeft = mapW - cardW - 12;
+        if (left < minLeft) left = minLeft;
+        if (left > maxLeft) left = maxLeft;
+
+        // Vertical boundary guard
+        const minTop = 16;
+        const maxTop = Math.max(16, mapH - cardH - 16);
+        if (top < minTop) top = minTop;
+        if (top > maxTop) top = maxTop;
+
+        const arrowPy = py - top;
+        const arrowPct = Math.max(12, Math.min(88, (arrowPy / cardH) * 100));
+
+        card.classList.toggle('popup-on-left', !isRightSide);
+        card.classList.toggle('popup-on-right', isRightSide);
+
+        card.style.left = `${left.toFixed(1)}px`;
+        card.style.top = `${top.toFixed(1)}px`;
+        card.style.setProperty('--arrow-top', `${arrowPct.toFixed(1)}%`);
+        card.style.transform = 'none';
       }
 
       function closePropertyCard() {
@@ -1979,6 +2618,46 @@
         const subdist = document.getElementById('card-subdist');
         if (subdist) subdist.innerText = d._subdistrict || '-';
 
+        // Area and Unit Price details
+        const sqwEl = document.getElementById('card-sqw');
+        if (sqwEl) {
+          sqwEl.innerText = (d._sqw && d._sqw > 0) ? `${d._sqw.toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})} ตร.ว.` : '-';
+        }
+        const sqmEl = document.getElementById('card-sqm');
+        if (sqmEl) {
+          sqmEl.innerText = (d._sqm && d._sqm > 0) ? `${d._sqm.toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})} ตร.ม.` : '-';
+        }
+        const puwEl = document.getElementById('card-puw');
+        if (puwEl) {
+          puwEl.innerText = (d._puw && d._puw > 0) ? `฿${Math.round(d._puw).toLocaleString()} / ตร.ว.` : '-';
+        }
+        const pumEl = document.getElementById('card-pum');
+        if (pumEl) {
+          pumEl.innerText = (d._pum && d._pum > 0) ? `฿${Math.round(d._pum).toLocaleString()} / ตร.ม.` : '-';
+        }
+
+        // Unit Price Pills under price
+        const pillPuw = document.getElementById('card-pill-puw');
+        const pillPuwVal = document.getElementById('card-pill-puw-val');
+        if (pillPuw && pillPuwVal) {
+          if (d._puw && d._puw > 0) {
+            pillPuwVal.innerText = `฿${Math.round(d._puw).toLocaleString()} / ตร.ว.`;
+            pillPuw.style.display = 'inline-flex';
+          } else {
+            pillPuw.style.display = 'none';
+          }
+        }
+        const pillPum = document.getElementById('card-pill-pum');
+        const pillPumVal = document.getElementById('card-pill-pum-val');
+        if (pillPum && pillPumVal) {
+          if (d._pum && d._pum > 0) {
+            pillPumVal.innerText = `฿${Math.round(d._pum).toLocaleString()} / ตร.ม.`;
+            pillPum.style.display = 'inline-flex';
+          } else {
+            pillPum.style.display = 'none';
+          }
+        }
+
         const link = (d._link || '').trim();
         if (link && link !== '-' && link !== 'nan' && link !== 'None') {
           btnLink.style.display = 'inline-flex';
@@ -2026,51 +2705,65 @@
         // Anchor popup to the exact clicked property pin coordinate
         activeCardCoord = [d.lon, d.lat];
         updatePropertyCardPosition();
+        requestAnimationFrame(() => updatePropertyCardPosition());
 
-        // Smoothly zoom camera close to the pin with downward offset to prevent popup overlap
+        // Smooth camera adjustment: pan map so clicked pin is slightly left of center (~mapW / 2 - 130px)
+        // leaving abundant room for the callout popup directly to the RIGHT of the pin!
         if (deckglInstance && d.lon && d.lat) {
-          const targetZoom = Math.max(currentViewState.zoom, 15.5);
+          const mapH = window.innerHeight;
+          const mapW = window.innerWidth;
+          const zoom = (currentViewState && currentViewState.zoom) || 12.5;
+
+          const desiredPinX = Math.max(80, (mapW / 2) - 130);
+          const deltaX = desiredPinX - (mapW / 2); // pixels pin is LEFT of map center
+
           let targetCenterLon = d.lon;
           let targetCenterLat = d.lat;
 
-          try {
-            // Position the pin at ~68% down the screen (below the 50% vertical center)
-            // so the 380px popup above the pin has abundant headroom below the top floating bar
-            const vp = new deck.WebMercatorViewport({
-              width: window.innerWidth,
-              height: window.innerHeight,
-              longitude: d.lon,
-              latitude: d.lat,
-              zoom: targetZoom
-            });
-            const pinDesiredY = window.innerHeight * 0.68;
-            const pixelDeltaY = pinDesiredY - (window.innerHeight / 2);
-            const newCenter = vp.unproject([window.innerWidth / 2, (window.innerHeight / 2) - pixelDeltaY]);
-            if (newCenter && !isNaN(newCenter[0]) && !isNaN(newCenter[1])) {
-              targetCenterLon = newCenter[0];
-              targetCenterLat = newCenter[1];
+          let calculated = false;
+          if (deck && deck.WebMercatorViewport) {
+            try {
+              const tempVp = new deck.WebMercatorViewport({
+                width: mapW,
+                height: mapH,
+                longitude: d.lon,
+                latitude: d.lat,
+                zoom: zoom,
+                pitch: 0,
+                bearing: 0
+              });
+              // The point that becomes map center is -deltaX pixels to the RIGHT of the pin:
+              const newCenter = tempVp.unproject([(mapW / 2) - deltaX, mapH / 2]);
+              if (newCenter && !isNaN(newCenter[0]) && !isNaN(newCenter[1])) {
+                targetCenterLon = newCenter[0];
+                targetCenterLat = newCenter[1];
+                calculated = true;
+              }
+            } catch(e) {
+              console.warn('Center offset calculation error:', e);
             }
-          } catch (e) {
-            // Fallback Web Mercator latitude offset (~160 pixels down)
-            const latOffset = (160 * 360) / (256 * Math.pow(2, targetZoom) * Math.cos(d.lat * Math.PI / 180));
-            targetCenterLat = d.lat + latOffset;
+          }
+
+          if (!calculated) {
+            const metersPerPixel = (156543.03392 * Math.cos(d.lat * Math.PI / 180)) / Math.pow(2, zoom);
+            const deltaMetersX = -deltaX * metersPerPixel;
+            targetCenterLon = d.lon + (deltaMetersX / (111320 * Math.cos(d.lat * Math.PI / 180)));
+            targetCenterLat = d.lat;
           }
 
           currentViewState = {
             ...currentViewState,
             longitude: targetCenterLon,
             latitude: targetCenterLat,
-            zoom: targetZoom,
-            transitionDuration: 600,
+            transitionDuration: 450,
             transitionInterpolator: new deck.FlyToInterpolator()
           };
-          deckglInstance.setProps({ initialViewState: currentViewState });
+          deckglInstance.setProps({ viewState: currentViewState });
 
-          // Smoothly track the pin throughout the 600ms FlyTo camera animation
           let animStartTime = performance.now();
           function followTransition() {
             updatePropertyCardPosition();
-            if (performance.now() - animStartTime < 700) {
+            if (performance.now() - animStartTime < 500) {
               requestAnimationFrame(followTransition);
             }
           }
@@ -2178,7 +2871,35 @@
         const lon = parseFloat(activePropertyData.lon);
         const id = (activePropertyData._id || '').trim();
 
-        setReferencePoint(lon, lat);
+        currentRefProp = activePropertyData;
+
+        // Sync geographic selections from this property
+        if (activePropertyData._prov && activePropertyData._prov !== '-' && activePropertyData._prov !== 'ไม่มีข้อมูล') {
+          currentSelectedProv = activePropertyData._prov.trim();
+          if (activePropertyData._district && activePropertyData._district !== '-' && activePropertyData._district !== 'ไม่มีข้อมูล') {
+            currentSelectedDist = activePropertyData._district.trim();
+          }
+          if (activePropertyData._subdistrict && activePropertyData._subdistrict !== '-' && activePropertyData._subdistrict !== 'ไม่มีข้อมูล') {
+            currentSelectedSubdist = activePropertyData._subdistrict.trim();
+          }
+          updateDistrictSubdistrictBoundaries();
+          syncComboboxInputs();
+        }
+
+        const inp = document.getElementById('inmap-prop-search-input');
+        const clr = document.getElementById('inmap-clear-search-btn');
+        if (inp && id) inp.value = id;
+        if (clr && id) clr.style.display = 'inline-flex';
+
+        if (mapPinMode === 'radius') {
+          setReferencePoint(lon, lat, true);
+        } else {
+          referencePoint = null;
+          applyInMapFilters();
+          updateDeckLayers();
+          updateSvgBoundaries();
+          smoothFlyTo(lon, lat, 15, 1200);
+        }
 
         // Synchronize to Streamlit analytics cards and table below map
         try {
@@ -2189,10 +2910,20 @@
           if (id && id !== '-') {
             u.searchParams.set('map_ref_id', id);
           }
-          window.parent.location.href = u.toString();
+          if (activePropertyData._prov && activePropertyData._prov !== '-' && activePropertyData._prov !== 'ไม่มีข้อมูล') {
+            u.searchParams.set('map_prov', activePropertyData._prov);
+          }
+          if (activePropertyData._district && activePropertyData._district !== '-' && activePropertyData._district !== 'ไม่มีข้อมูล') {
+            u.searchParams.set('map_dist', activePropertyData._district);
+          }
+          if (activePropertyData._subdistrict && activePropertyData._subdistrict !== '-' && activePropertyData._subdistrict !== 'ไม่มีข้อมูล') {
+            u.searchParams.set('map_subdist', activePropertyData._subdistrict);
+          }
+          window.parent.history.replaceState({}, '', u.toString());
         } catch(e) {
           console.warn('Sync to Streamlit error:', e);
         }
+        triggerStreamlitSync();
       }
       
       const csvBase64 = "CSV_BASE64_PLACEHOLDER";
@@ -2441,6 +3172,34 @@
       const initRefLatStr = "INIT_REF_LAT_PLACEHOLDER";
       const initRefLonStr = "INIT_REF_LON_PLACEHOLDER";
       const initRadiusStr = "INIT_RADIUS_PLACEHOLDER";
+      const initRefIdStr = "INIT_REF_ID_PLACEHOLDER";
+
+      let allProvincesList = [];
+      try {
+        const rawProvs = ALL_PROVINCES_PLACEHOLDER || [];
+        const cleanProvs = rawProvs.map(p => (p || '').toString().trim().replace(/^[,\s.-]+|[,\s.-]+$/g, '')).filter(p => p && p !== '-' && p !== 'ไม่มีข้อมูล' && p !== 'nan' && p !== 'None');
+        allProvincesList = Array.from(new Set(cleanProvs)).sort((a, b) => a.localeCompare(b, 'th'));
+      } catch(e) {
+        allProvincesList = [];
+      }
+      let currentSelectedProv = "CURRENT_PROV_PLACEHOLDER";
+      let currentSelectedDist = "";
+      let currentSelectedSubdist = "";
+      let currentRefId = "";
+
+      try {
+        if (window.parent) {
+          const u = new URL(window.parent.location.href);
+          const p = u.searchParams.get('map_prov');
+          if (p && p.trim() && p !== '__ALL__') currentSelectedProv = p.trim();
+          const d = u.searchParams.get('map_dist');
+          if (d && d.trim() && d !== '__ALL__') currentSelectedDist = d.trim();
+          const s = u.searchParams.get('map_subdist');
+          if (s && s.trim() && s !== '__ALL__') currentSelectedSubdist = s.trim();
+          const rid = u.searchParams.get('map_ref_id');
+          if (rid && rid.trim()) currentRefId = rid.trim();
+        }
+      } catch(e) {}
 
       let boundaryGeoJson = null;
       let districtLabels = [];
@@ -2455,24 +3214,1003 @@
         districtLabels = [];
       }
 
+      // ==========================================
+      // SEARCHABLE COMBOBOX ENGINE (PROVINCE, DISTRICT, SUBDISTRICT, PROJECT)
+      // ==========================================
+      let allProjectsList = [];
+      let currentActiveCombo = null;
+
+      function closeAllComboboxes() {
+        ['prov', 'dist', 'subdist', 'prj'].forEach(type => {
+          const menu = document.getElementById(`combo-menu-${type}`);
+          const chev = document.getElementById(`combo-chevron-${type}`);
+          if (menu) menu.style.display = 'none';
+          if (chev) chev.classList.remove('open');
+        });
+        const locGroup = document.getElementById('map-location-group');
+        if (locGroup) locGroup.style.zIndex = '1000';
+        const subrow2 = document.querySelector('.map-filter-controls-stack > .map-filter-subrow:nth-child(2)');
+        if (subrow2) subrow2.style.zIndex = '900';
+        const prjGroup = document.getElementById('map-project-group');
+        if (prjGroup) prjGroup.style.zIndex = '';
+        currentActiveCombo = null;
+        syncComboboxInputs();
+      }
+
+      document.addEventListener('click', function(e) {
+        if (!e.target.closest('.combobox-container')) {
+          closeAllComboboxes();
+        }
+      });
+
+      function syncComboboxInputs() {
+        const pInp = document.getElementById('inmap-province-input');
+        if (pInp) pInp.value = currentSelectedProv || '';
+
+        const dInp = document.getElementById('inmap-district-input');
+        if (dInp) {
+          dInp.disabled = !currentSelectedProv;
+          dInp.value = currentSelectedDist || '';
+          dInp.placeholder = currentSelectedProv ? 'ทุกอำเภอ/เขต' : 'เลือกจังหวัดก่อน';
+        }
+
+        const sInp = document.getElementById('inmap-subdistrict-input');
+        if (sInp) {
+          sInp.disabled = !currentSelectedDist;
+          sInp.value = currentSelectedSubdist || '';
+          sInp.placeholder = currentSelectedDist ? 'ทุกตำบล/แขวง' : 'เลือกอำเภอก่อน';
+        }
+
+        const prjInp = document.getElementById('inmap-project-input');
+        if (prjInp) {
+          const prjCount = inMapFilterState.samProjects ? inMapFilterState.samProjects.size : 0;
+          if (prjCount === 0) {
+            prjInp.value = inMapFilterState.samProject || '';
+            prjInp.placeholder = 'ทุกโครงการ SAM';
+          } else if (prjCount === 1) {
+            prjInp.value = Array.from(inMapFilterState.samProjects)[0];
+          } else {
+            prjInp.value = `เลือก ${prjCount} โครงการ`;
+          }
+        }
+      }
+
+      function initProvinceDropdown() { syncComboboxInputs(); }
+      function initDistrictDropdown() { syncComboboxInputs(); }
+      function initSubdistrictDropdown() { syncComboboxInputs(); }
+
+      function getComboboxItems(type) {
+        if (type === 'prov') {
+          return (allProvincesList || []).filter(p => p && p !== '-' && p !== 'ไม่มีข้อมูล');
+        } else if (type === 'dist') {
+          if (!currentSelectedProv) return [];
+          const distSet = new Set();
+          if (cachedData && cachedData.length > 0) {
+            cachedData.forEach(d => {
+              if (d._prov === currentSelectedProv && d._district && d._district !== '-' && d._district !== 'ไม่มีข้อมูล') {
+                distSet.add(d._district);
+              }
+            });
+          }
+          const boundariesDict = window.ALL_PROVINCES_BOUNDARIES || {};
+          if (boundariesDict[currentSelectedProv] && boundariesDict[currentSelectedProv].district_labels) {
+            boundariesDict[currentSelectedProv].district_labels.forEach(l => {
+              if (l.name && l.name !== '-' && l.name !== 'ไม่มีข้อมูล') {
+                distSet.add(l.name);
+              }
+            });
+          }
+          return Array.from(distSet).sort((a, b) => a.localeCompare(b, 'th'));
+        } else if (type === 'subdist') {
+          if (!currentSelectedDist) return [];
+          const subdistSet = new Set();
+          if (cachedData && cachedData.length > 0) {
+            cachedData.forEach(d => {
+              if (d._prov === currentSelectedProv && d._district === currentSelectedDist && d._subdistrict && d._subdistrict !== '-' && d._subdistrict !== 'ไม่มีข้อมูล') {
+                subdistSet.add(d._subdistrict);
+              }
+            });
+          }
+          const subdistObj = getSubdistrictBoundaryForDistrict(currentSelectedProv, currentSelectedDist);
+          if (subdistObj && subdistObj.district_labels) {
+            subdistObj.district_labels.forEach(l => {
+              if (l.name && l.name !== '-' && l.name !== 'ไม่มีข้อมูล') {
+                subdistSet.add(l.name);
+              }
+            });
+          }
+          return Array.from(subdistSet).sort((a, b) => a.localeCompare(b, 'th'));
+        } else if (type === 'prj') {
+          return allProjectsList || [];
+        }
+        return [];
+      }
+
+      function getCurrentComboboxValue(type) {
+        if (type === 'prov') return currentSelectedProv;
+        if (type === 'dist') return currentSelectedDist;
+        if (type === 'subdist') return currentSelectedSubdist;
+        if (type === 'prj') return inMapFilterState.samProject;
+        return '';
+      }
+
+      function getComboboxAllLabel(type) {
+        if (type === 'prov') return 'ทุกจังหวัด';
+        if (type === 'dist') return 'ทุกอำเภอ/เขต';
+        if (type === 'subdist') return 'ทุกตำบล/แขวง';
+        if (type === 'prj') return 'ทุกโครงการ SAM';
+        return 'ทั้งหมด';
+      }
+
+      function renderComboboxMenu(type, query = '') {
+        const menu = document.getElementById(`combo-menu-${type}`);
+        if (!menu) return;
+
+        const allItems = getComboboxItems(type);
+        const currentVal = getCurrentComboboxValue(type);
+        const allLabel = getComboboxAllLabel(type);
+
+        const cleanQuery = (query || '').trim().toLowerCase();
+        let filtered = allItems;
+        if (cleanQuery) {
+          filtered = allItems.filter(item => item.toLowerCase().includes(cleanQuery));
+        }
+
+        let html = '';
+        if (type === 'prj') {
+          // Multi-Select Combobox for SAM Projects
+          const selSet = inMapFilterState.samProjects || new Set();
+          const isAll = (selSet.size === 0);
+          if (!cleanQuery || allLabel.toLowerCase().includes(cleanQuery)) {
+            html += `<div class="combobox-option ${isAll ? 'selected' : ''}" onclick="toggleProjectOption('', '${cleanQuery.replace(/'/g, "\\'")}')" style="display:flex; align-items:center; justify-content:space-between; font-weight:700;">` +
+              `<span style="display:flex; align-items:center;"><i class="fa-solid fa-list" style="margin-right:6px; font-size:10px; opacity:0.6;"></i>${allLabel}</span>` +
+              `<span style="font-size:10.5px; opacity:0.75; color:${isAll ? '#059669' : '#dc2626'};">${isAll ? '✓ แสดงทั้งหมด' : '✕ ล้างที่เลือก (' + selSet.size + ')'}</span></div>`;
+          }
+
+          if (filtered.length === 0 && (!html || cleanQuery)) {
+            html += `<div class="combobox-empty"><i class="fa-solid fa-circle-question" style="margin-right:4px;"></i>ไม่พบ "${query}"</div>`;
+          } else {
+            const maxRender = !cleanQuery ? 50 : 100;
+            const sliceItems = filtered.slice(0, maxRender);
+            sliceItems.forEach(item => {
+              const isSel = selSet.has(item);
+              const safeItem = item.replace(/'/g, "\\'");
+              const checkIcon = isSel
+                ? '<i class="fa-solid fa-square-check" style="color:#059669; font-size:13px; margin-right:8px; flex-shrink:0;"></i>'
+                : '<i class="fa-regular fa-square" style="opacity:0.35; font-size:13px; margin-right:8px; flex-shrink:0;"></i>';
+              html += `<div class="combobox-option ${isSel ? 'selected' : ''}" onclick="toggleProjectOption('${safeItem}', '${cleanQuery.replace(/'/g, "\\'")}')" style="display:flex; align-items:center;">` +
+                `${checkIcon}<span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${item}</span></div>`;
+            });
+            if (filtered.length > maxRender) {
+              html += `<div class="combobox-empty" style="font-size:10.5px; opacity:0.75;">และอีก ${(filtered.length - maxRender).toLocaleString()} รายการ (พิมพ์เพื่อเจาะจงผลลัพธ์)</div>`;
+            }
+          }
+        } else {
+          // Single-Select Location Combobox (Province, District, Subdistrict)
+          if (!cleanQuery || allLabel.toLowerCase().includes(cleanQuery)) {
+            const isSel = !currentVal || currentVal === '__ALL__' || currentVal === '';
+            html += `<div class="combobox-option ${isSel ? 'selected' : ''}" onclick="selectComboboxOption('${type}', '')"><i class="fa-solid fa-list" style="margin-right:6px; font-size:10px; opacity:0.6;"></i>${allLabel}</div>`;
+          }
+
+          if (filtered.length === 0 && (!html || cleanQuery)) {
+            html += `<div class="combobox-empty"><i class="fa-solid fa-circle-question" style="margin-right:4px;"></i>ไม่พบ "${query}"</div>`;
+          } else {
+            const maxRender = 250;
+            const sliceItems = filtered.slice(0, maxRender);
+            sliceItems.forEach(item => {
+              const isSel = (item === currentVal);
+              const safeItem = item.replace(/'/g, "\\'");
+              html += `<div class="combobox-option ${isSel ? 'selected' : ''}" onclick="selectComboboxOption('${type}', '${safeItem}')">${item}</div>`;
+            });
+            if (filtered.length > maxRender) {
+              html += `<div class="combobox-empty" style="font-size:10.5px; opacity:0.75;">และอีก ${(filtered.length - maxRender).toLocaleString()} รายการ (พิมพ์เพื่อเจาะจงผลลัพธ์)</div>`;
+            }
+          }
+        }
+
+        menu.innerHTML = html;
+      }
+
+      function openCombobox(type) {
+        closeAllComboboxes();
+        currentActiveCombo = type;
+        const menu = document.getElementById(`combo-menu-${type}`);
+        const chev = document.getElementById(`combo-chevron-${type}`);
+        const inputId = `inmap-${type === 'prov' ? 'province' : (type === 'dist' ? 'district' : (type === 'subdist' ? 'subdistrict' : 'project'))}-input`;
+        const input = document.getElementById(inputId);
+
+        if (input && input.disabled) return;
+
+        // Elevate parent row z-index so dropdown is always rendered on top of other floating rows
+        if (type === 'prov' || type === 'dist' || type === 'subdist') {
+          const locGroup = document.getElementById('map-location-group');
+          if (locGroup) locGroup.style.zIndex = '30000';
+        } else if (type === 'prj') {
+          const subrow2 = document.querySelector('.map-filter-controls-stack > .map-filter-subrow:nth-child(2)');
+          if (subrow2) subrow2.style.zIndex = '30000';
+          const prjGroup = document.getElementById('map-project-group');
+          if (prjGroup) prjGroup.style.zIndex = '30000';
+        }
+
+        // Always show full list with "ทุก..." first like before
+        renderComboboxMenu(type, '');
+        if (menu) {
+          menu.style.display = 'block';
+          const selOpt = menu.querySelector('.combobox-option.selected');
+          if (selOpt) {
+            selOpt.scrollIntoView({ block: 'nearest' });
+          }
+        }
+        if (chev) chev.classList.add('open');
+
+        // Select text in input so typing replaces immediately
+        if (input) {
+          try { input.select(); } catch(e) {}
+        }
+      }
+
+      function toggleCombobox(type) {
+        const menu = document.getElementById(`combo-menu-${type}`);
+        if (menu && menu.style.display === 'block') {
+          closeAllComboboxes();
+        } else {
+          openCombobox(type);
+        }
+      }
+
+      function selectComboboxOption(type, value) {
+        closeAllComboboxes();
+        const inputId = `inmap-${type === 'prov' ? 'province' : (type === 'dist' ? 'district' : (type === 'subdist' ? 'subdistrict' : 'project'))}-input`;
+        const input = document.getElementById(inputId);
+        if (input) {
+          input.value = value || '';
+        }
+
+        if (type === 'prov') {
+          onMapProvinceChange(value);
+        } else if (type === 'dist') {
+          onMapDistrictChange(value);
+        } else if (type === 'subdist') {
+          onMapSubdistrictChange(value);
+        } else if (type === 'prj') {
+          onMapProjectChange(value);
+        }
+      }
+
+      function handleComboboxInput(type, inputEl) {
+        const query = inputEl.value;
+        const menu = document.getElementById(`combo-menu-${type}`);
+        if (menu) menu.style.display = 'block';
+        const chev = document.getElementById(`combo-chevron-${type}`);
+        if (chev) chev.classList.add('open');
+        renderComboboxMenu(type, query);
+
+        if (!query || !query.trim()) {
+          renderComboboxMenu(type, '');
+          if (type === 'prov' && currentSelectedProv) onMapProvinceChange('');
+          else if (type === 'dist' && currentSelectedDist) onMapDistrictChange('');
+          else if (type === 'subdist' && currentSelectedSubdist) onMapSubdistrictChange('');
+          else if (type === 'prj' && inMapFilterState.samProject) onMapProjectChange('');
+        }
+      }
+
+      function handleComboboxKeydown(type, e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const menu = document.getElementById(`combo-menu-${type}`);
+          if (menu) {
+            const firstOpt = menu.querySelector('.combobox-option');
+            if (firstOpt) {
+              firstOpt.click();
+            }
+          }
+        } else if (e.key === 'Escape') {
+          closeAllComboboxes();
+        }
+      }
+
+      // Display Mode for Property Pins: 'radius' (default, pins within circle) vs 'location' (pins in location)
+      let mapPinMode = 'radius';
+
+      function setMapPinMode(mode) {
+        mapPinMode = mode;
+        const btnLoc = document.getElementById('btn-mode-location');
+        const btnRad = document.getElementById('btn-mode-radius');
+        if (btnLoc) btnLoc.classList.toggle('active', mode === 'location');
+        if (btnRad) btnRad.classList.toggle('active', mode === 'radius');
+
+        if (mode === 'radius') {
+          if (currentRefProp && currentRefProp.lat && currentRefProp.lon) {
+            const lat = parseFloat(currentRefProp.lat);
+            const lon = parseFloat(currentRefProp.lon);
+            setReferencePoint(lon, lat, true);
+          } else if (!referencePoint) {
+            showToast('<i class="fa-solid fa-bullseye" style="color:#10b981; margin-right:6px;"></i>โหมดตามรัศมี: คลิกบนแผนที่เพื่อกำหนดจุดอ้างอิง');
+          }
+        } else if (mode === 'location') {
+          if (currentRefProp) {
+            if (currentRefProp._prov && currentRefProp._prov !== '-' && currentRefProp._prov !== 'ไม่มีข้อมูล') {
+              currentSelectedProv = currentRefProp._prov.trim();
+              if (currentRefProp._district && currentRefProp._district !== '-' && currentRefProp._district !== 'ไม่มีข้อมูล') {
+                currentSelectedDist = currentRefProp._district.trim();
+              }
+              if (currentRefProp._subdistrict && currentRefProp._subdistrict !== '-' && currentRefProp._subdistrict !== 'ไม่มีข้อมูล') {
+                currentSelectedSubdist = currentRefProp._subdistrict.trim();
+              }
+              updateDistrictSubdistrictBoundaries();
+              syncComboboxInputs();
+            }
+            if (currentRefProp.lat && currentRefProp.lon) {
+              smoothFlyTo(parseFloat(currentRefProp.lon), parseFloat(currentRefProp.lat), 14.5, 1200);
+            }
+          }
+          referencePoint = null;
+          updateDeckLayers();
+          updateSvgBoundaries();
+          const hasProvSelected = currentSelectedProv && currentSelectedProv.trim() !== '' && currentSelectedProv !== '__ALL__';
+          if (!hasProvSelected) {
+            showToast('<i class="fa-solid fa-hand-pointer" style="color:#059669; margin-right:6px;"></i>กรุณาเลือกจังหวัดทางซ้ายบน เพื่อแสดงหมุดตามทำเล');
+          }
+        }
+
+        applyInMapFilters();
+        notifyParentFilterChange();
+      }
+
+      function getSubdistrictBoundaryForDistrict(prov, dist) {
+        if (!window.ALL_SUBDISTRICTS_BOUNDARIES || !prov || !dist) return null;
+        const cleanProv = prov.trim();
+        const cleanDist = dist.trim().split(' (')[0].trim();
+        const stripDist = cleanDist.replace(/^(อำเภอ|เขต)/, '').trim();
+
+        const candidates = [
+          `${cleanProv}::${cleanDist}`,
+          `${cleanProv}::${stripDist}`,
+          `${cleanProv}::อำเภอ${stripDist}`,
+          `${cleanProv}::เขต${stripDist}`
+        ];
+
+        for (const k of candidates) {
+          if (window.ALL_SUBDISTRICTS_BOUNDARIES[k]) {
+            return window.ALL_SUBDISTRICTS_BOUNDARIES[k];
+          }
+        }
+
+        // Fallback: prefix match under the province
+        const pPrefix = cleanProv + '::';
+        for (const k of Object.keys(window.ALL_SUBDISTRICTS_BOUNDARIES)) {
+          if (k.startsWith(pPrefix)) {
+            const dName = k.substring(pPrefix.length).trim();
+            if (dName === stripDist || dName === cleanDist || stripDist.includes(dName) || dName.includes(stripDist)) {
+              return window.ALL_SUBDISTRICTS_BOUNDARIES[k];
+            }
+          }
+        }
+        return null;
+      }
+
+      function updateDistrictSubdistrictBoundaries() {
+        if (!currentSelectedProv) {
+          boundaryGeoJson = null;
+          districtLabels = [];
+          return;
+        }
+
+        if (currentSelectedDist) {
+          // Check if subdistricts GeoJSON is loaded for this district!
+          const subdistObj = getSubdistrictBoundaryForDistrict(currentSelectedProv, currentSelectedDist);
+          if (subdistObj && subdistObj.features && subdistObj.features.length > 0) {
+            boundaryGeoJson = {
+              type: 'FeatureCollection',
+              level: 'subdistrict',
+              features: subdistObj.features,
+              district_labels: subdistObj.district_labels || []
+            };
+            districtLabels = subdistObj.district_labels || [];
+            return;
+          }
+
+          // Fallback to district boundary from ALL_PROVINCES_BOUNDARIES
+          const boundariesDict = window.ALL_PROVINCES_BOUNDARIES || {};
+          if (boundariesDict[currentSelectedProv]) {
+            const provObj = boundariesDict[currentSelectedProv];
+            const cleanTarget = currentSelectedDist.split(' (')[0].trim();
+            const stripTarget = cleanTarget.replace(/^(อำเภอ|เขต)/, '').trim();
+            const distFeats = provObj.features.filter(f => {
+              const a = (f.properties && f.properties.amp_th) || '';
+              const cleanA = a.replace(/^(อำเภอ|เขต)/, '').trim();
+              return cleanA === stripTarget || cleanA === cleanTarget || a === currentSelectedDist || a === cleanTarget;
+            });
+            const distLbls = (provObj.district_labels || []).filter(l => {
+              const cleanL = (l.name || '').replace(/^(อำเภอ|เขต)/, '').trim();
+              return cleanL === stripTarget || l.name === currentSelectedDist || l.name === cleanTarget;
+            });
+            if (distFeats.length > 0) {
+              boundaryGeoJson = {
+                type: 'FeatureCollection',
+                level: 'single_district',
+                features: distFeats,
+                district_labels: distLbls
+              };
+              districtLabels = distLbls;
+              return;
+            }
+          }
+        }
+
+        // Province level (all districts in province)
+        const boundariesDict = window.ALL_PROVINCES_BOUNDARIES || {};
+        if (boundariesDict[currentSelectedProv]) {
+          boundaryGeoJson = boundariesDict[currentSelectedProv];
+          districtLabels = boundaryGeoJson.district_labels || [];
+        } else {
+          boundaryGeoJson = null;
+          districtLabels = [];
+        }
+      }
+
+      function initSubdistrictDropdown() {
+        syncComboboxInputs();
+      }
+
+      // Ensure client-side province boundaries are ready
+      if (!window.ALL_PROVINCES_BOUNDARIES || Object.keys(window.ALL_PROVINCES_BOUNDARIES).length === 0) {
+        const _bUrls = [
+          '/app/static/provinces_geojson.json',
+          '/static/provinces_geojson.json',
+          'provinces_geojson.json',
+          './provinces_geojson.json',
+          'static/provinces_geojson.json'
+        ];
+        (async function _loadBoundariesFallback() {
+          for (const u of _bUrls) {
+            try {
+              const resp = await fetch(u);
+              if (resp.ok) {
+                window.ALL_PROVINCES_BOUNDARIES = await resp.json();
+                break;
+              }
+            } catch(e) {}
+          }
+        })();
+      }
+
+      // Ensure client-side subdistrict boundaries are ready
+      if (!window.ALL_SUBDISTRICTS_BOUNDARIES || Object.keys(window.ALL_SUBDISTRICTS_BOUNDARIES).length === 0) {
+        const _subUrls = [
+          '/app/static/subdistricts_geojson.json',
+          '/static/subdistricts_geojson.json',
+          'subdistricts_geojson.json',
+          './subdistricts_geojson.json',
+          'static/subdistricts_geojson.json'
+        ];
+        (async function _loadSubdistrictsFallback() {
+          for (const u of _subUrls) {
+            try {
+              const resp = await fetch(u);
+              if (resp.ok) {
+                window.ALL_SUBDISTRICTS_BOUNDARIES = await resp.json();
+                if (currentSelectedDist) {
+                  updateDistrictSubdistrictBoundaries();
+                  initSubdistrictDropdown();
+                  updateSvgBoundaries();
+                }
+                break;
+              }
+            } catch(e) {}
+          }
+        })();
+      }
+
+      function flyToCurrentLocation() {
+        let flyTarget = null;
+        if (cachedData && cachedData.length > 0) {
+          const matchingPins = cachedData.filter(d => {
+            if (currentSelectedProv && d._prov !== currentSelectedProv) return false;
+            if (currentSelectedDist && d._district !== currentSelectedDist) return false;
+            if (currentSelectedSubdist && d._subdistrict !== currentSelectedSubdist) return false;
+            return d.lon && d.lat;
+          });
+          if (matchingPins.length > 0) {
+            let minLon = Infinity, minLat = Infinity, maxLon = -Infinity, maxLat = -Infinity;
+            matchingPins.forEach(p => {
+              if (p.lon < minLon) minLon = p.lon;
+              if (p.lon > maxLon) maxLon = p.lon;
+              if (p.lat < minLat) minLat = p.lat;
+              if (p.lat > maxLat) maxLat = p.lat;
+            });
+            const cLon = (minLon + maxLon) / 2;
+            const cLat = (minLat + maxLat) / 2;
+            const maxDiff = Math.max(maxLon - minLon, maxLat - minLat);
+            let z = 10.0;
+            if (currentSelectedSubdist) {
+              z = 13.5;
+            } else if (currentSelectedDist) {
+              z = maxDiff > 0.4 ? 10.5 : (maxDiff > 0.2 ? 11.2 : 12.0);
+            } else if (currentSelectedProv) {
+              if (maxDiff > 2.0) z = 7.5;
+              else if (maxDiff > 1.0) z = 8.8;
+              else if (maxDiff > 0.5) z = 9.8;
+              else if (maxDiff > 0.2) z = 11.2;
+              else z = 12.5;
+            }
+            flyTarget = { lon: cLon, lat: cLat, zoom: z };
+          }
+        }
+
+        if (!flyTarget && boundaryGeoJson && boundaryGeoJson.features && boundaryGeoJson.features.length > 0) {
+          let minLon = Infinity, minLat = Infinity, maxLon = -Infinity, maxLat = -Infinity;
+          function scanCoords(coords) {
+            if (!Array.isArray(coords)) return;
+            if (typeof coords[0] === 'number' && typeof coords[1] === 'number') {
+              const lon = coords[0], lat = coords[1];
+              if (lon < minLon) minLon = lon;
+              if (lon > maxLon) maxLon = lon;
+              if (lat < minLat) minLat = lat;
+              if (lat > maxLat) maxLat = lat;
+            } else {
+              for (let i = 0; i < coords.length; i++) scanCoords(coords[i]);
+            }
+          }
+          boundaryGeoJson.features.forEach(f => {
+            if (f.geometry && f.geometry.coordinates) scanCoords(f.geometry.coordinates);
+          });
+          if (minLon !== Infinity && maxLon !== -Infinity) {
+            const cLon = (minLon + maxLon) / 2;
+            const cLat = (minLat + maxLat) / 2;
+            const maxDiff = Math.max(maxLon - minLon, maxLat - minLat);
+            let z = 10.0;
+            if (maxDiff > 2.0) z = 7.5;
+            else if (maxDiff > 1.0) z = 8.8;
+            else if (maxDiff > 0.5) z = 9.8;
+            else if (maxDiff > 0.2) z = 11.2;
+            else z = 12.5;
+            flyTarget = { lon: cLon, lat: cLat, zoom: z };
+          }
+        }
+
+        if (flyTarget) {
+          smoothFlyTo(flyTarget.lon, flyTarget.lat, flyTarget.zoom, 1000);
+        } else if (!currentSelectedProv) {
+          smoothFlyTo(100.52, 13.75, 6.2, 1000);
+        }
+      }
+
+      function onMapProvinceChange(prov) {
+        try {
+          const selectedProv = (prov && prov.trim() !== '' && prov.trim() !== 'all' && prov.trim() !== '__ALL__') ? prov.trim() : '';
+          currentSelectedProv = selectedProv;
+          currentSelectedDist = '';
+          currentSelectedSubdist = '';
+          currentRefProp = null;
+          referencePoint = null;
+
+          if (selectedProv) {
+            mapPinMode = 'location';
+            const btnLoc = document.getElementById('btn-mode-location');
+            const btnRad = document.getElementById('btn-mode-radius');
+            if (btnLoc) btnLoc.classList.toggle('active', true);
+            if (btnRad) btnRad.classList.toggle('active', false);
+          }
+
+          // 1. Swap Boundary GeoJSON & districtLabels in memory
+          const boundariesDict = window.ALL_PROVINCES_BOUNDARIES || {};
+          if (selectedProv && boundariesDict[selectedProv]) {
+            boundaryGeoJson = boundariesDict[selectedProv];
+            districtLabels = boundariesDict[selectedProv].district_labels || [];
+          } else {
+            boundaryGeoJson = null;
+            districtLabels = [];
+          }
+
+          // 2. Cascade Dropdowns: Sync inputs
+          syncComboboxInputs();
+
+          // 3. Immediately filter map points and update legend in memory (0.01 sec)
+          applyInMapFilters();
+
+          // 4. Immediately redraw SVG boundaries
+          updateSvgBoundaries();
+
+          // 5. Center & Fly to province
+          flyToCurrentLocation();
+
+          // 6. Update Parent Window URL parameter quietly without page reload
+          if (window.parent) {
+            const u = new URL(window.parent.location.href);
+            if (selectedProv) {
+              u.searchParams.set('map_prov', selectedProv);
+            } else {
+              u.searchParams.delete('map_prov');
+            }
+            u.searchParams.delete('map_dist');
+            u.searchParams.delete('map_subdist');
+            window.parent.history.replaceState({}, '', u.toString());
+          }
+        } catch(e) {
+          console.warn('onMapProvinceChange error:', e);
+        }
+        // 7. Auto-sync to Streamlit for realtime comparison
+        triggerStreamlitSync();
+      }
+
+      function onMapDistrictChange(dist) {
+        try {
+          const selectedDist = (dist && dist.trim() !== '' && dist.trim() !== 'all' && dist.trim() !== '__ALL__') ? dist.trim() : '';
+          currentSelectedDist = selectedDist;
+          currentSelectedSubdist = '';
+          currentRefProp = null;
+          referencePoint = null;
+
+          if (selectedDist) {
+            mapPinMode = 'location';
+            const btnLoc = document.getElementById('btn-mode-location');
+            const btnRad = document.getElementById('btn-mode-radius');
+            if (btnLoc) btnLoc.classList.toggle('active', true);
+            if (btnRad) btnRad.classList.toggle('active', false);
+          }
+
+          // 1. Update boundary GeoJSON to subdivide into subdistricts (ตำบล) with dashed lines!
+          updateDistrictSubdistrictBoundaries();
+
+          // 2. Cascade Dropdown: Sync inputs
+          syncComboboxInputs();
+
+          // 3. Immediately filter map points in memory
+          applyInMapFilters();
+
+          // 4. Immediately redraw SVG boundaries
+          updateSvgBoundaries();
+
+          // 5. Center & Fly to district
+          flyToCurrentLocation();
+
+          // 6. Update Parent Window URL parameter quietly without page reload
+          if (window.parent) {
+            const u = new URL(window.parent.location.href);
+            if (selectedDist) {
+              u.searchParams.set('map_dist', selectedDist);
+            } else {
+              u.searchParams.delete('map_dist');
+            }
+            u.searchParams.delete('map_subdist');
+            window.parent.history.replaceState({}, '', u.toString());
+          }
+        } catch(e) {
+          console.warn('onMapDistrictChange error:', e);
+        }
+        // 7. Auto-sync to Streamlit for realtime comparison
+        triggerStreamlitSync();
+      }
+
+      function onMapSubdistrictChange(subdist) {
+        try {
+          const selectedSubdist = (subdist && subdist.trim() !== '' && subdist.trim() !== 'all' && subdist.trim() !== '__ALL__') ? subdist.trim() : '';
+          currentSelectedSubdist = selectedSubdist;
+          currentRefProp = null;
+          referencePoint = null;
+
+          if (selectedSubdist) {
+            mapPinMode = 'location';
+            const btnLoc = document.getElementById('btn-mode-location');
+            const btnRad = document.getElementById('btn-mode-radius');
+            if (btnLoc) btnLoc.classList.toggle('active', true);
+            if (btnRad) btnRad.classList.toggle('active', false);
+          }
+
+          syncComboboxInputs();
+
+          // 1. Immediately filter map points in memory
+          applyInMapFilters();
+
+          // 2. Immediately redraw SVG boundaries (highlights selected subdistrict polygon)
+          updateSvgBoundaries();
+
+          // 3. Center & Fly to subdistrict
+          flyToCurrentLocation();
+
+          // 4. Update Parent Window URL parameter quietly without page reload
+          if (window.parent) {
+            const u = new URL(window.parent.location.href);
+            if (selectedSubdist) {
+              u.searchParams.set('map_subdist', selectedSubdist);
+            } else {
+              u.searchParams.delete('map_subdist');
+            }
+            window.parent.history.replaceState({}, '', u.toString());
+          }
+        } catch(e) {
+          console.warn('onMapSubdistrictChange error:', e);
+        }
+        // 5. Auto-sync to Streamlit for realtime comparison
+        triggerStreamlitSync();
+      }
+
+      function toggleProjectOption(proj, query = '') {
+        const cleanPrj = (proj && proj.trim()) ? proj.trim() : null;
+        if (!inMapFilterState.samProjects) {
+          inMapFilterState.samProjects = new Set();
+        }
+
+        if (!cleanPrj) {
+          inMapFilterState.samProjects.clear();
+          inMapFilterState.samProject = null;
+          showToast('<i class="fa-solid fa-rotate-left" style="color:#64748b; margin-right:4px;"></i>ล้างตัวกรองโครงการ SAM ทั้งหมด');
+        } else {
+          if (inMapFilterState.samProjects.has(cleanPrj)) {
+            inMapFilterState.samProjects.delete(cleanPrj);
+          } else {
+            inMapFilterState.samProjects.add(cleanPrj);
+            // Fly smoothly to coordinates of the newly added project
+            if (cachedData && cachedData.length > 0) {
+              const match = cachedData.find(d => {
+                const p = (d._project || '').trim();
+                return p === cleanPrj || p.includes(cleanPrj);
+              });
+              if (match && match.lon && match.lat) {
+                smoothFlyTo(match.lon, match.lat, 14.5, 900);
+                showToast(`<i class="fa-solid fa-building-flag" style="color:#059669; margin-right:5px;"></i>เลือกโครงการ: <b>${cleanPrj}</b>`);
+              }
+            }
+          }
+          const cnt = inMapFilterState.samProjects.size;
+          inMapFilterState.samProject = cnt === 1 ? Array.from(inMapFilterState.samProjects)[0] : (cnt > 1 ? `เลือก ${cnt} โครงการ` : null);
+        }
+
+        syncComboboxInputs();
+        renderComboboxMenu('prj', query);
+        applyInMapFilters();
+      }
+
+      function onMapProjectChange(proj) {
+        toggleProjectOption(proj, '');
+      }
+
+      function onMapSamProjectChange(proj) {
+        onMapProjectChange(proj);
+      }
+
+      function searchPropertyIdAsReference(idStr) {
+        if (!idStr || !idStr.trim()) {
+          showToast('<i class="fa-solid fa-circle-exclamation" style="color:#f59e0b; margin-right:4px;"></i>กรุณากรอกรหัสทรัพย์สิน');
+          return;
+        }
+        const rawQ = idStr.trim();
+        const cleanId = rawQ.toLowerCase();
+        const strippedQ = cleanId.replace(/[^a-z0-9\u0E00-\u0E7F]/g, '');
+        const inputEl = document.getElementById('inmap-prop-search-input');
+        const clearBtn = document.getElementById('inmap-clear-search-btn');
+
+        if (!cachedData || cachedData.length === 0) {
+          showToast('กำลังโหลดข้อมูลแผนที่ กรุณารอสักครู่...');
+          return;
+        }
+
+        // Multi-tier flexible search:
+        // Tier 1: Exact match on _id
+        let match = cachedData.find(d => (d._id || '').trim().toLowerCase() === cleanId);
+
+        // Tier 2: Stripped punctuation alphanumeric match on _id
+        if (!match && strippedQ) {
+          match = cachedData.find(d => {
+            const did = (d._id || '').trim().toLowerCase().replace(/[^a-z0-9\u0E00-\u0E7F]/g, '');
+            return did === strippedQ;
+          });
+        }
+
+        // Tier 3: Substring / Prefix / Suffix match on _id
+        if (!match && cleanId.length >= 2) {
+          match = cachedData.find(d => {
+            const did = (d._id || '').trim().toLowerCase();
+            return did.startsWith(cleanId) || did.endsWith(cleanId) || did.includes(cleanId);
+          });
+        }
+
+        // Tier 4: Stripped substring match
+        if (!match && strippedQ.length >= 3) {
+          match = cachedData.find(d => {
+            const did = (d._id || '').trim().toLowerCase().replace(/[^a-z0-9\u0E00-\u0E7F]/g, '');
+            return did.includes(strippedQ) || strippedQ.includes(did);
+          });
+        }
+
+        // Tier 5: Title / Project match
+        if (!match && cleanId.length >= 3) {
+          match = cachedData.find(d => {
+            const tit = (d._title || '').trim().toLowerCase();
+            return tit.includes(cleanId);
+          });
+        }
+
+        if (match && match.lat && match.lon) {
+          const lat = parseFloat(match.lat);
+          const lon = parseFloat(match.lon);
+          if (inputEl) inputEl.value = match._id || rawQ;
+          if (clearBtn) clearBtn.style.display = 'inline-flex';
+
+          // 1. Sync geographic dropdowns to the found property's Province, District, and Subdistrict!
+          if (match._prov && match._prov !== '-' && match._prov !== 'ไม่มีข้อมูล') {
+            currentSelectedProv = match._prov.trim();
+            
+            const boundariesDict = window.ALL_PROVINCES_BOUNDARIES || {};
+            if (boundariesDict[currentSelectedProv]) {
+              boundaryGeoJson = boundariesDict[currentSelectedProv];
+              districtLabels = boundariesDict[currentSelectedProv].district_labels || [];
+            }
+
+            if (match._district && match._district !== '-' && match._district !== 'ไม่มีข้อมูล') {
+              currentSelectedDist = match._district.trim();
+              if (match._subdistrict && match._subdistrict !== '-' && match._subdistrict !== 'ไม่มีข้อมูล') {
+                currentSelectedSubdist = match._subdistrict.trim();
+              }
+              updateDistrictSubdistrictBoundaries();
+            }
+            syncComboboxInputs();
+          }
+
+          // 2. Set active reference property
+          currentRefProp = match;
+
+          // 3. Display according to current pin mode (radius vs location)
+          if (mapPinMode === 'radius') {
+            setReferencePoint(lon, lat, true);
+          } else {
+            referencePoint = null;
+            applyInMapFilters();
+            updateDeckLayers();
+            updateSvgBoundaries();
+            smoothFlyTo(lon, lat, 14.5, 1200);
+          }
+          showPropertyCard(match, true);
+
+          const locDetail = [match._subdistrict, match._district, match._prov].filter(x => x && x !== '-' && x !== 'ไม่มีข้อมูล').join(' ');
+          showToast(`<i class="fa-solid fa-location-crosshairs" style="color:#10b981; margin-right:4px;"></i>พบรหัส [${match._company}] ${match._id}: ${match._title || ''} (${locDetail})`);
+
+          try {
+            if (window.parent) {
+              var u = new URL(window.parent.location.href);
+              u.searchParams.set('map_ref_id', match._id);
+              u.searchParams.set('map_ref_lat', lat.toFixed(6));
+              u.searchParams.set('map_ref_lon', lon.toFixed(6));
+              u.searchParams.set('map_ref_radius', currentRadiusKm);
+              u.searchParams.set('map_pin_mode', mapPinMode || 'radius');
+              if (match._prov && match._prov !== '-' && match._prov !== 'ไม่มีข้อมูล') {
+                u.searchParams.set('map_prov', match._prov);
+              }
+              if (match._district && match._district !== '-' && match._district !== 'ไม่มีข้อมูล') {
+                u.searchParams.set('map_dist', match._district);
+              }
+              if (match._subdistrict && match._subdistrict !== '-' && match._subdistrict !== 'ไม่มีข้อมูล') {
+                u.searchParams.set('map_subdist', match._subdistrict);
+              }
+              window.parent.history.replaceState({}, '', u.toString());
+            }
+          } catch(e) {}
+          triggerStreamlitSync();
+        } else {
+          showToast(`<i class="fa-solid fa-triangle-exclamation" style="color:#ef4444; margin-right:4px;"></i>ไม่พบรหัสทรัพย์ "${idStr.trim()}" ในฐานข้อมูล`);
+        }
+      }
+
+      function clearInMapPropSearch() {
+        const inputEl = document.getElementById('inmap-prop-search-input');
+        const clearBtn = document.getElementById('inmap-clear-search-btn');
+        if (inputEl) inputEl.value = '';
+        if (clearBtn) clearBtn.style.display = 'none';
+        currentRefProp = null;
+        currentRefId = "";
+        clearReferencePoint();
+        updateSvgBoundaries();
+      }
+
+      function validateAndOrientCoords(v1, v2) {
+        if (isNaN(v1) || isNaN(v2)) return null;
+        // Auto-orient: if v1 looks like Lon in Thailand (90-115) and v2 looks like Lat (0-30), swap
+        if ((v1 >= 90 && v1 <= 115) && (v2 >= 0 && v2 <= 30)) {
+          return { lat: v2, lon: v1 };
+        }
+        if (v1 >= -90 && v1 <= 90 && v2 >= -180 && v2 <= 180) {
+          return { lat: v1, lon: v2 };
+        }
+        return null;
+      }
+
+      function parseCoordinateString(str) {
+        if (!str || typeof str !== 'string') return null;
+        let s = str.trim();
+        if (!s) return null;
+
+        // URL format e.g. https://www.google.com/maps/...@13.7563,100.5018,15z
+        const urlMatch = s.match(/@(-?\d+\.?\d*),\s*(-?\d+\.?\d*)/);
+        if (urlMatch) {
+          return validateAndOrientCoords(parseFloat(urlMatch[1]), parseFloat(urlMatch[2]));
+        }
+
+        // DMS format e.g. 13°45'22.8"N 100°30'06.3"E
+        if (s.includes('°') || s.includes('N') || s.includes('E')) {
+          const dmsRegex = /(\d+)[°\s]+(\d+)['\s]+([0-9.]+)["]?\s*([NSEW])/gi;
+          const matches = [...s.matchAll(dmsRegex)];
+          if (matches.length === 2) {
+            const convertDms = (deg, min, sec, dir) => {
+              let dec = parseFloat(deg) + parseFloat(min) / 60 + parseFloat(sec) / 3600;
+              if (dir.toUpperCase() === 'S' || dir.toUpperCase() === 'W') dec = -dec;
+              return dec;
+            };
+            const c1 = convertDms(matches[0][1], matches[0][2], matches[0][3], matches[0][4]);
+            const c2 = convertDms(matches[1][1], matches[1][2], matches[1][3], matches[1][4]);
+            if (matches[0][4].toUpperCase() === 'N' || matches[0][4].toUpperCase() === 'S') {
+              return { lat: c1, lon: c2 };
+            } else {
+              return { lat: c2, lon: c1 };
+            }
+          }
+        }
+
+        // Generic decimal coordinates separated by comma, space, slash, or semicolon
+        const cleaned = s.replace(/[^\d.\-,\s;/]/g, ' ');
+        const nums = cleaned.match(/-?\d+\.?\d*/g);
+        if (nums && nums.length >= 2) {
+          return validateAndOrientCoords(parseFloat(nums[0]), parseFloat(nums[1]));
+        }
+
+        return null;
+      }
+
+      function searchCustomCoordinatesAsReference(coordStr) {
+        if (!coordStr || !coordStr.trim()) {
+          showToast('<i class="fa-solid fa-circle-exclamation" style="color:#f59e0b; margin-right:4px;"></i>กรุณากรอกพิกัด เช่น 13.7563, 100.5018');
+          return;
+        }
+
+        const coords = parseCoordinateString(coordStr);
+        if (!coords) {
+          showToast('<i class="fa-solid fa-triangle-exclamation" style="color:#ef4444; margin-right:4px;"></i>รูปแบบพิกัดไม่ถูกต้อง กรุณากรอก เช่น 13.7563, 100.5018');
+          return;
+        }
+
+        const { lat, lon } = coords;
+        const inputEl = document.getElementById('inmap-coord-input');
+        const clearBtn = document.getElementById('inmap-clear-coord-btn');
+        if (inputEl) inputEl.value = `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+        if (clearBtn) clearBtn.style.display = 'inline-flex';
+
+        // Clear prop id search input if any
+        const propInp = document.getElementById('inmap-prop-search-input');
+        const propClr = document.getElementById('inmap-clear-search-btn');
+        if (propInp) propInp.value = '';
+        if (propClr) propClr.style.display = 'none';
+
+        closePropertyCard();
+
+        // Display according to pin mode
+        if (mapPinMode !== 'radius') {
+          mapPinMode = 'radius';
+          const btnLoc = document.getElementById('btn-mode-location');
+          const btnRad = document.getElementById('btn-mode-radius');
+          if (btnLoc) btnLoc.classList.toggle('active', false);
+          if (btnRad) btnRad.classList.toggle('active', true);
+        }
+
+        currentRefProp = null;
+        setReferencePoint(lon, lat, true);
+
+        showToast(`<i class="fa-solid fa-location-crosshairs" style="color:#10b981; margin-right:4px;"></i>ปักหมุดจุดอ้างอิงที่พิกัด: <b>${lat.toFixed(5)}, ${lon.toFixed(5)}</b>`);
+      }
+
+      function clearInMapCustomCoord() {
+        const inputEl = document.getElementById('inmap-coord-input');
+        const clearBtn = document.getElementById('inmap-clear-coord-btn');
+        if (inputEl) inputEl.value = '';
+        if (clearBtn) clearBtn.style.display = 'none';
+        clearReferencePoint();
+      }
+
       function createBoundaryLayer() {
         // Handled by vector-crisp SVG overlay with dashed lines (stroke-dasharray="6, 5") and transparent fill
         return null;
       }
 
       function getDeckViewport() {
-        if (!deckglInstance) return null;
-        try {
-          if (deckglInstance.getViewports && deckglInstance.getViewports().length > 0) {
-            return deckglInstance.getViewports()[0];
-          }
-          if (deckglInstance.deck && deckglInstance.deck.viewManager && deckglInstance.deck.viewManager.getViewports && deckglInstance.deck.viewManager.getViewports().length > 0) {
-            return deckglInstance.deck.viewManager.getViewports()[0];
-          }
-          if (deckglInstance.deck && deckglInstance.deck.getViewports && deckglInstance.deck.getViewports().length > 0) {
-            return deckglInstance.deck.getViewports()[0];
-          }
-        } catch(e) {}
         if (deck && deck.WebMercatorViewport && currentViewState) {
           try {
             const mapEl = document.getElementById('map');
@@ -2489,6 +4227,18 @@
             });
           } catch(e) {}
         }
+        if (!deckglInstance) return null;
+        try {
+          if (deckglInstance.getViewports && deckglInstance.getViewports().length > 0) {
+            return deckglInstance.getViewports()[0];
+          }
+          if (deckglInstance.deck && deckglInstance.deck.viewManager && deckglInstance.deck.viewManager.getViewports && deckglInstance.deck.viewManager.getViewports().length > 0) {
+            return deckglInstance.deck.viewManager.getViewports()[0];
+          }
+          if (deckglInstance.deck && deckglInstance.deck.getViewports && deckglInstance.deck.getViewports().length > 0) {
+            return deckglInstance.deck.getViewports()[0];
+          }
+        } catch(e) {}
         return null;
       }
 
@@ -2517,7 +4267,6 @@
 
       function updateSvgBoundaries() {
         const svg = document.getElementById('boundary-svg');
-        const labelsContainer = document.getElementById('district-labels-container');
         if (!svg) return;
 
         const viewport = getDeckViewport();
@@ -2527,20 +4276,19 @@
         const h = window.innerHeight;
 
         let svgContent = '';
-        let labelsHtml = '';
 
         // 1. SPOTLIGHT / INVERTED MASK
         // Dims area outside selected province/district OR outside inspection radius
         let maskHoles = '';
 
         if (referencePoint) {
-          // When reference point is set: spotlight around inspection radius circle (100% concentric with Deck.gl)!
+          // When reference point is set: spotlight around inspection radius circle
           const [cx, cy] = viewport.project([referencePoint[0], referencePoint[1]]);
           const rPx = getPixelRadius(referencePoint[0], referencePoint[1], currentRadiusKm, viewport);
 
           maskHoles += ` M ${cx.toFixed(1)} ${(cy - rPx).toFixed(1)} A ${rPx.toFixed(1)} ${rPx.toFixed(1)} 0 1 0 ${cx.toFixed(1)} ${(cy + rPx).toFixed(1)} A ${rPx.toFixed(1)} ${rPx.toFixed(1)} 0 1 0 ${cx.toFixed(1)} ${(cy - rPx).toFixed(1)} Z`;
         } else if (boundaryGeoJson && boundaryGeoJson.features && boundaryGeoJson.features.length > 0) {
-          // When province/district selected and no reference point: spotlight around boundary!
+          // When province/district/subdistrict selected: spotlight around boundary!
           boundaryGeoJson.features.forEach(feat => {
             if (!feat.geometry) return;
             const geomType = feat.geometry.type;
@@ -2570,8 +4318,8 @@
 
         if (maskHoles) {
           const outerRect = `M -120 -120 L ${w + 120} -120 L ${w + 120} ${h + 120} L -120 ${h + 120} Z`;
-          const dimFill = "rgba(15, 23, 42, 0.52)";
-          svgContent += `<path d="${outerRect} ${maskHoles}" fill="${dimFill}" fill-rule="evenodd" />`;
+          const dimFill = "rgba(15, 23, 42, 0.65)";
+          svgContent += `<path d="${outerRect} ${maskHoles}" fill="${dimFill}" fill-rule="evenodd" pointer-events="none" />`;
         }
 
         // 2. BOUNDARY LINES (Dashed for subdistricts / districts, solid for single boundary)
@@ -2604,12 +4352,15 @@
             }
 
             if (featD) {
-              if (level === 'subdistrict') {
-                svgContent += `<path d="${featD}" fill="none" stroke="#10b981" stroke-width="1.8" stroke-dasharray="5, 4" stroke-linejoin="round" />`;
-              } else if (level === 'district') {
-                svgContent += `<path d="${featD}" fill="none" stroke="#10b981" stroke-width="2.2" stroke-dasharray="6, 5" stroke-linejoin="round" />`;
+              if (level === 'subdistrict' || level === 'single_subdistrict') {
+                // Simple dashed emerald line for subdistrict boundaries
+                svgContent += `<path d="${featD}" fill="none" stroke="#10b981" stroke-width="2" stroke-dasharray="6, 5" stroke-linejoin="round" pointer-events="none" />`;
+              } else if (level === 'district' || level === 'single_district') {
+                // Simple dashed green line for district boundaries
+                svgContent += `<path d="${featD}" fill="none" stroke="#34d399" stroke-width="2.2" stroke-dasharray="7, 5" stroke-linejoin="round" pointer-events="none" />`;
               } else {
-                svgContent += `<path d="${featD}" fill="none" stroke="#059669" stroke-width="2.8" stroke-linejoin="round" />`;
+                // Province outer boundary: simple solid green line
+                svgContent += `<path d="${featD}" fill="none" stroke="#059669" stroke-width="2.5" stroke-linejoin="round" pointer-events="none" />`;
               }
             }
           });
@@ -2623,28 +4374,35 @@
           svgContent += `
             <circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${rPx.toFixed(1)}"
                     fill="rgba(245, 158, 11, 0.12)" stroke="#f59e0b" stroke-width="2.2"
-                    stroke-dasharray="7, 5" />
+                    stroke-dasharray="7, 5" pointer-events="none" />
           `;
         }
 
-        svg.innerHTML = svgContent;
+        // 4. DISTRICT & SUBDISTRICT NAME LABELS (Pill Badges)
+        const labelsContainer = document.getElementById('district-labels-container');
+        let labelsHtml = '';
 
-        // 4. CENTROID LABELS (Districts or Subdistricts)
-        if (labelsContainer) {
-          if (districtLabels && districtLabels.length > 0) {
-            districtLabels.forEach(lbl => {
-              if (typeof lbl.lon === 'number' && typeof lbl.lat === 'number') {
-                const [lx, ly] = viewport.project([lbl.lon, lbl.lat]);
-                if (lx >= -60 && lx <= w + 60 && ly >= -30 && ly <= h + 30) {
-                  labelsHtml += `<div class="district-label-pill" style="left:${lx.toFixed(1)}px; top:${ly.toFixed(1)}px;"><i class="fa-solid fa-location-dot" style="font-size:10px; margin-right:4px; color:#10b981;"></i>${lbl.name}</div>`;
-                }
-              }
-            });
-          }
-          labelsContainer.innerHTML = labelsHtml;
+        if (districtLabels && districtLabels.length > 0 && !referencePoint) {
+          const bndLevel = (boundaryGeoJson && boundaryGeoJson.level) || 'district';
+          const isSubdist = bndLevel === 'subdistrict' || bndLevel === 'single_subdistrict';
+          const activeClass = isSubdist ? '' : '';
+          const labelPrefix = isSubdist ? 'ต.' : 'อ.';
+
+          districtLabels.forEach(lbl => {
+            if (typeof lbl.lon !== 'number' || typeof lbl.lat !== 'number') return;
+            const [px, py] = viewport.project([lbl.lon, lbl.lat]);
+            if (px >= -60 && px <= w + 60 && py >= -60 && py <= h + 60) {
+              labelsHtml += `
+                <div class="district-label-pill ${activeClass}" style="left: ${px.toFixed(1)}px; top: ${py.toFixed(1)}px;">
+                  ${labelPrefix} ${lbl.name}
+                </div>
+              `;
+            }
+          });
         }
 
-        // 5. Update bubble screen position
+        svg.innerHTML = svgContent;
+        if (labelsContainer) labelsContainer.innerHTML = labelsHtml;
         updateConfirmBubblePosition();
       }
 
@@ -2799,7 +4557,7 @@
         };
 
         deckglInstance.setProps({
-          initialViewState: currentViewState
+          viewState: currentViewState
         });
         updateCompass(0);
       }
@@ -2835,16 +4593,127 @@
         }
       }
 
-      function onRadiusSliderInput(val) {
-        const r = parseFloat(val);
+      // Milestone reference points: 50m (0.05 km), 0.5 km, 2 km, 5 km, 10 km, 20 km
+      const RADIUS_MILESTONES = [0.05, 0.5, 2, 5, 10, 20];
+
+      function formatRadiusDisplay(r) {
+        if (r < 0.1) {
+          const m = Math.round(r * 1000);
+          return `${m} ม. (${r.toFixed(2)} กม.)`;
+        } else if (r < 1.0) {
+          const m = Math.round(r * 1000);
+          return `${r.toFixed(1)} กม. (${m} ม.)`;
+        } else if (r % 1 === 0) {
+          return `${r.toFixed(0)} กม.`;
+        } else {
+          return `${r.toFixed(1)} กม.`;
+        }
+      }
+
+      function posToRadius(p) {
+        p = Math.max(0, Math.min(100, Number(p)));
+        let r = 5.0;
+        if (p <= 20) {
+          // 0 to 20 maps to 0.05 to 0.5 (step 0.05: 50m, 100m, 150m, ... 500m)
+          const ratio = p / 20;
+          r = 0.05 + ratio * (0.5 - 0.05);
+          r = Math.round(r * 20) / 20;
+        } else if (p <= 40) {
+          // 20 to 40 maps to 0.5 to 2.0 (step 0.1: 0.6, 0.7, 0.8 ... 1.2 ... 2.0)
+          const ratio = (p - 20) / 20;
+          r = 0.5 + ratio * (2.0 - 0.5);
+          r = Math.round(r * 10) / 10;
+        } else if (p <= 60) {
+          // 40 to 60 maps to 2.0 to 5.0 (step 0.1: 2.1 ... 3.5 ... 5.0)
+          const ratio = (p - 40) / 20;
+          r = 2.0 + ratio * (5.0 - 2.0);
+          r = Math.round(r * 10) / 10;
+        } else if (p <= 80) {
+          // 60 to 80 maps to 5.0 to 10.0 (step 0.5: 5.5, 6.0 ... 7.0 ... 10.0)
+          const ratio = (p - 60) / 20;
+          r = 5.0 + ratio * (10.0 - 5.0);
+          r = Math.round(r * 2) / 2;
+        } else {
+          // 80 to 100 maps to 10.0 to 20.0 (step 0.5: 10.5, 11.0 ... 20.0)
+          const ratio = (p - 80) / 20;
+          r = 10.0 + ratio * (20.0 - 10.0);
+          r = Math.round(r * 2) / 2;
+        }
+        return Number(r.toFixed(2));
+      }
+
+      function radiusToPos(r) {
+        r = Math.max(0.05, Math.min(20, Number(r)));
+        if (r <= 0.5) {
+          return ((r - 0.05) / (0.5 - 0.05)) * 20;
+        } else if (r <= 2.0) {
+          return 20 + ((r - 0.5) / (2.0 - 0.5)) * 20;
+        } else if (r <= 5.0) {
+          return 40 + ((r - 2.0) / (5.0 - 2.0)) * 20;
+        } else if (r <= 10.0) {
+          return 60 + ((r - 5.0) / (10.0 - 5.0)) * 20;
+        } else {
+          return 80 + ((r - 10.0) / (20.0 - 10.0)) * 20;
+        }
+      }
+
+      function updateRadiusSliderUi(radiusKm) {
+        const val = Math.max(0.05, Math.min(20, Number(radiusKm) || 5));
+        const pos = radiusToPos(val);
+
+        const slider = document.getElementById('radius-range-slider');
+        if (slider && Math.abs(parseFloat(slider.value) - pos) > 0.4) {
+          slider.value = pos.toFixed(1);
+        }
+
         const labelEl = document.getElementById('radius-slider-val');
-        if (labelEl) labelEl.innerText = `${r.toFixed(1)} กม. (ต่ำสุด 0.5k)`;
+        if (labelEl) labelEl.innerText = formatRadiusDisplay(val);
+
+        // Highlight nearest tick mark
+        let closestMilestone = RADIUS_MILESTONES[0];
+        let minDiff = Math.abs(val - closestMilestone);
+        for (let i = 1; i < RADIUS_MILESTONES.length; i++) {
+          const diff = Math.abs(val - RADIUS_MILESTONES[i]);
+          if (diff < minDiff) {
+            minDiff = diff;
+            closestMilestone = RADIUS_MILESTONES[i];
+          }
+        }
+
+        document.querySelectorAll('.radius-track-tick').forEach(el => {
+          const tickVal = parseFloat(el.getAttribute('data-val'));
+          el.classList.toggle('active', Math.abs(tickVal - closestMilestone) < 0.01);
+        });
+        document.querySelectorAll('.radius-tick-num').forEach(el => {
+          const tickVal = parseFloat(el.getAttribute('data-val'));
+          el.classList.toggle('active', Math.abs(tickVal - closestMilestone) < 0.01);
+        });
+      }
+
+      function onContinuousRadiusInput(posVal) {
+        const r = posToRadius(parseFloat(posVal));
+        updateRadiusSliderUi(r);
         setInspectionRadius(r, null, false);
+        scheduleParentKpiUpdate();
+      }
+
+      function promptCustomRadius() {
+        const current = currentRadiusKm < 1 ? currentRadiusKm.toFixed(2) : currentRadiusKm.toFixed(1);
+        const input = prompt(`ระบุรัศมีที่ต้องการตรวจ (กม.) เช่น 0.05 (50 เมตร), 0.8, 1.2, 3.5, 7.0 (ต่ำสุด 0.05 ถึง 20 กม.):`, current);
+        if (input !== null) {
+          const val = parseFloat(input);
+          if (!isNaN(val) && val >= 0.05 && val <= 20) {
+            setInspectionRadius(val);
+          } else if (!isNaN(val)) {
+            showToast('<i class="fa-solid fa-circle-exclamation" style="color:#f59e0b; margin-right:4px;"></i>กรุณาระบุรัศมีระหว่าง 0.05 ถึง 20 กม.');
+          }
+        }
       }
 
       // Reference Point & Radius Inspection State
       let currentRadiusKm = 5;
       let referencePoint = null; // [lon, lat] - set only upon clicking the map or from input!
+      let currentRefProp = null; // object of active reference property if selected
       let pendingReferencePoint = null; // [lon, lat] - click confirmation preview
       let mousePreviewCoord = null; // [lon, lat] - preview circle follows mouse before clicking
       let currentNearbyData = [];
@@ -2907,7 +4776,7 @@
 
       // 1. Locked Radius Circle around referencePoint
       function createReferenceRadiusLayer() {
-        if (!referencePoint) return null;
+        if (!referencePoint || mapPinMode !== 'radius') return null;
         return new deck.ScatterplotLayer({
           id: 'reference-radius-circle',
           data: [{ lon: referencePoint[0], lat: referencePoint[1] }],
@@ -2915,9 +4784,9 @@
           getRadius: currentRadiusKm * 1000,
           radiusUnits: 'meters',
           stroked: true,
-          filled: true,
-          getFillColor: [16, 185, 129, 28], // soft emerald glass
-          getLineColor: [5, 150, 105, 235], // vibrant emerald border
+          filled: false,
+          getFillColor: [0, 0, 0, 0],
+          getLineColor: [5, 150, 105, 235],
           getLineWidth: 2.5,
           lineWidthUnits: 'pixels',
           lineWidthMinPixels: 2,
@@ -2927,7 +4796,7 @@
 
       // 2. Reference Pin Marker Layers (Concentric Bullseye Pin)
       function createReferencePinHaloLayer() {
-        if (!referencePoint) return null;
+        if (!referencePoint || mapPinMode !== 'radius') return null;
         return new deck.ScatterplotLayer({
           id: 'reference-pin-halo',
           data: [{ lon: referencePoint[0], lat: referencePoint[1] }],
@@ -2945,7 +4814,7 @@
       }
 
       function createReferencePinDotLayer() {
-        if (!referencePoint) return null;
+        if (!referencePoint || mapPinMode !== 'radius') return null;
         return new deck.ScatterplotLayer({
           id: 'reference-pin-dot',
           data: [{ lon: referencePoint[0], lat: referencePoint[1] }],
@@ -2963,7 +4832,7 @@
       }
 
       function createReferencePinCoreLayer() {
-        if (!referencePoint) return null;
+        if (!referencePoint || mapPinMode !== 'radius') return null;
         return new deck.ScatterplotLayer({
           id: 'reference-pin-core',
           data: [{ lon: referencePoint[0], lat: referencePoint[1] }],
@@ -3043,7 +4912,7 @@
         const boundaryLayer = createBoundaryLayer();
         if (boundaryLayer) layers.push(boundaryLayer);
 
-        if (referencePoint) {
+        if (referencePoint && mapPinMode === 'radius') {
           // When reference point is set: render locked radius circle + target bullseye pin + points
           const refCircle = createReferenceRadiusLayer();
           if (refCircle) layers.push(refCircle);
@@ -3056,19 +4925,40 @@
 
           const refCore = createReferencePinCoreLayer();
           if (refCore) layers.push(refCore);
-
-          // ONLY points inside the reference radius are shown (styled matching Tab 4)!
-          const ptLayers = createPointLayers(currentNearbyData);
-          if (ptLayers && ptLayers.length > 0) {
-            layers.push(...ptLayers);
-          }
-        } else {
-          // When NOT clicked yet: show preview cursor following mouse, ZERO property points!
+        } else if (mapPinMode === 'location' && currentRefProp && currentRefProp.lat && currentRefProp.lon) {
+          // In location mode with a selected property: render original halo on that pin
+          const pLat = parseFloat(currentRefProp.lat);
+          const pLon = parseFloat(currentRefProp.lon);
+          const selHalo = new deck.ScatterplotLayer({
+            id: 'selected-prop-location-halo',
+            data: [{ lon: pLon, lat: pLat }],
+            getPosition: d => [d.lon, d.lat],
+            getRadius: 22,
+            radiusUnits: 'pixels',
+            stroked: true,
+            filled: false,
+            getFillColor: [0, 0, 0, 0],
+            getLineColor: [5, 150, 105, 240],
+            getLineWidth: 2.5,
+            lineWidthUnits: 'pixels',
+            pickable: false
+          });
+          layers.push(selHalo);
+        } else if (mapPinMode === 'radius') {
+          // When in radius mode and NOT clicked yet: show preview cursor following mouse
           const prevCircle = createPreviewCursorLayer();
           if (prevCircle) layers.push(prevCircle);
 
           const prevDot = createPreviewDotLayer();
           if (prevDot) layers.push(prevDot);
+        }
+
+        // Render Property Points (in location mode: all matching location pins; in radius mode: nearby pins)
+        if (currentNearbyData && currentNearbyData.length > 0) {
+          const ptLayers = createPointLayers(currentNearbyData);
+          if (ptLayers && ptLayers.length > 0) {
+            layers.push(...ptLayers);
+          }
         }
 
         // If user has clicked to propose a new reference point, show pending marker
@@ -3085,8 +4975,18 @@
         companies: new Set(),
         types: new Set(),
         sales: new Set(),
+        samProjects: new Set(),
+        samProject: null,
         minPrice: null,
-        maxPrice: null
+        maxPrice: null,
+        minSqw: null,
+        maxSqw: null,
+        minSqm: null,
+        maxSqm: null,
+        minPuw: null,
+        maxPuw: null,
+        minPum: null,
+        maxPum: null
       };
 
       function toggleFilterPanel() {
@@ -3095,10 +4995,22 @@
         panel.style.display = (panel.style.display === 'none' || !panel.style.display) ? 'block' : 'none';
       }
 
+      const SIDEBAR_COMPANY_PRIORITY = [
+        "LED", "SAM", "BAM", "Chayo555", "Chayo", "Chayo NPA", "GHB", "KBANK", "KTB", "SCB", "GSB", "DDproperty", "Livinginsider", "NaYoo", "ZmyHome", "Baania"
+      ];
+
       function initInMapFilterChips(lut) {
         const compGrid = document.getElementById('filter-company-chips');
         if (compGrid && lut && lut.co) {
-          compGrid.innerHTML = lut.co.filter(c => c && c !== '-').map(c => {
+          const sortedCompanies = lut.co.filter(c => c && c !== '-').slice().sort((a, b) => {
+            let idxA = SIDEBAR_COMPANY_PRIORITY.indexOf(a);
+            let idxB = SIDEBAR_COMPANY_PRIORITY.indexOf(b);
+            if (idxA === -1) idxA = 999;
+            if (idxB === -1) idxB = 999;
+            if (idxA !== idxB) return idxA - idxB;
+            return a.localeCompare(b, 'th');
+          });
+          compGrid.innerHTML = sortedCompanies.map(c => {
             return `<span class="filter-chip" data-group="company" data-val="${c}" onclick="toggleFilterChip('company', '${c}', this)">${c}</span>`;
           }).join('');
         }
@@ -3116,6 +5028,26 @@
             return `<span class="filter-chip" data-group="sale" data-val="${s}" onclick="toggleFilterChip('sale', '${s}', this)">${s}</span>`;
           }).join('');
         }
+
+        // Store SAM projects in memory for the searchable combobox (Matching Tab 4 SAM projects)
+        if (lut && lut.sam_prj && Array.isArray(lut.sam_prj) && lut.sam_prj.length > 0) {
+          allProjectsList = lut.sam_prj;
+        } else if (cachedData && cachedData.length > 0) {
+          const samProjSet = new Set();
+          cachedData.forEach(d => {
+            if (d._company === 'SAM' && d._project && d._project !== '-' && d._project !== 'ไม่มีข้อมูล' && d._project !== 'ไม่มีชื่อ') {
+              samProjSet.add(d._project.trim());
+            }
+          });
+          if (samProjSet.size > 0) {
+            allProjectsList = Array.from(samProjSet).sort((a, b) => a.localeCompare(b, 'th'));
+          } else if (lut && lut.prj) {
+            allProjectsList = lut.prj.filter(p => p && p !== '-' && p !== 'ไม่มีข้อมูล').sort((a, b) => a.localeCompare(b, 'th'));
+          }
+        } else if (lut && lut.prj) {
+          allProjectsList = lut.prj.filter(p => p && p !== '-' && p !== 'ไม่มีข้อมูล').sort((a, b) => a.localeCompare(b, 'th'));
+        }
+        syncComboboxInputs();
       }
 
       function toggleFilterChip(group, val, el) {
@@ -3139,19 +5071,62 @@
         inMapFilterState.companies.clear();
         inMapFilterState.types.clear();
         inMapFilterState.sales.clear();
+        if (inMapFilterState.samProjects) inMapFilterState.samProjects.clear();
+        inMapFilterState.samProject = null;
         inMapFilterState.minPrice = null;
         inMapFilterState.maxPrice = null;
+        inMapFilterState.minSqw = null;
+        inMapFilterState.maxSqw = null;
+        inMapFilterState.minSqm = null;
+        inMapFilterState.maxSqm = null;
+        inMapFilterState.minPuw = null;
+        inMapFilterState.maxPuw = null;
+        inMapFilterState.minPum = null;
+        inMapFilterState.maxPum = null;
 
         document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
-        const minInp = document.getElementById('filter-min-price');
-        if (minInp) minInp.value = '';
-        const maxInp = document.getElementById('filter-max-price');
-        if (maxInp) maxInp.value = '';
+        const prjInp = document.getElementById('inmap-project-input');
+        if (prjInp) {
+          prjInp.value = '';
+          prjInp.placeholder = 'ทุกโครงการ SAM';
+        }
+
+        ['filter-min-price', 'filter-max-price', 'filter-min-sqw', 'filter-max-sqw', 'filter-min-sqm', 'filter-max-sqm', 'filter-min-puw', 'filter-max-puw', 'filter-min-pum', 'filter-max-pum'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.value = '';
+        });
 
         applyInMapFilters();
       }
 
       function filterItemPasses(d) {
+        if (mapPinMode === 'location') {
+          if (currentSelectedProv && currentSelectedProv !== '' && currentSelectedProv !== '__ALL__') {
+            if (d._prov !== currentSelectedProv) return false;
+          }
+          if (currentSelectedDist && currentSelectedDist !== '' && currentSelectedDist !== '__ALL__') {
+            const cleanD = currentSelectedDist.split(' (')[0].trim();
+            if (d._district !== currentSelectedDist && d._district !== cleanD) return false;
+          }
+          if (currentSelectedSubdist && currentSelectedSubdist !== '' && currentSelectedSubdist !== '__ALL__') {
+            const cleanS = currentSelectedSubdist.split(' (')[0].trim();
+            if (d._subdistrict !== currentSelectedSubdist && d._subdistrict !== cleanS) return false;
+          }
+        }
+        if (inMapFilterState.samProjects && inMapFilterState.samProjects.size > 0) {
+          const pName = (d._project || '').trim();
+          let match = false;
+          for (const selPrj of inMapFilterState.samProjects) {
+            if (pName === selPrj || pName.includes(selPrj)) {
+              match = true;
+              break;
+            }
+          }
+          if (!match) return false;
+        } else if (inMapFilterState.samProject && inMapFilterState.samProject !== '') {
+          const pName = (d._project || '').trim();
+          if (pName !== inMapFilterState.samProject && !pName.includes(inMapFilterState.samProject)) return false;
+        }
         if (inMapFilterState.companies.size > 0 && !inMapFilterState.companies.has(d._company)) {
           return false;
         }
@@ -3169,20 +5144,74 @@
         if (maxP !== null && !isNaN(maxP) && maxP > 0) {
           if ((d._price || 0) > maxP) return false;
         }
+
+        // Filter 5: ขนาดเนื้อที่ดิน (ตร.ว.)
+        const minSqw = inMapFilterState.minSqw;
+        if (minSqw !== null && !isNaN(minSqw) && minSqw > 0) {
+          if ((d._sqw || 0) < minSqw) return false;
+        }
+        const maxSqw = inMapFilterState.maxSqw;
+        if (maxSqw !== null && !isNaN(maxSqw) && maxSqw > 0) {
+          if ((d._sqw || 0) > maxSqw) return false;
+        }
+
+        // Filter 6: พื้นที่ใช้สอย (ตร.ม.)
+        const minSqm = inMapFilterState.minSqm;
+        if (minSqm !== null && !isNaN(minSqm) && minSqm > 0) {
+          if ((d._sqm || 0) < minSqm) return false;
+        }
+        const maxSqm = inMapFilterState.maxSqm;
+        if (maxSqm !== null && !isNaN(maxSqm) && maxSqm > 0) {
+          if ((d._sqm || 0) > maxSqm) return false;
+        }
+
+        // Filter 7: ราคาต่อ ตร.ว.
+        const minPuw = inMapFilterState.minPuw;
+        if (minPuw !== null && !isNaN(minPuw) && minPuw > 0) {
+          if ((d._puw || 0) < minPuw) return false;
+        }
+        const maxPuw = inMapFilterState.maxPuw;
+        if (maxPuw !== null && !isNaN(maxPuw) && maxPuw > 0) {
+          if ((d._puw || 0) > maxPuw) return false;
+        }
+
+        // Filter 8: ราคาต่อ ตร.ม.
+        const minPum = inMapFilterState.minPum;
+        if (minPum !== null && !isNaN(minPum) && minPum > 0) {
+          if ((d._pum || 0) < minPum) return false;
+        }
+        const maxPum = inMapFilterState.maxPum;
+        if (maxPum !== null && !isNaN(maxPum) && maxPum > 0) {
+          if ((d._pum || 0) > maxPum) return false;
+        }
+
         return true;
       }
 
       function applyInMapFilters() {
-        const minInp = document.getElementById('filter-min-price');
-        const maxInp = document.getElementById('filter-max-price');
-        const minVal = minInp ? parseFloat(minInp.value) : NaN;
-        const maxVal = maxInp ? parseFloat(maxInp.value) : NaN;
-        inMapFilterState.minPrice = (!isNaN(minVal) && minVal > 0) ? minVal : null;
-        inMapFilterState.maxPrice = (!isNaN(maxVal) && maxVal > 0) ? maxVal : null;
+        const getInpVal = (id) => {
+          const el = document.getElementById(id);
+          const v = el ? parseFloat(el.value) : NaN;
+          return (!isNaN(v) && v > 0) ? v : null;
+        };
+
+        inMapFilterState.minPrice = getInpVal('filter-min-price');
+        inMapFilterState.maxPrice = getInpVal('filter-max-price');
+        inMapFilterState.minSqw   = getInpVal('filter-min-sqw');
+        inMapFilterState.maxSqw   = getInpVal('filter-max-sqw');
+        inMapFilterState.minSqm   = getInpVal('filter-min-sqm');
+        inMapFilterState.maxSqm   = getInpVal('filter-max-sqm');
+        inMapFilterState.minPuw   = getInpVal('filter-min-puw');
+        inMapFilterState.maxPuw   = getInpVal('filter-max-puw');
+        inMapFilterState.minPum   = getInpVal('filter-min-pum');
+        inMapFilterState.maxPum   = getInpVal('filter-max-pum');
 
         let filterCount = inMapFilterState.companies.size + inMapFilterState.types.size + inMapFilterState.sales.size;
-        if (inMapFilterState.minPrice !== null) filterCount++;
-        if (inMapFilterState.maxPrice !== null) filterCount++;
+        ['minPrice', 'maxPrice', 'minSqw', 'maxSqw', 'minSqm', 'maxSqm', 'minPuw', 'maxPuw', 'minPum', 'maxPum'].forEach(k => {
+          if (inMapFilterState[k] !== null) filterCount++;
+        });
+        const hasProjFilter = (inMapFilterState.samProjects && inMapFilterState.samProjects.size > 0) || (inMapFilterState.samProject && inMapFilterState.samProject !== '');
+        if (hasProjFilter) filterCount++;
 
         const badgeEl = document.getElementById('inmap-filter-badge');
         if (badgeEl) {
@@ -3194,35 +5223,744 @@
           }
         }
 
-        if (referencePoint) {
-          const rawNearby = queryPointsInRadius(referencePoint[0], referencePoint[1], currentRadiusKm);
-          currentNearbyData = rawNearby.filter(filterItemPasses);
-          currentCoordMap = buildCoordMap(currentNearbyData);
-          updateDuplicateStats(currentNearbyData, currentCoordMap);
+        if (mapPinMode === 'location') {
+          const hasProvSelected = currentSelectedProv && currentSelectedProv.trim() !== '' && currentSelectedProv !== '__ALL__';
+          if (!hasProvSelected) {
+            currentNearbyData = [];
+            currentCoordMap = new Map();
+            updateDuplicateStats(currentNearbyData, currentCoordMap);
 
-          const statusEl = document.getElementById('radius-status-text');
-          if (statusEl) {
-            statusEl.innerHTML = `<span style="color:#ef4444; font-weight:800;"><i class="fa-solid fa-location-dot"></i> จุดอ้างอิง:</span> พบ <b>${currentNearbyData.length.toLocaleString()}</b> รายการ (ในรัศมี <b>${currentRadiusKm} กม.</b>)`;
+            const statusEl = document.getElementById('radius-status-text');
+            if (statusEl) {
+              statusEl.innerHTML = `<span style="color:#059669; font-weight:800;"><i class="fa-solid fa-hand-pointer" style="margin-right:4px;"></i> กรุณาเลือกจังหวัด เพื่อแสดงหมุดตามทำเล</span>`;
+            }
+            const countEl = document.getElementById('points-count');
+            if (countEl) {
+              countEl.innerText = `กรุณาเลือกจังหวัดเพื่อแสดงหมุดตามทำเล`;
+            }
+          } else {
+            // Location mode: all pins matching current geographic selection and filters
+            currentNearbyData = (cachedData || []).filter(filterItemPasses);
+            currentCoordMap = buildCoordMap(currentNearbyData);
+            updateDuplicateStats(currentNearbyData, currentCoordMap);
+
+            let locDesc = currentSelectedProv;
+            if (currentSelectedDist) locDesc += ' > ' + currentSelectedDist;
+            if (currentSelectedSubdist) locDesc += ' > ' + currentSelectedSubdist;
+
+            const statusEl = document.getElementById('radius-status-text');
+            if (statusEl) {
+              statusEl.innerHTML = `<span style="color:#10b981; font-weight:800;"><i class="fa-solid fa-map-pin"></i> หมุดตามทำเล (${locDesc}):</span> พบ <b>${currentNearbyData.length.toLocaleString()}</b> รายการ`;
+            }
+            const countEl = document.getElementById('points-count');
+            if (countEl) {
+              countEl.innerText = `หมุดตามทำเล: แสดง ${currentNearbyData.length.toLocaleString()} รายการ (${locDesc})`;
+            }
+          }
+        } else {
+          // Radius mode: strictly within reference radius
+          if (referencePoint) {
+            const rawNearby = queryPointsInRadius(referencePoint[0], referencePoint[1], currentRadiusKm);
+            currentNearbyData = rawNearby.filter(filterItemPasses);
+            currentCoordMap = buildCoordMap(currentNearbyData);
+            updateDuplicateStats(currentNearbyData, currentCoordMap);
+
+            const statusEl = document.getElementById('radius-status-text');
+            if (statusEl) {
+              statusEl.innerHTML = `<span style="color:#ef4444; font-weight:800;"><i class="fa-solid fa-bullseye"></i> จุดอ้างอิง (ตามรัศมี):</span> พบ <b>${currentNearbyData.length.toLocaleString()}</b> รายการ (ในรัศมี <b>${formatRadiusDisplay(currentRadiusKm)}</b>)`;
+            }
+            const countEl = document.getElementById('points-count');
+            if (countEl) {
+              countEl.innerText = `จุดอ้างอิง: แสดง ${currentNearbyData.length.toLocaleString()} รายการ (ในรัศมี ${formatRadiusDisplay(currentRadiusKm)})`;
+            }
+          } else if (hasProjFilter) {
+            // When projects are selected without an active reference point
+            const prjCount = inMapFilterState.samProjects ? inMapFilterState.samProjects.size : 1;
+            const projDesc = prjCount > 1 ? `${prjCount} โครงการ SAM` : (Array.from(inMapFilterState.samProjects)[0] || inMapFilterState.samProject);
+            currentNearbyData = (cachedData || []).filter(filterItemPasses);
+            currentCoordMap = buildCoordMap(currentNearbyData);
+            updateDuplicateStats(currentNearbyData, currentCoordMap);
+
+            const statusEl = document.getElementById('radius-status-text');
+            if (statusEl) {
+              statusEl.innerHTML = `<span style="color:#059669; font-weight:800;"><i class="fa-solid fa-building-flag" style="margin-right:4px;"></i> โครงการ: ${projDesc}</span> พบ <b>${currentNearbyData.length.toLocaleString()}</b> รายการ`;
+            }
+            const countEl = document.getElementById('points-count');
+            if (countEl) {
+              countEl.innerText = `โครงการ: ${projDesc} (${currentNearbyData.length.toLocaleString()} รายการ)`;
+            }
+          } else {
+            currentNearbyData = [];
+            currentCoordMap = new Map();
+            const disp = formatRadiusDisplay(currentRadiusKm);
+            const statusEl = document.getElementById('radius-status-text');
+            if (statusEl) {
+              statusEl.innerHTML = `คลิกบนแผนที่เพื่อกำหนดจุดอ้างอิง (รัศมี ${disp})`;
+            }
+            const countEl = document.getElementById('points-count');
+            if (countEl) {
+              countEl.innerText = `คลิกบนแผนที่เพื่อกำหนดจุดอ้างอิง (รัศมี ${disp})`;
+            }
           }
         }
 
         updateLegendContent();
         updateDeckLayers();
         updatePropertyCardPosition();
+        scheduleParentKpiUpdate();
+        notifyParentFilterChange();
       }
 
-      function setReferencePoint(lon, lat, flyTo = false) {
+      let syncFilterDebounceTimer = null;
+      function notifyParentFilterChange() {
+        clearTimeout(syncFilterDebounceTimer);
+        syncFilterDebounceTimer = setTimeout(() => {
+          try {
+            if (!window.parent) return;
+            var u = new URL(window.parent.location.href);
+            u.searchParams.set('map_ref_radius', currentRadiusKm);
+            u.searchParams.set('map_pin_mode', mapPinMode || 'radius');
+
+            // Location parameters
+            if (currentSelectedProv && currentSelectedProv !== '__ALL__') {
+              u.searchParams.set('map_prov', currentSelectedProv);
+            } else {
+              u.searchParams.delete('map_prov');
+            }
+            if (currentSelectedDist && currentSelectedDist !== '__ALL__') {
+              u.searchParams.set('map_dist', currentSelectedDist);
+            } else {
+              u.searchParams.delete('map_dist');
+            }
+            if (currentSelectedSubdist && currentSelectedSubdist !== '__ALL__') {
+              u.searchParams.set('map_subdist', currentSelectedSubdist);
+            } else {
+              u.searchParams.delete('map_subdist');
+            }
+
+            // Project parameter
+            if (inMapFilterState && inMapFilterState.samProjects && inMapFilterState.samProjects.size > 0) {
+              u.searchParams.set('map_proj', Array.from(inMapFilterState.samProjects).join(','));
+            } else if (inMapFilterState && inMapFilterState.samProject) {
+              u.searchParams.set('map_proj', inMapFilterState.samProject);
+            } else {
+              u.searchParams.delete('map_proj');
+            }
+
+            if (inMapFilterState && inMapFilterState.companies && inMapFilterState.companies.size > 0) {
+              u.searchParams.set('map_filter_cos', Array.from(inMapFilterState.companies).join(','));
+            } else {
+              u.searchParams.delete('map_filter_cos');
+            }
+            if (inMapFilterState && inMapFilterState.types && inMapFilterState.types.size > 0) {
+              u.searchParams.set('map_filter_types', Array.from(inMapFilterState.types).join(','));
+            } else {
+              u.searchParams.delete('map_filter_types');
+            }
+            if (inMapFilterState && inMapFilterState.minPrice) {
+              u.searchParams.set('map_filter_min_p', inMapFilterState.minPrice);
+            } else {
+              u.searchParams.delete('map_filter_min_p');
+            }
+            if (inMapFilterState && inMapFilterState.maxPrice) {
+              u.searchParams.set('map_filter_max_p', inMapFilterState.maxPrice);
+            } else {
+              u.searchParams.delete('map_filter_max_p');
+            }
+            if (inMapFilterState && inMapFilterState.minSqw) {
+              u.searchParams.set('map_filter_min_sqw', inMapFilterState.minSqw);
+            } else {
+              u.searchParams.delete('map_filter_min_sqw');
+            }
+            if (inMapFilterState && inMapFilterState.maxSqw) {
+              u.searchParams.set('map_filter_max_sqw', inMapFilterState.maxSqw);
+            } else {
+              u.searchParams.delete('map_filter_max_sqw');
+            }
+            if (inMapFilterState && inMapFilterState.minSqm) {
+              u.searchParams.set('map_filter_min_sqm', inMapFilterState.minSqm);
+            } else {
+              u.searchParams.delete('map_filter_min_sqm');
+            }
+            if (inMapFilterState && inMapFilterState.maxSqm) {
+              u.searchParams.set('map_filter_max_sqm', inMapFilterState.maxSqm);
+            } else {
+              u.searchParams.delete('map_filter_max_sqm');
+            }
+            window.parent.history.replaceState({}, '', u.toString());
+          } catch(e) {
+            console.warn('notifyParentFilterChange error:', e);
+          }
+        }, 150);
+      }
+
+      function triggerStreamlitSync() {
+        try {
+          if (!window.parent) return;
+          var syncBtn = window.parent.document.querySelector('.st-key-btn_map_filter_sync button');
+          if (!syncBtn) {
+            syncBtn = window.parent.document.querySelector('button[key="btn_map_filter_sync"]');
+          }
+          if (!syncBtn) {
+            var anchor = window.parent.document.querySelector('#map-sync-anchor');
+            if (anchor) {
+              var parentContainer = anchor.closest('[data-testid="stElementContainer"]') || anchor.parentElement;
+              if (parentContainer && parentContainer.nextElementSibling) {
+                syncBtn = parentContainer.nextElementSibling.querySelector('button');
+              }
+            }
+          }
+          if (!syncBtn) {
+            var allBtns = window.parent.document.querySelectorAll('button');
+            for (var i = 0; i < allBtns.length; i++) {
+              var txt = allBtns[i].textContent ? allBtns[i].textContent.trim() : '';
+              if (txt === 'sync_map_filter') {
+                syncBtn = allBtns[i];
+                break;
+              }
+            }
+          }
+          if (syncBtn) {
+            syncBtn.click();
+          }
+        } catch(e) {
+          console.warn('triggerStreamlitSync error:', e);
+        }
+      }
+
+      function hideParentSyncButton() {
+        try {
+          if (!window.parent) return;
+          var allBtns = window.parent.document.querySelectorAll('button');
+          for (var i = 0; i < allBtns.length; i++) {
+            var txt = allBtns[i].textContent ? allBtns[i].textContent.trim() : '';
+            if (txt === 'sync_map_filter') {
+              var el = allBtns[i].closest('[data-testid="stElementContainer"]') || allBtns[i];
+              el.style.position = 'absolute';
+              el.style.left = '-99999px';
+              el.style.top = '-99999px';
+              el.style.height = '0px';
+              el.style.width = '0px';
+              el.style.overflow = 'hidden';
+              el.style.opacity = '0';
+              el.style.pointerEvents = 'none';
+            }
+          }
+        } catch(e) {}
+      }
+
+      let mapAnimRaf = null;
+      function smoothFlyTo(targetLon, targetLat, targetZoom, duration = 1500, onComplete) {
+        if (!deckglInstance) return;
+        if (mapAnimRaf) {
+          cancelAnimationFrame(mapAnimRaf);
+          mapAnimRaf = null;
+        }
+
+        const startLon = Number(currentViewState.longitude) || 100.52;
+        const startLat = Number(currentViewState.latitude) || 13.75;
+        const startZoom = Number(currentViewState.zoom) || 8.5;
+        const startPitch = Number(currentViewState.pitch) || 0;
+        const startBearing = Number(currentViewState.bearing) || 0;
+
+        const dLon = targetLon - startLon;
+        const dLat = targetLat - startLat;
+        const dZoom = targetZoom - startZoom;
+
+        const startTime = performance.now();
+
+        // Smooth cubic ease-in-out: starts gently, accelerates, then decelerates into place
+        function easeInOutCubic(t) {
+          return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+        }
+
+        function stepAnim(now) {
+          const elapsed = now - startTime;
+          const progress = Math.min(1.0, elapsed / duration);
+          const ease = easeInOutCubic(progress);
+
+          const curLon = startLon + dLon * ease;
+          const curLat = startLat + dLat * ease;
+          const curZoom = startZoom + dZoom * ease;
+          const curPitch = startPitch * (1 - ease);
+          const curBearing = startBearing * (1 - ease);
+
+          currentViewState = {
+            ...currentViewState,
+            longitude: curLon,
+            latitude: curLat,
+            zoom: curZoom,
+            pitch: curPitch,
+            bearing: curBearing
+          };
+
+          deckglInstance.setProps({ viewState: currentViewState });
+          updateCompass(curBearing);
+          try { updateConfirmBubblePosition(); } catch(e) {}
+          try { updateSvgBoundaries(); } catch(e) {}
+          try { updatePropertyCardPosition(); } catch(e) {}
+
+          if (progress < 1.0) {
+            mapAnimRaf = requestAnimationFrame(stepAnim);
+          } else {
+            mapAnimRaf = null;
+            if (onComplete) onComplete();
+          }
+        }
+
+        mapAnimRaf = requestAnimationFrame(stepAnim);
+      }
+
+      function calculateZoomForRadius(lat, radiusKm) {
+        const r = parseFloat(radiusKm) || 5;
+        if (r <= 0.5) return 15.6;
+        if (r <= 1.0) return 14.8;
+        if (r <= 2.0) return 14.0;
+        if (r <= 3.0) return 13.5;
+        if (r <= 5.0) return 12.8;
+        if (r <= 8.0) return 12.2;
+        if (r <= 10.0) return 11.8;
+        if (r <= 15.0) return 11.2;
+        if (r <= 20.0) return 10.6;
+        if (r <= 30.0) return 9.8;
+        return 9.0;
+      }
+
+      // =========================================================================
+      // REALTIME SYNCHRONIZATION WITH TOP KPI CARDS (Parent Window Streamlit)
+      // =========================================================================
+      function getParentKpiElements() {
+        try {
+          if (!window.parent || !window.parent.document) return null;
+          const pdoc = window.parent.document;
+          const container = pdoc.querySelector('.floating-kpi-container');
+          if (!container) return null;
+          return {
+            doc: pdoc,
+            container: container,
+            countCard: pdoc.getElementById('kpi-card-count') || container.children[0],
+            totalValCard: pdoc.getElementById('kpi-card-total-val') || container.children[1],
+            minPriceCard: pdoc.getElementById('kpi-card-min-price') || container.children[2],
+            medianPriceCard: pdoc.getElementById('kpi-card-median-price') || container.children[3],
+            meanPriceCard: pdoc.getElementById('kpi-card-mean-price') || container.children[4],
+            maxPriceCard: pdoc.getElementById('kpi-card-max-price') || container.children[5],
+            sdPriceCard: pdoc.getElementById('kpi-card-sd-price') || container.children[6],
+          };
+        } catch(e) {
+          return null;
+        }
+      }
+
+      function formatKpiPrice(val) {
+        if (!val || isNaN(val) || val <= 0) return '฿0';
+        if (val >= 1e9) {
+          const num = (val / 1e9).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          return '฿' + num + 'B';
+        } else if (val >= 1e6) {
+          const num = (val / 1e6).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          return '฿' + num + 'M';
+        } else if (val >= 1e3) {
+          const num = (val / 1e3).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+          return '฿' + num + 'K';
+        } else {
+          return '฿' + Math.round(val).toLocaleString('en-US');
+        }
+      }
+
+      function calculateKpiStats(data) {
+        if (!data || data.length === 0) {
+          return { count: 0, totalVal: 0, minPrice: 0, medianPrice: 0, meanPrice: 0, maxPrice: 0, sdPrice: 0 };
+        }
+        const count = data.length;
+        const prices = [];
+        let totalVal = 0;
+        for (let i = 0; i < count; i++) {
+          const p = data[i]._price;
+          if (p && !isNaN(p) && p > 0) {
+            prices.push(p);
+            totalVal += p;
+          }
+        }
+
+        if (prices.length === 0) {
+          return { count, totalVal: 0, minPrice: 0, medianPrice: 0, meanPrice: 0, maxPrice: 0, sdPrice: 0 };
+        }
+
+        prices.sort((a, b) => a - b);
+        const minPrice = prices[0];
+        const maxPrice = prices[prices.length - 1];
+        const meanPrice = totalVal / prices.length;
+        const mid = Math.floor(prices.length / 2);
+        const medianPrice = (prices.length % 2 !== 0) ? prices[mid] : ((prices[mid - 1] + prices[mid]) / 2);
+
+        let sdPrice = 0;
+        if (prices.length > 1) {
+          let sumSqDiff = 0;
+          for (let i = 0; i < prices.length; i++) {
+            const diff = prices[i] - meanPrice;
+            sumSqDiff += diff * diff;
+          }
+          sdPrice = Math.sqrt(sumSqDiff / (prices.length - 1));
+        }
+
+        return { count, totalVal, minPrice, medianPrice, meanPrice, maxPrice, sdPrice };
+      }
+
+      function updateParentKpiCards() {
+        const els = getParentKpiElements();
+        if (!els) return;
+
+        // Check if Tab 2 (Map) is currently active in Streamlit tablist
+        try {
+          const tablist = els.doc.querySelector('.st-key-main_tabs_container [role="tablist"]');
+          if (tablist) {
+            const tabs = tablist.querySelectorAll('[role="tab"]');
+            if (tabs.length >= 2 && tabs[1].getAttribute('aria-selected') !== 'true') {
+              return; // Another tab is active, do not overwrite
+            }
+          }
+        } catch(e) {}
+
+        let activeData = [];
+        let scopeBadgeText = '';
+        let subCountDesc = '';
+        let subTotalDesc = '';
+
+        if (mapPinMode === 'radius' && referencePoint) {
+          activeData = (currentNearbyData && currentNearbyData.length > 0) ? currentNearbyData : [];
+          const rDisp = formatRadiusDisplay(currentRadiusKm);
+          scopeBadgeText = `รัศมี ${rDisp}`;
+          subCountDesc = `ในรัศมี ${rDisp} (จุดอ้างอิง)`;
+          subTotalDesc = `มูลค่าในรัศมีที่ตรวจ`;
+        } else if (mapPinMode === 'location' && currentSelectedProv && currentSelectedProv !== '__ALL__') {
+          activeData = (currentNearbyData && currentNearbyData.length > 0) ? currentNearbyData : [];
+          let locDesc = currentSelectedProv;
+          if (currentSelectedDist) locDesc += ' > ' + currentSelectedDist;
+          scopeBadgeText = locDesc;
+          subCountDesc = `ตามทำเล: ${locDesc}`;
+          subTotalDesc = `มูลค่ารวมในพื้นที่เลือก`;
+        } else {
+          // General map scope: all points with valid coordinates on map
+          activeData = (cachedData && cachedData.length > 0) ? cachedData : (currentNearbyData || []);
+          scopeBadgeText = 'บนแผนที่';
+          subCountDesc = `พิกัดจริงบนแผนที่`;
+          subTotalDesc = `มูลค่ารวมทรัพย์บนแผนที่`;
+        }
+
+        const stats = calculateKpiStats(activeData);
+
+        const updateCard = (card, valStr, subStr, badgeText) => {
+          if (!card) return;
+          card.classList.add('kpi-synced-map');
+          const valEl = card.querySelector('.floating-card-value');
+          const subEl = card.querySelector('.floating-card-sub');
+          if (valEl) valEl.innerText = valStr;
+          if (subEl) subEl.innerText = subStr;
+
+          let badge = card.querySelector('.kpi-scope-badge');
+          if (!badge) {
+            const titleEl = card.querySelector('.floating-card-title');
+            if (titleEl) {
+              badge = els.doc.createElement('span');
+              badge.className = 'kpi-scope-badge';
+              badge.style.cssText = 'margin-left:auto; font-size:10px; padding:1.5px 6px; border-radius:6px; font-weight:700; background:rgba(16,185,129,0.12); color:#059669; border:1px solid rgba(16,185,129,0.25); text-transform:none; letter-spacing:0;';
+              titleEl.appendChild(badge);
+            }
+          }
+          if (badge) {
+            badge.innerHTML = `<i class="fa-solid fa-location-dot" style="font-size:9px; margin-right:3px;"></i>${badgeText}`;
+            badge.style.display = 'inline-flex';
+            badge.style.alignItems = 'center';
+          }
+        };
+
+        updateCard(els.countCard, stats.count.toLocaleString('en-US'), subCountDesc, scopeBadgeText);
+        updateCard(els.totalValCard, formatKpiPrice(stats.totalVal), subTotalDesc, scopeBadgeText);
+        updateCard(els.minPriceCard, formatKpiPrice(stats.minPrice), 'ราคาเริ่มต้นต่ำสุด', scopeBadgeText);
+        updateCard(els.medianPriceCard, formatKpiPrice(stats.medianPrice), 'ค่ามัธยฐานของกลุ่ม', scopeBadgeText);
+        updateCard(els.meanPriceCard, formatKpiPrice(stats.meanPrice), 'ค่าเฉลี่ยเลขคณิต', scopeBadgeText);
+        updateCard(els.maxPriceCard, formatKpiPrice(stats.maxPrice), 'มูลค่าสูงสุดในกลุ่ม', scopeBadgeText);
+        updateCard(els.sdPriceCard, stats.sdPrice > 0 ? `±${formatKpiPrice(stats.sdPrice)}` : '฿0', 'การกระจายตัวของราคา', scopeBadgeText);
+      }
+
+      function restoreDefaultParentKpiCards() {
+        const els = getParentKpiElements();
+        if (!els) return;
+
+        const restoreCard = (card) => {
+          if (!card) return;
+          card.classList.remove('kpi-synced-map');
+          const defVal = card.getAttribute('data-default-val');
+          const defSub = card.getAttribute('data-default-sub');
+          const valEl = card.querySelector('.floating-card-value');
+          const subEl = card.querySelector('.floating-card-sub');
+          const badge = card.querySelector('.kpi-scope-badge');
+          if (valEl && defVal !== null) valEl.innerText = defVal;
+          if (subEl && defSub !== null) subEl.innerText = defSub;
+          if (badge) badge.style.display = 'none';
+        };
+
+        restoreCard(els.countCard);
+        restoreCard(els.totalValCard);
+        restoreCard(els.minPriceCard);
+        restoreCard(els.medianPriceCard);
+        restoreCard(els.meanPriceCard);
+        restoreCard(els.maxPriceCard);
+        restoreCard(els.sdPriceCard);
+      }
+
+      function updateParentFilterStatusBanner() {
+        try {
+          if (!window.parent || !window.parent.document) return;
+          const pdoc = window.parent.document;
+          const banner = pdoc.getElementById('map-active-filters-banner');
+          if (!banner) return;
+
+          let activeData = [];
+          const hasRef = !!referencePoint;
+          const isRadiusMode = (mapPinMode === 'radius');
+          const hasProv = !!(currentSelectedProv && currentSelectedProv.trim() !== '' && currentSelectedProv !== '__ALL__');
+          const hasProjFilter = inMapFilterState && ((inMapFilterState.samProjects && inMapFilterState.samProjects.size > 0) || (inMapFilterState.samProject && inMapFilterState.samProject !== ''));
+
+          if (isRadiusMode && hasRef) {
+            activeData = (currentNearbyData && currentNearbyData.length > 0) ? currentNearbyData : [];
+          } else if (mapPinMode === 'location' && hasProv) {
+            activeData = (currentNearbyData && currentNearbyData.length > 0) ? currentNearbyData : [];
+          } else if (hasProjFilter) {
+            activeData = (currentNearbyData && currentNearbyData.length > 0) ? currentNearbyData : [];
+          } else {
+            activeData = (cachedData && cachedData.length > 0) ? cachedData : (currentNearbyData || []);
+          }
+
+          const matchedCount = activeData.length;
+
+          // 1. Mode Badge
+          const modeBadgeEl = pdoc.getElementById('active-filter-mode-val');
+          if (modeBadgeEl) {
+            const modeText = (isRadiusMode && hasRef) ? "ตามรัศมี (Radius)" : "ตามทำเล (Location)";
+            modeBadgeEl.innerHTML = `โหมด: <b>${modeText}</b>`;
+          }
+
+          // 2. Count
+          const countEl = pdoc.getElementById('active-filter-count-val');
+          if (countEl) {
+            countEl.innerHTML = `<i class="fa-solid fa-layer-group"></i> ทรัพย์ที่ตรงเงื่อนไข: <b>${matchedCount.toLocaleString('en-US')}</b> รายการ`;
+          }
+
+          // 3. Location (ทำเล)
+          const locEl = pdoc.getElementById('active-filter-loc-val');
+          if (locEl) {
+            let locStr = "ทุกทำเล (ทั่วประเทศ)";
+            const prov = (currentSelectedProv && currentSelectedProv !== '__ALL__') ? currentSelectedProv.trim() : '';
+            const dist = (currentSelectedDist && currentSelectedDist !== '__ALL__') ? currentSelectedDist.trim() : '';
+            const subdist = (currentSelectedSubdist && currentSelectedSubdist !== '__ALL__') ? currentSelectedSubdist.trim() : '';
+
+            if (subdist) {
+              const cleanS = subdist.split(' (')[0].trim();
+              const cleanD = dist ? dist.split(' (')[0].trim() : '-';
+              locStr = `จ.${prov || '-'} > อ.${cleanD} > ต.${cleanS}`;
+            } else if (dist) {
+              const cleanD = dist.split(' (')[0].trim();
+              locStr = `จ.${prov || '-'} > อ.${cleanD}`;
+            } else if (prov) {
+              locStr = `จ.${prov}`;
+            }
+
+            if (hasProjFilter) {
+              const prjCount = inMapFilterState.samProjects ? inMapFilterState.samProjects.size : 1;
+              const prjList = (inMapFilterState.samProjects && inMapFilterState.samProjects.size > 0)
+                ? (prjCount > 1 ? `${prjCount} โครงการ SAM` : Array.from(inMapFilterState.samProjects)[0])
+                : inMapFilterState.samProject;
+              locStr += ` &bull; โครงการ: ${prjList}`;
+            }
+            locEl.innerHTML = locStr;
+          }
+
+          // 4. Radius (รัศมีตรวจ)
+          const radEl = pdoc.getElementById('active-filter-rad-val');
+          if (radEl) {
+            let radStr = '';
+            const rVal = currentRadiusKm < 1 ? currentRadiusKm.toFixed(2) : currentRadiusKm.toFixed(1);
+            if (hasRef) {
+              if (currentRefProp && currentRefProp._id) {
+                const comp = currentRefProp._company || '-';
+                radStr = `${rVal} กม. รอบ [${comp}] ${currentRefProp._id}`;
+              } else {
+                radStr = `${rVal} กม. (${referencePoint[1].toFixed(4)}, ${referencePoint[0].toFixed(4)})`;
+              }
+            } else {
+              radStr = `รัศมี ${rVal} กม. (ยังไม่ได้ปักหมุด)`;
+            }
+            radEl.innerText = radStr;
+          }
+
+          // 5. Company (บริษัท)
+          const coEl = pdoc.getElementById('active-filter-co-val');
+          if (coEl) {
+            if (inMapFilterState && inMapFilterState.companies && inMapFilterState.companies.size > 0) {
+              const cosArr = Array.from(inMapFilterState.companies);
+              coEl.innerText = `${cosArr.join(', ')} (${cosArr.length} บริษัท)`;
+            } else {
+              coEl.innerText = "ทุกบริษัท";
+            }
+          }
+
+          // 6. Property Type (ประเภททรัพย์)
+          const typeEl = pdoc.getElementById('active-filter-type-val');
+          if (typeEl) {
+            if (inMapFilterState && inMapFilterState.types && inMapFilterState.types.size > 0) {
+              typeEl.innerText = Array.from(inMapFilterState.types).join(', ');
+            } else {
+              typeEl.innerText = "ทุกประเภททรัพย์";
+            }
+          }
+
+          // 7. Price (ราคา)
+          const priceEl = pdoc.getElementById('active-filter-price-val');
+          if (priceEl) {
+            const minP = inMapFilterState ? inMapFilterState.minPrice : null;
+            const maxP = inMapFilterState ? inMapFilterState.maxPrice : null;
+            if (minP && maxP) {
+              priceEl.innerText = `${formatKpiPrice(minP)} - ${formatKpiPrice(maxP)}`;
+            } else if (minP) {
+              priceEl.innerText = `>= ${formatKpiPrice(minP)}`;
+            } else if (maxP) {
+              priceEl.innerText = `<= ${formatKpiPrice(maxP)}`;
+            } else {
+              priceEl.innerText = "ทุกช่วงราคา";
+            }
+          }
+
+          // 8. Area (ขนาด/Plan)
+          const areaEl = pdoc.getElementById('active-filter-area-val');
+          if (areaEl) {
+            const minSqw = inMapFilterState ? inMapFilterState.minSqw : null;
+            const maxSqw = inMapFilterState ? inMapFilterState.maxSqw : null;
+            const minSqm = inMapFilterState ? inMapFilterState.minSqm : null;
+            const maxSqm = inMapFilterState ? inMapFilterState.maxSqm : null;
+            let areaParts = [];
+            if (minSqw || maxSqw) {
+              areaParts.push(maxSqw ? `${(minSqw || 0).toLocaleString()}-${maxSqw.toLocaleString()} ตร.ว.` : `>= ${(minSqw || 0).toLocaleString()} ตร.ว.`);
+            }
+            if (minSqm || maxSqm) {
+              areaParts.push(maxSqm ? `${(minSqm || 0).toLocaleString()}-${maxSqm.toLocaleString()} ตร.ม.` : `>= ${(minSqm || 0).toLocaleString()} ตร.ม.`);
+            }
+            areaEl.innerText = areaParts.length > 0 ? areaParts.join(' / ') : "ทุกขนาด (ทุก Plan)";
+          }
+        } catch (e) {
+          console.warn("Failed to update parent filter status banner:", e);
+        }
+      }
+
+      let kpiUpdateRaf = null;
+      function scheduleParentKpiUpdate() {
+        if (kpiUpdateRaf) cancelAnimationFrame(kpiUpdateRaf);
+        kpiUpdateRaf = requestAnimationFrame(() => {
+          updateParentKpiCards();
+          updateParentFilterStatusBanner();
+        });
+      }
+
+      function setupParentTabListeners() {
+        try {
+          if (!window.parent || !window.parent.document) return;
+          const pdoc = window.parent.document;
+
+          updateParentFilterStatusBanner();
+          
+          const tryBind = () => {
+            const tablist = pdoc.querySelector('.st-key-main_tabs_container [role="tablist"]');
+            if (!tablist) return false;
+            const tabs = tablist.querySelectorAll('[role="tab"]');
+            if (tabs.length < 2) return false;
+
+            tabs.forEach((t, idx) => {
+              if (!t._kpiTabBound) {
+                t._kpiTabBound = true;
+                t.addEventListener('click', () => {
+                  setTimeout(() => {
+                    if (idx === 1) {
+                      updateParentKpiCards();
+                      updateParentFilterStatusBanner();
+                    } else {
+                      restoreDefaultParentKpiCards();
+                    }
+                  }, 40);
+                });
+              }
+            });
+
+            if (!tablist._kpiObsBound) {
+              tablist._kpiObsBound = true;
+              const obs = new MutationObserver(() => {
+                const isTab2Active = tabs[1] && tabs[1].getAttribute('aria-selected') === 'true';
+                if (isTab2Active) {
+                  updateParentKpiCards();
+                  updateParentFilterStatusBanner();
+                } else {
+                  restoreDefaultParentKpiCards();
+                }
+              });
+              obs.observe(tablist, { attributes: true, subtree: true, attributeFilter: ['aria-selected'] });
+            }
+
+            // If Tab 2 is already active right now, apply immediately
+            if (tabs[1] && tabs[1].getAttribute('aria-selected') === 'true') {
+              updateParentKpiCards();
+              updateParentFilterStatusBanner();
+            }
+
+            return true;
+          };
+
+          if (!tryBind()) {
+            let attempts = 0;
+            const tId = setInterval(() => {
+              attempts++;
+              if (tryBind() || attempts > 20) clearInterval(tId);
+            }, 250);
+          }
+        } catch(e) {
+          console.warn('setupParentTabListeners error:', e);
+        }
+      }
+
+      function setReferencePoint(lon, lat, flyTo = true, triggerSync = true) {
         referencePoint = [lon, lat];
         pendingReferencePoint = null;
         mousePreviewCoord = null;
+
+        if (mapPinMode !== 'radius') {
+          mapPinMode = 'radius';
+          const btnLoc = document.getElementById('btn-mode-location');
+          const btnRad = document.getElementById('btn-mode-radius');
+          if (btnLoc) btnLoc.classList.toggle('active', false);
+          if (btnRad) btnRad.classList.toggle('active', true);
+        }
+
         const rawNearby = queryPointsInRadius(lon, lat, currentRadiusKm);
         currentNearbyData = rawNearby.filter(filterItemPasses);
         currentCoordMap = buildCoordMap(currentNearbyData);
         updateDuplicateStats(currentNearbyData, currentCoordMap);
 
+        const coordPill = document.getElementById('active-ref-pill');
+        const coordText = document.getElementById('active-ref-coord-text');
+        if (coordPill && coordText) {
+          coordText.innerText = `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+          coordPill.style.display = 'inline-flex';
+        }
+
+        const coordInp = document.getElementById('inmap-coord-input');
+        const coordClr = document.getElementById('inmap-clear-coord-btn');
+        if (coordInp) {
+          coordInp.value = `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+          if (coordClr) coordClr.style.display = 'inline-flex';
+        }
+
         const statusEl = document.getElementById('radius-status-text');
         if (statusEl) {
-          statusEl.innerHTML = `<span style="color:#ef4444; font-weight:800;"><i class="fa-solid fa-location-dot"></i> จุดอ้างอิง:</span> พบ <b>${currentNearbyData.length.toLocaleString()}</b> รายการ (ในรัศมี <b>${currentRadiusKm} กม.</b>)`;
+          statusEl.style.display = 'inline-block';
+          statusEl.innerHTML = `<span style="color:#10b981; font-weight:800;"><i class="fa-solid fa-crosshairs"></i> จุดอ้างอิง:</span> <b>${lat.toFixed(5)}, ${lon.toFixed(5)}</b> (พบ <b>${currentNearbyData.length.toLocaleString()}</b> รายการ ในรัศมี <b>${formatRadiusDisplay(currentRadiusKm)}</b>)`;
         }
 
         const clearBtn = document.getElementById('btn-clear-ref');
@@ -3232,27 +5970,13 @@
 
         const countEl = document.getElementById('points-count');
         if (countEl) {
-          countEl.innerText = `จุดอ้างอิง: แสดง ${currentNearbyData.length.toLocaleString()} รายการ (ในรัศมี ${currentRadiusKm} กม.)`;
+          countEl.innerText = `จุดอ้างอิง: แสดง ${currentNearbyData.length.toLocaleString()} รายการ (ในรัศมี ${formatRadiusDisplay(currentRadiusKm)})`;
         }
 
         updateLegendContent();
-
-        if (flyTo && deckglInstance) {
-          const vs = deckglInstance.viewState || { zoom: 12.5 };
-          deckglInstance.setProps({
-            initialViewState: {
-              ...vs,
-              longitude: lon,
-              latitude: lat,
-              zoom: Math.max(vs.zoom || 8.5, 12),
-              transitionDuration: 800,
-              transitionInterpolator: new deck.FlyToInterpolator()
-            }
-          });
-        }
-
         updateDeckLayers();
         updatePropertyCardPosition();
+        scheduleParentKpiUpdate();
 
         // Push coordinate to parent window URL for Streamlit synchronization
         try {
@@ -3260,21 +5984,48 @@
           u.searchParams.set('map_ref_lat', lat.toFixed(6));
           u.searchParams.set('map_ref_lon', lon.toFixed(6));
           u.searchParams.set('map_ref_radius', currentRadiusKm);
+          u.searchParams.set('map_pin_mode', mapPinMode || 'radius');
+          u.searchParams.delete('map_ref_cleared');
           window.parent.history.replaceState({}, '', u.toString());
         } catch(e) {}
+
+        if (triggerSync) {
+          triggerStreamlitSync();
+        }
+
+        if (flyTo && deckglInstance) {
+          const targetZoom = calculateZoomForRadius(lat, currentRadiusKm);
+          smoothFlyTo(lon, lat, targetZoom, 1500);
+        }
       }
 
       function clearReferencePoint() {
         referencePoint = null;
+        currentRefProp = null;
+        currentRefId = "";
         pendingReferencePoint = null;
         mousePreviewCoord = null;
-        currentNearbyData = [];
-        currentCoordMap = new Map();
+
+        const coordPill = document.getElementById('active-ref-pill');
+        if (coordPill) coordPill.style.display = 'none';
+
+        const statusEl = document.getElementById('radius-status-text');
+        if (statusEl) statusEl.style.display = 'none';
 
         const clearBtn = document.getElementById('btn-clear-ref');
         if (clearBtn) {
           clearBtn.style.display = 'none';
         }
+
+        const searchInp = document.getElementById('inmap-prop-search-input');
+        if (searchInp) searchInp.value = '';
+        const searchClr = document.getElementById('inmap-clear-search-btn');
+        if (searchClr) searchClr.style.display = 'none';
+
+        const coordInp = document.getElementById('inmap-coord-input');
+        if (coordInp) coordInp.value = '';
+        const coordClr = document.getElementById('inmap-clear-coord-btn');
+        if (coordClr) coordClr.style.display = 'none';
 
         const bubble = document.getElementById('in-map-confirm-bubble');
         if (bubble) bubble.style.display = 'none';
@@ -3282,43 +6033,36 @@
         const bar = document.getElementById('ref-confirm-bar');
         if (bar) bar.style.display = 'none';
 
-        const statusEl = document.getElementById('radius-status-text');
-        if (statusEl) {
-          statusEl.innerHTML = `คลิกบนแผนที่เพื่อกำหนดจุดอ้างอิง (รัศมี ${currentRadiusKm} กม.)`;
-        }
-
-        const countEl = document.getElementById('points-count');
-        if (countEl) {
-          countEl.innerText = `คลิกบนแผนที่เพื่อกำหนดจุดอ้างอิง (รัศมี ${currentRadiusKm} กม.)`;
-        }
-
         const overlapText = document.getElementById('legend-overlap-text');
         if (overlapText) {
           overlapText.innerHTML = `ยังไม่ได้เลือกจุดอ้างอิง`;
         }
 
         closePropertyCard();
-        updateLegendContent();
-        renderHtmlMarkers();
-        updateDeckLayers();
+        applyInMapFilters();
+        scheduleParentKpiUpdate();
 
         try {
           var u = new URL(window.parent.location.href);
           u.searchParams.delete('map_ref_lat');
           u.searchParams.delete('map_ref_lon');
-          window.parent.location.href = u.toString();
+          u.searchParams.delete('map_ref_id');
+          u.searchParams.set('map_ref_cleared', '1');
+          window.parent.history.replaceState({}, '', u.toString());
         } catch(e) {}
+        triggerStreamlitSync();
       }
 
       function confirmPendingReferencePoint() {
         if (pendingReferencePoint) {
           const [lon, lat] = pendingReferencePoint;
           pendingReferencePoint = null;
+          currentRefProp = null;
           const bubble = document.getElementById('in-map-confirm-bubble');
           if (bubble) bubble.style.display = 'none';
           const bar = document.getElementById('ref-confirm-bar');
           if (bar) bar.style.display = 'none';
-          setReferencePoint(lon, lat);
+          setReferencePoint(lon, lat, true);
 
           // Synchronize to Streamlit analytics cards and table below map
           try {
@@ -3326,10 +6070,11 @@
             u.searchParams.set('map_ref_lat', lat.toFixed(6));
             u.searchParams.set('map_ref_lon', lon.toFixed(6));
             u.searchParams.set('map_ref_radius', currentRadiusKm);
-            window.parent.location.href = u.toString();
+            window.parent.history.replaceState({}, '', u.toString());
           } catch(e) {
             console.warn('Sync to Streamlit error:', e);
           }
+          triggerStreamlitSync();
         }
       }
 
@@ -3357,9 +6102,46 @@
       }
 
       function handleMapClick(info, event) {
-        // 1. If user clicks on an existing property point inside the circle, view its card
+        // 1. If user clicks on an existing property point, view its card and spotlight it
         if (info && info.object && info.layer && (info.layer.id === 'point-icons' || info.layer.id === 'point-badges')) {
+          currentRefProp = info.object;
+          if (info.object._id) {
+            const inp = document.getElementById('inmap-prop-search-input');
+            const clr = document.getElementById('inmap-clear-search-btn');
+            if (inp) inp.value = info.object._id;
+            if (clr) clr.style.display = 'inline-flex';
+          }
+          if (mapPinMode === 'location') {
+            if (info.object._prov && info.object._prov !== '-' && info.object._prov !== 'ไม่มีข้อมูล') {
+              currentSelectedProv = info.object._prov.trim();
+              if (info.object._district && info.object._district !== '-' && info.object._district !== 'ไม่มีข้อมูล') {
+                currentSelectedDist = info.object._district.trim();
+              }
+              if (info.object._subdistrict && info.object._subdistrict !== '-' && info.object._subdistrict !== 'ไม่มีข้อมูล') {
+                currentSelectedSubdist = info.object._subdistrict.trim();
+              }
+              updateDistrictSubdistrictBoundaries();
+              syncComboboxInputs();
+            }
+            updateDeckLayers();
+            updateSvgBoundaries();
+          } else if (mapPinMode === 'radius' && info.object.lat && info.object.lon) {
+            setReferencePoint(parseFloat(info.object.lon), parseFloat(info.object.lat), false);
+          }
           showPropertyCard(info.object, true);
+          try {
+            var u = new URL(window.parent.location.href);
+            if (info.object.lat && info.object.lon) {
+              u.searchParams.set('map_ref_lat', parseFloat(info.object.lat).toFixed(6));
+              u.searchParams.set('map_ref_lon', parseFloat(info.object.lon).toFixed(6));
+              u.searchParams.set('map_ref_radius', currentRadiusKm);
+              u.searchParams.set('map_pin_mode', mapPinMode || 'radius');
+              if (info.object._id && info.object._id !== '-') {
+                u.searchParams.set('map_ref_id', info.object._id);
+              }
+              window.parent.history.replaceState({}, '', u.toString());
+            }
+          } catch(e) {}
           return;
         }
 
@@ -3367,11 +6149,18 @@
         if (info && info.coordinate) {
           const [lon, lat] = info.coordinate;
           pendingReferencePoint = [lon, lat];
+          try {
+            var u = new URL(window.parent.location.href);
+            u.searchParams.set('map_ref_lat', lat.toFixed(6));
+            u.searchParams.set('map_ref_lon', lon.toFixed(6));
+            u.searchParams.set('map_ref_radius', currentRadiusKm);
+            window.parent.history.replaceState({}, '', u.toString());
+          } catch(e) {}
           
           const coordEl = document.getElementById('bubble-coord-val');
           const radiusEl = document.getElementById('bubble-radius-val');
           if (coordEl) coordEl.innerText = `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
-          if (radiusEl) radiusEl.innerText = `${currentRadiusKm.toFixed(1)} กม.`;
+          if (radiusEl) radiusEl.innerText = formatRadiusDisplay(currentRadiusKm);
 
           updateDeckLayers();
           updateConfirmBubblePosition();
@@ -3379,27 +6168,27 @@
       }
 
       function setInspectionRadius(radiusKm, btnEl, syncSlider = true) {
-        currentRadiusKm = radiusKm;
+        currentRadiusKm = Math.max(0.05, Math.min(20, Number(radiusKm) || 5));
         if (syncSlider) {
-          const slider = document.getElementById('radius-range-slider');
-          if (slider) slider.value = radiusKm;
-          const labelEl = document.getElementById('radius-slider-val');
-          if (labelEl) labelEl.innerText = `${radiusKm.toFixed(1)} กม. (ต่ำสุด 0.5k)`;
+          updateRadiusSliderUi(currentRadiusKm);
         }
 
         if (referencePoint) {
           setReferencePoint(referencePoint[0], referencePoint[1]);
         } else {
+          const disp = formatRadiusDisplay(currentRadiusKm);
           const statusEl = document.getElementById('radius-status-text');
           if (statusEl) {
-            statusEl.innerHTML = `คลิกบนแผนที่เพื่อกำหนดจุดอ้างอิง (รัศมี ${currentRadiusKm} กม.)`;
+            statusEl.innerHTML = `คลิกบนแผนที่เพื่อกำหนดจุดอ้างอิง (รัศมี ${disp})`;
           }
           const countEl = document.getElementById('points-count');
           if (countEl) {
-            countEl.innerText = `คลิกบนแผนที่เพื่อกำหนดจุดอ้างอิง (รัศมี ${currentRadiusKm} กม.)`;
+            countEl.innerText = `คลิกบนแผนที่เพื่อกำหนดจุดอ้างอิง (รัศมี ${disp})`;
           }
           updateDeckLayers();
+          scheduleParentKpiUpdate();
         }
+        notifyParentFilterChange();
       }
 
       function setBasemapStyle(styleName) {
@@ -3413,8 +6202,8 @@
           loaderText.innerText = "GZIP: ถอดรหัส และ Decompress ข้อมูลพิกัด...";
           await new Promise(r => setTimeout(r, 5));
 
-          // Decompress and parse lookup table (company/type/province/sale/region/district/subdistrict names)
-          let _lut = { co: [], ty: [], pv: [], st: [], rg: [], dt: [], subdt: [] };
+          // Decompress and parse lookup table (company/type/province/sale/region/district/subdistrict/project names)
+          let _lut = { co: [], ty: [], pv: [], st: [], rg: [], dt: [], subdt: [], prj: [] };
           try {
             _lut = JSON.parse(await decompressGzip(lookupBase64));
           } catch(e) { console.warn('Lookup decode failed', e); }
@@ -3447,14 +6236,21 @@
             d._region      = (_lut.rg && _lut.rg[+d._rgi]) || '-';
             d._district    = (_lut.dt && _lut.dt[+d._dti]) || '-';
             d._subdistrict = (_lut.subdt && d._subdti !== undefined && _lut.subdt[+d._subdti]) || '-';
+            d._project     = (_lut.prj && d._prji !== undefined && _lut.prj[+d._prji]) || '-';
             d._price       = +d._p || 0;
             d._unit_price  = +d._up || 0;
+            d._sqw         = +d._sqw || 0;
+            d._sqm         = +d._sqm || 0;
+            d._puw         = +d._puw || 0;
+            d._pum         = +d._pum || 0;
           });
 
           cachedData = data;
           spatialGrid = buildSpatialGrid(data);
           currentNearbyData = [];
           currentCoordMap = new Map();
+          setupParentTabListeners();
+          scheduleParentKpiUpdate();
 
           const legendBox = document.getElementById('legend-items-box');
           if (legendBox) {
@@ -3464,8 +6260,14 @@
           loaderText.innerText = "กำลังเริ่มต้นแผนที่ (WebGL)...";
           await new Promise(r => setTimeout(r, 5));
 
-          document.getElementById('points-count').innerText = `คลิกบนแผนที่เพื่อกำหนดจุดอ้างอิง (รัศมี ${currentRadiusKm} กม.)`;
-          document.getElementById('radius-status-text').innerHTML = `คลิกบนแผนที่เพื่อกำหนดจุดอ้างอิง (รัศมี ${currentRadiusKm} กม.)`;
+          if (mapPinMode === 'location') {
+            applyInMapFilters();
+          } else {
+            const ptCountEl = document.getElementById('points-count');
+            if (ptCountEl) ptCountEl.innerText = `คลิกบนแผนที่เพื่อกำหนดจุดอ้างอิง (รัศมี ${currentRadiusKm} กม.)`;
+            const radStatusEl = document.getElementById('radius-status-text');
+            if (radStatusEl) radStatusEl.innerHTML = `คลิกบนแผนที่เพื่อกำหนดจุดอ้างอิง (รัศมี ${currentRadiusKm} กม.)`;
+          }
           const overlapInit = document.getElementById('legend-overlap-text');
           if (overlapInit) overlapInit.innerHTML = `ยังไม่ได้เลือกจุดอ้างอิง`;
 
@@ -3483,17 +6285,14 @@
           const initRadNum = parseFloat(initRadiusStr);
 
           if (!isNaN(initRadNum) && initRadNum > 0) {
-            currentRadiusKm = initRadNum;
-            const slider = document.getElementById('radius-range-slider');
-            if (slider) slider.value = initRadNum;
-            const labelEl = document.getElementById('radius-slider-val');
-            if (labelEl) labelEl.innerText = initRadNum.toFixed(1) + ' กม.';
+            currentRadiusKm = Math.max(0.05, Math.min(20, initRadNum));
+            updateRadiusSliderUi(currentRadiusKm);
           }
 
           if (!isNaN(initLatNum) && !isNaN(initLonNum) && initLatNum > 0 && initLonNum > 0) {
             initialLat = initLatNum;
             initialLon = initLonNum;
-            initialZoom = 12.5;
+            initialZoom = calculateZoomForRadius(initLatNum, currentRadiusKm);
           } else if (boundaryGeoJson && boundaryGeoJson.features && boundaryGeoJson.features.length > 0) {
             // Auto-center view to the selected boundary
             let minLon = Infinity, minLat = Infinity, maxLon = -Infinity, maxLat = -Infinity;
@@ -3542,7 +6341,7 @@
           deckglInstance = new deck.DeckGL({
             container: 'map',
             mapboxApiAccessToken: false,
-            initialViewState: currentViewState,
+            viewState: currentViewState,
             controller: true,
             getTooltip: getMapTooltip,
             onHover: handleMapHover,
@@ -3552,8 +6351,15 @@
               try { updateConfirmBubblePosition(); } catch(e) {}
               try { updatePropertyCardPosition(); } catch(e) {}
             },
-            onViewStateChange: ({ viewState }) => {
+            onViewStateChange: ({ viewState, interactionState }) => {
+              if (interactionState && (interactionState.isDragging || interactionState.isPanning || interactionState.isZooming || interactionState.isRotating)) {
+                if (mapAnimRaf) {
+                  cancelAnimationFrame(mapAnimRaf);
+                  mapAnimRaf = null;
+                }
+              }
               currentViewState = viewState;
+              deckglInstance.setProps({ viewState: currentViewState });
               updateCompass(viewState.bearing || 0);
               try { updateConfirmBubblePosition(); } catch(e) {}
               try { updateSvgBoundaries(); } catch(e) {}
@@ -3567,35 +6373,51 @@
             try { updateSvgBoundaries(); } catch(e) {}
             try { updateConfirmBubblePosition(); } catch(e) {}
             try { updatePropertyCardPosition(); } catch(e) {}
+            try { initProvinceDropdown(); } catch(e) {}
+            try { initDistrictDropdown(); } catch(e) {}
+            try { initSubdistrictDropdown(); } catch(e) {}
           }, 80);
+
+          setTimeout(() => {
+            try { hideParentSyncButton(); } catch(e) {}
+          }, 400);
 
           if (boundaryGeoJson && boundaryGeoJson.features && boundaryGeoJson.features.length > 0) {
             setTimeout(() => {
               try {
-                deckglInstance.setProps({
-                  initialViewState: {
-                    ...currentViewState,
-                    longitude: initialLon,
-                    latitude: initialLat,
-                    zoom: initialZoom,
-                    transitionDuration: 800,
-                    transitionInterpolator: new deck.FlyToInterpolator()
-                  }
-                });
+                smoothFlyTo(initialLon, initialLat, initialZoom, 1200);
               } catch(e) {}
-            }, 50);
+            }, 80);
           }
 
           loader.style.display = 'none';
 
+          const effRefId = currentRefId || (initRefIdStr && initRefIdStr !== "INIT_REF_ID_PLACEHOLDER" ? initRefIdStr : "");
+          if (effRefId && effRefId.trim()) {
+            const inp = document.getElementById('inmap-prop-search-input');
+            const clr = document.getElementById('inmap-clear-search-btn');
+            if (inp) inp.value = effRefId.trim();
+            if (clr) clr.style.display = 'inline-flex';
+            if (cachedData && cachedData.length > 0) {
+              currentRefProp = cachedData.find(x => (x._id || '').trim() === effRefId.trim()) || null;
+            }
+          }
+
           if (!isNaN(initLatNum) && !isNaN(initLonNum) && initLatNum > 0 && initLonNum > 0) {
             setTimeout(() => {
               try {
-                setReferencePoint(initLonNum, initLatNum, false);
+                setReferencePoint(initLonNum, initLatNum, false, false);
+                setupParentTabListeners();
+                scheduleParentKpiUpdate();
               } catch(e) {
                 console.warn('Deferred setReferencePoint warning:', e);
               }
             }, 60);
+          } else {
+            setTimeout(() => {
+              setupParentTabListeners();
+              scheduleParentKpiUpdate();
+            }, 100);
           }
         } catch(err) {
           loaderText.innerHTML = `<span style="color: #ef4444;"><i class="fa-solid fa-circle-xmark" style="margin-right: 6px;"></i>โหลดแผนที่ล้มเหลว: ${err.message}</span>`;

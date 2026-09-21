@@ -8,7 +8,7 @@ print("=" * 80)
 print("📌 1. ตรวจสอบคอลัมน์ในไฟล์ EXCEL (.xlsx)")
 print("=" * 80)
 
-excel_files = glob.glob("*.xlsx") + glob.glob("Monthly all new/**/*.xlsx", recursive=True)
+excel_files = glob.glob("*.xlsx") + glob.glob("Py Scraper/**/*.xlsx", recursive=True)
 for ef in sorted(excel_files):
     p = Path(ef)
     size_mb = p.stat().st_size / (1024 * 1024)
@@ -29,7 +29,7 @@ print("\n" + "=" * 80)
 print("📌 2. ตรวจสอบคอลัมน์ในไฟล์ CSV (.csv)")
 print("=" * 80)
 
-csv_files = glob.glob("*.csv") + glob.glob("Monthly all new/**/*.csv", recursive=True)
+csv_files = glob.glob("*.csv") + glob.glob("Py Scraper/**/*.csv", recursive=True)
 for cf in sorted(csv_files):
     p = Path(cf)
     size_mb = p.stat().st_size / (1024 * 1024)
@@ -58,7 +58,7 @@ print("\n" + "=" * 80)
 print("📌 3. ตรวจสอบคอลัมน์ในไฟล์ PARQUET (.parquet)")
 print("=" * 80)
 
-parquet_files = glob.glob("*.parquet") + glob.glob("Monthly all new/**/*.parquet", recursive=True)
+parquet_files = glob.glob("*.parquet") + glob.glob("Py Scraper/**/*.parquet", recursive=True)
 for pf in sorted(parquet_files):
     p = Path(pf)
     size_mb = p.stat().st_size / (1024 * 1024)

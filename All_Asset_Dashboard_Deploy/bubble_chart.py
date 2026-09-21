@@ -53,7 +53,7 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
             "name": "LED",
             "label": "LED กรมบังคับคดี",
             "sector": "gov",
-            "base_cx": 180, "base_cy": 365,
+            "base_cx": 143, "base_cy": 385,
             "scraped_grad": "led-scraped",
             "float_dur": "7.0s",
             "color_hex": "#0891b2"
@@ -65,7 +65,7 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
             "name": "SAM",
             "label": "SAM NPA",
             "sector": "amc",
-            "base_cx": 490, "base_cy": 240,
+            "base_cx": 390, "base_cy": 235,
             "scraped_grad": "sam-scraped",
             "float_dur": "8.2s",
             "color_hex": "#10b981"
@@ -75,7 +75,7 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
             "name": "BAM",
             "label": "BAM NPA",
             "sector": "amc",
-            "base_cx": 490, "base_cy": 490,
+            "base_cx": 390, "base_cy": 545,
             "scraped_grad": "bam-scraped",
             "float_dur": "6.0s",
             "color_hex": "#3b82f6"
@@ -85,7 +85,7 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
             "name": "Chayo555",
             "label": "Chayo555 NPA",
             "sector": "amc",
-            "base_cx": 650, "base_cy": 365,
+            "base_cx": 545, "base_cy": 385,
             "scraped_grad": "chayo555-scraped",
             "float_dur": "7.5s",
             "color_hex": "#f97316"
@@ -97,7 +97,7 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
             "name": "KBANK",
             "label": "KBANK NPA",
             "sector": "bank",
-            "base_cx": 880, "base_cy": 235,
+            "base_cx": 775, "base_cy": 220,
             "scraped_grad": "kbank-scraped",
             "float_dur": "7.2s",
             "color_hex": "#059669"
@@ -107,7 +107,7 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
             "name": "GSB",
             "label": "GSB NPA",
             "sector": "bank",
-            "base_cx": 1140, "base_cy": 235,
+            "base_cx": 1025, "base_cy": 220,
             "scraped_grad": "gsb-scraped",
             "float_dur": "7.4s",
             "color_hex": "#eb1985"
@@ -117,7 +117,7 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
             "name": "GHB",
             "label": "GHB NPA",
             "sector": "bank",
-            "base_cx": 1010, "base_cy": 365,
+            "base_cx": 900, "base_cy": 385,
             "scraped_grad": "ghb-scraped",
             "float_dur": "6.8s",
             "color_hex": "#ca8a04"
@@ -127,7 +127,7 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
             "name": "SCB",
             "label": "SCB NPA",
             "sector": "bank",
-            "base_cx": 880, "base_cy": 495,
+            "base_cx": 775, "base_cy": 545,
             "scraped_grad": "scb-scraped",
             "float_dur": "7.0s",
             "color_hex": "#7e22ce"
@@ -137,7 +137,7 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
             "name": "KTB",
             "label": "KTB NPA",
             "sector": "bank",
-            "base_cx": 1140, "base_cy": 495,
+            "base_cx": 1025, "base_cy": 545,
             "scraped_grad": "ktb-scraped",
             "float_dur": "6.2s",
             "color_hex": "#0284c7"
@@ -149,7 +149,7 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
             "name": "ZmyHome",
             "label": "ZmyHome NPA",
             "sector": "portal",
-            "base_cx": 1365, "base_cy": 215,
+            "base_cx": 1275, "base_cy": 215,
             "scraped_grad": "zmyhome-scraped",
             "float_dur": "8.0s",
             "color_hex": "#ec4899"
@@ -159,7 +159,7 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
             "name": "Baania",
             "label": "Baania NPA",
             "sector": "portal",
-            "base_cx": 1365, "base_cy": 495,
+            "base_cx": 1275, "base_cy": 550,
             "scraped_grad": "baania-scraped",
             "float_dur": "7.5s",
             "color_hex": "#f59e0b"
@@ -169,7 +169,7 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
             "name": "NaYoo",
             "label": "NaYoo NPA",
             "sector": "portal",
-            "base_cx": 1575, "base_cy": 215,
+            "base_cx": 1550, "base_cy": 215,
             "scraped_grad": "nayoo-scraped",
             "float_dur": "6.5s",
             "color_hex": "#8b5cf6"
@@ -179,7 +179,7 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
             "name": "DDproperty",
             "label": "DDproperty",
             "sector": "portal",
-            "base_cx": 1575, "base_cy": 495,
+            "base_cx": 1550, "base_cy": 555,
             "scraped_grad": "ddproperty-scraped",
             "float_dur": "7.2s",
             "color_hex": "#a855f7"
@@ -189,7 +189,7 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
             "name": "Livinginsider",
             "label": "Livinginsider",
             "sector": "portal",
-            "base_cx": 1470, "base_cy": 355,
+            "base_cx": 1412, "base_cy": 380,
             "scraped_grad": "livinginsider-scraped",
             "float_dur": "6.8s",
             "color_hex": "#14b8a6"
@@ -218,7 +218,7 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
             "glow": theme_glow,
             "bg_border": theme_border,
             "bg_tint": theme_tint,
-            "x": 8, "y": 38, "w": 344, "h": 628,
+            "x": 8, "y": 36, "w": 270, "h": 710,
             "count": 0, "val": 0.0
         },
         "amc": {
@@ -229,7 +229,7 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
             "glow": theme_glow,
             "bg_border": theme_border,
             "bg_tint": theme_tint,
-            "x": 360, "y": 38, "w": 384, "h": 628,
+            "x": 286, "y": 36, "w": 360, "h": 710,
             "count": 0, "val": 0.0
         },
         "bank": {
@@ -240,7 +240,7 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
             "glow": theme_glow,
             "bg_border": theme_border,
             "bg_tint": theme_tint,
-            "x": 752, "y": 38, "w": 504, "h": 628,
+            "x": 654, "y": 36, "w": 490, "h": 710,
             "count": 0, "val": 0.0
         },
         "portal": {
@@ -251,7 +251,7 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
             "glow": theme_glow,
             "bg_border": theme_border,
             "bg_tint": theme_tint,
-            "x": 1264, "y": 38, "w": 408, "h": 628,
+            "x": 1152, "y": 36, "w": 520, "h": 710,
             "count": 0, "val": 0.0
         }
     }
@@ -276,6 +276,46 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
         co_centroid_map = df_filtered[centroid_mask].groupby('บริษัท').size().to_dict()
     else:
         co_counts_map, co_sums_map, co_centroid_map = {}, {}, {}
+
+    # Extract company scraping/extraction dates
+    thai_short_m = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.']
+    co_dates_map = {}
+    if df_filtered is not None and not df_filtered.empty and 'วันที่ดึงข้อมูล' in df_filtered.columns:
+        try:
+            for c_name, grp in df_filtered.groupby('บริษัท'):
+                s_d = grp['วันที่ดึงข้อมูล'].dropna().astype(str).str.strip()
+                s_d = s_d[~s_d.isin(['', 'nan', 'None', '-', 'NaT'])]
+                if not s_d.empty:
+                    dts = pd.to_datetime(s_d, errors='coerce').dropna()
+                    if not dts.empty:
+                        min_d, max_d = dts.min(), dts.max()
+                        m_str = thai_short_m[max_d.month - 1]
+                        y_short = (max_d.year + 543) % 100 if max_d.year < 2500 else max_d.year % 100
+                        if min_d.date() == max_d.date():
+                            co_dates_map[c_name] = f"{max_d.day} {m_str} {y_short}"
+                        elif min_d.year == max_d.year and min_d.month == max_d.month:
+                            co_dates_map[c_name] = f"{min_d.day}-{max_d.day} {m_str} {y_short}"
+                        else:
+                            co_dates_map[c_name] = f"{min_d.day} {thai_short_m[min_d.month-1]}-{max_d.day} {m_str} {y_short}"
+        except Exception:
+            pass
+
+    FALLBACK_COMPANY_DATES = {
+        "LED": "8 ก.ย. 69",
+        "SAM": "8-9 ก.ย. 69",
+        "BAM": "9-10 ก.ย. 69",
+        "Chayo555": "8 ก.ย. 69",
+        "KBANK": "9 ก.ย. 69",
+        "GSB": "15 ก.ย. 69",
+        "GHB": "9 ก.ย. 69",
+        "SCB": "9 ก.ย. 69",
+        "KTB": "9 ก.ย. 69",
+        "ZmyHome": "10 ก.ย. 69",
+        "Baania": "10 ก.ย. 69",
+        "NaYoo": "10 ก.ย. 69",
+        "DDproperty": "16-17 ก.ย. 69",
+        "Livinginsider": "9-10 ก.ย. 69"
+    }
 
     for comp in companies_meta:
         comp_name = comp["name"]
@@ -314,10 +354,10 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
         active_fraction = active_pct / 100.0
         
         if active_fraction > 0:
-            radius = int(48 + 76 * math.sqrt(active_fraction))
-            radius = max(48, min(108, radius))
+            radius = int(60 + 68 * math.sqrt(active_fraction))
+            radius = max(60, min(118, radius))
         else:
-            radius = 48
+            radius = 60
 
         cx, cy = comp["base_cx"], comp["base_cy"]
         bubble_id = f"bubble-{comp['id']}"
@@ -333,19 +373,22 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
         highlight = f'<ellipse cx="{hcx}" cy="{hcy}" rx="{hrx}" ry="{hry}" fill="url(#highlight-grad)" transform="rotate(-30, {hcx}, {hcy})" />'
         
         # Logo badge size
-        logo_badge_sz = max(34, min(62, int(radius * 0.52)))
+        logo_badge_sz = max(38, min(56, int(radius * 0.44)))
         logo_data_uri = get_company_logo_data_uri(comp["id"])
 
-        title_size = max(10.5, int(radius * 0.125))
-        text_size = max(8.0, int(radius * 0.085))
-        badge_padding = "1.5px 6px" if radius > 60 else "1px 4px"
-        badge_gap = "2px"
-        margin_bottom = "2px" if radius > 60 else "1px"
+        title_size = max(13.5, int(radius * 0.165))
+        stat_label_size = max(9.5, int(radius * 0.105))
+        stat_val_size = max(11.0, int(radius * 0.122))
+        badge_padding = "2px 7px" if radius > 70 else "1.5px 5.5px"
+        badge_gap = "3.5px"
+        margin_bottom = "2.5px" if radius > 70 else "2px"
 
-        card_bg_color = "rgba(15, 23, 42, 0.60)" if is_dark_mode else "rgba(255, 255, 255, 0.7)"
+        card_bg_color = "rgba(15, 23, 42, 0.65)" if is_dark_mode else "rgba(255, 255, 255, 0.82)"
         text_title_color = "#f8fafc" if is_dark_mode else "#0f172a"
         text_sub_color = "#94a3b8" if is_dark_mode else "#475569"
         text_val_color = "#ffffff" if is_dark_mode else "#0f172a"
+
+        comp_date_str = co_dates_map.get(comp_name) or FALLBACK_COMPANY_DATES.get(comp_name, "-")
 
         bubble_body = f"""
             <g class="bubble-group sector-bubble sector-{comp['sector']}" id="{bubble_id}">
@@ -353,7 +396,7 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
                 {sheen}
                 {highlight}
                 <foreignObject x="{cx - radius}" y="{cy - radius}" width="{2*radius}" height="{2*radius}">
-                    <div style="width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; font-family: 'Outfit', 'Sarabun', sans-serif; pointer-events: none; box-sizing: border-box; padding: 3px; line-height: 1.15; will-change: transform;">
+                    <div style="width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; font-family: 'Outfit', 'Sarabun', sans-serif; pointer-events: none; box-sizing: border-box; padding: 2px; line-height: 1.15; will-change: transform;">
                         <!-- Crisp White Circular Badge Background -->
                         <div style="background: rgba(255, 255, 255, 0.96); border-radius: 50%; width: {logo_badge_sz}px; height: {logo_badge_sz}px; display: flex; justify-content: center; align-items: center; box-shadow: 0 3px 10px rgba(0,0,0,0.18), 0 1px 3px rgba(0,0,0,0.1); border: 2px solid #ffffff; margin-bottom: 2px; overflow: hidden; padding: 2px; box-sizing: border-box;">
                             <img src="{logo_data_uri}" style="max-width: 90%; max-height: 90%; width: 90%; height: 90%; object-fit: contain;" alt="{comp['name']}" />
@@ -365,20 +408,26 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
                         </div>
                         
                         <!-- Stats: จำนวนทรัพย์ -->
-                        <div style="background: {card_bg_color}; backdrop-filter: blur(4px); border-radius: 18px; padding: {badge_padding}; display: inline-flex; align-items: center; gap: {badge_gap}; margin-bottom: {margin_bottom}; border: 1px solid rgba(255, 255, 255, 0.4); box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);">
-                            <span style="font-size: {text_size - 1.2}px; color: {text_sub_color}; font-weight: 600;">ทรัพย์สิน</span>
-                            <span style="font-size: {text_size}px; color: {text_val_color}; font-weight: 800;">{c_count:,} <span style="color: {'#34d399' if is_dark_mode else '#047857'}; font-weight: 700;">({pct_count:.1f}%)</span></span>
+                        <div style="background: {card_bg_color}; backdrop-filter: blur(4px); border-radius: 18px; padding: {badge_padding}; display: inline-flex; align-items: center; gap: {badge_gap}; margin-bottom: {margin_bottom}; border: 1px solid rgba(255, 255, 255, 0.5); box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);">
+                            <span style="font-size: {stat_label_size}px; color: {text_sub_color}; font-weight: 600;">ทรัพย์สิน</span>
+                            <span style="font-size: {stat_val_size}px; color: {text_val_color}; font-weight: 800;">{c_count:,} <span style="color: {'#34d399' if is_dark_mode else '#047857'}; font-weight: 700;">({pct_count:.1f}%)</span></span>
                         </div>
                         
                         <!-- Stats: มูลค่ารวม -->
-                        <div style="background: {card_bg_color}; backdrop-filter: blur(4px); border-radius: 18px; padding: {badge_padding}; display: inline-flex; align-items: center; gap: {badge_gap}; border: 1px solid rgba(255, 255, 255, 0.4); box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);">
-                            <span style="font-size: {text_size - 1.2}px; color: {text_sub_color}; font-weight: 600;">มูลค่า</span>
-                            <span style="font-size: {text_size}px; color: {text_val_color}; font-weight: 800;">{format_price_thai(c_val)}</span>
+                        <div style="background: {card_bg_color}; backdrop-filter: blur(4px); border-radius: 18px; padding: {badge_padding}; display: inline-flex; align-items: center; gap: {badge_gap}; margin-bottom: {margin_bottom}; border: 1px solid rgba(255, 255, 255, 0.5); box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);">
+                            <span style="font-size: {stat_label_size}px; color: {text_sub_color}; font-weight: 600;">มูลค่า</span>
+                            <span style="font-size: {stat_val_size}px; color: {text_val_color}; font-weight: 800;">{format_price_thai(c_val)}</span>
+                        </div>
+                        
+                        <!-- Stats: วันที่ดึงข้อมูล -->
+                        <div style="background: {card_bg_color}; backdrop-filter: blur(4px); border-radius: 18px; padding: {badge_padding}; display: inline-flex; align-items: center; gap: {badge_gap}; border: 1px solid rgba(255, 255, 255, 0.5); box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);">
+                            <span style="font-size: {stat_label_size}px; color: {text_sub_color}; font-weight: 600;">ดึงข้อมูล</span>
+                            <span style="font-size: {stat_val_size}px; color: {text_val_color}; font-weight: 800;">{comp_date_str}</span>
                         </div>
                         {f'''<!-- Centroid badge -->
-                        <div style="background: rgba(254, 243, 199, 0.95); border: 1px solid #fde68a; border-radius: 18px; padding: {badge_padding}; display: inline-flex; align-items: center; gap: {badge_gap}; margin-top: 1px;">
-                            <span style="font-size: {text_size - 1.5}px; color: #b45309; font-weight: 700;">&#9651; กึ่งกลาง</span>
-                            <span style="font-size: {text_size}px; color: #92400e; font-weight: 900;">{c_centroid:,}</span>
+                        <div style="background: rgba(254, 243, 199, 0.95); border: 1px solid #fde68a; border-radius: 18px; padding: {badge_padding}; display: inline-flex; align-items: center; gap: {badge_gap}; margin-top: 2px;">
+                            <span style="font-size: {stat_label_size - 0.5}px; color: #b45309; font-weight: 700;">&#9651; กึ่งกลาง</span>
+                            <span style="font-size: {stat_val_size}px; color: #92400e; font-weight: 900;">{c_centroid:,}</span>
                         </div>''' if c_centroid > 0 else ''}
                     </div>
                 </foreignObject>
@@ -448,7 +497,7 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
         sector_pods_svg.append(pod_svg)
 
     svg_content = f"""
-    <svg viewBox="0 0 1680 680" width="100%" height="100%" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" style="background-color: transparent; max-width: 100%; height: auto;">
+    <svg viewBox="0 0 1680 770" width="100%" height="100%" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" style="background-color: transparent; max-width: 100%; height: auto;">
       <defs>
         <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
           <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#0f172a" flood-opacity="{'0.35' if is_dark_mode else '0.15'}"/>
@@ -591,7 +640,7 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
         }}
         html, body {{
             margin: 0;
-            padding: 2px 4px 6px 4px;
+            padding: 0px 4px 16px 4px;
             background: transparent;
             overflow: hidden;
             width: 100%;
@@ -603,32 +652,34 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
         }}
         .sector-filter-nav {{
             display: flex;
-            gap: 8px;
+            gap: 10px;
             margin-top: 0px;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
             z-index: 100;
             flex-wrap: wrap;
             justify-content: center;
             width: 100%;
         }}
         .nav-btn {{
-            background: {'rgba(30, 41, 59, 0.7)' if is_dark_mode else 'rgba(255, 255, 255, 0.85)'};
+            background: {'rgba(30, 41, 59, 0.7)' if is_dark_mode else 'rgba(255, 255, 255, 0.9)'};
             backdrop-filter: blur(8px);
-            border: 1px solid {'#334155' if is_dark_mode else '#cbd5e1'};
-            color: {'#cbd5e1' if is_dark_mode else '#475569'};
-            border-radius: 20px;
-            padding: 3px 12px;
-            font-size: 11.5px;
-            font-weight: 700;
+            border: 1.5px solid {'#334155' if is_dark_mode else '#cbd5e1'};
+            color: {'#e2e8f0' if is_dark_mode else '#334155'};
+            border-radius: 26px;
+            padding: 8px 22px;
+            font-size: 16px;
+            font-weight: 800;
             font-family: 'Outfit', 'Sarabun', sans-serif;
             cursor: pointer;
             transition: all 0.25s ease;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+            line-height: 1.35;
         }}
         .nav-btn:hover {{
             transform: translateY(-1px);
             border-color: {'#10b981' if is_dark_mode else '#047857'};
             color: {'#10b981' if is_dark_mode else '#047857'};
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
         }}
         .nav-btn.active,
         .nav-btn.btn-amc.active,
@@ -638,7 +689,7 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
             background: {'#10b981' if is_dark_mode else '#047857'} !important;
             border-color: {'#34d399' if is_dark_mode else '#047857'} !important;
             color: {'#022c22' if is_dark_mode else '#ffffff'} !important;
-            box-shadow: 0 4px 12px {'rgba(16, 185, 129, 0.35)' if is_dark_mode else 'rgba(4, 120, 87, 0.35)'} !important;
+            box-shadow: 0 4px 14px {'rgba(16, 185, 129, 0.4)' if is_dark_mode else 'rgba(4, 120, 87, 0.35)'} !important;
         }}
         .chart-container {{
             width: 100%;
@@ -650,7 +701,7 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
         svg {{
             width: 100%;
             height: auto;
-            max-height: 760px;
+            max-height: 820px;
             display: block;
             overflow: visible;
         }}

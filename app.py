@@ -20,7 +20,8 @@ from PIL import Image
 from dashboard_metrics import build_kpi_summary_text
 from bubble_chart import generate_3d_glossy_bubble_chart_html
 import sam_analytics
-from sam_analytics import render_same_project_comparison, clean_project_name
+from sam_analytics import clean_project_name
+import user_logger
 
 def make_clean_dropdown_label(row, show_company=True):
     """Creates clean, highly informative dropdown labels with company, property type, name/project, code, location, and price."""
@@ -279,7 +280,17 @@ def render_import_export_section(df_to_export, filename_prefix="npa_data", key_s
         if uploaded_file is not None:
             try:
                 if uploaded_file.name.endswith('.csv'):
-                    u_df = pd.read_csv(uploaded_file)
+                    u_df = None
+                    for enc in ['utf-8-sig', 'utf-8', 'cp874', 'tis-620']:
+                        try:
+                            uploaded_file.seek(0)
+                            u_df = pd.read_csv(uploaded_file, encoding=enc)
+                            break
+                        except Exception:
+                            continue
+                    if u_df is None:
+                        uploaded_file.seek(0)
+                        u_df = pd.read_csv(uploaded_file, encoding='utf-8', encoding_errors='replace')
                 else:
                     u_df = pd.read_excel(uploaded_file)
                 
@@ -601,315 +612,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-
-# ----------------- LOGIN SYSTEM -----------------
-def check_password(input_password):
-    input_password = str(input_password).strip()
-    if input_password in ["วันที่+7", "วันที่ + 7", "date+7", "date + 7", "DATE+7", "DATE + 7"]:
-        return True
-        
-    import datetime
-    # Check UTC and GMT+7 timezone offsets
-    for tz_offset in [0, 7]:
-        tz = datetime.timezone(datetime.timedelta(hours=tz_offset))
-        now = datetime.datetime.now(tz)
-        today = now.date()
-        
-        # 1. Date + 7 days
-        future_date = today + datetime.timedelta(days=7)
-        f_day = future_date.day
-        f_day_str = str(f_day)
-        f_day_zero = f"{f_day:02d}"
-        
-        # 2. Numerical day + 7
-        num_day = today.day + 7
-        num_day_str = str(num_day)
-        
-        valid_options = [
-            f_day_str,
-            f_day_zero,
-            num_day_str,
-            future_date.strftime("%d%m%Y"),
-            future_date.strftime("%d%m%y"),
-            future_date.strftime("%d-%m-%Y"),
-            future_date.strftime("%d/%m/%Y"),
-            future_date.strftime("%Y-%m-%d"),
-            future_date.strftime("%Y/%m/%d"),
-            future_date.strftime("%d%m") + str(future_date.year + 543),
-            future_date.strftime("%d/%m/") + str(future_date.year + 543),
-            future_date.strftime("%d-%m-") + str(future_date.year + 543),
-        ]
-        
-        if input_password in valid_options:
-            return True
-            
-    return False
-
-# Auth Token System for Persistent Login across reloads/clear cache
-AUTH_SECRET = "AllAssetNPA_SecretKey_2026"
-
-def generate_auth_token():
-    import hashlib
-    return hashlib.sha256(AUTH_SECRET.encode()).hexdigest()[:32]
-
-def is_valid_auth_token(token):
-    if not token or not isinstance(token, str):
-        return False
-    return token.strip() == generate_auth_token()
-
-if "logout" in st.query_params:
-    st.session_state['logged_in'] = False
-    del st.query_params["logout"]
-    st.html("""
-    <script>
-    try {
-        document.cookie = "npa_auth=; path=/; max-age=0; SameSite=Lax";
-        sessionStorage.removeItem('npa_auth_token');
-        localStorage.removeItem('npa_auth_token');
-    } catch(e) {}
-    </script>
-    """, unsafe_allow_javascript=True)
-    st.rerun()
-
-# Determine authentication state
-if st.session_state.get('logged_in'):
-    pass
-elif hasattr(st, 'context') and hasattr(st.context, 'cookies') and is_valid_auth_token(st.context.cookies.get("npa_auth", "")):
-    st.session_state['logged_in'] = True
-elif "_auth" in st.query_params and is_valid_auth_token(st.query_params.get("_auth", "")):
-    st.session_state['logged_in'] = True
-    del st.query_params["_auth"]
-else:
-    st.session_state['logged_in'] = False
-
-if not st.session_state['logged_in']:
-    # Auto-restore authentication from localStorage if available
-    st.html("""
-    <script>
-    try {
-        var saved = localStorage.getItem('npa_auth_token') || sessionStorage.getItem('npa_auth_token');
-        if (saved && document.cookie.indexOf('npa_auth=') === -1) {
-            document.cookie = "npa_auth=" + saved + "; path=/; max-age=2592000; SameSite=Lax";
-            window.location.reload();
-        }
-    } catch(e) {}
-    </script>
-    """, unsafe_allow_javascript=True)
-
-    # Inject CSS for a beautiful login interface (matching SAM Green theme)
-    login_css = """<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+Thai:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+Thai:wght@300;400;500;600;700;800&display=swap');
-
-html, body, .stApp, p, 
-span:not([data-testid="stIconMaterial"]):not([class*="material"]):not([class*="fa"]), 
-div, label, input, 
-button:not([data-testid="stIconMaterial"]):not([class*="material"]):not([class*="fa"]), 
-h1, h2, h3, h4, h5, h6 {
-    font-family: 'Noto Sans Thai', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
-}
-
-html, body, .stApp {
-    background: linear-gradient(135deg, #f8fafc 0%, #f0fdf4 50%, #e2e8f0 100%) !important;
-    height: 100vh !important;
-    overflow: hidden !important;
-}
-
-div[data-testid="stAppViewContainer"] {
-    background: linear-gradient(135deg, #f8fafc 0%, #f0fdf4 50%, #e2e8f0 100%) !important;
-}
-
-div[data-testid="stForm"] {
-    background: #ffffff !important;
-    border: 1.5px solid rgba(4, 120, 87, 0.2) !important;
-    border-radius: 24px !important;
-    padding: 40px !important;
-    box-shadow: 0 20px 45px rgba(4, 120, 87, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04) !important;
-    max-width: 440px !important;
-    margin: 12vh auto auto auto !important;
-}
-
-/* Force clean white background for input container and remove dark green */
-div[data-testid="stForm"] [data-baseweb="input"],
-div[data-testid="stForm"] [data-baseweb="base-input"],
-div[data-testid="stForm"] div[data-baseweb="input"],
-div[data-testid="stForm"] div[data-baseweb="base-input"],
-div[data-testid="stForm"] .stTextInput div[data-baseweb="input"],
-div[data-testid="stForm"] .stTextInput div[data-baseweb="base-input"] {
-    border-radius: 12px !important;
-    border: 1.5px solid #a7f3d0 !important;
-    background-color: #ffffff !important;
-    background: #ffffff !important;
-    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.03) !important;
-    transition: all 0.25s ease !important;
-}
-
-div[data-testid="stForm"] div[data-baseweb="input"] > div,
-div[data-testid="stForm"] div[data-baseweb="base-input"] > div {
-    background-color: transparent !important;
-    background: transparent !important;
-    border: none !important;
-}
-
-div[data-testid="stForm"] div[data-baseweb="input"]:focus-within,
-div[data-testid="stForm"] div[data-baseweb="base-input"]:focus-within {
-    border-color: #047857 !important;
-    box-shadow: 0 0 0 3px rgba(4, 120, 87, 0.2) !important;
-    background-color: #ffffff !important;
-    background: #ffffff !important;
-}
-
-div[data-testid="stForm"] input,
-div[data-testid="stForm"] input[type="password"],
-div[data-testid="stForm"] input[type="text"] {
-    background-color: transparent !important;
-    background: transparent !important;
-    color: #0f172a !important;
-    -webkit-text-fill-color: #0f172a !important;
-    -webkit-opacity: 1 !important;
-    opacity: 1 !important;
-    caret-color: #047857 !important;
-    border: none !important;
-    height: 52px !important;
-    font-size: 1.25rem !important;
-    letter-spacing: 3px !important;
-    text-align: center !important;
-    width: 100% !important;
-    font-weight: 700 !important;
-}
-
-div[data-testid="stForm"] input::placeholder {
-    color: #94a3b8 !important;
-    -webkit-text-fill-color: #94a3b8 !important;
-    letter-spacing: normal !important;
-    font-size: 0.95rem !important;
-    font-weight: 400 !important;
-}
-
-/* Visibility toggle eye icon */
-div[data-testid="stForm"] button[data-testid="stTextInputPasswordVisibilityToggle"],
-div[data-testid="stForm"] [data-baseweb="input"] button {
-    background: transparent !important;
-    border: none !important;
-    color: #047857 !important;
-    font-size: 1.1rem !important;
-}
-
-div[data-testid="stFormSubmitButton"] button {
-    background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
-    color: #ffffff !important;
-    border: none !important;
-    border-radius: 12px !important;
-    font-weight: 700 !important;
-    font-size: 1.1rem !important;
-    height: 50px !important;
-    width: 100% !important;
-    box-shadow: 0 8px 20px rgba(4, 120, 87, 0.25) !important;
-    transition: all 0.3s ease !important;
-    margin-top: 15px !important;
-}
-
-div[data-testid="stFormSubmitButton"] button:hover {
-    transform: translateY(-2px) !important;
-    box-shadow: 0 12px 25px rgba(4, 120, 87, 0.4) !important;
-    background: linear-gradient(135deg, #047857 0%, #065f46 100%) !important;
-    color: #ffffff !important;
-}
-
-div[data-testid="stFormSubmitButton"] button:active {
-    transform: translateY(0) !important;
-}
-
-section[data-testid="stSidebar"], header, footer {
-    display: none !important;
-    visibility: hidden !important;
-}
-
-/* Suppress Streamlit's grey skeleton wireframes and stale login overlay */
-div[data-testid="stAppViewContainer"][data-stale="true"] div[data-testid="stForm"] {
-    display: none !important;
-}
-.stSkeleton, div[data-testid="stSkeleton"] {
-    display: none !important;
-}
-</style>"""
-    st.html(login_css)
-    
-    logo_path = Path("assets/logo.png")
-    if logo_path.exists():
-        with open(logo_path, "rb") as img_f:
-            logo_b64 = base64.b64encode(img_f.read()).decode("utf-8")
-        logo_html = f'<img src="data:image/png;base64,{logo_b64}" style="width: 130px; height: 130px; object-fit: contain; margin-bottom: 16px; filter: drop-shadow(0 8px 24px rgba(5, 150, 105, 0.2));">'
-    else:
-        logo_html = '<div style="display: inline-flex; align-items: center; justify-content: center; width: 90px; height: 90px; background: #ecfdf5; border-radius: 50%; margin-bottom: 20px; border: 1px solid #a7f3d0;"><i class="fa-solid fa-lock" style="font-size: 2.5rem; color: #059669;"></i></div>'
-
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        with st.form("login_form", clear_on_submit=False):
-            header_html = f"""<div style="text-align: center; margin-bottom: 25px;">
-{logo_html}
-<h2 style="color: #0f172a; font-weight: 800; font-size: 2.2rem; margin: 0 0 8px 0; letter-spacing: -0.5px;">All Asset NPA</h2>
-<p style="color: #64748b; font-size: 0.95rem; margin: 0;">กรุณาใส่รหัสผ่านเพื่อเข้าใช้งานระบบ</p>
-</div>"""
-            st.html(header_html)
-            
-            password = st.text_input("รหัสผ่าน (Password)", type="password", key="login_password", label_visibility="collapsed", placeholder="กรอกรหัสผ่าน...")
-            
-            submit = st.form_submit_button("เข้าสู่ระบบ")
-            
-            if submit:
-                if check_password(password):
-                    st.session_state['logged_in'] = True
-                    auth_token = generate_auth_token()
-                    if "_auth" in st.query_params:
-                        del st.query_params["_auth"]
-                    st.html(f'''
-                    <script>
-                    try {{
-                        document.cookie = "npa_auth={auth_token}; path=/; max-age=2592000; SameSite=Lax";
-                        sessionStorage.setItem('npa_auth_token', '{auth_token}');
-                        localStorage.setItem('npa_auth_token', '{auth_token}');
-                    }} catch(e) {{}}
-                    </script>
-                    <div id="login-loading-overlay" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #f8fafc; z-index: 9999999; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: 'Noto Sans Thai', 'Inter', sans-serif;">
-                        <div style="width: 55px; height: 55px; border: 4px solid rgba(4, 120, 87, 0.15); border-top: 4px solid #047857; border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 22px;"></div>
-                        <h3 style="color: #064e3b; font-weight: 800; font-size: 1.45rem; margin: 0 0 8px 0; letter-spacing: -0.3px;">เข้าสู่ระบบสำเร็จ</h3>
-                        <p style="color: #047857; font-size: 0.95rem; margin: 0; font-weight: 600;">กำลังโหลดและจัดเตรียมข้อมูล All Asset NPA Dashboard...</p>
-                    </div>
-                    <style>
-                    @keyframes spin {{ 0% {{ transform: rotate(0deg); }} 100% {{ transform: rotate(360deg); }} }}
-                    div[data-testid="stForm"] {{ display: none !important; }}
-                    section[data-testid="stSidebar"] {{ display: none !important; }}
-                    </style>
-                    ''', unsafe_allow_javascript=True)
-                    st.rerun()
-                else:
-                    err_html = """<div style="background-color: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 10px; padding: 12px; margin-top: 15px; font-size: 0.9rem; text-align: center; font-weight: 500;">
-<i class="fa-solid fa-triangle-exclamation"></i> รหัสผ่านไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง
-</div>"""
-                    st.html(err_html)
-    st.stop()
-
-# Ensure active auth token is maintained in browser storage & clean URL
-active_token = generate_auth_token()
-st.html(f"""
-<script>
-try {{
-    document.cookie = "npa_auth={active_token}; path=/; max-age=2592000; SameSite=Lax";
-    sessionStorage.setItem('npa_auth_token', '{active_token}');
-    localStorage.setItem('npa_auth_token', '{active_token}');
-    if (window.location.search.indexOf('_auth') !== -1) {{
-        var cleanUrl = new URL(window.location.href);
-        cleanUrl.searchParams.delete('_auth');
-        window.history.replaceState({{}}, '', cleanUrl.pathname + (cleanUrl.search ? cleanUrl.search : ''));
-    }}
-}} catch(e) {{}}
-</script>
-""", unsafe_allow_javascript=True)
-
+# (Login system removed - direct dashboard access)
 
 # Helper function to safely format numeric fields (e.g., bedrooms, area) to nice string
 def format_num_val(val):
@@ -2821,6 +2524,20 @@ def ensure_derived_cols(df):
         df['ราคาต่อตารางเมตร'] = pd.to_numeric(df['ราคาต่อตารางเมตร'], errors='coerce')
 
     if 'จังหวัด' in df.columns:
+        def _clean_prov_val(v):
+            if pd.isna(v):
+                return np.nan
+            s = str(v).strip().strip(" ,;.-'\"/\\")
+            s = re.sub(r'^(จ\.|จังหวัด)\s*', '', s).strip()
+            if s in ['กทม', 'กทม.', 'กรุงเทพ', 'กรุงเทพฯ']:
+                s = 'กรุงเทพมหานคร'
+            elif s in ['อยุธยา']:
+                s = 'พระนครศรีอยุธยา'
+            if s in ['', '-', 'nan', 'None', '<NA>', 'ไม่มีข้อมูล']:
+                return np.nan
+            return s
+
+        df['จังหวัด'] = df['จังหวัด'].apply(_clean_prov_val)
         df['ภาค'] = df['จังหวัด'].map(PROVINCE_TO_REGION).fillna('อื่นๆ / ไม่ระบุ')
 
     if 'ชั้น' not in df.columns:
@@ -2833,13 +2550,15 @@ def ensure_derived_cols(df):
     else:
         df['เลขโฉนด'] = df['เลขโฉนด'].replace({'nan': None, 'None': None, 'null': None, '<NA>': None, 'NaN': None, '-': None, '': None})
 
-    # Ensure 'อำเภอ' and 'ตำบล' are 100% Thai without any English characters
+    # Ensure 'อำเภอ' and 'ตำบล' are 100% Thai without any English characters or trailing punctuation
     if 'อำเภอ' in df.columns:
+        df['อำเภอ'] = df['อำเภอ'].astype(str).str.strip().str.strip(" ,;.-'\"/\\")
+        df['อำเภอ'] = df['อำเภอ'].replace({'nan': np.nan, 'None': np.nan, '<NA>': np.nan, '-': np.nan, '': np.nan})
         en_amp_mask = df['อำเภอ'].astype(str).str.contains(r'[a-zA-Z]', regex=True, na=False)
         if en_amp_mask.any():
             try:
                 base_dir = os.path.dirname(os.path.abspath(__file__))
-                for cand in [base_dir, os.path.join(base_dir, "Monthly all new")]:
+                for cand in [base_dir, os.path.join(base_dir, "Py Scraper"), os.path.join(base_dir, "Monthly all new")]:
                     if cand not in sys.path and os.path.exists(cand):
                         sys.path.insert(0, cand)
                 from clean_location_util import translate_amphoe_en_to_th
@@ -2853,6 +2572,8 @@ def ensure_derived_cols(df):
                 )
 
     if 'ตำบล' in df.columns:
+        df['ตำบล'] = df['ตำบล'].astype(str).str.strip().str.strip(" ,;.-'\"/\\")
+        df['ตำบล'] = df['ตำบล'].replace({'nan': np.nan, 'None': np.nan, '<NA>': np.nan, '-': np.nan, '': np.nan})
         en_tam_mask = df['ตำบล'].astype(str).str.contains(r'[a-zA-Z]', regex=True, na=False)
         if en_tam_mask.any():
             df.loc[en_tam_mask, 'ตำบล'] = df.loc[en_tam_mask, 'ตำบล'].astype(str).apply(
@@ -2909,6 +2630,35 @@ def get_official_gis_reference():
 INVALID_LOC_VALUES = {"", "nan", "none", "null", "undefined", "-", "ไม่มีข้อมูล", "ไม่ระบุ"}
 
 @st.cache_data(show_spinner=False)
+def get_sam_project_options(_df):
+    """Pre-computes and caches list of SAM projects and their unit counts across all companies."""
+    if _df is None or _df.empty or 'ชื่อโครงการ' not in _df.columns or 'บริษัท' not in _df.columns:
+        return [], {}
+    sam_mask = _df['บริษัท'] == 'SAM'
+    sam_projs = set(_df[sam_mask]['ชื่อโครงการ'].dropna().astype(str).str.strip())
+    sam_projs = {p for p in sam_projs if p and p not in ['-', 'ไม่มีชื่อ', 'nan', 'None']}
+    
+    valid_df = _df[_df['ชื่อโครงการ'].astype(str).str.strip().isin(sam_projs)]
+    sam_cnt = valid_df[valid_df['บริษัท'] == 'SAM']['ชื่อโครงการ'].astype(str).str.strip().value_counts()
+    other_cnt = valid_df[valid_df['บริษัท'] != 'SAM']['ชื่อโครงการ'].astype(str).str.strip().value_counts()
+    
+    def sort_key(p):
+        o = int(other_cnt.get(p, 0))
+        s = int(sam_cnt.get(p, 0))
+        return (1 if o > 0 else 0, o, s)
+    
+    sorted_projs = sorted(list(sam_projs), key=sort_key, reverse=True)
+    labels = {}
+    for p in sorted_projs:
+        s = int(sam_cnt.get(p, 0))
+        o = int(other_cnt.get(p, 0))
+        if o > 0:
+            labels[p] = f"{p} (SAM: {s}, คู่แข่ง: {o})"
+        else:
+            labels[p] = f"{p} (SAM: {s})"
+    return sorted_projs, labels
+
+@st.cache_data(show_spinner=False)
 def get_cached_sidebar_metadata(_df):
     """Pre-computes and caches unique values for sidebar dropdowns and pills to prevent recalculation overhead."""
     if _df is None or _df.empty:
@@ -2949,10 +2699,10 @@ def get_cached_sidebar_metadata(_df):
     official_pairs, official_provs, official_dists = get_official_gis_reference()
     INVALID_LOC_VALUES = {"", "nan", "none", "null", "undefined", "-", "ไม่มีข้อมูล", "ไม่ระบุ"}
 
-    provinces_pool = sorted([
-        str(p).strip() for p in _df['จังหวัด'].dropna().unique()
-        if str(p).strip() and str(p).strip().lower() not in INVALID_LOC_VALUES
-    ])
+    provinces_pool = sorted(list({
+        str(p).strip().strip(" ,;.-'\"") for p in _df['จังหวัด'].dropna().unique()
+        if str(p).strip().strip(" ,;.-'\"") and str(p).strip().strip(" ,;.-'\"").lower() not in INVALID_LOC_VALUES
+    }))
     if official_provs:
         provinces_pool = [p for p in provinces_pool if p in official_provs]
     if "ไม่ระบุ" in provinces_pool:
@@ -3031,12 +2781,958 @@ def get_cached_sidebar_metadata(_df):
         'subdistrict_by_district': subdistrict_by_district,
     }
 
+fragment_decorator = getattr(st, "fragment", getattr(st, "experimental_fragment", None))
+if fragment_decorator is None:
+    def fragment_decorator(func):
+        return func
+
 def get_base_map_html(_mtime=None):
     try:
         with open("static/map_template.html", "r", encoding="utf-8") as f:
             return f.read()
     except Exception as e:
         return ""
+
+@fragment_decorator
+def render_tab2_reference_analytics_fragment(
+    df_raw,
+    is_dark_mode,
+    active_ref_lat,
+    active_ref_lon,
+    active_ref_prop,
+    active_ref_radius,
+    tab2_types=None
+):
+    # 0. Hidden synchronization button — Bridge between map iframe and Streamlit
+    st.markdown("""
+    <style>
+    /* Position sync button offscreen while remaining active and clickable via JS */
+    .st-key-btn_map_filter_sync,
+    div[data-testid="stElementContainer"]:has(.st-key-btn_map_filter_sync),
+    div[data-testid="stButton"]:has(.st-key-btn_map_filter_sync) {
+        position: fixed !important;
+        bottom: -9999px !important;
+        right: -9999px !important;
+        opacity: 0 !important;
+        z-index: -9999 !important;
+    }
+    </style>
+    <div id="map-sync-anchor" style="position:fixed; bottom:-9999px; right:-9999px;"></div>
+    """, unsafe_allow_html=True)
+    if st.button("sync_map_filter", key="btn_map_filter_sync"):
+        q_prov = st.query_params.get("map_prov", None)
+        if q_prov is not None:
+            q_p = str(q_prov).strip()
+            if q_p and q_p not in ["ALL", "__ALL__", "all"]:
+                st.session_state["tab2_filter_provinces"] = [q_p]
+            else:
+                st.session_state["tab2_filter_provinces"] = []
+
+        q_dist = st.query_params.get("map_dist", None)
+        if q_dist is not None:
+            q_d = str(q_dist).strip()
+            if q_d and q_d not in ["ALL", "__ALL__", "all"]:
+                st.session_state["tab2_filter_districts"] = [q_d]
+            else:
+                st.session_state["tab2_filter_districts"] = []
+
+        q_subdist = st.query_params.get("map_subdist", None)
+        if q_subdist is not None:
+            q_s = str(q_subdist).strip()
+            if q_s and q_s not in ["ALL", "__ALL__", "all"]:
+                st.session_state["tab2_filter_subdistricts"] = [q_s]
+            else:
+                st.session_state["tab2_filter_subdistricts"] = []
+
+        q_lat = st.query_params.get("map_ref_lat")
+        q_lon = st.query_params.get("map_ref_lon")
+        if q_lat and q_lon:
+            try:
+                active_ref_lat = float(q_lat)
+                active_ref_lon = float(q_lon)
+                st.session_state["tab2_ref_lat"] = active_ref_lat
+                st.session_state["tab2_ref_lon"] = active_ref_lon
+                st.session_state["tab2_compared_active"] = True
+            except (ValueError, TypeError):
+                pass
+
+        # Auto-compare when location filter is synced (province/district/subdistrict selected on map)
+        has_loc_synced = (
+            (q_prov is not None and str(q_prov).strip() not in ["", "ALL", "__ALL__", "all"]) or
+            (q_dist is not None and str(q_dist).strip() not in ["", "ALL", "__ALL__", "all"]) or
+            (q_subdist is not None and str(q_subdist).strip() not in ["", "ALL", "__ALL__", "all"])
+        )
+        if has_loc_synced:
+            st.session_state["tab2_compared_active"] = True
+
+        try:
+            st.rerun(scope="fragment")
+        except Exception:
+            st.rerun()
+
+    # 1. Recovery of reference coordinates & radius from query_params or session_state
+    q_lat_check = st.query_params.get("map_ref_lat")
+    if q_lat_check:
+        try:
+            if float(q_lat_check) > 0 and "map_ref_cleared" in st.query_params:
+                del st.query_params["map_ref_cleared"]
+        except (ValueError, TypeError):
+            pass
+
+    if st.query_params.get("map_ref_cleared") == "1":
+        active_ref_lat = 0.0
+        active_ref_lon = 0.0
+        active_ref_prop = None
+        st.session_state["tab2_ref_lat"] = 0.0
+        st.session_state["tab2_ref_lon"] = 0.0
+        st.session_state["tab2_ref_prop"] = None
+        st.session_state["tab2_compared_active"] = False
+        try:
+            del st.query_params["map_ref_cleared"]
+        except Exception:
+            pass
+    else:
+        try:
+            q_lat = st.query_params.get("map_ref_lat")
+            q_lon = st.query_params.get("map_ref_lon")
+            if q_lat and q_lon and float(q_lat) > 0 and float(q_lon) > 0:
+                active_ref_lat = float(q_lat)
+                active_ref_lon = float(q_lon)
+                st.session_state["tab2_ref_lat"] = active_ref_lat
+                st.session_state["tab2_ref_lon"] = active_ref_lon
+            q_rad = st.query_params.get("map_ref_radius")
+            if q_rad and float(q_rad) > 0:
+                active_ref_radius = float(q_rad)
+        except (ValueError, TypeError):
+            pass
+
+    if not active_ref_lat or not active_ref_lon:
+        s_lat = st.session_state.get("tab2_ref_lat", 0.0)
+        s_lon = st.session_state.get("tab2_ref_lon", 0.0)
+        if s_lat > 0 and s_lon > 0:
+            active_ref_lat = s_lat
+            active_ref_lon = s_lon
+
+    # Auto-resolve active_ref_prop if missing or if query params has map_ref_id
+    q_id = st.query_params.get("map_ref_id")
+    if q_id and df_raw is not None and not df_raw.empty:
+        clean_id = str(q_id).strip()
+        if active_ref_prop is None or str(active_ref_prop.get('รหัสทรัพย์', '')).strip() != clean_id:
+            found = df_raw[df_raw['รหัสทรัพย์'].astype(str).str.strip() == clean_id]
+            if not found.empty:
+                active_ref_prop = found.iloc[0].to_dict()
+                st.session_state["tab2_ref_prop"] = active_ref_prop
+                st.session_state["tab2_search_prop_id"] = clean_id
+    elif active_ref_prop is None and active_ref_lat and active_ref_lon and df_raw is not None and not df_raw.empty:
+        if 'ละติจูด' in df_raw.columns and 'ลองจิจูด' in df_raw.columns:
+            match = df_raw[
+                (df_raw['ละติจูด'].sub(active_ref_lat).abs() < 0.0001) &
+                (df_raw['ลองจิจูด'].sub(active_ref_lon).abs() < 0.0001)
+            ]
+            if not match.empty:
+                active_ref_prop = match.iloc[0].to_dict()
+                st.session_state["tab2_ref_prop"] = active_ref_prop
+
+    # 2. Extract and resolve all current map filters
+    q_prov = st.query_params.get("map_prov", None)
+    if q_prov and str(q_prov).strip() not in ["ALL", "__ALL__", "all", ""]:
+        active_prov = [str(q_prov).strip()]
+    else:
+        active_prov = st.session_state.get("tab2_filter_provinces", [])
+
+    q_dist = st.query_params.get("map_dist", None)
+    if q_dist and str(q_dist).strip() not in ["ALL", "__ALL__", "all", ""]:
+        active_dist = [str(q_dist).strip()]
+    else:
+        active_dist = st.session_state.get("tab2_filter_districts", [])
+
+    q_subdist = st.query_params.get("map_subdist", None)
+    if q_subdist and str(q_subdist).strip() not in ["ALL", "__ALL__", "all", ""]:
+        active_subdist = [str(q_subdist).strip()]
+    else:
+        active_subdist = st.session_state.get("tab2_filter_subdistricts", [])
+
+    q_proj = st.query_params.get("map_proj", None)
+    active_proj = str(q_proj).strip() if q_proj and str(q_proj).strip() not in ["ALL", "__ALL__", "all", ""] else None
+
+    raw_cos = st.query_params.get("map_filter_cos", "")
+    map_cos = [c.strip() for c in raw_cos.split(",") if c.strip()] if raw_cos else []
+
+    raw_types = st.query_params.get("map_filter_types", "")
+    map_types = [t.strip() for t in raw_types.split(",") if t.strip()] if raw_types else []
+
+    try:
+        map_min_p = float(st.query_params.get("map_filter_min_p", 0))
+    except (ValueError, TypeError):
+        map_min_p = 0.0
+
+    try:
+        map_max_p = float(st.query_params.get("map_filter_max_p", 0))
+    except (ValueError, TypeError):
+        map_max_p = 0.0
+
+    try:
+        map_min_sqw = float(st.query_params.get("map_filter_min_sqw", 0))
+    except (ValueError, TypeError):
+        map_min_sqw = 0.0
+
+    try:
+        map_max_sqw = float(st.query_params.get("map_filter_max_sqw", 0))
+    except (ValueError, TypeError):
+        map_max_sqw = 0.0
+
+    try:
+        map_min_sqm = float(st.query_params.get("map_filter_min_sqm", 0))
+    except (ValueError, TypeError):
+        map_min_sqm = 0.0
+
+    try:
+        map_max_sqm = float(st.query_params.get("map_filter_max_sqm", 0))
+    except (ValueError, TypeError):
+        map_max_sqm = 0.0
+
+    pin_mode = st.query_params.get("map_pin_mode", "radius")
+    has_ref_point = bool(active_ref_lat and active_ref_lon and float(active_ref_lat) > 0 and float(active_ref_lon) > 0)
+    has_loc_filter = bool(active_prov or active_dist or active_subdist or active_proj)
+
+    # 3. Compute matching count and summary labels for Filter Status Bar
+    status_df = df_raw.copy() if df_raw is not None else pd.DataFrame()
+    if not status_df.empty:
+        if has_ref_point and pin_mode == 'radius':
+            status_df = find_nearby_properties(active_ref_lat, active_ref_lon, status_df, active_ref_radius)
+        else:
+            if active_prov and 'จังหวัด' in status_df.columns:
+                status_df = status_df[status_df['จังหวัด'].astype(str).str.strip().isin(active_prov)]
+            if active_dist and 'อำเภอ' in status_df.columns:
+                clean_target_dists = [d.split(' (')[0].strip() for d in active_dist]
+                status_df = status_df[status_df['อำเภอ'].astype(str).str.strip().isin(clean_target_dists)]
+            if active_subdist and 'ตำบล' in status_df.columns:
+                clean_target_subs = [s.split(' (')[0].strip() for s in active_subdist]
+                status_df = status_df[status_df['ตำบล'].astype(str).str.strip().isin(clean_target_subs)]
+            if active_proj and 'ชื่อโครงการ' in status_df.columns:
+                p_list = [p.strip() for p in active_proj.split(",") if p.strip()]
+                status_df = status_df[status_df['ชื่อโครงการ'].astype(str).str.strip().isin(p_list)]
+
+        if map_cos and 'บริษัท' in status_df.columns:
+            status_df = status_df[status_df['บริษัท'].isin(map_cos)]
+        if map_types and 'ประเภททรัพย์' in status_df.columns:
+            status_df = status_df[status_df['ประเภททรัพย์'].isin(map_types)]
+        if map_min_p > 0 and 'ราคา' in status_df.columns:
+            status_df = status_df[status_df['ราคา'] >= map_min_p]
+        if map_max_p > 0 and 'ราคา' in status_df.columns:
+            status_df = status_df[status_df['ราคา'] <= map_max_p]
+        if map_min_sqw > 0:
+            col_sqw = 'เนื้อที่ (ตร.ว.)' if 'เนื้อที่ (ตร.ว.)' in status_df.columns else ('พื้นที่_ตารางวา' if 'พื้นที่_ตารางวา' in status_df.columns else None)
+            if col_sqw:
+                status_df = status_df[status_df[col_sqw].apply(to_float_sqwah) >= map_min_sqw]
+        if map_max_sqw > 0:
+            col_sqw = 'เนื้อที่ (ตร.ว.)' if 'เนื้อที่ (ตร.ว.)' in status_df.columns else ('พื้นที่_ตารางวา' if 'พื้นที่_ตารางวา' in status_df.columns else None)
+            if col_sqw:
+                status_df = status_df[status_df[col_sqw].apply(to_float_sqwah) <= map_max_sqw]
+        if map_min_sqm > 0 and 'พื้นที่ใช้สอย (ตร.ม.)' in status_df.columns:
+            status_df = status_df[status_df['พื้นที่ใช้สอย (ตร.ม.)'].apply(to_float_sqm) >= map_min_sqm]
+        if map_max_sqm > 0 and 'พื้นที่ใช้สอย (ตร.ม.)' in status_df.columns:
+            status_df = status_df[status_df['พื้นที่ใช้สอย (ตร.ม.)'].apply(to_float_sqm) <= map_max_sqm]
+
+    matched_count = len(status_df)
+
+    # Human-readable labels
+    if active_subdist:
+        clean_s = active_subdist[0].split(' (')[0].strip()
+        clean_d = active_dist[0].split(' (')[0].strip() if active_dist else "-"
+        loc_str = f"จ.{active_prov[0] if active_prov else '-'} > อ.{clean_d} > ต.{clean_s}"
+    elif active_dist:
+        clean_d = active_dist[0].split(' (')[0].strip()
+        loc_str = f"จ.{active_prov[0] if active_prov else '-'} > อ.{clean_d}"
+    elif active_prov:
+        loc_str = f"จ.{active_prov[0]}"
+    else:
+        loc_str = "ทุกทำเล (ทั่วประเทศ)"
+
+    if active_proj:
+        loc_str += f" &bull; โครงการ: {active_proj}"
+
+    if has_ref_point:
+        if active_ref_prop:
+            rad_str = f"{active_ref_radius:.1f} กม. รอบ [{active_ref_prop.get('บริษัท', '-')}] {active_ref_prop.get('รหัสทรัพย์', '')}"
+        else:
+            rad_str = f"{active_ref_radius:.1f} กม. ({active_ref_lat:.4f}, {active_ref_lon:.4f})"
+    else:
+        rad_str = f"รัศมี {active_ref_radius:.1f} กม. (ยังไม่ได้ปักหมุด)"
+
+    cos_str = f"{', '.join(map_cos)} ({len(map_cos)} บริษัท)" if map_cos else "ทุกบริษัท"
+    types_str = f"{', '.join(map_types)}" if map_types else "ทุกประเภททรัพย์"
+
+    if map_min_p > 0 and map_max_p > 0:
+        price_str = f"฿{format_price_kpi(map_min_p)} - ฿{format_price_kpi(map_max_p)}"
+    elif map_min_p > 0:
+        price_str = f">= ฿{format_price_kpi(map_min_p)}"
+    elif map_max_p > 0:
+        price_str = f"<= ฿{format_price_kpi(map_max_p)}"
+    else:
+        price_str = "ทุกช่วงราคา"
+
+    area_parts = []
+    if map_min_sqw > 0 or map_max_sqw > 0:
+        area_parts.append(f"{map_min_sqw:,.0f}-{map_max_sqw:,.0f} ตร.ว." if map_max_sqw > 0 else f">= {map_min_sqw:,.0f} ตร.ว.")
+    if map_min_sqm > 0 or map_max_sqm > 0:
+        area_parts.append(f"{map_min_sqm:,.0f}-{map_max_sqm:,.0f} ตร.ม." if map_max_sqm > 0 else f">= {map_min_sqm:,.0f} ตร.ม.")
+    area_str = " / ".join(area_parts) if area_parts else "ทุกขนาด (ทุก Plan)"
+
+    mode_badge_lbl = "ตามรัศมี (Radius)" if (pin_mode == 'radius' and has_ref_point) else "ตามทำเล (Location)"
+
+    # Theme colors for status card
+    card_bg = "rgba(2, 44, 34, 0.45)" if is_dark_mode else "#f8fafc"
+    card_border = "rgba(52, 211, 153, 0.35)" if is_dark_mode else "#e2e8f0"
+    chip_bg = "rgba(2, 44, 34, 0.7)" if is_dark_mode else "#ffffff"
+    chip_border = "rgba(52, 211, 153, 0.25)" if is_dark_mode else "#e2e8f0"
+    text_c = "#f1f5f9" if is_dark_mode else "#1e293b"
+    sub_c = "#94a3b8" if is_dark_mode else "#64748b"
+
+    # --- RENDER FILTER STATUS BANNER (นอกแผนที่ ข้างใต้แผนที่) ---
+    st.markdown(f"""
+    <div id='ref-analytics-section' style='height: 0px; margin: 0px; padding: 0px; scroll-margin-top: 80px;'></div>
+    <div id="map-active-filters-banner" style="background: {card_bg}; border: 1.5px solid {card_border}; border-radius: 14px; padding: 12px 16px; margin-top: -18px; margin-bottom: 12px; position: relative; z-index: 10; box-shadow: 0 4px 14px rgba(0,0,0,0.04);">
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid {chip_border};">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="background: linear-gradient(135deg, #059669, #10b981); color: #ffffff; padding: 3px 10px; border-radius: 6px; font-size: 0.78rem; font-weight: 800; display: inline-flex; align-items: center; gap: 5px;">
+                    <i class="fa-solid fa-sliders"></i> สถานะตัวกรองแผนที่ (Active Map Filters)
+                </span>
+                <span style="font-size: 0.82rem; font-weight: 700; color: #10b981;" id="active-filter-mode-val">
+                    โหมด: <b>{mode_badge_lbl}</b>
+                </span>
+            </div>
+            <div style="font-size: 0.82rem; font-weight: 700; color: #059669; background: rgba(16, 185, 129, 0.12); padding: 3px 10px; border-radius: 20px; display: inline-flex; align-items: center; gap: 5px;" id="active-filter-count-val">
+                <i class="fa-solid fa-layer-group"></i> ทรัพย์ที่ตรงเงื่อนไข: <b>{matched_count:,}</b> รายการ
+            </div>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px;">
+            <div style="background: {chip_bg}; border: 1px solid {chip_border}; border-radius: 8px; padding: 7px 10px;">
+                <div style="font-size: 0.70rem; font-weight: 700; color: {sub_c}; text-transform: uppercase;">
+                    <i class="fa-solid fa-location-dot" style="color: #10b981; margin-right: 3px;"></i>ทำเล (Location)
+                </div>
+                <div id="active-filter-loc-val" style="font-size: 0.84rem; font-weight: 700; color: {text_c}; margin-top: 2px; word-break: break-word;">
+                    {loc_str}
+                </div>
+            </div>
+            <div style="background: {chip_bg}; border: 1px solid {chip_border}; border-radius: 8px; padding: 7px 10px;">
+                <div style="font-size: 0.70rem; font-weight: 700; color: {sub_c}; text-transform: uppercase;">
+                    <i class="fa-solid fa-bullseye" style="color: #06b6d4; margin-right: 3px;"></i>รัศมีตรวจ (Radius)
+                </div>
+                <div id="active-filter-rad-val" style="font-size: 0.84rem; font-weight: 700; color: {text_c}; margin-top: 2px;">
+                    {rad_str}
+                </div>
+            </div>
+            <div style="background: {chip_bg}; border: 1px solid {chip_border}; border-radius: 8px; padding: 7px 10px;">
+                <div style="font-size: 0.70rem; font-weight: 700; color: {sub_c}; text-transform: uppercase;">
+                    <i class="fa-solid fa-building" style="color: #3b82f6; margin-right: 3px;"></i>บริษัท (Company)
+                </div>
+                <div id="active-filter-co-val" style="font-size: 0.84rem; font-weight: 700; color: {text_c}; margin-top: 2px;">
+                    {cos_str}
+                </div>
+            </div>
+            <div style="background: {chip_bg}; border: 1px solid {chip_border}; border-radius: 8px; padding: 7px 10px;">
+                <div style="font-size: 0.70rem; font-weight: 700; color: {sub_c}; text-transform: uppercase;">
+                    <i class="fa-solid fa-house" style="color: #f59e0b; margin-right: 3px;"></i>ประเภททรัพย์ (Type)
+                </div>
+                <div id="active-filter-type-val" style="font-size: 0.84rem; font-weight: 700; color: {text_c}; margin-top: 2px;">
+                    {types_str}
+                </div>
+            </div>
+            <div style="background: {chip_bg}; border: 1px solid {chip_border}; border-radius: 8px; padding: 7px 10px;">
+                <div style="font-size: 0.70rem; font-weight: 700; color: {sub_c}; text-transform: uppercase;">
+                    <i class="fa-solid fa-tag" style="color: #10b981; margin-right: 3px;"></i>ราคา (Price)
+                </div>
+                <div id="active-filter-price-val" style="font-size: 0.84rem; font-weight: 700; color: {text_c}; margin-top: 2px;">
+                    {price_str}
+                </div>
+            </div>
+            <div style="background: {chip_bg}; border: 1px solid {chip_border}; border-radius: 8px; padding: 7px 10px;">
+                <div style="font-size: 0.70rem; font-weight: 700; color: {sub_c}; text-transform: uppercase;">
+                    <i class="fa-solid fa-ruler-combined" style="color: #8b5cf6; margin-right: 3px;"></i>ขนาด/Plan (Area)
+                </div>
+                <div id="active-filter-area-val" style="font-size: 0.84rem; font-weight: 700; color: {text_c}; margin-top: 2px;">
+                    {area_str}
+                </div>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # 4. Track comparison state
+    is_compared = st.session_state.get("tab2_compared_active", False)
+
+    if not is_compared:
+        # Comparison Button ALWAYS present and prominent above details!
+        st.markdown("""
+        <style>
+        .st-key-tab2_hero_compare_container {
+            display: flex !important;
+            justify-content: center !important;
+            align-items: center !important;
+            margin-top: -6px !important;
+            margin-bottom: 12px !important;
+            position: relative !important;
+            z-index: 100 !important;
+        }
+        .st-key-tab2_hero_compare_container div[data-testid="stButton"] {
+            display: flex !important;
+            justify-content: center !important;
+            width: 100% !important;
+        }
+        .st-key-tab2_hero_compare_container button {
+            background: linear-gradient(135deg, #059669 0%, #10b981 50%, #047857 100%) !important;
+            color: #ffffff !important;
+            font-size: 1.12rem !important;
+            font-weight: 800 !important;
+            font-family: 'Noto Sans Thai', 'Outfit', sans-serif !important;
+            letter-spacing: 0.3px !important;
+            padding: 12px 36px !important;
+            min-height: 52px !important;
+            max-width: 480px !important;
+            width: 100% !important;
+            border-radius: 50px !important;
+            border: 1.5px solid rgba(255, 255, 255, 0.45) !important;
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.38), 0 2px 6px rgba(0, 0, 0, 0.1) !important;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+            cursor: pointer !important;
+        }
+        .st-key-tab2_hero_compare_container button:hover {
+            transform: translateY(-2px) scale(1.02) !important;
+            background: linear-gradient(135deg, #10b981 0%, #34d399 50%, #059669 100%) !important;
+            box-shadow: 0 10px 28px rgba(16, 185, 129, 0.52), 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+            border-color: rgba(255, 255, 255, 0.8) !important;
+            color: #ffffff !important;
+        }
+        .st-key-tab2_hero_compare_container button:active {
+            transform: translateY(1px) scale(0.99) !important;
+            box-shadow: 0 2px 10px rgba(16, 185, 129, 0.3) !important;
+        }
+        .st-key-tab2_hero_compare_container button p {
+            font-size: 1.12rem !important;
+            font-weight: 800 !important;
+            color: #ffffff !important;
+            margin: 0 !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 8px !important;
+        }
+        .st-key-tab2_hero_compare_container button span[data-testid="stIconMaterial"] {
+            font-size: 1.35rem !important;
+            color: #ffffff !important;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+        with st.container(key="tab2_hero_compare_container"):
+            col_b1, col_b2, col_b3 = st.columns([1, 1.8, 1])
+            with col_b2:
+                # Dynamic Compare Button Label
+                if has_ref_point and pin_mode == 'radius' and not has_loc_filter:
+                    btn_compare_label = f"กดเปรียบเทียบรอบจุดอ้างอิง ({active_ref_radius:.1f} กม.)"
+                    btn_help_text = f"ประมวลผลการคำนวณราคากลางรอบจุดอ้างอิงในรัศมี {active_ref_radius:.1f} กม."
+                elif active_subdist:
+                    clean_s = active_subdist[0].split(' (')[0].strip()
+                    clean_d = active_dist[0].split(' (')[0].strip() if active_dist else ""
+                    btn_compare_label = f"กดเปรียบเทียบตามทำเล: ต.{clean_s} อ.{clean_d}"
+                    btn_help_text = f"ประมวลผลการคำนวณราคากลางและวิเคราะห์ทรัพย์สินในตำบล {clean_s}"
+                elif active_dist:
+                    clean_d = active_dist[0].split(' (')[0].strip()
+                    btn_compare_label = f"กดเปรียบเทียบตามทำเล: อ.{clean_d} จ.{active_prov[0] if active_prov else ''}"
+                    btn_help_text = f"ประมวลผลการคำนวณราคากลางและวิเคราะห์ทรัพย์สินในอำเภอ {clean_d}"
+                elif active_prov:
+                    btn_compare_label = f"กดเปรียบเทียบตามทำเล: จังหวัด {active_prov[0]}"
+                    btn_help_text = f"ประมวลผลการคำนวณราคากลางและวิเคราะห์ทรัพย์สินในจังหวัด {active_prov[0]}"
+                elif active_proj:
+                    btn_compare_label = f"กดเปรียบเทียบตามโครงการ: {active_proj}"
+                    btn_help_text = f"ประมวลผลการคำนวณราคากลางในโครงการ {active_proj}"
+                else:
+                    btn_compare_label = "กดเปรียบเทียบสถิติและราคากลางทั้งหมด"
+                    btn_help_text = "ประมวลผลการคำนวณราคากลางและวิเคราะห์ทรัพย์สินทั้งหมดตามตัวกรอง"
+
+                btn_do_compare = st.button(
+                    btn_compare_label,
+                    icon=":material/compare_arrows:",
+                    key="btn_do_ref_compare",
+                    type="primary",
+                    use_container_width=True,
+                    help=btn_help_text
+                )
+                if btn_do_compare:
+                    cur_lat = active_ref_lat or float(st.query_params.get("map_ref_lat", 0.0) or 0.0) or float(st.session_state.get("tab2_ref_lat", 0.0) or 0.0)
+                    cur_lon = active_ref_lon or float(st.query_params.get("map_ref_lon", 0.0) or 0.0) or float(st.session_state.get("tab2_ref_lon", 0.0) or 0.0)
+                    if cur_lat and cur_lon and cur_lat > 0 and cur_lon > 0:
+                        active_ref_lat = cur_lat
+                        active_ref_lon = cur_lon
+                        st.session_state["tab2_ref_lat"] = cur_lat
+                        st.session_state["tab2_ref_lon"] = cur_lon
+                        st.session_state["tab2_compared_lat"] = cur_lat
+                        st.session_state["tab2_compared_lon"] = cur_lon
+                    st.session_state["tab2_compared_active"] = True
+                    try:
+                        st.rerun(scope="fragment")
+                    except TypeError:
+                        st.rerun()
+
+
+    else:
+
+        # 5. Calculation results (Cards & Table) with Live Filters
+        # Determine comparison data scope
+        if has_ref_point and (pin_mode == 'radius' or not has_loc_filter):
+            nearby_df = find_nearby_properties(active_ref_lat, active_ref_lon, df_raw, active_ref_radius)
+            scope_header = f"ในรัศมี {active_ref_radius:.1f} กม. รอบจุดอ้างอิง"
+        else:
+            nearby_df = df_raw.copy() if df_raw is not None else pd.DataFrame()
+            if active_subdist:
+                clean_s = active_subdist[0].split(' (')[0].strip()
+                clean_d = active_dist[0].split(' (')[0].strip() if active_dist else ""
+                scope_header = f"ในทำเล ตำบล{clean_s} อำเภอ{clean_d} จังหวัด{active_prov[0] if active_prov else ''}"
+            elif active_dist:
+                clean_d = active_dist[0].split(' (')[0].strip()
+                scope_header = f"ในทำเล อำเภอ{clean_d} จังหวัด{active_prov[0] if active_prov else ''}"
+            elif active_prov:
+                scope_header = f"ในทำเล จังหวัด{active_prov[0]}"
+            elif active_proj:
+                scope_header = f"ในโครงการ {active_proj}"
+            else:
+                scope_header = "ภาพรวมตามตัวกรองที่เลือก"
+
+        def get_tab2_unit_info(r):
+            p_type = str(r.get('ประเภททรัพย์', '')).lower()
+            is_condo = any(kw in p_type for kw in ['คอนโด', 'ห้องชุด'])
+            price = r.get('ราคา')
+            if pd.isna(price) or float(price) <= 0:
+                return np.nan, "-", "-"
+            if is_condo:
+                sqm = to_float_sqm(r.get('พื้นที่ใช้สอย (ตร.ม.)'))
+                if pd.notna(sqm) and float(sqm) > 0:
+                    return float(price) / float(sqm), "ตร.ม.", "พื้นที่ใช้สอย"
+            else:
+                sqwah = to_float_sqwah(r.get('เนื้อที่ (ตร.ว.)', r.get('พื้นที่_ตารางวา', np.nan)))
+                if pd.notna(sqwah) and float(sqwah) > 0:
+                    return float(price) / float(sqwah), "ตร.ว.", "เนื้อที่"
+            return np.nan, "-", "-"
+
+        if not nearby_df.empty:
+            unit_info_tuples = nearby_df.apply(get_tab2_unit_info, axis=1)
+            nearby_df['ราคาต่อหน่วย'] = [t[0] for t in unit_info_tuples]
+            nearby_df['หน่วยวัด'] = [t[1] for t in unit_info_tuples]
+            nearby_df['ประเภทพื้นที่'] = [t[2] for t in unit_info_tuples]
+
+        # Target type determination
+        target_type = None
+        if active_ref_prop is not None:
+            target_type = active_ref_prop.get('ประเภททรัพย์')
+        elif tab2_types and len(tab2_types) == 1:
+            target_type = tab2_types[0]
+        elif map_types and len(map_types) == 1:
+            target_type = map_types[0]
+
+        # Header row with title
+        st.markdown(
+            f"#### <i class='fa-solid fa-chart-simple' style='color:#059669; margin-right:6px;'></i>ผลการวิเคราะห์ราคากลางต่อหน่วย (Median Analysis) {scope_header}",
+            unsafe_allow_html=True
+        )
+
+        # Apply active in-map filters to nearby_df
+        filtered_nearby = nearby_df.copy()
+        active_cos = map_cos
+        active_types = map_types
+        active_prov = st.session_state.get("tab2_filter_provinces", [])
+        if not active_prov:
+            q_prov_str = st.query_params.get("map_prov", "")
+            if q_prov_str and str(q_prov_str).strip() not in ["ALL", "__ALL__", "all"]:
+                active_prov = [str(q_prov_str).strip()]
+
+        if active_prov and not filtered_nearby.empty and 'จังหวัด' in filtered_nearby.columns:
+            filtered_nearby = filtered_nearby[filtered_nearby['จังหวัด'].astype(str).str.strip().isin(active_prov)]
+
+        active_dist = st.session_state.get("tab2_filter_districts", [])
+        if not active_dist:
+            q_dist_str = st.query_params.get("map_dist", "")
+            if q_dist_str and str(q_dist_str).strip() not in ["ALL", "__ALL__", "all"]:
+                active_dist = [str(q_dist_str).strip()]
+
+        if active_dist and not filtered_nearby.empty and 'อำเภอ' in filtered_nearby.columns:
+            clean_target_dists = [d.split(' (')[0].strip() for d in active_dist]
+            filtered_nearby = filtered_nearby[filtered_nearby['อำเภอ'].astype(str).str.strip().isin(clean_target_dists)]
+
+        active_subdist = st.session_state.get("tab2_filter_subdistricts", [])
+        if not active_subdist:
+            q_subdist_str = st.query_params.get("map_subdist", "")
+            if q_subdist_str and str(q_subdist_str).strip() not in ["ALL", "__ALL__", "all"]:
+                active_subdist = [str(q_subdist_str).strip()]
+
+        if active_subdist and not filtered_nearby.empty and 'ตำบล' in filtered_nearby.columns:
+            clean_target_subs = [s.split(' (')[0].strip() for s in active_subdist]
+            filtered_nearby = filtered_nearby[filtered_nearby['ตำบล'].astype(str).str.strip().isin(clean_target_subs)]
+
+        if active_proj and not filtered_nearby.empty and 'ชื่อโครงการ' in filtered_nearby.columns:
+            p_list = [p.strip() for p in active_proj.split(",") if p.strip()]
+            filtered_nearby = filtered_nearby[filtered_nearby['ชื่อโครงการ'].astype(str).str.strip().isin(p_list)]
+
+        if active_cos and not filtered_nearby.empty and 'บริษัท' in filtered_nearby.columns:
+            filtered_nearby = filtered_nearby[filtered_nearby['บริษัท'].isin(active_cos)]
+        if active_types and not filtered_nearby.empty and 'ประเภททรัพย์' in filtered_nearby.columns:
+            filtered_nearby = filtered_nearby[filtered_nearby['ประเภททรัพย์'].isin(active_types)]
+        if map_min_p > 0 and not filtered_nearby.empty and 'ราคา' in filtered_nearby.columns:
+            filtered_nearby = filtered_nearby[filtered_nearby['ราคา'] >= map_min_p]
+        if map_max_p > 0 and not filtered_nearby.empty and 'ราคา' in filtered_nearby.columns:
+            filtered_nearby = filtered_nearby[filtered_nearby['ราคา'] <= map_max_p]
+        if map_min_sqw > 0 and not filtered_nearby.empty:
+            col_sqw = 'เนื้อที่ (ตร.ว.)' if 'เนื้อที่ (ตร.ว.)' in filtered_nearby.columns else ('พื้นที่_ตารางวา' if 'พื้นที่_ตารางวา' in filtered_nearby.columns else None)
+            if col_sqw:
+                filtered_nearby = filtered_nearby[filtered_nearby[col_sqw].apply(to_float_sqwah) >= map_min_sqw]
+        if map_max_sqw > 0 and not filtered_nearby.empty:
+            col_sqw = 'เนื้อที่ (ตร.ว.)' if 'เนื้อที่ (ตร.ว.)' in filtered_nearby.columns else ('พื้นที่_ตารางวา' if 'พื้นที่_ตารางวา' in filtered_nearby.columns else None)
+            if col_sqw:
+                filtered_nearby = filtered_nearby[filtered_nearby[col_sqw].apply(to_float_sqwah) <= map_max_sqw]
+        if map_min_sqm > 0 and not filtered_nearby.empty and 'พื้นที่ใช้สอย (ตร.ม.)' in filtered_nearby.columns:
+            filtered_nearby = filtered_nearby[filtered_nearby['พื้นที่ใช้สอย (ตร.ม.)'].apply(to_float_sqm) >= map_min_sqm]
+        if map_max_sqm > 0 and not filtered_nearby.empty and 'พื้นที่ใช้สอย (ตร.ม.)' in filtered_nearby.columns:
+            filtered_nearby = filtered_nearby[filtered_nearby['พื้นที่ใช้สอย (ตร.ม.)'].apply(to_float_sqm) <= map_max_sqm]
+
+        # Calculate Median for Target Type
+        has_sel_u_stats = False
+        median_u_sel = min_u_sel = max_u_sel = 0.0
+        unit_lbl_sel = "ตร.ว."
+        count_u_sel = 0
+        
+        if active_types:
+            calc_type_df = filtered_nearby[filtered_nearby['ประเภททรัพย์'].isin(active_types)].copy() if not filtered_nearby.empty else pd.DataFrame()
+            t_lbl = ", ".join(active_types)
+        elif target_type:
+            calc_type_df = filtered_nearby[filtered_nearby['ประเภททรัพย์'] == target_type].copy() if not filtered_nearby.empty else pd.DataFrame()
+            t_lbl = target_type
+        else:
+            calc_type_df = filtered_nearby.copy()
+            t_lbl = "ทรัพย์ทั้งหมดตามตัวกรอง"
+
+        if not calc_type_df.empty:
+            u_sel = calc_type_df['ราคาต่อหน่วย'].dropna()
+            u_sel = u_sel[u_sel > 0]
+            if not u_sel.empty:
+                median_u_sel = float(u_sel.median())
+                min_u_sel = float(u_sel.min())
+                max_u_sel = float(u_sel.max())
+                modes = calc_type_df[calc_type_df['หน่วยวัด'] != '-']['หน่วยวัด'].mode()
+                unit_lbl_sel = modes[0] if not modes.empty else "ตร.ว."
+                count_u_sel = len(u_sel)
+                has_sel_u_stats = True
+
+        # Calculate Median for Pure Land
+        p_str = filtered_nearby['ประเภททรัพย์'].astype(str) if not filtered_nearby.empty else pd.Series()
+        is_pure_land = p_str.str.contains('ที่ดินเปล่า|ที่ดิน', regex=True, na=False) & \
+                       ~p_str.str.contains('บ้าน|อาคาร|ทาวน์|คอนโด|ตึก|โรงงาน|พาณิชย์|หอพัก', regex=True, na=False)
+        raw_land_df = filtered_nearby[is_pure_land & (filtered_nearby['ราคา'] > 0)].copy() if not filtered_nearby.empty else pd.DataFrame()
+        
+        has_raw_land = False
+        median_raw_land = min_raw_land = max_raw_land = 0.0
+        count_raw_land = 0
+        if not raw_land_df.empty:
+            rl_u = raw_land_df['ราคาต่อหน่วย'].dropna()
+            rl_u = rl_u[rl_u > 0]
+            if not rl_u.empty:
+                median_raw_land = float(rl_u.median())
+                min_raw_land = float(rl_u.min())
+                max_raw_land = float(rl_u.max())
+                count_raw_land = len(rl_u)
+                has_raw_land = True
+
+        # Calculate Median for All Sq. Wah (เนื้อที่ดิน) in filtered_nearby
+        has_sqw_median = False
+        median_sqw_val = 0.0
+        count_sqw_val = 0
+        min_sqw_val = max_sqw_val = 0.0
+        if not filtered_nearby.empty:
+            col_sqw_name = 'เนื้อที่ (ตร.ว.)' if 'เนื้อที่ (ตร.ว.)' in filtered_nearby.columns else ('พื้นที่_ตารางวา' if 'พื้นที่_ตารางวา' in filtered_nearby.columns else None)
+            if col_sqw_name:
+                sqw_vals = filtered_nearby[col_sqw_name].apply(to_float_sqwah)
+                price_vals = pd.to_numeric(filtered_nearby['ราคา'], errors='coerce') if 'ราคา' in filtered_nearby.columns else pd.Series(dtype=float)
+                valid_mask_sqw = (sqw_vals > 0) & (price_vals > 0)
+                sqw_rates = (price_vals[valid_mask_sqw] / sqw_vals[valid_mask_sqw]).dropna()
+                sqw_rates = sqw_rates[sqw_rates > 0]
+                if not sqw_rates.empty:
+                    median_sqw_val = float(sqw_rates.median())
+                    min_sqw_val = float(sqw_rates.min())
+                    max_sqw_val = float(sqw_rates.max())
+                    count_sqw_val = len(sqw_rates)
+                    has_sqw_median = True
+
+        # Calculate Median for All Sq. Metre (พื้นที่ใช้สอย) in filtered_nearby
+        has_sqm_median = False
+        median_sqm_val = 0.0
+        count_sqm_val = 0
+        min_sqm_val = max_sqm_val = 0.0
+        if not filtered_nearby.empty and 'พื้นที่ใช้สอย (ตร.ม.)' in filtered_nearby.columns:
+            sqm_vals = filtered_nearby['พื้นที่ใช้สอย (ตร.ม.)'].apply(to_float_sqm)
+            price_vals = pd.to_numeric(filtered_nearby['ราคา'], errors='coerce') if 'ราคา' in filtered_nearby.columns else pd.Series(dtype=float)
+            valid_mask_sqm = (sqm_vals > 0) & (price_vals > 0)
+            sqm_rates = (price_vals[valid_mask_sqm] / sqm_vals[valid_mask_sqm]).dropna()
+            sqm_rates = sqm_rates[sqm_rates > 0]
+            if not sqm_rates.empty:
+                median_sqm_val = float(sqm_rates.median())
+                min_sqm_val = float(sqm_rates.min())
+                max_sqm_val = float(sqm_rates.max())
+                count_sqm_val = len(sqm_rates)
+                has_sqm_median = True
+
+        # Render 5 Metric Cards (Separating Total Count, Sq. Wah, Sq. Metre, Target Type, Land)
+        card_c1, card_c2, card_c3, card_c4, card_c5 = st.columns(5)
+        total_nearby_cnt = len(filtered_nearby)
+        co_tag = f" [{', '.join(active_cos)}]" if active_cos else ""
+
+        # Card 1: Reference Info (Total Count as Primary Metric)
+        if active_ref_prop is not None:
+            p_co = active_ref_prop.get('บริษัท', '-')
+            p_code = active_ref_prop.get('รหัสทรัพย์', '-')
+            p_price_val = active_ref_prop.get('ราคา', 0)
+            p_type_str = str(active_ref_prop.get('ประเภททรัพย์', '-'))
+            price_disp = f"฿{float(p_price_val):,.0f}" if pd.notna(p_price_val) and float(p_price_val) > 0 else "ไม่ระบุราคา"
+            sub_ref_info = f"<div style='color: #94a3b8; font-size: 0.74rem; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;'>[{p_co}] {p_code} &bull; {p_type_str}</div>"
+        elif active_ref_lat and active_ref_lon:
+            sub_ref_info = "<div style='color: #94a3b8; font-size: 0.74rem; margin-top: 2px;'>กำหนดจากพิกัดแผนที่</div>"
+        else:
+            sub_ref_info = f"<div style='color: #94a3b8; font-size: 0.74rem; margin-top: 2px;'>{scope_header}</div>"
+
+        card1_loc_detail = f"{active_ref_lat:.5f}, {active_ref_lon:.5f} (รัศมี {active_ref_radius:.1f} กม.)" if (active_ref_lat and active_ref_lon) else scope_header
+        card1_html = (
+            f"<div class='metric-card' style='background: rgba(16, 185, 129, 0.04); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 12px; padding: 12px 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); min-height: 140px; display: flex; flex-direction: column; justify-content: space-between;'>"
+            f"<div>"
+            f"<div style='font-size: 0.78rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.4px;'><i class='fa-solid fa-layer-group' style='color: #10b981; margin-right:4px;'></i> จำนวนทรัพย์ทั้งหมด</div>"
+            f"<div style='font-size: 1.55rem; font-weight: 800; color: #059669; margin: 3px 0;'>{total_nearby_cnt:,} <span style='font-size:0.85rem; font-weight:600; color:#64748b;'>รายการ</span></div>"
+            f"</div>"
+            f"<div>"
+            f"<div style='color: #64748b; font-size: 0.76rem;'><i class='fa-solid fa-location-dot' style='color:#10b981; font-size:0.72rem; margin-right:3px;'></i>{card1_loc_detail}</div>"
+            f"{sub_ref_info}"
+            f"</div>"
+            f"</div>"
+        )
+
+        # Card 2: Median Sq. Wah (All Properties)
+        if has_sqw_median:
+            c2_main = f"฿{median_sqw_val:,.0f}"
+            c2_unit = "/ตร.ว."
+            c2_sub = f"ต่ำสุด ฿{min_sqw_val:,.0f} &bull; สูงสุด ฿{max_sqw_val:,.0f}"
+            c2_badge = f"<span style='font-size:0.74rem; font-weight:600; color:#10b981;'>({count_sqw_val:,} แปลง)</span>"
+        else:
+            c2_main = "-"
+            c2_unit = ""
+            c2_sub = "ไม่มีข้อมูลเนื้อที่ดิน"
+            c2_badge = ""
+
+        card2_html = (
+            f"<div class='metric-card' style='background: rgba(16, 185, 129, 0.04); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 12px; padding: 12px 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); min-height: 140px; display: flex; flex-direction: column; justify-content: space-between;'>"
+            f"<div>"
+            f"<div style='font-size: 0.78rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.4px;'><i class='fa-solid fa-chart-line' style='color: #10b981; margin-right:4px;'></i> ราคากลาง / ตร.ว. {c2_badge}</div>"
+            f"<div style='font-size: 1.55rem; font-weight: 800; color: #059669; margin: 3px 0;'>{c2_main} <span style='font-size:0.85rem; font-weight:600; color:#64748b;'>{c2_unit}</span></div>"
+            f"</div>"
+            f"<div style='color: #64748b; font-size: 0.76rem;'>{c2_sub}</div>"
+            f"</div>"
+        )
+
+        # Card 3: Median Sq. Metre (All Properties)
+        if has_sqm_median:
+            c3_main = f"฿{median_sqm_val:,.0f}"
+            c3_unit = "/ตร.ม."
+            c3_sub = f"ต่ำสุด ฿{min_sqm_val:,.0f} &bull; สูงสุด ฿{max_sqm_val:,.0f}"
+            c3_badge = f"<span style='font-size:0.74rem; font-weight:600; color:#10b981;'>({count_sqm_val:,} แปลง)</span>"
+        else:
+            c3_main = "-"
+            c3_unit = ""
+            c3_sub = "ไม่มีข้อมูลพื้นที่ใช้สอย"
+            c3_badge = ""
+
+        card3_html = (
+            f"<div class='metric-card' style='background: rgba(16, 185, 129, 0.04); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 12px; padding: 12px 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); min-height: 140px; display: flex; flex-direction: column; justify-content: space-between;'>"
+            f"<div>"
+            f"<div style='font-size: 0.78rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.4px;'><i class='fa-solid fa-ruler-combined' style='color: #10b981; margin-right:4px;'></i> ราคากลาง / ตร.ม. {c3_badge}</div>"
+            f"<div style='font-size: 1.55rem; font-weight: 800; color: #059669; margin: 3px 0;'>{c3_main} <span style='font-size:0.85rem; font-weight:600; color:#64748b;'>{c3_unit}</span></div>"
+            f"</div>"
+            f"<div style='color: #64748b; font-size: 0.76rem;'>{c3_sub}</div>"
+            f"</div>"
+        )
+
+        # Card 4: Target Type
+        if has_sel_u_stats:
+            c4_main = f"฿{median_u_sel:,.0f}"
+            c4_unit = f"/{unit_lbl_sel}"
+            c4_sub = f"ต่ำสุด ฿{min_u_sel:,.0f} &bull; สูงสุด ฿{max_u_sel:,.0f}"
+            c4_badge = f"<span style='font-size:0.74rem; font-weight:600; color:#10b981;'>({count_u_sel:,} แปลง)</span>"
+        else:
+            c4_main = "-"
+            c4_unit = ""
+            c4_sub = f"ไม่มีข้อมูลราคาสำหรับ {t_lbl}"
+            c4_badge = ""
+
+        card4_html = (
+            f"<div class='metric-card' style='background: rgba(16, 185, 129, 0.04); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 12px; padding: 12px 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); min-height: 140px; display: flex; flex-direction: column; justify-content: space-between;'>"
+            f"<div>"
+            f"<div style='font-size: 0.78rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.4px;'><i class='fa-solid fa-house' style='color: #10b981; margin-right:4px;'></i> ราคากลาง {t_lbl} {c4_badge}</div>"
+            f"<div style='font-size: 1.55rem; font-weight: 800; color: #059669; margin: 3px 0;'>{c4_main} <span style='font-size:0.85rem; font-weight:600; color:#64748b;'>{c4_unit}</span></div>"
+            f"</div>"
+            f"<div style='color: #64748b; font-size: 0.76rem;'>{c4_sub}</div>"
+            f"</div>"
+        )
+
+        # Card 5: Pure Land
+        if has_raw_land:
+            c5_main = f"฿{median_raw_land:,.0f}"
+            c5_unit = "/ตร.ว."
+            c5_sub = f"ต่ำสุด ฿{min_raw_land:,.0f} &bull; สูงสุด ฿{max_raw_land:,.0f}"
+            c5_badge = f"<span style='font-size:0.74rem; font-weight:600; color:#10b981;'>({count_raw_land:,} แปลง)</span>"
+        else:
+            c5_main = "-"
+            c5_unit = ""
+            c5_sub = "ไม่พบข้อมูลที่ดินเปล่า"
+            c5_badge = ""
+
+        card5_html = (
+            f"<div class='metric-card' style='background: rgba(16, 185, 129, 0.04); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 12px; padding: 12px 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); min-height: 140px; display: flex; flex-direction: column; justify-content: space-between;'>"
+            f"<div>"
+            f"<div style='font-size: 0.78rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.4px;'><i class='fa-solid fa-mountain-sun' style='color: #10b981; margin-right:4px;'></i> ราคากลางที่ดินเปล่า {c5_badge}</div>"
+            f"<div style='font-size: 1.55rem; font-weight: 800; color: #059669; margin: 3px 0;'>{c5_main} <span style='font-size:0.85rem; font-weight:600; color:#64748b;'>{c5_unit}</span></div>"
+            f"</div>"
+            f"<div>{c5_sub}</div>"
+            f"</div>"
+        )
+
+        with card_c1:
+            st.html(card1_html)
+        with card_c2:
+            st.html(card2_html)
+        with card_c3:
+            st.html(card3_html)
+        with card_c4:
+            st.html(card4_html)
+        with card_c5:
+            st.html(card5_html)
+
+        # Nearby Assets Table (Direct display with icon instead of expander)
+        filter_summary_str = f" [กรอง: {', '.join(active_cos)}]" if active_cos else ""
+        if not filtered_nearby.empty:
+            st.markdown(
+                f"<div style='margin-top: 22px; margin-bottom: 12px; font-weight: 700; font-size: 1.06rem; display: flex; align-items: center; justify-content: space-between;'>"
+                f"<span><i class='fa-solid fa-table-list' style='color:#059669; margin-right:8px;'></i>"
+                f"รายการทรัพย์สิน ({len(filtered_nearby):,} รายการ {scope_header}{filter_summary_str})</span>"
+                f"<span style='font-size: 0.8rem; font-weight: 600; color: #059669; background: rgba(16, 185, 129, 0.1); padding: 4px 12px; border-radius: 20px; border: 1.2px solid rgba(16, 185, 129, 0.3);'>"
+                f"<i class='fa-solid fa-layer-group' style='margin-right:5px;'></i>ตารางเปรียบเทียบข้อมูลทรัพย์</span>"
+                f"</div>",
+                unsafe_allow_html=True
+            )
+            # Build detailed analysis dataframe for display
+            show_df = pd.DataFrame(index=filtered_nearby.index)
+            
+            # 1. บริษัท, รหัสทรัพย์, ประเภททรัพย์
+            for col in ['บริษัท', 'รหัสทรัพย์', 'ประเภททรัพย์']:
+                if col in filtered_nearby.columns:
+                    show_df[col] = filtered_nearby[col]
+            
+            # 2. ราคา (บาท)
+            price_num = pd.to_numeric(filtered_nearby['ราคา'], errors='coerce') if 'ราคา' in filtered_nearby.columns else pd.Series(np.nan, index=filtered_nearby.index)
+            show_df['ราคา (บาท)'] = price_num
+            
+            # 3. เนื้อที่ (ตร.ว.)
+            col_sqw_name = 'พื้นที่_ตารางวา' if 'พื้นที่_ตารางวา' in filtered_nearby.columns else ('เนื้อที่ (ตร.ว.)' if 'เนื้อที่ (ตร.ว.)' in filtered_nearby.columns else None)
+            sqw_vals = filtered_nearby[col_sqw_name].apply(to_float_sqwah) if col_sqw_name else pd.Series(np.nan, index=filtered_nearby.index)
+            show_df['เนื้อที่ (ตร.ว.)'] = sqw_vals
+
+            # 4. ราคาต่อตร.ว. (บาท)
+            if 'ราคาต่อตารางวา' in filtered_nearby.columns:
+                calc_p_sqw = pd.to_numeric(filtered_nearby['ราคาต่อตารางวา'], errors='coerce')
+                fallback_sqw = np.where((price_num > 0) & (sqw_vals > 0), price_num / sqw_vals, np.nan)
+                calc_p_sqw = np.where(calc_p_sqw > 0, calc_p_sqw, fallback_sqw)
+            else:
+                calc_p_sqw = np.where((price_num > 0) & (sqw_vals > 0), price_num / sqw_vals, np.nan)
+            show_df['ราคาต่อตร.ว. (บาท)'] = calc_p_sqw
+
+            # 5. เทียบราคากลางต่อ ตร.ว.
+            def _fmt_diff_pct(val, med):
+                if pd.isna(val) or val <= 0 or pd.isna(med) or med <= 0:
+                    return "-"
+                diff = ((val - med) / med) * 100.0
+                if diff > 0:
+                    return f"↑ +{diff:.1f}%"
+                elif diff < 0:
+                    return f"↓ {diff:.1f}%"
+                else:
+                    return "0.0%"
+
+            show_df['เทียบราคากลางต่อ ตร.ว.'] = [_fmt_diff_pct(v, median_sqw_val) for v in calc_p_sqw]
+
+            # 6. เทียบราคากับ ตร.ว. ของที่ดินเปล่า
+            show_df['เทียบราคากับ ตร.ว. ของที่ดินเปล่า'] = [_fmt_diff_pct(v, median_raw_land) for v in calc_p_sqw]
+
+            # 7. พื้นที่ใช้สอย (ตร.ม.)
+            sqm_vals = filtered_nearby['พื้นที่ใช้สอย (ตร.ม.)'].apply(to_float_sqm) if 'พื้นที่ใช้สอย (ตร.ม.)' in filtered_nearby.columns else pd.Series(np.nan, index=filtered_nearby.index)
+            show_df['พื้นที่ใช้สอย (ตร.ม.)'] = sqm_vals
+
+            # 8. ราคาต่อตร.ม. (บาท)
+            if 'ราคาต่อตารางเมตร' in filtered_nearby.columns:
+                calc_p_sqm = pd.to_numeric(filtered_nearby['ราคาต่อตารางเมตร'], errors='coerce')
+                fallback_sqm = np.where((price_num > 0) & (sqm_vals > 0), price_num / sqm_vals, np.nan)
+                calc_p_sqm = np.where(calc_p_sqm > 0, calc_p_sqm, fallback_sqm)
+            else:
+                calc_p_sqm = np.where((price_num > 0) & (sqm_vals > 0), price_num / sqm_vals, np.nan)
+            show_df['ราคาต่อตร.ม. (บาท)'] = calc_p_sqm
+
+            # 9. เทียบราคากลางต่อ ตร.ม.
+            show_df['เทียบราคากลางต่อ ตร.ม.'] = [_fmt_diff_pct(v, median_sqm_val) for v in calc_p_sqm]
+
+            # 10. ระยะทาง (กม.) (ถ้ามีการค้นหาตามพิกัดรัศมี)
+            if 'ระยะทาง (กม.)' in filtered_nearby.columns:
+                show_df['ระยะทาง (กม.)'] = pd.to_numeric(filtered_nearby['ระยะทาง (กม.)'], errors='coerce')
+                show_df = show_df.sort_values(by='ระยะทาง (กม.)', ascending=True)
+
+            # 11. ตำบล, อำเภอ, จังหวัด
+            for loc_c in ['ตำบล', 'อำเภอ', 'จังหวัด']:
+                if loc_c in filtered_nearby.columns:
+                    show_df[loc_c] = filtered_nearby[loc_c]
+
+            # 12. เปิดลิงก์
+            if 'ลิงก์' in filtered_nearby.columns:
+                show_df['เปิดลิงก์'] = filtered_nearby['ลิงก์']
+
+            table_col_config = {
+                "ราคา (บาท)": st.column_config.NumberColumn("ราคา (บาท)", format="฿%,d"),
+                "เนื้อที่ (ตร.ว.)": st.column_config.NumberColumn("เนื้อที่ (ตร.ว.)", format="%,.1f"),
+                "ราคาต่อตร.ว. (บาท)": st.column_config.NumberColumn("ราคาต่อตร.ว. (บาท)", format="฿%,d"),
+                "เทียบราคากลางต่อ ตร.ว.": st.column_config.TextColumn(
+                    "เทียบราคากลางต่อ ตร.ว.",
+                    help=f"เทียบกับราคากลาง ตร.ว. ในพื้นที่ (฿{median_sqw_val:,.0f}/ตร.ว.) ค่าบวก = สูงกว่าราคากลาง, ค่าลบ = ถูกกว่าราคากลาง" if median_sqw_val > 0 else "เทียบราคากลางต่อ ตร.ว."
+                ),
+                "เทียบราคากับ ตร.ว. ของที่ดินเปล่า": st.column_config.TextColumn(
+                    "เทียบราคากับ ตร.ว. ของที่ดินเปล่า",
+                    help=f"เทียบกับราคากลาง ตร.ว. ที่ดินเปล่า (฿{median_raw_land:,.0f}/ตร.ว.) ค่าบวก = สูงกว่าที่ดินเปล่า, ค่าลบ = ถูกกว่า" if median_raw_land > 0 else "เทียบราคากลางที่ดินเปล่า"
+                ),
+                "พื้นที่ใช้สอย (ตร.ม.)": st.column_config.NumberColumn("พื้นที่ใช้สอย (ตร.ม.)", format="%,.1f"),
+                "ราคาต่อตร.ม. (บาท)": st.column_config.NumberColumn("ราคาต่อตร.ม. (บาท)", format="฿%,d"),
+                "เทียบราคากลางต่อ ตร.ม.": st.column_config.TextColumn(
+                    "เทียบราคากลางต่อ ตร.ม.",
+                    help=f"เทียบกับราคากลาง ตร.ม. ในพื้นที่ (฿{median_sqm_val:,.0f}/ตร.ม.) ค่าบวก = สูงกว่าราคากลาง, ค่าลบ = ถูกกว่าราคากลาง" if median_sqm_val > 0 else "เทียบราคากลางต่อ ตร.ม."
+                ),
+                "ระยะทาง (กม.)": st.column_config.NumberColumn("ระยะทาง (กม.)", format="%.2f กม."),
+                "เปิดลิงก์": st.column_config.LinkColumn("เปิดลิงก์", display_text="เปิดดูทรัพย์"),
+            }
+
+            def highlight_diff_cells(val):
+                s = str(val).strip()
+                if s in ["-", "", "nan", "None", "0.0%"]:
+                    return ""
+                if s.startswith("↑") or s.startswith("▲"):
+                    return "color: #047857; font-weight: 700; background-color: rgba(16, 185, 129, 0.12); border: 1.5px solid rgba(16, 185, 129, 0.4); border-radius: 6px;"
+                elif s.startswith("↓") or s.startswith("▼"):
+                    return "color: #b91c1c; font-weight: 700; background-color: rgba(239, 68, 68, 0.12); border: 1.5px solid rgba(239, 68, 68, 0.4); border-radius: 6px;"
+                return ""
+
+            diff_target_cols = [c for c in ['เทียบราคากลางต่อ ตร.ว.', 'เทียบราคากับ ตร.ว. ของที่ดินเปล่า', 'เทียบราคากลางต่อ ตร.ม.'] if c in show_df.columns]
+            styled_show_df = show_df.style.map(highlight_diff_cells, subset=diff_target_cols)
+
+            st.dataframe(styled_show_df, use_container_width=True, height=380, column_config=table_col_config)
+            # ── Import / Export (same style as Tab 1) ──
+            render_import_export_section(show_df, filename_prefix=f"comparison_{scope_header.replace(' ', '_')}", key_suffix="tab2_compare")
+        else:
+            st.info(f"ไม่พบรายการทรัพย์สินที่ตรงตามเงื่อนไขตัวกรอง {scope_header}")
 
 @st.cache_data(show_spinner=False)
 def load_raw_districts_geojson():
@@ -3249,41 +3945,41 @@ with st.sidebar:
         """, unsafe_allow_html=True)
         
     if st.button("รีโหลดฐานข้อมูล (Clear Cache)", icon=":material/refresh:", key="btn_clear_cache_main", use_container_width=True, help="ล้างแคชและรีเฟรชหน้าเว็บใหม่ล่าสุดทันที"):
-        # 1. Clear all Streamlit caches
+        # 1. Clear all Streamlit caches, query params, and session state
         st.cache_data.clear()
         st.cache_resource.clear()
-        st.session_state.pop('data_loaded_once', None)
+        try:
+            st.query_params.clear()
+        except Exception:
+            pass
+        for k in list(st.session_state.keys()):
+            st.session_state.pop(k, None)
         
-        # 2. Maintain authenticated login state
-        auth_tok = generate_auth_token()
-        st.session_state['logged_in'] = True
-        
-        # 3. Dynamic overlay theme
+        # 2. Dynamic overlay theme
         overlay_bg = "rgba(15, 23, 42, 0.94)" if is_dark_mode else "rgba(255, 255, 255, 0.94)"
         overlay_title = "#34d399" if is_dark_mode else "#064e3b"
         overlay_desc = "#94a3b8" if is_dark_mode else "#047857"
         
-        # 4. Display smooth loading overlay and trigger real browser window reload
+        # 3. Display smooth loading overlay and navigate browser to clean base URL (origin + pathname)
         st.html(f"""
         <div style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: {overlay_bg}; backdrop-filter: blur(6px); z-index: 99999999; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: 'Noto Sans Thai', 'Inter', sans-serif;">
             <div style="width: 52px; height: 52px; border: 4px solid rgba(16, 185, 129, 0.2); border-top: 4px solid #10b981; border-radius: 50%; animation: spinClear 0.75s linear infinite; margin-bottom: 18px;"></div>
-            <h3 style="color: {overlay_title}; font-weight: 800; font-size: 1.35rem; margin: 0 0 8px 0; letter-spacing: -0.3px;">กำลังล้างแคชและรีเฟรชหน้าเว็บ...</h3>
-            <p style="color: {overlay_desc}; font-size: 0.92rem; margin: 0; font-weight: 500;">ระบบกำลังอ่านไฟล์ข้อมูลใหม่ล่าสุด กรุณารอสักครู่</p>
+            <h3 style="color: {overlay_title}; font-weight: 800; font-size: 1.35rem; margin: 0 0 8px 0; letter-spacing: -0.3px;">กำลังล้างแคชและรีเซ็ตหน้าเว็บ...</h3>
+            <p style="color: {overlay_desc}; font-size: 0.92rem; margin: 0; font-weight: 500;">ระบบกำลังล้างพิกัดเก่าและอ่านข้อมูลใหม่ล่าสุด กรุณารอสักครู่</p>
         </div>
         <style>
-        @keyframes spinClear {{ 0% {{ transform: rotate(0deg); }} 100% {{ transform: rotate(360deg); }} }}
+        @keyframes spinClear {{ from {{ transform: rotate(0deg); }} to {{ transform: rotate(360deg); }} }}
         </style>
         <script>
-        try {{
-            document.cookie = "npa_auth={auth_tok}; path=/; max-age=2592000; SameSite=Lax";
-            sessionStorage.setItem('npa_auth_token', '{auth_tok}');
-            localStorage.setItem('npa_auth_token', '{auth_tok}');
-        }} catch(e) {{}}
         setTimeout(function() {{
-            if (window.parent && window.parent !== window) {{
-                try {{ window.parent.location.reload(); return; }} catch(err) {{}}
-            }}
-            window.location.reload();
+            var cleanUrl = window.location.origin + window.location.pathname;
+            try {{
+                if (window.parent && window.parent !== window) {{
+                    window.parent.location.href = window.parent.location.origin + window.parent.location.pathname;
+                    return;
+                }}
+            }} catch(err) {{}}
+            window.location.href = cleanUrl;
         }}, 350);
         </script>
         """, unsafe_allow_javascript=True)
@@ -3302,189 +3998,18 @@ with st.sidebar:
     plot_font_color = "#1f2937"
     plotly_template = "plotly_white"
     
-    st.markdown("### <i class='fa-solid fa-filter' style='color:#34d399; margin-right:8px;'></i><span style='color:#ffffff;'>ตัวกรองข้อมูลทรัพย์สิน</span>", unsafe_allow_html=True)
+    # --- Default filter variables (filters removed from sidebar) ---
+    search_query = ""
+    selected_companies = []
+    selected_types = []
+    selected_sale_types = []
+    selected_regions = []
+    selected_provinces = []
+    selected_districts_formatted = []
+    selected_subdistricts_formatted = []
     
+    # Price range defaults (full range)
     if df_raw is not None and not df_raw.empty:
-        search_query = ""
-        
-        # Pre-cached metadata for instant zero-lag sidebar rendering
-        side_meta = get_cached_sidebar_metadata(df_raw)
-        co_counts = side_meta.get('co_counts', {})
-        companies_list = side_meta.get('companies_list', [])
-        
-        sanitize_session_state("filter_companies", companies_list)
-        selected_companies = st.pills(
-            "บริษัททรัพย์สิน", 
-            options=companies_list, 
-            format_func=lambda x: f"{x} ({co_counts.get(x, 0):,})",
-            selection_mode="multi", 
-            default=None,
-            key="filter_companies"
-        )
-        if not selected_companies:
-            selected_companies = []
-        
-        # Unified Filter Section (ประเภททรัพย์สิน, ประเภทการขาย, ภูมิภาค, จังหวัด, อำเภอ, ตำบล) wrapped in st.fragment
-        fragment_fn = getattr(st, "fragment", None)
-
-        def _render_sidebar_filters_body():
-            # 1. Property Type Filter (ประเภททรัพย์สิน Dropdown)
-            type_counts = side_meta.get('type_counts', {})
-            all_property_types = list(type_counts.keys())
-            if "filter_types" not in st.session_state:
-                st.session_state["filter_types"] = []
-            sanitize_session_state("filter_types", all_property_types)
-            loc_types = st.multiselect(
-                "ประเภททรัพย์สิน",
-                options=all_property_types,
-                format_func=lambda x: f"{x} ({type_counts.get(x, 0):,})",
-                key="filter_types",
-                placeholder="เลือกประเภททรัพย์สิน..."
-            )
-
-            # 2. Sale Type Filter (ประเภทการขาย Dropdown)
-            sale_type_counts = side_meta.get('sale_type_counts', {})
-            available_sale_types = list(sale_type_counts.keys())
-            if "filter_sale_types" not in st.session_state:
-                st.session_state["filter_sale_types"] = []
-            sanitize_session_state("filter_sale_types", available_sale_types)
-            loc_sale_types = st.multiselect(
-                "ประเภทการขาย",
-                options=available_sale_types,
-                format_func=lambda x: f"{x} ({sale_type_counts.get(x, 0):,})",
-                key="filter_sale_types",
-                placeholder="เลือกประเภทการขาย..."
-            )
-
-            # 3. Region Filter (ภูมิภาค Dropdown)
-            region_counts = side_meta.get('region_counts', {})
-            all_ordered_regions = ["ภาคกลาง", "ภาคเหนือ", "ภาคตะวันออกเฉียงเหนือ", "ภาคตะวันออก", "ภาคตะวันตก", "ภาคใต้"]
-            available_regions = [r for r in all_ordered_regions if r in region_counts]
-            for r in region_counts:
-                if r not in available_regions and r not in ['', 'nan', 'None', 'อื่นๆ / ไม่ระบุ']:
-                    available_regions.append(r)
-            if 'อื่นๆ / ไม่ระบุ' in region_counts:
-                available_regions.append('อื่นๆ / ไม่ระบุ')
-                
-            if "selected_regions" not in st.session_state:
-                st.session_state["selected_regions"] = []
-            sanitize_session_state("selected_regions", available_regions)
-            loc_reg = st.multiselect(
-                "ภูมิภาค",
-                options=available_regions,
-                key="selected_regions",
-                format_func=lambda x: f"{x} ({region_counts.get(x, 0):,})",
-                placeholder="เลือกภูมิภาค (เช่น ภาคกลาง, ภาคเหนือ...)"
-            )
-
-            # 4. Province Filter (จังหวัด Dropdown)
-            if loc_reg:
-                provinces_pool = sorted([
-                    str(p) for p in df_raw[df_raw['ภาค'].isin(loc_reg)]['จังหวัด'].dropna().unique()
-                    if str(p).strip() and str(p).strip().lower() not in INVALID_LOC_VALUES
-                ])
-            else:
-                provinces_pool = side_meta.get('unique_provinces', [])
-            unique_provinces = sorted(provinces_pool)
-            if "ไม่ระบุ" in unique_provinces:
-                unique_provinces.remove("ไม่ระบุ")
-            if "selected_provinces" not in st.session_state:
-                st.session_state["selected_provinces"] = []
-            sanitize_session_state("selected_provinces", unique_provinces)
-            loc_prov = st.multiselect("จังหวัด", options=unique_provinces, key="selected_provinces", placeholder="เลือกจังหวัด...")
-            
-            # 5. District Filter (อำเภอ / เขต Dropdown)
-            district_by_province = side_meta.get('district_by_province', {})
-            all_districts_formatted = side_meta.get('all_districts_formatted', [])
-            subdistrict_by_province = side_meta.get('subdistrict_by_province', {})
-            subdistrict_by_district = side_meta.get('subdistrict_by_district', {})
-
-            if loc_prov:
-                unique_districts_formatted = sorted(set(
-                    d for prov in loc_prov
-                    for d in [f"{dist} ({prov})" for dist in district_by_province.get(prov, [])]
-                ))
-            elif loc_reg:
-                region_provs = [p for p in side_meta.get('unique_provinces', []) if get_region_by_province(p) in loc_reg]
-                unique_districts_formatted = sorted(set(
-                    d for prov in region_provs
-                    for d in [f"{dist} ({prov})" for dist in district_by_province.get(prov, [])]
-                ))
-            else:
-                unique_districts_formatted = all_districts_formatted
-
-            if "selected_districts_formatted" not in st.session_state:
-                st.session_state["selected_districts_formatted"] = []
-            sanitize_session_state("selected_districts_formatted", unique_districts_formatted)
-            loc_dist = st.multiselect("อำเภอ / เขต", options=unique_districts_formatted, key="selected_districts_formatted", placeholder="เลือกอำเภอ / เขต...")
-
-            selected_districts_tuples = []
-            for d_f in loc_dist:
-                if " (" in d_f:
-                    parts = d_f.split(" (")
-                    d_name = parts[0].strip()
-                    p_name = parts[1].replace(")", "").strip()
-                    selected_districts_tuples.append((d_name, p_name))
-
-            # 6. Subdistrict Filter (ตำบล / แขวง Dropdown)
-            if "selected_subdistricts_formatted" not in st.session_state:
-                st.session_state["selected_subdistricts_formatted"] = []
-                
-            if selected_districts_tuples:
-                unique_subdistricts_formatted = sorted(set(
-                    s for (d_name, p_name) in selected_districts_tuples
-                    for s in subdistrict_by_district.get((p_name, d_name), [])
-                ))
-                sanitize_session_state("selected_subdistricts_formatted", unique_subdistricts_formatted)
-                loc_sub = st.multiselect("ตำบล / แขวง", options=unique_subdistricts_formatted, key="selected_subdistricts_formatted")
-            elif loc_prov:
-                unique_subdistricts_formatted = sorted(set(
-                    s for prov in loc_prov
-                    for s in subdistrict_by_province.get(prov, [])
-                ))
-                sanitize_session_state("selected_subdistricts_formatted", unique_subdistricts_formatted)
-                loc_sub = st.multiselect("ตำบล / แขวง", options=unique_subdistricts_formatted, key="selected_subdistricts_formatted", placeholder="เลือกตำบลในจังหวัดที่เลือก...")
-            else:
-                sanitize_session_state("selected_subdistricts_formatted", [])
-                loc_sub = st.multiselect(
-                    "ตำบล / แขวง",
-                    options=[],
-                    key="selected_subdistricts_formatted",
-                    placeholder="เลือกจังหวัดหรืออำเภอก่อนเพื่อค้นหาตำบล"
-                )
-
-            # Check if selection actually changed compared to the last applied state
-            current_filter_state = (
-                tuple(loc_types or []),
-                tuple(loc_sale_types or []),
-                tuple(loc_reg or []),
-                tuple(loc_prov or []),
-                tuple(loc_dist or []),
-                tuple(loc_sub or [])
-            )
-            if "_applied_sidebar_state" not in st.session_state:
-                st.session_state["_applied_sidebar_state"] = current_filter_state
-            elif current_filter_state != st.session_state["_applied_sidebar_state"]:
-                st.session_state["_applied_sidebar_state"] = current_filter_state
-                try:
-                    st.rerun(scope="app")
-                except TypeError:
-                    st.rerun()
-
-        if fragment_fn:
-            _filter_frag = fragment_fn(_render_sidebar_filters_body)
-            _filter_frag()
-        else:
-            _render_sidebar_filters_body()
-
-        selected_types = st.session_state.get("filter_types", [])
-        selected_sale_types = st.session_state.get("filter_sale_types", [])
-        selected_regions = st.session_state.get("selected_regions", [])
-        selected_provinces = st.session_state.get("selected_provinces", [])
-        selected_districts_formatted = st.session_state.get("selected_districts_formatted", [])
-        selected_subdistricts_formatted = st.session_state.get("selected_subdistricts_formatted", [])
-        
-        # Price Filter - อิงราคาจริงที่มีในฐานข้อมูล
         valid_prices = df_raw['ราคา'].dropna()
         valid_prices = valid_prices[valid_prices > 0]
         min_p, max_p = 0.0, 100000000.0
@@ -3493,75 +4018,422 @@ with st.sidebar:
             max_p = float(valid_prices.max())
             if min_p >= max_p:
                 max_p = min_p + 1000000.0
-                
-            price_span = max_p - min_p
-            if price_span > 1000000000:
-                step_p = 10000000.0
-            elif price_span > 100000000:
-                step_p = 1000000.0
-            elif price_span > 10000000:
-                step_p = 100000.0
-            elif price_span > 1000000:
-                step_p = 50000.0
-            else:
-                step_p = 10000.0
-
-            # Quick Price Preset Buttons / Pills
-            price_presets = ["ทั้งหมด", "< 1M", "1M - 3M", "3M - 5M", "5M - 10M", "> 10M"]
-            
-            if "prev_sidebar_price_preset" not in st.session_state:
-                st.session_state["prev_sidebar_price_preset"] = "ทั้งหมด"
-            if "sidebar_price_preset" not in st.session_state:
-                st.session_state["sidebar_price_preset"] = "ทั้งหมด"
-
-            selected_preset = st.pills(
-                "กดเลือกช่วงราคาด่วน",
-                options=price_presets,
-                key="sidebar_price_preset"
-            )
-
-            # Detect preset click and synchronize slider value
-            if selected_preset != st.session_state.get("prev_sidebar_price_preset"):
-                st.session_state["prev_sidebar_price_preset"] = selected_preset
-                if selected_preset == "< 1M":
-                    st.session_state["sidebar_price_slider"] = (min_p, min(1000000.0, max_p))
-                elif selected_preset == "1M - 3M":
-                    st.session_state["sidebar_price_slider"] = (max(min_p, 1000000.0), min(3000000.0, max_p))
-                elif selected_preset == "3M - 5M":
-                    st.session_state["sidebar_price_slider"] = (max(min_p, 3000000.0), min(5000000.0, max_p))
-                elif selected_preset == "5M - 10M":
-                    st.session_state["sidebar_price_slider"] = (max(min_p, 5000000.0), min(10000000.0, max_p))
-                elif selected_preset == "> 10M":
-                    st.session_state["sidebar_price_slider"] = (max(min_p, 10000000.0), max_p)
-                elif selected_preset == "ทั้งหมด" or selected_preset is None:
-                    st.session_state["sidebar_price_slider"] = (min_p, max_p)
-
-            # Ensure slider value is within current min_p and max_p bounds
-            if "sidebar_price_slider" in st.session_state:
-                curr_val = st.session_state["sidebar_price_slider"]
-                if isinstance(curr_val, (list, tuple)) and len(curr_val) == 2:
-                    c_low, c_high = curr_val
-                    c_low = max(min_p, min(c_low, max_p))
-                    c_high = min(max_p, max(c_high, min_p))
-                    if c_low > c_high:
-                        c_low, c_high = min_p, max_p
-                    st.session_state["sidebar_price_slider"] = (c_low, c_high)
-            else:
-                st.session_state["sidebar_price_slider"] = (min_p, max_p)
-
-            price_range = st.slider(
-                "ช่วงราคาขาย (บาท)",
-                min_value=min_p,
-                max_value=max_p,
-                value=st.session_state["sidebar_price_slider"],
-                step=step_p,
-                format="%,d",
-                key="sidebar_price_slider"
-            )
-        else:
-            price_range = (min_p, max_p)    
+        price_range = (min_p, max_p)
     else:
-        st.warning("ไม่มีตัวกรองข้อมูลเนื่องจากยังไม่มีไฟล์ข้อมูล all_assets.parquet")
+        min_p, max_p = 0.0, 100000000.0
+        valid_prices = pd.Series(dtype=float)
+        price_range = (min_p, max_p)
+
+    # --- Visitor Access Logging ---
+    if "_visitor_logged" not in st.session_state:
+        try:
+            user_logger.log_visit()
+            st.session_state["_visitor_logged"] = True
+        except Exception:
+            st.session_state["_visitor_logged"] = True
+
+    # --- Visitor Access Logs (Admin Only) ---
+    st.html("""<style>
+    /* Sidebar Expander - Single Clean Frame (No overlapping boxes) */
+    section[data-testid="stSidebar"] [data-testid="stExpander"] {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        margin-bottom: 10px !important;
+    }
+    section[data-testid="stSidebar"] [data-testid="stExpander"] > details {
+        background-color: rgba(2, 44, 34, 0.85) !important;
+        background: rgba(2, 44, 34, 0.85) !important;
+        border: 1px solid rgba(52, 211, 153, 0.35) !important;
+        border-radius: 10px !important;
+        overflow: hidden !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+    section[data-testid="stSidebar"] [data-testid="stExpander"] > details > summary {
+        background-color: transparent !important;
+        background: transparent !important;
+        color: #ffffff !important;
+        border: none !important;
+        border-radius: 0 !important;
+        padding: 9px 12px !important;
+        margin: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        cursor: pointer !important;
+        transition: background-color 0.2s ease !important;
+    }
+    section[data-testid="stSidebar"] [data-testid="stExpander"] > details > summary:hover {
+        background-color: rgba(16, 185, 129, 0.15) !important;
+        background: rgba(16, 185, 129, 0.15) !important;
+    }
+    section[data-testid="stSidebar"] [data-testid="stExpander"] > details[open] > summary {
+        border-bottom: 1px solid rgba(52, 211, 153, 0.25) !important;
+    }
+    section[data-testid="stSidebar"] [data-testid="stExpander"] > details > summary p,
+    section[data-testid="stSidebar"] [data-testid="stExpander"] > details > summary span,
+    section[data-testid="stSidebar"] [data-testid="stExpander"] > details > summary div {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        font-weight: 700 !important;
+        font-size: 0.88rem !important;
+    }
+    section[data-testid="stSidebar"] [data-testid="stExpander"] > details > summary [data-testid="stIconMaterial"],
+    section[data-testid="stSidebar"] [data-testid="stExpander"] > details > summary i {
+        color: #34d399 !important;
+        -webkit-text-fill-color: #34d399 !important;
+        font-size: 1.15rem !important;
+        margin-right: 6px !important;
+    }
+    section[data-testid="stSidebar"] [data-testid="stExpander"] > details > summary svg {
+        fill: #34d399 !important;
+        color: #34d399 !important;
+    }
+    section[data-testid="stSidebar"] [data-testid="stExpander"] [data-testid="stExpanderDetails"] {
+        background-color: transparent !important;
+        background: transparent !important;
+        border: none !important;
+        padding: 10px 12px 14px 12px !important;
+    }
+    section[data-testid="stSidebar"] div[data-testid="stTextInput"],
+    section[data-testid="stSidebar"] div[data-testid="stTextInputRootElement"],
+    section[data-testid="stSidebar"] div[data-testid="stTextInputRootElement"] > div,
+    section[data-testid="stSidebar"] div[data-baseweb="base-input"],
+    section[data-testid="stSidebar"] div[data-baseweb="input"] {
+        background-color: rgba(2, 44, 34, 0.85) !important;
+        background: rgba(2, 44, 34, 0.85) !important;
+        border: 1px solid rgba(52, 211, 153, 0.35) !important;
+        border-radius: 8px !important;
+        box-shadow: none !important;
+    }
+    section[data-testid="stSidebar"] div[data-testid="stTextInput"] input {
+        background-color: transparent !important;
+        background: transparent !important;
+        border: none !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+    }
+    section[data-testid="stSidebar"] div[data-testid="stTextInput"] input::placeholder {
+        color: rgba(167, 243, 208, 0.6) !important;
+        -webkit-text-fill-color: rgba(167, 243, 208, 0.6) !important;
+    }
+    section[data-testid="stSidebar"] div[data-testid="stTextInput"] button,
+    section[data-testid="stSidebar"] div[data-testid="stTextInput"] [data-testid="stTextInputPasswordToggle"] {
+        background-color: transparent !important;
+        background: transparent !important;
+        border: none !important;
+        color: #34d399 !important;
+    }
+    section[data-testid="stSidebar"] div[data-testid="stTextInput"] button svg,
+    section[data-testid="stSidebar"] div[data-testid="stTextInput"] svg {
+        fill: #34d399 !important;
+        stroke: #34d399 !important;
+        color: #34d399 !important;
+    }
+    section[data-testid="stSidebar"] div[data-testid="stDateInput"] div[data-baseweb="input"],
+    section[data-testid="stSidebar"] div[data-testid="stDateInput"] div[data-testid="stTextInputRootElement"],
+    section[data-testid="stSidebar"] div[data-baseweb="select"] > div {
+        background-color: rgba(2, 44, 34, 0.85) !important;
+        background: rgba(2, 44, 34, 0.85) !important;
+        border: 1px solid rgba(52, 211, 153, 0.35) !important;
+        border-radius: 8px !important;
+    }
+    section[data-testid="stSidebar"] div[data-testid="stDateInput"] input {
+        background-color: transparent !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+    }
+    section[data-testid="stSidebar"] div[data-testid="stRadio"] [role="radiogroup"] label,
+    section[data-testid="stSidebar"] div[data-testid="stRadio"] div[data-testid="stMarkdownContainer"] p,
+    section[data-testid="stSidebar"] div[data-testid="stRadio"] div[data-testid="stMarkdownContainer"] span {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+    }
+    </style>""")
+    with st.expander("บันทึกการเข้าใช้งาน (Visitor Logs)", icon=":material/shield_person:", expanded=False):
+        now_th = datetime.datetime.now(user_logger.TH_TZ)
+        cur_day = now_th.day
+        primary_pw = f"admin{cur_day + 7}"
+        valid_passwords = {
+            primary_pw,
+            f"admin{(now_th + datetime.timedelta(days=7)).day}",
+            f"admin{cur_day:02d}+7",
+            f"admin{cur_day}+7",
+            f"admin{cur_day:02d}7",
+            f"admin{cur_day}7",
+            "admin2026",
+        }
+        
+        if "_log_auth" not in st.session_state:
+            st.session_state["_log_auth"] = False
+            
+        if not st.session_state["_log_auth"]:
+            pwd_col, btn_unlock_col = st.columns([0.70, 0.30])
+            with pwd_col:
+                pwd_input = st.text_input(
+                    "รหัสผ่านแอดมิน",
+                    type="password",
+                    key="log_viewer_password",
+                    placeholder="รหัสผ่าน...",
+                    label_visibility="collapsed"
+                )
+            with btn_unlock_col:
+                btn_login = st.button("ปลดล็อค", icon=":material/lock_open:", key="btn_log_login", use_container_width=True)
+                
+            if pwd_input or btn_login:
+                if pwd_input and pwd_input.strip() in valid_passwords:
+                    st.session_state["_log_auth"] = True
+                    st.rerun()
+                elif pwd_input:
+                    st.error("รหัสผ่านไม่ถูกต้อง", icon=":material/gpp_bad:")
+        else:
+            # Header status bar with logout button
+            col_auth_info, col_logout_btn = st.columns([0.72, 0.28])
+            with col_auth_info:
+                auth_badge_html = '<div style="display: flex; align-items: center; gap: 6px; font-size: 0.76rem; font-weight: 700; color: #10b981; padding-top: 5px;"><i class="fa-solid fa-shield-halved"></i> <span>ผู้ดูแลระบบ (Admin)</span></div>'
+                try:
+                    st.html(auth_badge_html)
+                except Exception:
+                    st.markdown(auth_badge_html, unsafe_allow_html=True)
+            with col_logout_btn:
+                if st.button("ล็อค", icon=":material/lock:", key="btn_log_logout", use_container_width=True, help="ออกจากระบบและล็อคข้อมูล"):
+                    st.session_state["_log_auth"] = False
+                    st.session_state.pop("log_viewer_password", None)
+                    st.rerun()
+
+            # Helper functions for formatting UA and Thai timestamps
+            def _format_ua_compact(ua_str):
+                if not ua_str or ua_str == "Unknown":
+                    return "fa-solid fa-desktop", "ไม่ระบุอุปกรณ์"
+                ua = ua_str.lower()
+                if "iphone" in ua:
+                    dev, icon = "iPhone", "fa-solid fa-mobile-screen"
+                elif "ipad" in ua:
+                    dev, icon = "iPad", "fa-solid fa-tablet-screen-button"
+                elif "android" in ua:
+                    dev, icon = "Android", "fa-brands fa-android"
+                elif "windows" in ua:
+                    dev, icon = "Windows", "fa-brands fa-windows"
+                elif "macintosh" in ua or "mac os" in ua:
+                    dev, icon = "macOS", "fa-brands fa-apple"
+                elif "linux" in ua:
+                    dev, icon = "Linux", "fa-brands fa-linux"
+                else:
+                    dev, icon = "PC", "fa-solid fa-laptop"
+                    
+                if "edg" in ua:
+                    br = "Edge"
+                elif "chrome" in ua or "crios" in ua:
+                    br = "Chrome"
+                elif "safari" in ua and "chrome" not in ua:
+                    br = "Safari"
+                elif "firefox" in ua:
+                    br = "Firefox"
+                elif "line" in ua:
+                    br = "LINE"
+                else:
+                    br = ""
+                    
+                return icon, f"{dev} • {br}" if br else dev
+
+            def _format_log_time(ts_str, today_str):
+                if not ts_str:
+                    return "-"
+                try:
+                    parts = str(ts_str).split(" ")
+                    d_part = parts[0]
+                    t_part = parts[1][:5] if len(parts) > 1 else ""
+                    if d_part == today_str:
+                        return f"วันนี้ {t_part} น."
+                    sub_parts = d_part.split("-")
+                    if len(sub_parts) == 3:
+                        y, m, d = sub_parts
+                        thai_months = ["", "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."]
+                        m_idx = int(m) if m.isdigit() and 1 <= int(m) <= 12 else 0
+                        m_thai = thai_months[m_idx] if m_idx else m
+                        return f"{int(d)} {m_thai} {t_part} น."
+                    return str(ts_str)
+                except Exception:
+                    return str(ts_str)
+
+            # KPI Summary Micro-Grid
+            try:
+                stats = user_logger.get_stats()
+            except Exception:
+                stats = {"total_sessions": 0, "unique_ips": 0, "today_visitors": 0}
+
+            kpi_bg_sessions = "rgba(16, 185, 129, 0.12)" if is_dark_mode else "rgba(16, 185, 129, 0.08)"
+            kpi_border_sessions = "rgba(16, 185, 129, 0.3)" if is_dark_mode else "rgba(16, 185, 129, 0.2)"
+            kpi_num_sessions = "#34d399" if is_dark_mode else "#059669"
+
+            kpi_bg_ips = "rgba(59, 130, 246, 0.12)" if is_dark_mode else "rgba(59, 130, 246, 0.08)"
+            kpi_border_ips = "rgba(59, 130, 246, 0.3)" if is_dark_mode else "rgba(59, 130, 246, 0.2)"
+            kpi_num_ips = "#60a5fa" if is_dark_mode else "#2563eb"
+
+            kpi_bg_today = "rgba(249, 115, 22, 0.12)" if is_dark_mode else "rgba(249, 115, 22, 0.08)"
+            kpi_border_today = "rgba(249, 115, 22, 0.3)" if is_dark_mode else "rgba(249, 115, 22, 0.2)"
+            kpi_num_today = "#fb923c" if is_dark_mode else "#ea580c"
+
+            kpi_grid_html = (
+                f'<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin: 4px 0 10px 0;">'
+                f'<div style="background: {kpi_bg_sessions}; border: 1px solid {kpi_border_sessions}; border-radius: 8px; padding: 6px 3px; text-align: center;">'
+                f'<div style="font-size: 0.65rem; color: {kpi_num_sessions}; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 3px;">'
+                f'<i class="fa-solid fa-users" style="font-size: 0.62rem;"></i> ทั้งหมด'
+                f'</div>'
+                f'<div style="font-size: 1.15rem; font-weight: 800; color: {kpi_num_sessions}; line-height: 1.25; margin: 2px 0 1px 0;">{stats.get("total_sessions", 0):,}</div>'
+                f'<div style="font-size: 0.58rem; color: #94a3b8;">เซสชัน</div>'
+                f'</div>'
+                f'<div style="background: {kpi_bg_ips}; border: 1px solid {kpi_border_ips}; border-radius: 8px; padding: 6px 3px; text-align: center;">'
+                f'<div style="font-size: 0.65rem; color: {kpi_num_ips}; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 3px;">'
+                f'<i class="fa-solid fa-network-wired" style="font-size: 0.62rem;"></i> อุปกรณ์'
+                f'</div>'
+                f'<div style="font-size: 1.15rem; font-weight: 800; color: {kpi_num_ips}; line-height: 1.25; margin: 2px 0 1px 0;">{stats.get("unique_ips", 0):,}</div>'
+                f'<div style="font-size: 0.58rem; color: #94a3b8;">Unique IPs</div>'
+                f'</div>'
+                f'<div style="background: {kpi_bg_today}; border: 1px solid {kpi_border_today}; border-radius: 8px; padding: 6px 3px; text-align: center;">'
+                f'<div style="font-size: 0.65rem; color: {kpi_num_today}; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 3px;">'
+                f'<i class="fa-solid fa-calendar-day" style="font-size: 0.62rem;"></i> วันนี้'
+                f'</div>'
+                f'<div style="font-size: 1.15rem; font-weight: 800; color: {kpi_num_today}; line-height: 1.25; margin: 2px 0 1px 0;">{stats.get("today_visitors", 0):,}</div>'
+                f'<div style="font-size: 0.58rem; color: #94a3b8;">ผู้เข้าชม</div>'
+                f'</div>'
+                f'</div>'
+            )
+            try:
+                st.html(kpi_grid_html)
+            except Exception:
+                st.markdown(kpi_grid_html, unsafe_allow_html=True)
+
+            # Filter & Search Controls (Stacked compactly for sidebar)
+            col_flt_q, col_flt_d = st.columns([0.58, 0.42])
+            with col_flt_q:
+                log_search_q = st.text_input(
+                    "ค้นหา IP",
+                    key="log_search_ip",
+                    placeholder="ค้นหา IP / อุปกรณ์...",
+                    label_visibility="collapsed"
+                )
+            with col_flt_d:
+                date_preset = st.selectbox(
+                    "ช่วงเวลา",
+                    ["ทั้งหมด", "วันนี้", "7 วันล่าสุด", "ระบุวันที่"],
+                    key="log_date_preset",
+                    label_visibility="collapsed"
+                )
+
+            today_str = datetime.datetime.now(user_logger.TH_TZ).strftime("%Y-%m-%d")
+            custom_date = None
+            if date_preset == "ระบุวันที่":
+                custom_date = st.date_input("เลือกวันที่", value=datetime.date.today(), key="log_custom_date")
+
+            # Determine date filter for search
+            if date_preset == "วันนี้":
+                date_filter = today_str
+            elif date_preset == "ระบุวันที่" and custom_date:
+                date_filter = custom_date.strftime("%Y-%m-%d")
+            else:
+                date_filter = None
+
+            # Fetch logs
+            try:
+                logs_data = user_logger.search_logs(query=log_search_q or "", date_filter=date_filter)
+                if date_preset == "7 วันล่าสุด" and logs_data:
+                    cutoff_7d = (datetime.datetime.now(user_logger.TH_TZ) - datetime.timedelta(days=7)).strftime("%Y-%m-%d")
+                    logs_data = [l for l in logs_data if str(l.get("last_seen", "")) >= cutoff_7d]
+            except Exception:
+                logs_data = []
+
+            # View Choice & Counter Header
+            col_view_sel, col_cnt_badge = st.columns([0.62, 0.38])
+            with col_view_sel:
+                log_view_choice = st.radio(
+                    "รูปแบบมุมมอง",
+                    ["ฟีดการ์ด", "ตาราง"],
+                    horizontal=True,
+                    key="log_view_mode",
+                    label_visibility="collapsed"
+                )
+            with col_cnt_badge:
+                cnt_html = f'<div style="text-align: right; padding-top: 3px; font-size: 0.72rem; color: #94a3b8; font-weight: 600;"><i class="fa-solid fa-list-check" style="color: #10b981; margin-right: 2px;"></i> {len(logs_data)} รายการ</div>'
+                try:
+                    st.html(cnt_html)
+                except Exception:
+                    st.markdown(cnt_html, unsafe_allow_html=True)
+
+            if logs_data:
+                if log_view_choice == "ฟีดการ์ด":
+                    card_item_bg = "rgba(255, 255, 255, 0.04)" if is_dark_mode else "#ffffff"
+                    card_item_border = "rgba(255, 255, 255, 0.08)" if is_dark_mode else "rgba(0, 0, 0, 0.08)"
+                    ip_color = "#34d399" if is_dark_mode else "#065f46"
+                    badge_bg = "rgba(16, 185, 129, 0.2)" if is_dark_mode else "rgba(16, 185, 129, 0.12)"
+                    badge_text = "#6ee7b7" if is_dark_mode else "#047857"
+                    badge_border = "rgba(52, 211, 153, 0.3)" if is_dark_mode else "rgba(16, 185, 129, 0.25)"
+                    sub_text_color = "#94a3b8" if is_dark_mode else "#64748b"
+
+                    cards_html = []
+                    for item in logs_data:
+                        ip = str(item.get("ip", "Unknown"))
+                        v_count = item.get("visit_count", 1) or 1
+                        dev_icon, dev_name = _format_ua_compact(item.get("user_agent", ""))
+                        last_time = _format_log_time(item.get("last_seen", ""), today_str)
+                        
+                        cards_html.append(
+                            f'<div style="background: {card_item_bg}; border: 1px solid {card_item_border}; border-radius: 8px; padding: 7px 10px; margin-bottom: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.06);">'
+                            f'<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">'
+                            f'<span style="font-weight: 700; font-size: 0.82rem; color: {ip_color}; font-family: monospace; display: flex; align-items: center; gap: 5px;">'
+                            f'<i class="fa-solid fa-circle-user" style="color: #10b981; font-size: 0.72rem;"></i> {ip}'
+                            f'</span>'
+                            f'<span style="background: {badge_bg}; color: {badge_text}; font-size: 0.62rem; font-weight: 700; padding: 2px 7px; border-radius: 10px; border: 1px solid {badge_border}; white-space: nowrap;">'
+                            f'<i class="fa-solid fa-arrow-rotate-right" style="font-size: 0.55rem; margin-right: 2px;"></i> {v_count:,} ครั้ง'
+                            f'</span>'
+                            f'</div>'
+                            f'<div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.68rem; color: {sub_text_color};">'
+                            f'<span><i class="fa-regular fa-clock" style="color: #10b981; margin-right: 3px;"></i> {last_time}</span>'
+                            f'<span><i class="{dev_icon}" style="margin-right: 3px;"></i> {dev_name}</span>'
+                            f'</div>'
+                            f'</div>'
+                        )
+
+                    feed_container = f'<div style="max-height: 280px; overflow-y: auto; padding-right: 2px; margin-top: 4px;">{"".join(cards_html)}</div>'
+                    try:
+                        st.html(feed_container)
+                    except Exception:
+                        st.markdown(feed_container, unsafe_allow_html=True)
+                else:
+                    df_logs_disp = pd.DataFrame(logs_data)
+                    df_logs_disp["อุปกรณ์"] = df_logs_disp["user_agent"].apply(lambda u: _format_ua_compact(u)[1])
+                    df_logs_disp["เข้าล่าสุด"] = df_logs_disp["last_seen"].apply(lambda t: _format_log_time(t, today_str))
+                    df_logs_disp = df_logs_disp.rename(columns={
+                        "ip": "IP Address",
+                        "visit_count": "จำนวนครั้ง"
+                    })
+                    display_cols = [c for c in ["IP Address", "เข้าล่าสุด", "จำนวนครั้ง", "อุปกรณ์"] if c in df_logs_disp.columns]
+                    st.dataframe(df_logs_disp[display_cols], use_container_width=True, height=240, hide_index=True)
+            else:
+                st.info("ไม่พบประวัติการเข้าใช้งานตามเงื่อนไขที่เลือก", icon=":material/info:")
+
+            # Action Buttons
+            btn_col1, btn_col2 = st.columns(2)
+            with btn_col1:
+                try:
+                    csv_data = user_logger.export_logs_csv()
+                    if csv_data:
+                        st.download_button(
+                            "ส่งออก CSV",
+                            icon=":material/download:",
+                            data=csv_data,
+                            file_name=f"access_logs_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                            mime="text/csv",
+                            use_container_width=True,
+                            key="btn_download_logs"
+                        )
+                except Exception:
+                    pass
+            with btn_col2:
+                if st.button("รีเฟรช", icon=":material/refresh:", use_container_width=True, key="btn_refresh_logs"):
+                    st.rerun()
 
 # Construct root CSS custom properties based on theme toggle selection (Emerald Green Palette)
 if is_dark_mode:
@@ -3812,6 +4684,28 @@ button p,
     font-weight: 500;
 }
 
+.kpi-scope-badge {
+    margin-left: auto;
+    font-size: 0.65rem !important;
+    font-weight: 700 !important;
+    padding: 2px 7px !important;
+    border-radius: 6px !important;
+    background: rgba(16, 185, 129, 0.12) !important;
+    color: #059669 !important;
+    border: 1px solid rgba(16, 185, 129, 0.28) !important;
+    text-transform: none !important;
+    letter-spacing: 0 !important;
+    display: none;
+    align-items: center;
+    gap: 3px;
+    transition: all 0.2s ease;
+}
+
+.floating-card.kpi-synced-map {
+    border-top-color: #10b981 !important;
+    box-shadow: 0 4px 20px rgba(16, 185, 129, 0.12), 0 1px 3px rgba(0, 0, 0, 0.02) !important;
+}
+
 html, body, [data-testid="stSidebar"], .stApp {
     font-family: 'Noto Sans Thai', 'Inter', sans-serif !important;
     color-scheme: var(--app-color-scheme, light) !important;
@@ -3965,8 +4859,84 @@ section[data-testid="stSidebar"] div[data-testid="stPills"] [aria-checked="true"
     font-weight: 800 !important;
 }
 
+/* Sidebar Expander Custom Styling (Dark Emerald Card - Single Clean Frame) */
+section[data-testid="stSidebar"] [data-testid="stExpander"] {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin-bottom: 10px !important;
+}
+
+section[data-testid="stSidebar"] [data-testid="stExpander"] > details {
+    background-color: rgba(2, 44, 34, 0.85) !important;
+    background: rgba(2, 44, 34, 0.85) !important;
+    border: 1px solid rgba(52, 211, 153, 0.35) !important;
+    border-radius: 10px !important;
+    overflow: hidden !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+section[data-testid="stSidebar"] [data-testid="stExpander"] > details > summary {
+    background-color: transparent !important;
+    background: transparent !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 9px 12px !important;
+    margin: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    cursor: pointer !important;
+    transition: background-color 0.2s ease !important;
+}
+
+section[data-testid="stSidebar"] [data-testid="stExpander"] > details > summary:hover {
+    background-color: rgba(16, 185, 129, 0.15) !important;
+    background: rgba(16, 185, 129, 0.15) !important;
+}
+
+section[data-testid="stSidebar"] [data-testid="stExpander"] > details[open] > summary {
+    border-bottom: 1px solid rgba(52, 211, 153, 0.25) !important;
+}
+
+section[data-testid="stSidebar"] [data-testid="stExpander"] > details > summary p,
+section[data-testid="stSidebar"] [data-testid="stExpander"] > details > summary span,
+section[data-testid="stSidebar"] [data-testid="stExpander"] > details > summary div {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    font-weight: 700 !important;
+    font-size: 0.88rem !important;
+}
+
+section[data-testid="stSidebar"] [data-testid="stExpander"] > details > summary [data-testid="stIconMaterial"],
+section[data-testid="stSidebar"] [data-testid="stExpander"] > details > summary i {
+    color: #34d399 !important;
+    -webkit-text-fill-color: #34d399 !important;
+    font-size: 1.15rem !important;
+    margin-right: 6px !important;
+}
+
+section[data-testid="stSidebar"] [data-testid="stExpander"] > details > summary svg {
+    fill: #34d399 !important;
+    color: #34d399 !important;
+}
+
+section[data-testid="stSidebar"] [data-testid="stExpander"] [data-testid="stExpanderDetails"] {
+    background-color: transparent !important;
+    background: transparent !important;
+    border: none !important;
+    padding: 10px 12px 14px 12px !important;
+}
+
 /* Sidebar Select boxes, Number inputs, Text inputs */
 section[data-testid="stSidebar"] div[data-baseweb="select"] > div,
+section[data-testid="stSidebar"] div[data-testid="stTextInput"],
+section[data-testid="stSidebar"] div[data-testid="stTextInputRootElement"],
+section[data-testid="stSidebar"] div[data-testid="stTextInputRootElement"] > div,
+section[data-testid="stSidebar"] div[data-baseweb="base-input"],
 section[data-testid="stSidebar"] div[data-baseweb="input"],
 section[data-testid="stSidebar"] div[data-testid="stTextInput"] input,
 section[data-testid="stSidebar"] div[data-testid="stNumberInput"] input {
@@ -3975,6 +4945,23 @@ section[data-testid="stSidebar"] div[data-testid="stNumberInput"] input {
     color: #ffffff !important;
     -webkit-text-fill-color: #ffffff !important;
     border-radius: 8px !important;
+}
+
+section[data-testid="stSidebar"] div[data-testid="stTextInput"] input {
+    background-color: transparent !important;
+    border: none !important;
+}
+
+section[data-testid="stSidebar"] div[data-testid="stTextInput"] button {
+    background-color: transparent !important;
+    border: none !important;
+    color: #34d399 !important;
+}
+
+section[data-testid="stSidebar"] div[data-testid="stTextInput"] button svg,
+section[data-testid="stSidebar"] div[data-testid="stTextInput"] svg {
+    fill: #34d399 !important;
+    color: #34d399 !important;
 }
 
 section[data-testid="stSidebar"] div[data-baseweb="select"] div,
@@ -4874,38 +5861,38 @@ month_year_str, exact_date_str = get_dataset_month_year(df_filtered if not df_fi
 
 floating_kpi_html = f"""
 <div class="floating-kpi-container" style="margin-top: 10px; margin-bottom: 20px;">
-    <div class="floating-card">
-        <div class="floating-card-title"><i class="fa fa-list" style="color: #047857;"></i> ทรัพย์สินที่พบ</div>
+    <div class="floating-card" id="kpi-card-count" data-default-val="{filtered_count_str}" data-default-sub="{summary_text}">
+        <div class="floating-card-title"><i class="fa fa-list" style="color: #047857;"></i> ทรัพย์สินที่พบ <span class="kpi-scope-badge" style="display:none;"></span></div>
         <div class="floating-card-value">{filtered_count_str}</div>
         <div class="floating-card-sub">{summary_text}</div>
     </div>
-    <div class="floating-card">
-        <div class="floating-card-title"><i class="fa fa-wallet" style="color: #059669;"></i> มูลค่ารวมทรัพย์สิน</div>
+    <div class="floating-card" id="kpi-card-total-val" data-default-val="{total_value_str}" data-default-sub="มูลค่ารวมตามตัวกรอง">
+        <div class="floating-card-title"><i class="fa fa-wallet" style="color: #059669;"></i> มูลค่ารวมทรัพย์สิน <span class="kpi-scope-badge" style="display:none;"></span></div>
         <div class="floating-card-value">{total_value_str}</div>
         <div class="floating-card-sub">มูลค่ารวมตามตัวกรอง</div>
     </div>
-    <div class="floating-card">
-        <div class="floating-card-title"><i class="fa fa-arrow-down" style="color: #10b981;"></i> ราคาต่ำสุด (Min)</div>
+    <div class="floating-card" id="kpi-card-min-price" data-default-val="{min_price_str}" data-default-sub="ราคาเริ่มต้นต่ำสุด">
+        <div class="floating-card-title"><i class="fa fa-arrow-down" style="color: #10b981;"></i> ราคาต่ำสุด (Min) <span class="kpi-scope-badge" style="display:none;"></span></div>
         <div class="floating-card-value">{min_price_str}</div>
         <div class="floating-card-sub">ราคาเริ่มต้นต่ำสุด</div>
     </div>
-    <div class="floating-card">
-        <div class="floating-card-title"><i class="fa fa-tags" style="color: #047857;"></i> ราคากลาง (Median)</div>
+    <div class="floating-card" id="kpi-card-median-price" data-default-val="{median_price_str}" data-default-sub="ค่ามัธยฐานของกลุ่ม">
+        <div class="floating-card-title"><i class="fa fa-tags" style="color: #047857;"></i> ราคากลาง (Median) <span class="kpi-scope-badge" style="display:none;"></span></div>
         <div class="floating-card-value">{median_price_str}</div>
         <div class="floating-card-sub">ค่ามัธยฐานของกลุ่ม</div>
     </div>
-    <div class="floating-card">
-        <div class="floating-card-title"><i class="fa fa-calculator" style="color: #059669;"></i> ราคาเฉลี่ย (Mean)</div>
+    <div class="floating-card" id="kpi-card-mean-price" data-default-val="{mean_price_str}" data-default-sub="ค่าเฉลี่ยเลขคณิต">
+        <div class="floating-card-title"><i class="fa fa-calculator" style="color: #059669;"></i> ราคาเฉลี่ย (Mean) <span class="kpi-scope-badge" style="display:none;"></span></div>
         <div class="floating-card-value">{mean_price_str}</div>
         <div class="floating-card-sub">ค่าเฉลี่ยเลขคณิต</div>
     </div>
-    <div class="floating-card">
-        <div class="floating-card-title"><i class="fa fa-arrow-up" style="color: #10b981;"></i> ราคาสูงสุด (Max)</div>
+    <div class="floating-card" id="kpi-card-max-price" data-default-val="{max_price_str}" data-default-sub="มูลค่าสูงสุดในกลุ่ม">
+        <div class="floating-card-title"><i class="fa fa-arrow-up" style="color: #10b981;"></i> ราคาสูงสุด (Max) <span class="kpi-scope-badge" style="display:none;"></span></div>
         <div class="floating-card-value">{max_price_str}</div>
         <div class="floating-card-sub">มูลค่าสูงสุดในกลุ่ม</div>
     </div>
-    <div class="floating-card">
-        <div class="floating-card-title"><i class="fa fa-chart-line" style="color: #047857;"></i> ส่วนเบี่ยงเบน (SD)</div>
+    <div class="floating-card" id="kpi-card-sd-price" data-default-val="{sd_price_str}" data-default-sub="การกระจายตัวของราคา">
+        <div class="floating-card-title"><i class="fa fa-chart-line" style="color: #047857;"></i> ส่วนเบี่ยงเบน (SD) <span class="kpi-scope-badge" style="display:none;"></span></div>
         <div class="floating-card-value">{sd_price_str}</div>
         <div class="floating-card-sub">การกระจายตัวของราคา</div>
     </div>
@@ -5064,7 +6051,16 @@ with tab1:
             border: none !important;
         }
 
-        /* Push segmented control to far right */
+        /* Push segmented control to far right and pull Tab 1 content flush to top */
+        .st-key-tab_bubble {
+            margin-top: -14px !important;
+        }
+        .st-key-tab_bubble div[data-testid="stHorizontalBlock"] {
+            margin-bottom: -18px !important;
+        }
+        .st-key-tab_bubble iframe {
+            margin-top: -8px !important;
+        }
         .st-key-tab_bubble div.stColumn:last-child,
         .st-key-tab_map div.stColumn:last-child {
             display: flex !important;
@@ -5074,12 +6070,7 @@ with tab1:
         }
         </style>
         """, unsafe_allow_html=True)
-        col_b1, col_b2 = st.columns([0.65, 0.35])
-        with col_b1:
-            st.markdown(
-                "### <i class='fa-solid fa-chart-pie' style='color:#059669; margin-right:8px;'></i>ภาพรวมตลาด (3D Bubble Chart)",
-                unsafe_allow_html=True
-            )
+        _, col_b2 = st.columns([0.65, 0.35])
         with col_b2:
             with st.container(key="tab1_metric_toggle_container"):
                 bubble_metric = st.segmented_control(
@@ -5101,7 +6092,7 @@ with tab1:
         
         try:
             import streamlit.components.v1 as stc
-            stc.html(bubble_html, height=770)
+            stc.html(bubble_html, height=860)
         except Exception:
             st.html(bubble_html)
 
@@ -5110,274 +6101,72 @@ with tab1:
 with tab2:
     with st.container(key="tab_map"):
         # TOP IN-PAGE FILTERS & REFERENCE POINT PICKER (No Border, FontAwesome Icons)
-        with st.container(key="tab2_unified_control_card"):
-            # Ensure FontAwesome is available
-            st.markdown('<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">', unsafe_allow_html=True)
-            
-            def render_tab2_label(container, icon_cls, text, help_text=None):
-                help_html = f'<span title="{help_text}" style="margin-left: 5px; color: #94a3b8; font-size: 0.78rem; cursor: help;"><i class="fa-regular fa-circle-question"></i></span>' if help_text else ''
-                label_color = "#f1f5f9" if is_dark_mode else "#334155"
-                raw_html = f'<div style="display: flex; align-items: center; font-size: 0.84rem; font-weight: 600; color: {label_color}; margin-bottom: 4px; min-height: 22px;"><i class="{icon_cls}" style="color: #059669; margin-right: 6px; font-size: 0.88rem;"></i><span>{text}</span>{help_html}</div>'
-                if hasattr(container, "html"):
-                    container.html(raw_html)
-                else:
-                    container.markdown(raw_html, unsafe_allow_html=True)
+        # Ensure FontAwesome is available
+        st.markdown('<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">', unsafe_allow_html=True)
 
-            fragment_fn = getattr(st, "fragment", None)
+        tab2_regions = []
+        tab2_provs = st.session_state.get("tab2_filter_provinces", [])
+        tab2_dists = st.session_state.get("tab2_filter_districts", [])
+        tab2_subdists = st.session_state.get("tab2_filter_subdistricts", [])
+        tab2_types = []
 
-            def _render_tab2_filters_body():
-                f_col1, f_col2, f_col3, f_col4 = st.columns([1.0, 1.15, 1.25, 1.25])
-                
-                # ภูมิภาค
-                ordered_regions = ["ภาคกลาง", "ภาคเหนือ", "ภาคตะวันออกเฉียงเหนือ", "ภาคตะวันออก", "ภาคตะวันตก", "ภาคใต้"]
-                render_tab2_label(f_col1, "fa-solid fa-earth-asia", "ภูมิภาค")
-                tab2_regions = f_col1.multiselect(
-                    "ภูมิภาค",
-                    options=ordered_regions,
-                    key="tab2_filter_regions",
-                    placeholder="ทุกภูมิภาค...",
-                    label_visibility="collapsed"
-                )
-                
-                # จังหวัด (Cascading from Region)
-                reg_context = tab2_regions if tab2_regions else (loc_reg if 'loc_reg' in locals() and loc_reg else [])
-                if reg_context:
-                    avail_provs = sorted([p for p in df_raw[df_raw['ภาค'].isin(reg_context)]['จังหวัด'].dropna().unique() if str(p).strip()])
-                else:
-                    avail_provs = sorted([p for p in df_raw['จังหวัด'].dropna().unique() if str(p).strip()])
-                sanitize_session_state("tab2_filter_provinces", avail_provs)
-                
-                render_tab2_label(f_col2, "fa-solid fa-city", "จังหวัด")
-                tab2_provs = f_col2.multiselect(
-                    "จังหวัด",
-                    options=avail_provs,
-                    key="tab2_filter_provinces",
-                    placeholder="เลือกจังหวัด...",
-                    label_visibility="collapsed"
-                )
-                
-                # อำเภอ (Cascading from Province - เชื่อมโยงกับจังหวัดที่เลือกเสมอ)
-                prov_context = tab2_provs if tab2_provs else (loc_prov if 'loc_prov' in locals() and loc_prov else [])
-                if prov_context:
-                    avail_dists = sorted([d for d in df_raw[df_raw['จังหวัด'].isin(prov_context)]['อำเภอ'].dropna().unique() if str(d).strip()])
-                else:
-                    avail_dists = sorted([d for d in df_raw['อำเภอ'].dropna().unique() if str(d).strip()])
-                sanitize_session_state("tab2_filter_districts", avail_dists)
-                    
-                render_tab2_label(f_col3, "fa-solid fa-map-location-dot", "อำเภอ/เขต")
-                tab2_dists = f_col3.multiselect(
-                    "อำเภอ/เขต",
-                    options=avail_dists,
-                    key="tab2_filter_districts",
-                    placeholder="เลือกอำเภอ/เขต..." if prov_context else "ทุกอำเภอ...",
-                    label_visibility="collapsed"
-                )
-                
-                # ตำบล (ต้องเลือกอำเภอก่อน และเชื่อมโยงกับอำเภอที่เลือก)
-                render_tab2_label(f_col4, "fa-solid fa-house-chimney", "ตำบล/แขวง")
-                if tab2_dists:
-                    clean_dists = [d.split(' (')[0] if ' (' in d else d for d in tab2_dists]
-                    sub_mask = df_raw['อำเภอ'].isin(clean_dists)
-                    if tab2_provs:
-                        sub_mask &= df_raw['จังหวัด'].isin(tab2_provs)
-                    avail_subdists = sorted([s for s in df_raw[sub_mask]['ตำบล'].dropna().unique() if str(s).strip()])
-                    sanitize_session_state("tab2_filter_subdistricts", avail_subdists)
-                    tab2_subdists = f_col4.multiselect(
-                        "ตำบล/แขวง",
-                        options=avail_subdists,
-                        key="tab2_filter_subdistricts",
-                        placeholder="เลือกตำบล/แขวง...",
-                        label_visibility="collapsed"
-                    )
-                else:
-                    # ยังไม่ได้เลือกอำเภอ -> ไม่อนุญาตให้เลือกตำบล
-                    st.session_state["tab2_filter_subdistricts"] = []
-                    tab2_subdists = f_col4.multiselect(
-                        "ตำบล/แขวง",
-                        options=[],
-                        key="tab2_filter_subdistricts",
-                        disabled=True,
-                        placeholder="กรุณาเลือกอำเภอก่อน...",
-                        label_visibility="collapsed"
-                    )
+        # Resolve active reference point
+        active_ref_prop = st.session_state.get("tab2_ref_prop")
+        active_ref_lat = None
+        active_ref_lon = None
+        try:
+            active_ref_radius = float(st.query_params.get("map_ref_radius", 5.0))
+        except (ValueError, TypeError):
+            active_ref_radius = 5.0
 
-                # Check if selection actually changed compared to the last applied state
-                current_tab2_state = (
-                    tuple(tab2_regions or []),
-                    tuple(tab2_provs or []),
-                    tuple(tab2_dists or []),
-                    tuple(tab2_subdists or [])
-                )
-                if "_applied_tab2_state" not in st.session_state:
-                    st.session_state["_applied_tab2_state"] = current_tab2_state
-                elif current_tab2_state != st.session_state["_applied_tab2_state"]:
-                    st.session_state["_applied_tab2_state"] = current_tab2_state
-                    try:
-                        st.rerun(scope="app")
-                    except TypeError:
-                        st.rerun()
+        # Check if reference property ID came from map search, click, or query params
+        q_id = st.query_params.get("map_ref_id")
+        search_prop_id = q_id or st.session_state.get("tab2_search_prop_id", "")
 
-            if fragment_fn:
-                _tab2_filter_frag = fragment_fn(_render_tab2_filters_body)
-                _tab2_filter_frag()
+        if search_prop_id and search_prop_id.strip():
+            clean_id = search_prop_id.strip()
+            if active_ref_prop is None or str(active_ref_prop.get('รหัสทรัพย์', '')).strip().lower() != clean_id.lower():
+                match_df = df_raw[df_raw['รหัสทรัพย์'].astype(str).str.strip().str.lower() == clean_id.lower()]
+                if not match_df.empty:
+                    r0 = match_df.iloc[0]
+                    if pd.notna(r0.get('ละติจูด')) and pd.notna(r0.get('ลองจิจูด')) and float(r0['ละติจูด']) > 0 and float(r0['ลองจิจูด']) > 0:
+                        active_ref_prop = r0
+                        active_ref_lat = float(r0['ละติจูด'])
+                        active_ref_lon = float(r0['ลองจิจูด'])
+                        st.session_state["tab2_ref_lat"] = active_ref_lat
+                        st.session_state["tab2_ref_lon"] = active_ref_lon
+                        st.session_state["tab2_ref_prop"] = active_ref_prop
+                        st.session_state["tab2_search_prop_id"] = clean_id
+                        p_prov = str(r0.get('จังหวัด', '')).strip()
+                        if p_prov and p_prov not in ['-', 'ไม่มีข้อมูล']:
+                            st.session_state["tab2_filter_provinces"] = [p_prov]
+                            st.query_params["map_prov"] = p_prov
             else:
-                _render_tab2_filters_body()
+                active_ref_lat = float(active_ref_prop['ละติจูด'])
+                active_ref_lon = float(active_ref_prop['ลองจิจูด'])
 
-            tab2_regions = st.session_state.get("tab2_filter_regions", [])
-            tab2_provs = st.session_state.get("tab2_filter_provinces", [])
-            tab2_dists = st.session_state.get("tab2_filter_districts", [])
-            tab2_subdists = st.session_state.get("tab2_filter_subdistricts", [])
-            tab2_types = []
+        if active_ref_lat is None:
+            q_lat = st.query_params.get("map_ref_lat")
+            q_lon = st.query_params.get("map_ref_lon")
+            if q_lat and q_lon:
+                try:
+                    active_ref_lat = float(q_lat)
+                    active_ref_lon = float(q_lon)
+                    if active_ref_prop is not None:
+                        p_lat = float(active_ref_prop.get('ละติจูด', 0))
+                        p_lon = float(active_ref_prop.get('ลองจิจูด', 0))
+                        if abs(p_lat - active_ref_lat) > 0.0005 or abs(p_lon - active_ref_lon) > 0.0005:
+                            active_ref_prop = None
+                            st.session_state["tab2_ref_prop"] = None
+                            st.session_state["tab2_search_prop_id"] = ""
+                            st.session_state["tab2_input_prop_id"] = ""
+                except ValueError:
+                    pass
+            elif st.session_state.get("tab2_ref_lat") and st.session_state.get("tab2_ref_lon"):
+                active_ref_lat = float(st.session_state["tab2_ref_lat"])
+                active_ref_lon = float(st.session_state["tab2_ref_lon"])
 
-            # Row 2: Reference point input row
-            init_lat_val = float(st.query_params.get("map_ref_lat", st.session_state.get("tab2_ref_lat", 0.0)))
-            init_lon_val = float(st.query_params.get("map_ref_lon", st.session_state.get("tab2_ref_lon", 0.0)))
-            has_active_ref = (init_lat_val > 0 or bool(st.session_state.get("tab2_search_prop_id")) or bool(st.query_params.get("map_ref_lat")))
 
-            try:
-                rc1, rc2, rc3, rc4 = st.columns([2.3, 1.15, 1.15, 0.9], vertical_alignment="bottom")
-            except TypeError:
-                rc1, rc2, rc3, rc4 = st.columns([2.3, 1.15, 1.15, 0.9])
-
-            with rc1:
-                render_tab2_label(rc1, "fa-solid fa-magnifying-glass", "กำหนดจุดอ้างอิงจากรหัสทรัพย์สิน (Property ID)", "ระบบจะค้นหาพิกัด ละติจูด/ลองจิจูด ของทรัพย์สินนี้ เพื่อใช้เป็นจุดศูนย์กลางอ้างอิงบนแผนที่ทันที")
-                search_prop_id = st.text_input(
-                    "รหัสทรัพย์สิน",
-                    value=st.session_state.get("tab2_search_prop_id", ""),
-                    placeholder="พิมพ์รหัสทรัพย์ เช่น 11604053 แล้วกด Enter...",
-                    key="tab2_input_prop_id",
-                    label_visibility="collapsed"
-                )
-            with rc2:
-                render_tab2_label(rc2, "fa-solid fa-crosshairs", "ละติจูด (Latitude)", "กรอกละติจูดของจุดอ้างอิง เช่น 13.75633")
-                manual_lat = st.number_input(
-                    "ละติจูด",
-                    value=init_lat_val,
-                    format="%.6f",
-                    key="tab2_manual_lat",
-                    label_visibility="collapsed"
-                )
-            with rc3:
-                render_tab2_label(rc3, "fa-solid fa-crosshairs", "ลองจิจูด (Longitude)", "กรอกลองจิจูดของจุดอ้างอิง เช่น 100.50176")
-                manual_lon = st.number_input(
-                    "ลองจิจูด",
-                    value=init_lon_val,
-                    format="%.6f",
-                    key="tab2_manual_lon",
-                    label_visibility="collapsed"
-                )
-            with rc4:
-                spacer_html = '<div style="min-height: 22px; margin-bottom: 4px;"></div>'
-                if hasattr(rc4, "html"):
-                    rc4.html(spacer_html)
-                else:
-                    rc4.markdown(spacer_html, unsafe_allow_html=True)
-                if st.button("✕ ล้างจุดอ้างอิง", key="tab2_clear_ref_btn", use_container_width=True, disabled=not has_active_ref, help="ยกเลิกจุดอ้างอิงและกลับสู่หน้าแผนที่เริ่มต้น"):
-                    if "map_ref_lat" in st.query_params: del st.query_params["map_ref_lat"]
-                    if "map_ref_lon" in st.query_params: del st.query_params["map_ref_lon"]
-                    if "map_ref_radius" in st.query_params: del st.query_params["map_ref_radius"]
-                    if "map_ref_id" in st.query_params: del st.query_params["map_ref_id"]
-                    st.session_state["tab2_ref_lat"] = 0.0
-                    st.session_state["tab2_ref_lon"] = 0.0
-                    st.session_state["tab2_ref_prop"] = None
-                    st.session_state["tab2_search_prop_id"] = ""
-                    st.session_state["tab2_input_prop_id"] = ""
-                    st.rerun()
-
-            # Resolve active reference point
-            active_ref_prop = st.session_state.get("tab2_ref_prop")
-            active_ref_lat = None
-            active_ref_lon = None
-            try:
-                active_ref_radius = float(st.query_params.get("map_ref_radius", 5.0))
-            except (ValueError, TypeError):
-                active_ref_radius = 5.0
-
-            # Check if reference property ID came from map click
-            q_id = st.query_params.get("map_ref_id")
-            if q_id and not search_prop_id:
-                search_prop_id = q_id
-                st.session_state["tab2_search_prop_id"] = q_id
-                st.session_state["tab2_input_prop_id"] = q_id
-
-            if search_prop_id and search_prop_id.strip():
-                clean_id = search_prop_id.strip()
-                if active_ref_prop is None or str(active_ref_prop.get('รหัสทรัพย์', '')).strip().lower() != clean_id.lower():
-                    match_df = df_raw[df_raw['รหัสทรัพย์'].astype(str).str.strip().str.lower() == clean_id.lower()]
-                    if not match_df.empty:
-                        r0 = match_df.iloc[0]
-                        if pd.notna(r0.get('ละติจูด')) and pd.notna(r0.get('ลองจิจูด')) and float(r0['ละติจูด']) > 0 and float(r0['ลองจิจูด']) > 0:
-                            active_ref_prop = r0
-                            active_ref_lat = float(r0['ละติจูด'])
-                            active_ref_lon = float(r0['ลองจิจูด'])
-                            st.session_state["tab2_ref_lat"] = active_ref_lat
-                            st.session_state["tab2_ref_lon"] = active_ref_lon
-                            st.session_state["tab2_ref_prop"] = active_ref_prop
-                            st.session_state["tab2_search_prop_id"] = clean_id
-                            st.query_params["map_ref_lat"] = f"{active_ref_lat:.6f}"
-                            st.query_params["map_ref_lon"] = f"{active_ref_lon:.6f}"
-                        else:
-                            st.warning(f"พบรหัสทรัพย์ '{clean_id}' แต่ไม่มีข้อมูลพิกัด ละติจูด/ลองจิจูด ในระบบ")
-                    else:
-                        st.warning(f"ไม่พบรหัสทรัพย์ '{clean_id}' ในฐานข้อมูล กรุณาตรวจสอบรหัสอีกครั้ง")
-                else:
-                    active_ref_lat = float(active_ref_prop['ละติจูด'])
-                    active_ref_lon = float(active_ref_prop['ลองจิจูด'])
-
-            if active_ref_lat is None and manual_lat > 0 and manual_lon > 0:
-                active_ref_lat = manual_lat
-                active_ref_lon = manual_lon
-                st.session_state["tab2_ref_lat"] = active_ref_lat
-                st.session_state["tab2_ref_lon"] = active_ref_lon
-
-            if active_ref_lat is None:
-                q_lat = st.query_params.get("map_ref_lat")
-                q_lon = st.query_params.get("map_ref_lon")
-                if q_lat and q_lon:
-                    try:
-                        active_ref_lat = float(q_lat)
-                        active_ref_lon = float(q_lon)
-                        # Coordinates from map click: if active_ref_prop had a different location, clear it
-                        if active_ref_prop is not None:
-                            p_lat = float(active_ref_prop.get('ละติจูด', 0))
-                            p_lon = float(active_ref_prop.get('ลองจิจูด', 0))
-                            if abs(p_lat - active_ref_lat) > 0.0005 or abs(p_lon - active_ref_lon) > 0.0005:
-                                active_ref_prop = None
-                                st.session_state["tab2_ref_prop"] = None
-                                st.session_state["tab2_search_prop_id"] = ""
-                                st.session_state["tab2_input_prop_id"] = ""
-                    except ValueError:
-                        pass
-
-            # Display active reference info banner if active
-            if active_ref_prop is not None:
-                p_co = active_ref_prop.get('บริษัท', '-')
-                p_code = active_ref_prop.get('รหัสทรัพย์', '-')
-                p_title = active_ref_prop.get('ชื่อประกาศ', active_ref_prop.get('ชื่อโครงการ', '-'))
-                p_type = active_ref_prop.get('ประเภททรัพย์', '-')
-                p_price = active_ref_prop.get('ราคา', 0)
-                p_price_str = f"฿{float(p_price):,.0f} บาท" if pd.notna(p_price) and float(p_price) > 0 else "ไม่ระบุราคา"
-                p_loc = f"{active_ref_prop.get('อำเภอ', '')} {active_ref_prop.get('จังหวัด', '')}".strip()
-                
-                st.html(f"""<div style="background: rgba(16, 185, 129, 0.08); border: 1.5px solid #10b981; border-radius: 10px; padding: 10px 16px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
-<div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-<span style="background: #059669; color: #ffffff; padding: 3px 9px; border-radius: 6px; font-size: 12.5px; font-weight: 800;"><i class="fa-solid fa-location-crosshairs"></i> จุดอ้างอิง</span>
-<span style="font-weight: 800; font-size: 14px; color: {'#34d399' if is_dark_mode else '#065f46'};">[{p_co}] {p_code}: {p_title}</span>
-<span style="background: #fef3c7; border: 1px solid #fde68a; color: #92400e; padding: 2px 7px; border-radius: 6px; font-size: 12px; font-weight: 700;">{p_type}</span>
-<span style="font-weight: 800; color: #059669; font-size: 13.5px;">{p_price_str}</span>
-<span style="color: #64748b; font-size: 12.5px;">({p_loc})</span>
-</div>
-<div style="font-size: 12px; color: #059669; font-weight: 700;">
-<i class="fa-solid fa-crosshairs"></i> พิกัด: <b>{active_ref_lat:.6f}, {active_ref_lon:.6f}</b>
-</div>
-</div>""")
-            elif active_ref_lat and active_ref_lon:
-                st.html(f"""<div style="background: rgba(16, 185, 129, 0.08); border: 1.5px solid #10b981; border-radius: 10px; padding: 8px 16px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
-<div style="display: flex; align-items: center; gap: 8px;">
-<span style="background: #059669; color: #ffffff; padding: 3px 9px; border-radius: 6px; font-size: 12.5px; font-weight: 800;"><i class="fa-solid fa-location-crosshairs"></i> จุดอ้างอิงที่เลือก</span>
-<span style="font-size: 13px; color: {'#34d399' if is_dark_mode else '#065f46'}; font-weight: 700;">พิกัด: <b>{active_ref_lat:.6f}, {active_ref_lon:.6f}</b> (รัศมีการตรวจ: <b>{active_ref_radius:.1f} กม.</b>)</span>
-</div>
-</div>""")
 
         # 3. FILTER MAP DATA WITH IN-PAGE TAB 2 FILTERS (Geographic Scope)
         tab2_filtered = df_filtered.copy()
@@ -5528,6 +6317,14 @@ with tab2:
             _subdt_col = map_data['ตำบล'].fillna('ไม่ระบุ').astype(str).str.strip() if 'ตำบล' in map_data.columns else pd.Series(['ไม่ระบุ'] * len(map_data), index=map_data.index)
             _subdt_cat = pd.Categorical(_subdt_col)
 
+            _prj_col = map_data['โครงการ'].fillna('-').astype(str).str.strip() if 'โครงการ' in map_data.columns else (
+                map_data['ชื่อโครงการ'].fillna('-').astype(str).str.strip() if 'ชื่อโครงการ' in map_data.columns else pd.Series(['-'] * len(map_data), index=map_data.index)
+            )
+            _prj_col = _prj_col.replace({'': '-', 'nan': '-', 'None': '-', 'null': '-', 'undefined': '-'})
+            _prj_cat = pd.Categorical(_prj_col)
+
+            sam_projs_list, _ = get_sam_project_options(df_raw) if df_raw is not None and not df_raw.empty else ([], {})
+
             lookup_obj = {
                 'co': _co_cat.categories.tolist(),
                 'ty': _ty_cat.categories.tolist(),
@@ -5536,6 +6333,8 @@ with tab2:
                 'rg': _rg_cat.categories.tolist(),
                 'dt': _dt_cat.categories.tolist(),
                 'subdt': _subdt_cat.categories.tolist(),
+                'prj': _prj_cat.categories.tolist(),
+                'sam_prj': sam_projs_list,
             }
             lookup_b64 = base64.b64encode(
                 gzip.compress(
@@ -5560,8 +6359,13 @@ with tab2:
                 '_rgi':   _rg_cat.codes.astype('int16'),
                 '_dti':   _dt_cat.codes.astype('int16'),
                 '_subdti': _subdt_cat.codes.astype('int16'),
+                '_prji':  _prj_cat.codes.astype('int16'),
                 '_p':     _prices_num.fillna(0).astype('float32').values,
                 '_up':    _unit_prices.astype('float32'),
+                '_sqw':   np.nan_to_num(_sqw_calc, nan=0.0).round(1).astype('float32'),
+                '_sqm':   np.nan_to_num(_sqm_calc, nan=0.0).round(1).astype('float32'),
+                '_puw':   np.nan_to_num(_p_wah_calc, nan=0.0).round(0).astype('float32'),
+                '_pum':   np.nan_to_num(_p_sqm_calc, nan=0.0).round(0).astype('float32'),
                 '_price_str': prices_list,
                 '_link':     links,
                 '_centroid': centroid_flags,
@@ -5593,14 +6397,26 @@ with tab2:
             html_content = html_content.replace("INIT_REF_LAT_PLACEHOLDER", str(active_ref_lat) if active_ref_lat else "")
             html_content = html_content.replace("INIT_REF_LON_PLACEHOLDER", str(active_ref_lon) if active_ref_lon else "")
             html_content = html_content.replace("INIT_RADIUS_PLACEHOLDER", str(active_ref_radius) if active_ref_radius else "5.0")
+            html_content = html_content.replace("INIT_REF_ID_PLACEHOLDER", str(st.session_state.get("tab2_search_prop_id") or st.query_params.get("map_ref_id") or search_prop_id or "").strip())
             
             # Step 5.1: Boundary GeoJSON (จังหวัด / อำเภอ / ตำบล)
-            effective_provs = tab2_provs if tab2_provs else (loc_prov if 'loc_prov' in locals() and loc_prov else st.session_state.get("selected_provinces", []))
-            effective_dists = tab2_dists if tab2_dists else (loc_dist if 'loc_dist' in locals() and loc_dist else st.session_state.get("selected_districts_formatted", []))
-            effective_subdists = tab2_subdists if tab2_subdists else (loc_sub if 'loc_sub' in locals() and loc_sub else st.session_state.get("selected_subdistricts_formatted", []))
+            effective_provs = tab2_provs if tab2_provs else (st.session_state.get("tab2_filter_provinces", []) or (loc_prov if 'loc_prov' in locals() and loc_prov else st.session_state.get("selected_provinces", [])))
+            effective_dists = tab2_dists if tab2_dists else (st.session_state.get("tab2_filter_districts", []) or (loc_dist if 'loc_dist' in locals() and loc_dist else st.session_state.get("selected_districts_formatted", [])))
+            effective_subdists = tab2_subdists if tab2_subdists else (st.session_state.get("tab2_filter_subdistricts", []) or (loc_sub if 'loc_sub' in locals() and loc_sub else st.session_state.get("selected_subdistricts_formatted", [])))
             boundary_obj = get_boundary_geojson_features(effective_provs, effective_dists, effective_subdists)
             boundary_json = json.dumps(boundary_obj, ensure_ascii=False) if boundary_obj else "null"
             html_content = html_content.replace("BOUNDARY_GEOJSON_PLACEHOLDER", boundary_json)
+
+            # Step 5.1.1: In-Map Province list and current selected province
+            all_provinces_list = sorted(list({
+                str(p).strip().strip(" ,;.-'\"")
+                for p in df_raw['จังหวัด'].dropna().unique()
+                if str(p).strip().strip(" ,;.-'\"") and str(p).strip().strip(" ,;.-'\"") not in ['-', 'ไม่มีข้อมูล', 'nan', 'None']
+            })) if df_raw is not None and not df_raw.empty else []
+            all_provinces_json = json.dumps(all_provinces_list, ensure_ascii=False)
+            current_prov_str = effective_provs[0] if (effective_provs and len(effective_provs) > 0) else ""
+            html_content = html_content.replace("ALL_PROVINCES_PLACEHOLDER", all_provinces_json)
+            html_content = html_content.replace("CURRENT_PROV_PLACEHOLDER", current_prov_str)
             
             # Step 5.2: Individual Crisp Company Logos for HTML Pin Markers (Matching Tab 4)
             company_logos_dict = get_leaflet_logo_dict(72)
@@ -5630,219 +6446,15 @@ with tab2:
                 st.error("ไม่สามารถแสดงแผนที่ได้ กรุณาลองรีเฟรชหน้าเว็บ")
 
         # ----------------- BELOW MAP: ANALYTICS CARDS & NEARBY ASSET LISTING -----------------
-        st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
-
-        if active_ref_lat and active_ref_lon:
-            nearby_df = find_nearby_properties(active_ref_lat, active_ref_lon, df_raw, active_ref_radius)
-            
-            def get_tab2_unit_info(r):
-                p_type = str(r.get('ประเภททรัพย์', '')).lower()
-                is_condo = any(kw in p_type for kw in ['คอนโด', 'ห้องชุด'])
-                price = r.get('ราคา')
-                if pd.isna(price) or float(price) <= 0:
-                    return np.nan, "-", "-"
-                if is_condo:
-                    sqm = to_float_sqm(r.get('พื้นที่ใช้สอย (ตร.ม.)'))
-                    if pd.notna(sqm) and float(sqm) > 0:
-                        return float(price) / float(sqm), "ตร.ม.", "พื้นที่ใช้สอย"
-                else:
-                    sqwah = to_float_sqwah(r.get('เนื้อที่ (ตร.ว.)', r.get('พื้นที่_ตารางวา', np.nan)))
-                    if pd.notna(sqwah) and float(sqwah) > 0:
-                        return float(price) / float(sqwah), "ตร.ว.", "เนื้อที่"
-                return np.nan, "-", "-"
-
-            if not nearby_df.empty:
-                unit_res = nearby_df.apply(get_tab2_unit_info, axis=1)
-                nearby_df['ราคาต่อหน่วย'] = [res[0] for res in unit_res]
-                nearby_df['หน่วยวัด'] = [res[1] for res in unit_res]
-                nearby_df['ฐานพื้นที่คำนวณ'] = [res[2] for res in unit_res]
-
-            target_type = None
-            if active_ref_prop is not None:
-                target_type = active_ref_prop.get('ประเภททรัพย์')
-            elif tab2_types and len(tab2_types) == 1:
-                target_type = tab2_types[0]
-                
-            if target_type and not nearby_df.empty:
-                sel_type_df = nearby_df[nearby_df['ประเภททรัพย์'] == target_type]
-            else:
-                sel_type_df = nearby_df
-
-            has_sel_u_stats = False
-            median_u_sel = min_u_sel = max_u_sel = 0.0
-            unit_lbl_sel = "ตร.ว."
-            count_u_sel = 0
-            
-            if not sel_type_df.empty:
-                u_sel = sel_type_df['ราคาต่อหน่วย'].dropna()
-                u_sel = u_sel[u_sel > 0]
-                if not u_sel.empty:
-                    median_u_sel = float(u_sel.median())
-                    min_u_sel = float(u_sel.min())
-                    max_u_sel = float(u_sel.max())
-                    modes = sel_type_df[sel_type_df['หน่วยวัด'] != '-']['หน่วยวัด'].mode()
-                    unit_lbl_sel = modes[0] if not modes.empty else "ตร.ว."
-                    count_u_sel = len(u_sel)
-                    has_sel_u_stats = True
-
-            p_str = nearby_df['ประเภททรัพย์'].astype(str) if not nearby_df.empty else pd.Series()
-            is_pure_land = p_str.str.contains('ที่ดินเปล่า|ที่ดิน', regex=True, na=False) & \
-                           ~p_str.str.contains('บ้าน|อาคาร|ทาวน์|คอนโด|ตึก|โรงงาน|พาณิชย์|หอพัก', regex=True, na=False)
-            raw_land_df = nearby_df[is_pure_land & (nearby_df['ราคา'] > 0)].copy() if not nearby_df.empty else pd.DataFrame()
-            
-            has_raw_land = False
-            median_raw_land = min_raw_land = max_raw_land = 0.0
-            count_raw_land = 0
-            if not raw_land_df.empty:
-                rl_u = raw_land_df['ราคาต่อหน่วย'].dropna()
-                rl_u = rl_u[rl_u > 0]
-                if not rl_u.empty:
-                    median_raw_land = float(rl_u.median())
-                    min_raw_land = float(rl_u.min())
-                    max_raw_land = float(rl_u.max())
-                    count_raw_land = len(rl_u)
-                    has_raw_land = True
-
-            type_heading_str = f" เฉพาะประเภททรัพย์: **{target_type}**" if target_type else ""
-            st.markdown(
-                f"#### <i class='fa-solid fa-chart-simple' style='color:#059669; margin-right:6px;'></i>ผลการวิเคราะห์ราคากลางต่อหน่วย (Median Analysis) ในรัศมี {active_ref_radius:.1f} กม.{type_heading_str}",
-                unsafe_allow_html=True
-            )
-
-            card_c1, card_c2, card_c3 = st.columns(3)
-
-            # Card 1: Reference Info
-            if active_ref_prop is not None:
-                p_co = active_ref_prop.get('บริษัท', '-')
-                p_code = active_ref_prop.get('รหัสทรัพย์', '-')
-                p_price_val = active_ref_prop.get('ราคา', 0)
-                p_title_str = str(active_ref_prop.get('ชื่อประกาศ', active_ref_prop.get('ชื่อโครงการ', '-')))[:40]
-                p_type_str = str(active_ref_prop.get('ประเภททรัพย์', '-'))
-                
-                ref_u_p = np.nan
-                ref_u_lbl = "ตร.ว."
-                if any(kw in p_type_str.lower() for kw in ['คอนโด', 'ห้องชุด']):
-                    sqm = to_float_sqm(active_ref_prop.get('พื้นที่ใช้สอย (ตร.ม.)'))
-                    if pd.notna(sqm) and sqm > 0 and pd.notna(p_price_val) and p_price_val > 0:
-                        ref_u_p = p_price_val / sqm
-                        ref_u_lbl = "ตร.ม."
-                else:
-                    sqw = to_float_sqwah(active_ref_prop.get('เนื้อที่ (ตร.ว.)', active_ref_prop.get('พื้นที่_ตารางวา', np.nan)))
-                    if pd.notna(sqw) and sqw > 0 and pd.notna(p_price_val) and p_price_val > 0:
-                        ref_u_p = p_price_val / sqw
-                        ref_u_lbl = "ตร.ว."
-
-                if pd.notna(ref_u_p) and ref_u_p > 0:
-                    c1_val = f"฿{ref_u_p:,.0f} <span style='font-size:0.85rem; font-weight:normal; color:#475569;'>/{ref_u_lbl}</span>"
-                elif pd.notna(p_price_val) and p_price_val > 0:
-                    c1_val = f"฿{float(p_price_val):,.0f} <span style='font-size:0.85rem; font-weight:normal; color:#475569;'>บาท</span>"
-                else:
-                    c1_val = "ไม่ระบุราคา"
-
-                c1_sub = (
-                    f"<div style='margin-top: 6px; line-height: 1.55; font-size: 0.82rem; color: #475569;'>"
-                    f"<div><i class='fa-solid fa-building' style='color:#64748b; margin-right:4px;'></i><b>[{p_co}]</b> {p_code} ({p_type_str})</div>"
-                    f"<div><i class='fa-solid fa-file-lines' style='color:#64748b; margin-right:4px;'></i>{p_title_str}</div>"
-                    f"<div style='color: #059669; font-weight: 700;'><i class='fa-solid fa-location-dot' style='margin-right:4px;'></i>พิกัด: {active_ref_lat:.5f}, {active_ref_lon:.5f} (รัศมี {active_ref_radius:.1f} กม.)</div>"
-                    f"</div>"
-                )
-            else:
-                c1_val = f"{len(nearby_df):,} <span style='font-size:0.85rem; font-weight:normal; color:#475569;'>รายการในพื้นที่</span>"
-                c1_sub = (
-                    f"<div style='margin-top: 6px; line-height: 1.55; font-size: 0.82rem; color: #475569;'>"
-                    f"<div><i class='fa-solid fa-location-crosshairs' style='color:#059669; margin-right:4px;'></i><b>พิกัด:</b> {active_ref_lat:.6f}, {active_ref_lon:.6f}</div>"
-                    f"<div><i class='fa-solid fa-circle-notch' style='color:#059669; margin-right:4px;'></i><b>รัศมีการตรวจ:</b> {active_ref_radius:.1f} กิโลเมตร</div>"
-                    f"<div style='color: #64748b; font-size: 0.76rem; margin-top: 2px;'>คลิกตำแหน่งใหม่บนแผนที่ หรือค้นหารหัสทรัพย์ด้านบนได้ตลอดเวลา</div>"
-                    f"</div>"
-                )
-
-            card1_html = (
-                f"<div class='metric-card' style='background: {'rgba(15, 23, 42, 0.6)' if is_dark_mode else 'rgba(255, 255, 255, 0.95)'}; border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 12px; padding: 14px 18px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);'>"
-                f"<div style='font-size: 0.82rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;'><i class='fa-solid fa-location-crosshairs' style='color: #ef4444; margin-right:4px;'></i> พิกัดอ้างอิงของคุณ</div>"
-                f"<div style='font-size: 1.6rem; font-weight: 800; color: {'#34d399' if is_dark_mode else '#0f172a'}; margin: 4px 0;'>{c1_val}</div>"
-                f"{c1_sub}"
-                f"</div>"
-            )
-            with card_c1:
-                st.html(card1_html)
-
-            # Card 2: Median Unit Price
-            if has_sel_u_stats:
-                target_name_str = f" - {target_type}" if target_type else ""
-                c2_val = f"฿{median_u_sel:,.0f} <span style='font-size:0.85rem; font-weight:normal; color:#475569;'>/{unit_lbl_sel}</span>"
-                c2_sub = (
-                    f"<div style='margin-top: 6px; line-height: 1.55; font-size: 0.82rem; color: #334155;'>"
-                    f"<div><i class='fa-solid fa-chart-simple' style='color:#64748b; margin-right:4px;'></i><b>ช่วงราคา:</b> ฿{min_u_sel:,.0f} - ฿{max_u_sel:,.0f} /{unit_lbl_sel}</div>"
-                    f"<div><i class='fa-solid fa-boxes-stacked' style='color:#64748b; margin-right:4px;'></i><b>จำนวน:</b> {count_u_sel:,} รายการในรัศมี {active_ref_radius:.1f} กม.</div>"
-                    f"<div style='color: #64748b; font-size: 0.76rem; margin-top: 2px;'><i class='fa-solid fa-ruler-combined' style='margin-right:3px;'></i>คำนวณจาก{'พื้นที่ใช้สอย (ตารางเมตร)' if unit_lbl_sel == 'ตร.ม.' else 'เนื้อที่ (ตารางวา)'}</div>"
-                    f"</div>"
-                )
-            else:
-                target_name_str = ""
-                c2_val = "ไม่มีข้อมูล"
-                c2_sub = f"<div style='color: #94a3b8; font-size: 0.8rem; margin-top: 6px;'>ไม่พบข้อมูลราคาต่อหน่วยในรัศมี {active_ref_radius:.1f} กม.</div>"
-
-            card2_html = (
-                f"<div class='metric-card' style='background: rgba(59, 130, 246, 0.04); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 12px; padding: 14px 18px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);'>"
-                f"<div style='font-size: 0.82rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;'><i class='fa-solid fa-tag' style='color: #10b981; margin-right:4px;'></i> ราคากลางต่อหน่วย (Median){target_name_str}</div>"
-                f"<div style='font-size: 1.6rem; font-weight: 800; color: #059669; margin: 4px 0;'>{c2_val}</div>"
-                f"{c2_sub}"
-                f"</div>"
-            )
-            with card_c2:
-                st.html(card2_html)
-
-            # Card 3: Raw Land Median Price
-            if has_raw_land:
-                c3_val = f"฿{median_raw_land:,.0f} <span style='font-size:0.85rem; font-weight:normal; color:#475569;'>/ตร.ว.</span>"
-                c3_sub = (
-                    f"<div style='margin-top: 6px; line-height: 1.55; font-size: 0.82rem; color: #334155;'>"
-                    f"<div><i class='fa-solid fa-chart-simple' style='color:#64748b; margin-right:4px;'></i><b>ช่วงราคา:</b> ฿{min_raw_land:,.0f} - ฿{max_raw_land:,.0f} /ตร.ว.</div>"
-                    f"<div><i class='fa-solid fa-boxes-stacked' style='color:#64748b; margin-right:4px;'></i><b>จำนวน:</b> {count_raw_land:,} แปลงที่ดินเปล่า</div>"
-                    f"<div style='color: #64748b; font-size: 0.76rem; margin-top: 2px;'><i class='fa-solid fa-ruler-combined' style='margin-right:3px;'></i>คำนวณจากเนื้อที่ดินเปล่า (ตารางวา)</div>"
-                    f"</div>"
-                )
-            else:
-                c3_val = "ไม่มีข้อมูล"
-                c3_sub = f"<div style='color: #94a3b8; font-size: 0.8rem; margin-top: 6px;'>ไม่พบรายการที่ดินเปล่าในรัศมี {active_ref_radius:.1f} กม.</div>"
-
-            card3_html = (
-                f"<div class='metric-card' style='background: rgba(16, 185, 129, 0.04); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 12px; padding: 14px 18px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);'>"
-                f"<div style='font-size: 0.82rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;'><i class='fa-solid fa-tree' style='color: #10b981; margin-right:4px;'></i> ราคากลางที่ดินเปล่า (Median /ตร.ว.)</div>"
-                f"<div style='font-size: 1.6rem; font-weight: 800; color: #059669; margin: 4px 0;'>{c3_val}</div>"
-                f"{c3_sub}"
-                f"</div>"
-            )
-            with card_c3:
-                st.html(card3_html)
-
-            # Nearby Assets Table (Expandable / Scrollable)
-            if not nearby_df.empty:
-                with st.expander(f"📋 รายการทรัพย์สินรอบจุดอ้างอิง ({len(nearby_df):,} รายการ ในรัศมี {active_ref_radius:.1f} กม.)", expanded=True):
-                    display_cols = ['บริษัท', 'รหัสทรัพย์', 'ประเภททรัพย์', 'ชื่อประกาศ', 'ราคา', 'ราคาต่อหน่วย', 'หน่วยวัด', 'ระยะทาง (กม.)', 'จังหวัด', 'อำเภอ']
-                    avail_cols = [c for c in display_cols if c in nearby_df.columns]
-                    show_df = nearby_df[avail_cols].copy()
-                    if 'ราคา' in show_df.columns:
-                        show_df['ราคา (บาท)'] = show_df['ราคา'].map(lambda v: f"฿{v:,.0f}" if pd.notna(v) and v > 0 else "ไม่ระบุ")
-                        show_df = show_df.drop(columns=['ราคา'])
-                    if 'ราคาต่อหน่วย' in show_df.columns:
-                        show_df['ราคา/หน่วย'] = show_df.apply(lambda r: f"฿{r['ราคาต่อหน่วย']:,.0f}/{r['หน่วยวัด']}" if pd.notna(r['ราคาต่อหน่วย']) and r['ราคาต่อหน่วย'] > 0 else "-", axis=1)
-                        show_df = show_df.drop(columns=['ราคาต่อหน่วย', 'หน่วยวัด'])
-                    
-                    if 'ระยะทาง (กม.)' in show_df.columns:
-                        show_df = show_df.sort_values(by='ระยะทาง (กม.)')
-                    
-                    st.dataframe(show_df, use_container_width=True, height=320)
-        else:
-            st.markdown("""
-            <div style="background: rgba(148, 163, 184, 0.08); border: 1.5px dashed #cbd5e1; border-radius: 12px; padding: 24px; text-align: center; margin-top: 8px;">
-                <i class="fa-solid fa-location-crosshairs" style="font-size: 2.2rem; color: #10b981; margin-bottom: 10px;"></i>
-                <h4 style="margin: 0 0 6px 0; color: #334155; font-weight: 700;">ยังไม่ได้กำหนดจุดอ้างอิง</h4>
-                <p style="margin: 0; color: #64748b; font-size: 0.92rem;">
-                    คลิกบนแผนที่ด้านบน หรือกรอก <b>รหัสทรัพย์สิน</b> / <b>พิกัดละติจูด-ลองจิจูด</b> ในแถบเครื่องมือด้านบน เพื่อดูการวิเคราะห์ราคากลางต่อหน่วย (ตร.ว. / ตร.ม.) และราคากลางที่ดินเปล่าในรัศมีรอบจุดอ้างอิง
-                </p>
-            </div>
-            """, unsafe_allow_html=True)
+        render_tab2_reference_analytics_fragment(
+            df_raw=df_raw,
+            is_dark_mode=is_dark_mode,
+            active_ref_lat=active_ref_lat,
+            active_ref_lon=active_ref_lon,
+            active_ref_prop=active_ref_prop,
+            active_ref_radius=active_ref_radius,
+            tab2_types=tab2_types
+        )
 
 
 # ----- TAB 3: ANALYTICS -----
@@ -5852,7 +6464,7 @@ with tab3:
     if df_filtered.empty:
         st.warning("ไม่มีข้อมูลสำหรับจัดทำแผนภูมิวิเคราะห์สถิติ")
     else:
-        # Create sub-tabs inside Tab 2
+        # Create sub-tabs inside Tab 3
         sub_tab1, sub_tab2, sub_tab3 = st.tabs([
             "ภาพรวมตลาด (Market Overview)",
             "สัดส่วนสินค้าคู่แข่ง (Asset Type Focus)",
@@ -6925,6 +7537,9 @@ with tab3:
                     )
                     st.plotly_chart(style_plotly_fig(fig_box), width="stretch", theme=None)
 
+
+
+
 # ----- TAB 4: PROPERTY LISTING -----
 with tab4:
     st.markdown(f"### <i class='fa-solid fa-table-list' style='color:#059669; margin-right:8px;'></i>รายการทรัพย์สินที่ค้นพบ ({len(df_filtered):,} รายการ)", unsafe_allow_html=True)
@@ -6932,27 +7547,27 @@ with tab4:
     if df_filtered.empty:
         st.warning("ไม่พบข้อมูลตามเงื่อนไข")
     else:
-        col_s1, col_s2 = st.columns([3, 2])
+        col_s1, col_s2 = st.columns([3.5, 1.2])
         with col_s1:
             # Search Box to filter Tab 4 Property Listing table (รหัสทรัพย์ / ชื่อโครงการ / ชื่อประกาศ)
             tab4_search_query = st.text_input(
                 "ค้นหารหัสทรัพย์ / ชื่อโครงการ / ชื่อประกาศ",
                 icon=":material/search:",
                 value="",
-                placeholder="พิมพ์รหัสทรัพย์ (เช่น 12345), ชื่อโครงการ หรือชื่อประกาศ...",
+                placeholder="พิมพ์รหัสทรัพย์, ชื่อโครงการ หรือชื่อประกาศ...",
                 key="tab4_property_listing_search"
             )
-            
+
         with col_s2:
             display_limit = st.number_input(
-                "จำนวนรายการที่ต้องการแสดง (Rows)",
+                "จำนวนแถว (Rows)",
                 icon=":material/format_list_numbered:",
                 min_value=0,
                 max_value=100000,
                 value=0,
                 step=50,
                 key="tab4_direct_row_limit",
-                help="กรอกจำนวนแถวที่ต้องการแสดงในตาราง (ค่าเริ่มต้นคือ 0 เพื่อแสดงเฉพาะหัวข้อคอลัมน์เพื่อความรวดเร็ว)"
+                help="กรอกจำนวนแถวที่ต้องการแสดงในตาราง (ค่าเริ่มต้นคือ 0 เพื่อความรวดเร็ว)"
             )
             display_limit = int(display_limit)
 
@@ -6987,6 +7602,7 @@ with tab4:
             active_sort_label = ""
         else:
             df_table_source = df_filtered
+
             if tab4_search_query:
                 q_tab4 = tab4_search_query.strip()
                 q_tab4_lower = q_tab4.lower()
@@ -7051,7 +7667,7 @@ with tab4:
 
         # Status text
         if display_limit == 0 and not tab4_search_query and selected_quick_sort == "ค่าเริ่มต้น":
-            st.caption("ปัจจุบันแสดงเฉพาะ **หัวข้อคอลัมน์** เพื่อความเร็วสูงสุด (พิมพ์ค้นหารหัสทรัพย์ หรือเลือกจำนวนแถวที่ต้องการแสดง)")
+            st.caption("ปัจจุบันแสดงเฉพาะ **หัวข้อคอลัมน์** เพื่อความเร็วสูงสุด (พิมพ์ค้นหารหัสทรัพย์, เลือกตัวจัดเรียงด่วน หรือเลือกจำนวนแถวที่ต้องการแสดง)")
         elif tab4_search_query:
             st.caption(f"พบข้อมูลตรงกับการค้นหา **{len(df_table_source):,}** รายการ (แสดง **{len(df_table):,}** รายการแรกในตาราง)")
         else:
@@ -7113,4 +7729,4 @@ with tab4:
         )
         render_import_export_section(df_table_source if not df_table_source.empty else df_filtered, filename_prefix="npa_property_listing", key_suffix="tab4")
 
-# reload trigger: 2026-09-16 16:30:00 (Interactive Map tab 2 strictly anchor popup directly above pin without flipping)
+# reload trigger: 2026-09-17 10:53:00 (v3: container-based sync hiding + text-based button finder + comfortable zoom)
