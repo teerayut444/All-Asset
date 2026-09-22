@@ -33,7 +33,7 @@
 ├── 🐍 chart_3d_analytics.py      # โมดูลกราฟ 3D Interactive Analytics
 │
 ├── 📁 .streamlit/                # ตั้งค่า Theme และ Streamlit Server (config.toml)
-├── 📁 assets/                    # รูปภาพ Logo และโลโก้สถาบันการเงิน (logos/)
+├── 📁 logo/                      # รูปภาพ Logo และโลโก้สถาบันการเงิน (logos/)
 └── 📁 static/                    # ไฟล์ Static และแผนที่ (d3.js, deck.gl.js, map_template.html)
 ```
 

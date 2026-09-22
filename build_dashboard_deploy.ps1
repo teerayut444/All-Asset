@@ -154,9 +154,10 @@ Write-Host ""
 # ------------------------------------------------------------------
 # STEP 5: Copy resource folders
 # ------------------------------------------------------------------
-Write-Step 5 "คัดลอกโฟลเดอร์ทรัพยากร (assets, static, .streamlit)"
+Write-Step 5 "คัดลอกโฟลเดอร์ทรัพยากร (logo, static, .streamlit)"
 Write-Line
-Copy-Folder "assets"     "assets"
+if (Test-Path "$ROOT\logo")   { Copy-Folder "logo"   "logo" }
+if (Test-Path "$ROOT\assets") { Copy-Folder "assets" "assets" }
 Copy-Folder "static"     "static"
 Copy-Folder ".streamlit" ".streamlit"
 Write-Host ""
@@ -218,7 +219,7 @@ $readmeContent = @"
   All_Asset_Dashboard.exe    -> ตัวเปิดแอป (ดับเบิลคลิกได้เลย)
   app.py                     -> โค้ดระบบ Dashboard หลัก
   all_assets.parquet         -> ฐานข้อมูลทรัพย์สิน NPA ล่าสุด
-  assets/                    -> โลโก้และไอคอนสถาบันการเงิน
+  logo/                      -> โลโก้และไอคอนสถาบันการเงิน
   static/                    -> เทมเพลตแผนที่ Leaflet
   .streamlit/                -> การตั้งค่า Streamlit
   .venv/                     -> Python Environment (ถ้ามี)

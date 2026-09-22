@@ -602,7 +602,7 @@ def format_to_rai_ngan_wah(val):
 
 
 # Configure Streamlit page layout
-_app_icon_file = os.path.join("assets", "app_icon.ico")
+_app_icon_file = os.path.join("logo", "app_icon.ico") if os.path.exists(os.path.join("logo", "app_icon.ico")) else os.path.join("assets", "app_icon.ico")
 _app_page_icon = Image.open(_app_icon_file) if os.path.exists(_app_icon_file) else ":material/analytics:"
 
 st.set_page_config(
@@ -732,7 +732,9 @@ def get_map_icon_atlas_and_mapping(icon_size=128):
                 logo_path = None
                 for base in [name, name.lower(), name.upper(), name.capitalize(), name.title()]:
                     for ext in ['.png', '.jpg', '.jpeg', '.webp']:
-                        p = os.path.join("assets", "logos", f"{base}{ext}")
+                        p = os.path.join("logo", "logos", f"{base}{ext}")
+                        if not os.path.exists(p):
+                            p = os.path.join("assets", "logos", f"{base}{ext}")
                         if os.path.exists(p):
                             logo_path = p
                             break
@@ -852,7 +854,11 @@ def get_leaflet_logo_dict(size=72):
         return _LEAFLET_LOGO_CACHE
         
     base_dir = Path(__file__).resolve().parent
-    logo_dir = base_dir / "assets" / "logos"
+    logo_dir = base_dir / "logo" / "logos"
+    if not logo_dir.exists():
+        logo_dir = Path("logo/logos")
+    if not logo_dir.exists():
+        logo_dir = base_dir / "assets" / "logos"
     if not logo_dir.exists():
         logo_dir = Path("assets/logos")
         
@@ -4026,7 +4032,7 @@ if "imported_custom_df" in st.session_state and st.session_state["imported_custo
 with st.sidebar:
     col_side_title, col_side_theme = st.columns([0.72, 0.28])
     with col_side_title:
-        sb_logo_path = os.path.join("assets", "logo.png")
+        sb_logo_path = os.path.join("logo", "logo.png") if os.path.exists(os.path.join("logo", "logo.png")) else os.path.join("assets", "logo.png")
         if os.path.exists(sb_logo_path):
             with open(sb_logo_path, "rb") as f_logo:
                 sb_logo_b64 = base64.b64encode(f_logo.read()).decode("utf-8")

@@ -136,9 +136,12 @@ def main():
     print()
 
     # STEP 5 - Copy resource folders
-    step(5, "คัดลอกโฟลเดอร์ทรัพยากร (assets, static, .streamlit)")
+    step(5, "คัดลอกโฟลเดอร์ทรัพยากร (logo, static, .streamlit)")
     line()
-    copy_folder("assets",     "assets")
+    if (ROOT / "logo").exists():
+        copy_folder("logo",       "logo")
+    if (ROOT / "assets").exists():
+        copy_folder("assets",     "assets")
     copy_folder("static",     "static")
     copy_folder(".streamlit", ".streamlit")
     print()
@@ -190,7 +193,7 @@ def main():
   All_Asset_Dashboard.exe    -> ตัวเปิดแอป (ดับเบิลคลิกได้เลย)
   app.py                     -> โค้ดระบบ Dashboard หลัก
   all_assets.parquet         -> ฐานข้อมูลทรัพย์สิน NPA ล่าสุด
-  assets/                    -> โลโก้และไอคอนสถาบันการเงิน
+  logo/                      -> โลโก้และไอคอนสถาบันการเงิน
   static/                    -> เทมเพลตแผนที่ Leaflet
   .streamlit/                -> การตั้งค่า Streamlit
   .venv/                     -> Python Environment (ถ้ามี)

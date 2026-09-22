@@ -602,7 +602,7 @@ def format_to_rai_ngan_wah(val):
 
 
 # Configure Streamlit page layout
-_app_icon_file = os.path.join("assets", "app_icon.ico")
+_app_icon_file = os.path.join("logo", "app_icon.ico") if os.path.exists(os.path.join("logo", "app_icon.ico")) else os.path.join("assets", "app_icon.ico")
 _app_page_icon = Image.open(_app_icon_file) if os.path.exists(_app_icon_file) else ":material/analytics:"
 
 st.set_page_config(
@@ -732,7 +732,9 @@ def get_map_icon_atlas_and_mapping(icon_size=128):
                 logo_path = None
                 for base in [name, name.lower(), name.upper(), name.capitalize(), name.title()]:
                     for ext in ['.png', '.jpg', '.jpeg', '.webp']:
-                        p = os.path.join("assets", "logos", f"{base}{ext}")
+                        p = os.path.join("logo", "logos", f"{base}{ext}")
+                        if not os.path.exists(p):
+                            p = os.path.join("assets", "logos", f"{base}{ext}")
                         if os.path.exists(p):
                             logo_path = p
                             break
@@ -852,7 +854,11 @@ def get_leaflet_logo_dict(size=72):
         return _LEAFLET_LOGO_CACHE
         
     base_dir = Path(__file__).resolve().parent
-    logo_dir = base_dir / "assets" / "logos"
+    logo_dir = base_dir / "logo" / "logos"
+    if not logo_dir.exists():
+        logo_dir = Path("logo/logos")
+    if not logo_dir.exists():
+        logo_dir = base_dir / "assets" / "logos"
     if not logo_dir.exists():
         logo_dir = Path("assets/logos")
         
@@ -2859,6 +2865,15 @@ def render_tab2_reference_analytics_fragment(
                 st.session_state["tab2_filter_subdistricts"] = []
                 st.query_params.pop("map_subdist", None)
 
+            p_proj = str(payload_obj.get("proj", "")).strip()
+            if p_proj and p_proj not in ["ALL", "__ALL__", "all", "-"]:
+                p_list = [x.strip() for x in p_proj.split(",") if x.strip()]
+                st.session_state["tab2_filter_projects"] = p_list
+                st.query_params["map_proj"] = p_proj
+            elif "proj" in payload_obj:
+                st.session_state["tab2_filter_projects"] = []
+                st.query_params.pop("map_proj", None)
+
             p_id = str(payload_obj.get("id", "")).strip()
             if p_id:
                 st.session_state["tab2_search_prop_id"] = p_id
@@ -2880,10 +2895,14 @@ def render_tab2_reference_analytics_fragment(
                         if prop_s and prop_s not in ['-', 'ไม่มีข้อมูล', 'nan']:
                             st.session_state["tab2_filter_subdistricts"] = [prop_s]
                             st.query_params["map_subdist"] = prop_s
+            elif "id" in payload_obj:
+                st.session_state["tab2_search_prop_id"] = ""
+                st.session_state.pop("tab2_ref_prop", None)
+                st.query_params.pop("map_ref_id", None)
 
             p_lat = payload_obj.get("lat")
             p_lon = payload_obj.get("lon")
-            if p_lat and p_lon:
+            if p_lat and p_lon and float(p_lat) > 0 and float(p_lon) > 0:
                 try:
                     active_ref_lat = float(p_lat)
                     active_ref_lon = float(p_lon)
@@ -2891,6 +2910,15 @@ def render_tab2_reference_analytics_fragment(
                     st.session_state["tab2_ref_lon"] = active_ref_lon
                 except (ValueError, TypeError):
                     pass
+            elif "lat" in payload_obj or "lon" in payload_obj:
+                active_ref_lat = None
+                active_ref_lon = None
+                st.session_state.pop("tab2_ref_lat", None)
+                st.session_state.pop("tab2_ref_lon", None)
+                st.session_state.pop("tab2_compared_lat", None)
+                st.session_state.pop("tab2_compared_lon", None)
+                st.query_params.pop("map_ref_lat", None)
+                st.query_params.pop("map_ref_lon", None)
 
             p_rad = payload_obj.get("radius")
             if p_rad:
@@ -3074,7 +3102,11 @@ def render_tab2_reference_analytics_fragment(
         active_subdist = st.session_state.get("tab2_filter_subdistricts", [])
 
     q_proj = st.query_params.get("map_proj", None)
-    active_proj = str(q_proj).strip() if q_proj and str(q_proj).strip() not in ["ALL", "__ALL__", "all", ""] else None
+    if q_proj and str(q_proj).strip() not in ["ALL", "__ALL__", "all", ""]:
+        active_proj = str(q_proj).strip()
+    else:
+        proj_list = st.session_state.get("tab2_filter_projects", [])
+        active_proj = ",".join(proj_list) if proj_list else None
 
     raw_cos = st.query_params.get("map_filter_cos", "")
     map_cos = [c.strip() for c in raw_cos.split(",") if c.strip()] if raw_cos else []
@@ -3119,8 +3151,11 @@ def render_tab2_reference_analytics_fragment(
     # 3. Compute matching count and summary labels for Filter Status Bar
     status_df = df_raw.copy() if df_raw is not None else pd.DataFrame()
     if not status_df.empty:
-        if has_ref_point and pin_mode == 'radius':
+        if has_ref_point and pin_mode == 'radius' and not active_proj:
             status_df = find_nearby_properties(active_ref_lat, active_ref_lon, status_df, active_ref_radius)
+        elif active_proj and 'ชื่อโครงการ' in status_df.columns:
+            p_list = [p.strip() for p in active_proj.split(",") if p.strip()]
+            status_df = status_df[status_df['ชื่อโครงการ'].astype(str).str.strip().isin(p_list)]
         else:
             if active_prov and 'จังหวัด' in status_df.columns:
                 status_df = status_df[status_df['จังหวัด'].astype(str).str.strip().isin(active_prov)]
@@ -3130,9 +3165,6 @@ def render_tab2_reference_analytics_fragment(
             if active_subdist and 'ตำบล' in status_df.columns:
                 clean_target_subs = [s.split(' (')[0].strip() for s in active_subdist]
                 status_df = status_df[status_df['ตำบล'].astype(str).str.strip().isin(clean_target_subs)]
-            if active_proj and 'ชื่อโครงการ' in status_df.columns:
-                p_list = [p.strip() for p in active_proj.split(",") if p.strip()]
-                status_df = status_df[status_df['ชื่อโครงการ'].astype(str).str.strip().isin(p_list)]
 
         if map_cos and 'บริษัท' in status_df.columns:
             status_df = status_df[status_df['บริษัท'].isin(map_cos)]
@@ -3158,7 +3190,21 @@ def render_tab2_reference_analytics_fragment(
     matched_count = len(status_df)
 
     # Human-readable labels
-    if active_subdist:
+    if active_proj:
+        loc_str = f"โครงการ: {active_proj}"
+    elif has_ref_point and pin_mode == 'radius':
+        if active_subdist:
+            clean_s = active_subdist[0].split(' (')[0].strip()
+            clean_d = active_dist[0].split(' (')[0].strip() if active_dist else "-"
+            loc_str = f"จุดศูนย์กลาง: จ.{active_prov[0] if active_prov else '-'} > อ.{clean_d} > ต.{clean_s}"
+        elif active_dist:
+            clean_d = active_dist[0].split(' (')[0].strip()
+            loc_str = f"จุดศูนย์กลาง: จ.{active_prov[0] if active_prov else '-'} > อ.{clean_d}"
+        elif active_prov:
+            loc_str = f"จุดศูนย์กลาง: จ.{active_prov[0]}"
+        else:
+            loc_str = "ตามพิกัดจุดอ้างอิง (ครอบคลุมตามรัศมี)"
+    elif active_subdist:
         clean_s = active_subdist[0].split(' (')[0].strip()
         clean_d = active_dist[0].split(' (')[0].strip() if active_dist else "-"
         loc_str = f"จ.{active_prov[0] if active_prov else '-'} > อ.{clean_d} > ต.{clean_s}"
@@ -3169,9 +3215,6 @@ def render_tab2_reference_analytics_fragment(
         loc_str = f"จ.{active_prov[0]}"
     else:
         loc_str = "ทุกทำเล (ทั่วประเทศ)"
-
-    if active_proj:
-        loc_str += f" &bull; โครงการ: {active_proj}"
 
     if has_ref_point:
         if active_ref_prop:
@@ -3348,7 +3391,10 @@ def render_tab2_reference_analytics_fragment(
             col_b1, col_b2, col_b3 = st.columns([1, 1.8, 1])
             with col_b2:
                 # Dynamic Compare Button Label
-                if has_ref_point and pin_mode == 'radius' and not has_loc_filter:
+                if active_proj:
+                    btn_compare_label = f"กดเปรียบเทียบตามโครงการ: {active_proj}"
+                    btn_help_text = f"ประมวลผลการคำนวณราคากลางในโครงการ {active_proj}"
+                elif has_ref_point and pin_mode == 'radius' and not has_loc_filter:
                     btn_compare_label = f"กดเปรียบเทียบรอบจุดอ้างอิง ({active_ref_radius:.1f} กม.)"
                     btn_help_text = f"ประมวลผลการคำนวณราคากลางรอบจุดอ้างอิงในรัศมี {active_ref_radius:.1f} กม."
                 elif active_subdist:
@@ -3363,9 +3409,6 @@ def render_tab2_reference_analytics_fragment(
                 elif active_prov:
                     btn_compare_label = f"กดเปรียบเทียบตามทำเล: จังหวัด {active_prov[0]}"
                     btn_help_text = f"ประมวลผลการคำนวณราคากลางและวิเคราะห์ทรัพย์สินในจังหวัด {active_prov[0]}"
-                elif active_proj:
-                    btn_compare_label = f"กดเปรียบเทียบตามโครงการ: {active_proj}"
-                    btn_help_text = f"ประมวลผลการคำนวณราคากลางในโครงการ {active_proj}"
                 else:
                     btn_compare_label = "กดเปรียบเทียบสถิติและราคากลางทั้งหมด"
                     btn_help_text = "ประมวลผลการคำนวณราคากลางและวิเคราะห์ทรัพย์สินทั้งหมดตามตัวกรอง"
@@ -3399,9 +3442,12 @@ def render_tab2_reference_analytics_fragment(
 
         # 5. Calculation results (Cards & Table) with Live Filters
         # Determine comparison data scope
-        if has_ref_point and (pin_mode == 'radius' or not has_loc_filter):
+        if has_ref_point and (pin_mode == 'radius' or not has_loc_filter) and not active_proj:
             nearby_df = find_nearby_properties(active_ref_lat, active_ref_lon, df_raw, active_ref_radius)
             scope_header = f"ในรัศมี {active_ref_radius:.1f} กม. รอบจุดอ้างอิง"
+        elif active_proj:
+            nearby_df = df_raw.copy() if df_raw is not None else pd.DataFrame()
+            scope_header = f"ในโครงการ {active_proj}"
         else:
             nearby_df = df_raw.copy() if df_raw is not None else pd.DataFrame()
             if active_subdist:
@@ -3413,8 +3459,6 @@ def render_tab2_reference_analytics_fragment(
                 scope_header = f"ในทำเล อำเภอ{clean_d} จังหวัด{active_prov[0] if active_prov else ''}"
             elif active_prov:
                 scope_header = f"ในทำเล จังหวัด{active_prov[0]}"
-            elif active_proj:
-                scope_header = f"ในโครงการ {active_proj}"
             else:
                 scope_header = "ภาพรวมตามตัวกรองที่เลือก"
 
@@ -3460,20 +3504,24 @@ def render_tab2_reference_analytics_fragment(
         active_cos = map_cos
         active_types = map_types
 
-        if active_prov and not filtered_nearby.empty and 'จังหวัด' in filtered_nearby.columns:
-            filtered_nearby = filtered_nearby[filtered_nearby['จังหวัด'].astype(str).str.strip().isin(active_prov)]
-
-        if active_dist and not filtered_nearby.empty and 'อำเภอ' in filtered_nearby.columns:
-            clean_target_dists = [d.split(' (')[0].strip() for d in active_dist]
-            filtered_nearby = filtered_nearby[filtered_nearby['อำเภอ'].astype(str).str.strip().isin(clean_target_dists)]
-
-        if active_subdist and not filtered_nearby.empty and 'ตำบล' in filtered_nearby.columns:
-            clean_target_subs = [s.split(' (')[0].strip() for s in active_subdist]
-            filtered_nearby = filtered_nearby[filtered_nearby['ตำบล'].astype(str).str.strip().isin(clean_target_subs)]
-
-        if active_proj and not filtered_nearby.empty and 'ชื่อโครงการ' in filtered_nearby.columns:
+        if has_ref_point and (pin_mode == 'radius' or not has_loc_filter) and not active_proj:
+            # In Radius mode, comparison scope is the geographic radius circle.
+            # Do NOT filter out properties across subdistrict/district boundaries so it matches the map markers & status banner!
+            pass
+        elif active_proj and not filtered_nearby.empty and 'ชื่อโครงการ' in filtered_nearby.columns:
             p_list = [p.strip() for p in active_proj.split(",") if p.strip()]
             filtered_nearby = filtered_nearby[filtered_nearby['ชื่อโครงการ'].astype(str).str.strip().isin(p_list)]
+        else:
+            if active_prov and not filtered_nearby.empty and 'จังหวัด' in filtered_nearby.columns:
+                filtered_nearby = filtered_nearby[filtered_nearby['จังหวัด'].astype(str).str.strip().isin(active_prov)]
+
+            if active_dist and not filtered_nearby.empty and 'อำเภอ' in filtered_nearby.columns:
+                clean_target_dists = [d.split(' (')[0].strip() for d in active_dist]
+                filtered_nearby = filtered_nearby[filtered_nearby['อำเภอ'].astype(str).str.strip().isin(clean_target_dists)]
+
+            if active_subdist and not filtered_nearby.empty and 'ตำบล' in filtered_nearby.columns:
+                clean_target_subs = [s.split(' (')[0].strip() for s in active_subdist]
+                filtered_nearby = filtered_nearby[filtered_nearby['ตำบล'].astype(str).str.strip().isin(clean_target_subs)]
 
         if active_cos and not filtered_nearby.empty and 'บริษัท' in filtered_nearby.columns:
             filtered_nearby = filtered_nearby[filtered_nearby['บริษัท'].isin(active_cos)]
@@ -3496,7 +3544,47 @@ def render_tab2_reference_analytics_fragment(
         if map_max_sqm > 0 and not filtered_nearby.empty and 'พื้นที่ใช้สอย (ตร.ม.)' in filtered_nearby.columns:
             filtered_nearby = filtered_nearby[filtered_nearby['พื้นที่ใช้สอย (ตร.ม.)'].apply(to_float_sqm) <= map_max_sqm]
 
-        # Calculate Median for Target Type
+        # -------------------------------------------------------------
+        # 1. Dedicated Pure Land Calculation (Card 5 & Benchmark)
+        # Evaluated from the geographic radius/location scope (nearby_df),
+        # so it NEVER gets eliminated even if the user filters for Condos or Houses in the map!
+        # -------------------------------------------------------------
+        def _check_pure_land_mask(s_types):
+            p = s_types.astype(str)
+            return p.str.contains('ที่ดินเปล่า|ที่ดิน', regex=True, na=False) & \
+                   ~p.str.contains('บ้าน|อาคาร|ทาวน์|คอนโด|ตึก|โรงงาน|พาณิชย์|หอพัก', regex=True, na=False)
+
+        is_scope_pure_land = _check_pure_land_mask(nearby_df['ประเภททรัพย์']) if not nearby_df.empty else pd.Series(False, index=nearby_df.index)
+        land_pool_df = nearby_df[is_scope_pure_land & (nearby_df['ราคา'] > 0)].copy() if not nearby_df.empty else pd.DataFrame()
+
+        # If company filter active and matching land exists for that company, use company-specific land; otherwise use all land in scope
+        if active_cos and not land_pool_df.empty and 'บริษัท' in land_pool_df.columns:
+            co_land = land_pool_df[land_pool_df['บริษัท'].isin(active_cos)]
+            if not co_land.empty:
+                land_pool_df = co_land
+
+        has_raw_land = False
+        median_raw_land = min_raw_land = max_raw_land = 0.0
+        count_raw_land = 0
+        if not land_pool_df.empty:
+            rl_u = land_pool_df['ราคาต่อหน่วย'].dropna()
+            rl_u = rl_u[rl_u > 0]
+            if not rl_u.empty:
+                median_raw_land = float(rl_u.median())
+                min_raw_land = float(rl_u.min())
+                max_raw_land = float(rl_u.max())
+                count_raw_land = len(rl_u)
+                has_raw_land = True
+
+        # Pure land mask for filtered_nearby
+        is_fn_pure_land = _check_pure_land_mask(filtered_nearby['ประเภททรัพย์']) if not filtered_nearby.empty else pd.Series(False, index=filtered_nearby.index)
+
+        # Check if the user explicitly selected pure land in the map filter
+        user_filtered_pure_land = bool(active_types and all(('ที่ดิน' in t and not any(k in t for k in ['บ้าน', 'อาคาร', 'ทาวน์', 'คอนโด', 'ตึก', 'โรงงาน', 'พาณิชย์', 'หอพัก'])) for t in active_types))
+
+        # -------------------------------------------------------------
+        # 2. Calculate Median for Target Type (Card 4)
+        # -------------------------------------------------------------
         has_sel_u_stats = False
         median_u_sel = min_u_sel = max_u_sel = 0.0
         unit_lbl_sel = "ตร.ว."
@@ -3509,8 +3597,9 @@ def render_tab2_reference_analytics_fragment(
             calc_type_df = filtered_nearby[filtered_nearby['ประเภททรัพย์'] == target_type].copy() if not filtered_nearby.empty else pd.DataFrame()
             t_lbl = target_type
         else:
-            calc_type_df = filtered_nearby.copy()
-            t_lbl = "ทรัพย์ทั้งหมดตามตัวกรอง"
+            # If no filter selected, do NOT mix pure land into general buildings!
+            calc_type_df = filtered_nearby[~is_fn_pure_land].copy() if not filtered_nearby.empty else pd.DataFrame()
+            t_lbl = "บ้านและสิ่งปลูกสร้าง"
 
         if not calc_type_df.empty:
             u_sel = calc_type_df['ราคาต่อหน่วย'].dropna()
@@ -3524,35 +3613,31 @@ def render_tab2_reference_analytics_fragment(
                 count_u_sel = len(u_sel)
                 has_sel_u_stats = True
 
-        # Calculate Median for Pure Land
-        p_str = filtered_nearby['ประเภททรัพย์'].astype(str) if not filtered_nearby.empty else pd.Series()
-        is_pure_land = p_str.str.contains('ที่ดินเปล่า|ที่ดิน', regex=True, na=False) & \
-                       ~p_str.str.contains('บ้าน|อาคาร|ทาวน์|คอนโด|ตึก|โรงงาน|พาณิชย์|หอพัก', regex=True, na=False)
-        raw_land_df = filtered_nearby[is_pure_land & (filtered_nearby['ราคา'] > 0)].copy() if not filtered_nearby.empty else pd.DataFrame()
-        
-        has_raw_land = False
-        median_raw_land = min_raw_land = max_raw_land = 0.0
-        count_raw_land = 0
-        if not raw_land_df.empty:
-            rl_u = raw_land_df['ราคาต่อหน่วย'].dropna()
-            rl_u = rl_u[rl_u > 0]
-            if not rl_u.empty:
-                median_raw_land = float(rl_u.median())
-                min_raw_land = float(rl_u.min())
-                max_raw_land = float(rl_u.max())
-                count_raw_land = len(rl_u)
-                has_raw_land = True
-
-        # Calculate Median for All Sq. Wah (เนื้อที่ดิน) in filtered_nearby
+        # -------------------------------------------------------------
+        # 3. Calculate Median for Sq. Wah (Card 2)
+        # Separate pure land: do NOT combine pure land with houses/buildings unless user explicitly filtered pure land
+        # -------------------------------------------------------------
         has_sqw_median = False
         median_sqw_val = 0.0
         count_sqw_val = 0
         min_sqw_val = max_sqw_val = 0.0
-        if not filtered_nearby.empty:
-            col_sqw_name = 'เนื้อที่ (ตร.ว.)' if 'เนื้อที่ (ตร.ว.)' in filtered_nearby.columns else ('พื้นที่_ตารางวา' if 'พื้นที่_ตารางวา' in filtered_nearby.columns else None)
+
+        if user_filtered_pure_land:
+            sqw_calc_df = filtered_nearby[is_fn_pure_land].copy() if not filtered_nearby.empty else pd.DataFrame()
+            c2_title_prefix = "ราคากลาง / ตร.ว. (ที่ดินเปล่า)"
+        elif active_types:
+            sqw_calc_df = filtered_nearby.copy()
+            c2_title_prefix = "ราคากลาง / ตร.ว."
+        else:
+            # Default when no type filter selected in map: exclude pure land so it does not mix with houses/buildings!
+            sqw_calc_df = filtered_nearby[~is_fn_pure_land].copy() if not filtered_nearby.empty else pd.DataFrame()
+            c2_title_prefix = "ราคากลาง / ตร.ว. (บ้านและสิ่งปลูกสร้าง)"
+
+        if not sqw_calc_df.empty:
+            col_sqw_name = 'เนื้อที่ (ตร.ว.)' if 'เนื้อที่ (ตร.ว.)' in sqw_calc_df.columns else ('พื้นที่_ตารางวา' if 'พื้นที่_ตารางวา' in sqw_calc_df.columns else None)
             if col_sqw_name:
-                sqw_vals = filtered_nearby[col_sqw_name].apply(to_float_sqwah)
-                price_vals = pd.to_numeric(filtered_nearby['ราคา'], errors='coerce') if 'ราคา' in filtered_nearby.columns else pd.Series(dtype=float)
+                sqw_vals = sqw_calc_df[col_sqw_name].apply(to_float_sqwah)
+                price_vals = pd.to_numeric(sqw_calc_df['ราคา'], errors='coerce') if 'ราคา' in sqw_calc_df.columns else pd.Series(dtype=float)
                 valid_mask_sqw = (sqw_vals > 0) & (price_vals > 0)
                 sqw_rates = (price_vals[valid_mask_sqw] / sqw_vals[valid_mask_sqw]).dropna()
                 sqw_rates = sqw_rates[sqw_rates > 0]
@@ -3613,7 +3698,7 @@ def render_tab2_reference_analytics_fragment(
             f"</div>"
         )
 
-        # Card 2: Median Sq. Wah (All Properties)
+        # Card 2: Median Sq. Wah (House / Buildings, separated from Pure Land)
         if has_sqw_median:
             c2_main = f"฿{median_sqw_val:,.0f}"
             c2_unit = "/ตร.ว."
@@ -3628,7 +3713,7 @@ def render_tab2_reference_analytics_fragment(
         card2_html = (
             f"<div class='metric-card' style='background: rgba(16, 185, 129, 0.04); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 12px; padding: 12px 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); min-height: 140px; display: flex; flex-direction: column; justify-content: space-between;'>"
             f"<div>"
-            f"<div style='font-size: 0.78rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.4px;'><i class='fa-solid fa-chart-line' style='color: #10b981; margin-right:4px;'></i> ราคากลาง / ตร.ว. {c2_badge}</div>"
+            f"<div style='font-size: 0.78rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.4px;'><i class='fa-solid fa-chart-line' style='color: #10b981; margin-right:4px;'></i> {c2_title_prefix} {c2_badge}</div>"
             f"<div style='font-size: 1.55rem; font-weight: 800; color: #059669; margin: 3px 0;'>{c2_main} <span style='font-size:0.85rem; font-weight:600; color:#64748b;'>{c2_unit}</span></div>"
             f"</div>"
             f"<div style='color: #64748b; font-size: 0.76rem;'>{c2_sub}</div>"
@@ -3762,9 +3847,13 @@ def render_tab2_reference_analytics_fragment(
                 else:
                     return "0.0%"
 
-            show_df['เทียบราคากลางต่อ ตร.ว.'] = [_fmt_diff_pct(v, median_sqw_val) for v in calc_p_sqw]
+            # 5. เทียบราคากลางต่อ ตร.ว. (ถ้าเป็นที่ดินเปล่าเทียบกับราคากลางที่ดินเปล่า ถ้าเป็นบ้าน/สิ่งปลูกสร้างเทียบกับราคากลางสิ่งปลูกสร้าง)
+            show_df['เทียบราคากลางต่อ ตร.ว.'] = [
+                _fmt_diff_pct(v, median_raw_land if (idx in is_fn_pure_land.index and is_fn_pure_land.loc[idx]) else median_sqw_val)
+                for idx, v in zip(show_df.index, calc_p_sqw)
+            ]
 
-            # 6. เทียบราคากับ ตร.ว. ของที่ดินเปล่า
+            # 6. เทียบราคากับ ตร.ว. ของที่ดินเปล่า (Benchmark เทียบมูลค่าที่ดินเปล่าในพื้นที่)
             show_df['เทียบราคากับ ตร.ว. ของที่ดินเปล่า'] = [_fmt_diff_pct(v, median_raw_land) for v in calc_p_sqw]
 
             # 7. พื้นที่ใช้สอย (ตร.ม.)
@@ -4026,7 +4115,7 @@ if "imported_custom_df" in st.session_state and st.session_state["imported_custo
 with st.sidebar:
     col_side_title, col_side_theme = st.columns([0.72, 0.28])
     with col_side_title:
-        sb_logo_path = os.path.join("assets", "logo.png")
+        sb_logo_path = os.path.join("logo", "logo.png") if os.path.exists(os.path.join("logo", "logo.png")) else os.path.join("assets", "logo.png")
         if os.path.exists(sb_logo_path):
             with open(sb_logo_path, "rb") as f_logo:
                 sb_logo_b64 = base64.b64encode(f_logo.read()).decode("utf-8")

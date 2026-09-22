@@ -60,6 +60,7 @@ echo [Deploy] ซิงค์ไฟล์ข้อมูลและสคริ
 for %%F in (app.py all_assets.parquet sam_analytics.py monthly_comparison.py bubble_chart.py dashboard_metrics.py convert_csv_to_parquet.py) do (
     if exist "%%F" copy /y "%%F" "dist\All_Asset_Dashboard_Portable\" >nul
 )
+if exist "logo" xcopy /e /i /y "logo" "dist\All_Asset_Dashboard_Portable\logo" >nul
 if exist "assets" xcopy /e /i /y "assets" "dist\All_Asset_Dashboard_Portable\assets" >nul
 if exist "static" xcopy /e /i /y "static" "dist\All_Asset_Dashboard_Portable\static" >nul
 

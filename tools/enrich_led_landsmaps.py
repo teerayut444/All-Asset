@@ -12,7 +12,7 @@ Features:
 import os
 import sys
 if hasattr(sys.stdout, 'reconfigure'):
-    sys.stdout.reconfigure(encoding='utf-8')
+    sys.stdout.reconfigure(encoding='utf-8', line_buffering=True)
 
 import time
 import re
@@ -94,7 +94,98 @@ def clean_province_name(val):
     return p
 
 
-def run_enrichment(input_file=None, cache_file=CACHE_PATH, province_filter=None, limit=None, delay=1.2, headless=False):
+def sync_cache_to_csv(input_csv, cache_df):
+    """
+    Sync FOUND real coordinates from cache_df directly into input_csv in-place.
+    """
+    if not input_csv or not os.path.exists(input_csv) or not input_csv.lower().endswith('.csv'):
+        return 0
+
+    if cache_df is None or cache_df.empty:
+        return 0
+
+    found = cache_df[cache_df['สถานะ'] == 'FOUND'].dropna(subset=['ละติจูด', 'ลองจิจูด'])
+    if found.empty:
+        return 0
+
+    # Build lookup dict: (prov_clean, deed_clean) -> (lat, lon)
+    coord_lookup = {}
+    for _, crow in found.iterrows():
+        pv = clean_province_name(crow.get('จังหวัด', ''))
+        dt = clean_district_name(crow.get('อำเภอ', ''))
+        dd = clean_deed_number(crow.get('เลขโฉนด', ''))
+        lat = str(crow.get('ละติจูด', '')).strip()
+        lon = str(crow.get('ลองจิจูด', '')).strip()
+        if pv and dd and lat and lon and lat not in ['nan', 'None', ''] and lon not in ['nan', 'None', '']:
+            if dt:
+                coord_lookup[(pv, dt, dd)] = (lat, lon)
+            coord_lookup[(pv, dd)] = (lat, lon)
+
+    if not coord_lookup:
+        return 0
+
+    try:
+        df = pd.read_csv(input_csv, dtype=str, low_memory=False)
+        if 'เลขโฉนด' not in df.columns or 'จังหวัด' not in df.columns:
+            return 0
+
+        updated_count = 0
+        prov_series = df['จังหวัด'].apply(clean_province_name)
+        deed_series = df['เลขโฉนด'].apply(clean_deed_number)
+        dist_series = df['อำเภอ'].apply(clean_district_name) if 'อำเภอ' in df.columns else None
+
+        for idx in range(len(df)):
+            pv = prov_series.iloc[idx]
+            dd = deed_series.iloc[idx]
+            if not pv or not dd:
+                continue
+
+            target_coords = None
+            if dist_series is not None:
+                dt = dist_series.iloc[idx]
+                target_coords = coord_lookup.get((pv, dt, dd))
+
+            if not target_coords:
+                target_coords = coord_lookup.get((pv, dd))
+
+            if target_coords:
+                cur_lat = str(df.at[idx, 'ละติจูด'] or '').strip()
+                cur_lon = str(df.at[idx, 'ลองจิจูด'] or '').strip()
+                new_lat, new_lon = target_coords
+                if cur_lat != new_lat or cur_lon != new_lon:
+                    df.at[idx, 'ละติจูด'] = new_lat
+                    df.at[idx, 'ลองจิจูด'] = new_lon
+                    updated_count += 1
+
+        if updated_count > 0:
+            for attempt in range(3):
+                try:
+                    df.to_csv(input_csv, index=False, encoding='utf-8-sig')
+                    print(f"  💾 [CSV IN-PLACE] ซิงค์พิกัดจริงลง {os.path.basename(input_csv)} สำเร็จ {updated_count:,d} รายการ", flush=True)
+                    break
+                except PermissionError:
+                    time.sleep(1)
+        return updated_count
+    except Exception as e:
+        print(f"  ⚠️ [CSV SYNC] ไม่สามารถอัปเดตไฟล์ CSV ได้: {e}", flush=True)
+        return 0
+
+
+def trigger_dashboard_merge():
+    """Trigger merge_csv_monthly to update all_assets.parquet with newly enriched coordinates."""
+    print("\n🔄 กำลังซิงค์ข้อมูลและอัปเดต Dashboard (all_assets.parquet)...", flush=True)
+    try:
+        py_scraper_dir = os.path.join(_ROOT_DIR, "Py Scraper")
+        if py_scraper_dir not in sys.path:
+            sys.path.insert(0, py_scraper_dir)
+        import merge_csv_monthly
+        merge_csv_monthly.merge_monthly_csv()
+        print("✅ ซิงค์พิกัดจริงเข้าสู่ Dashboard เรียบร้อยแล้ว! พร้อมใช้งานทันที", flush=True)
+    except Exception as e:
+        print(f"⚠️ เกิดข้อผิดพลาดในการซิงค์เข้า Dashboard: {e}", flush=True)
+
+
+def run_enrichment(input_file=None, cache_file=CACHE_PATH, province_filter=None, limit=None, delay=1.2, headless=False, auto_merge=True):
     # 1. Determine input file
     if not input_file:
         input_file = find_latest_led_csv()
@@ -152,6 +243,12 @@ def run_enrichment(input_file=None, cache_file=CACHE_PATH, province_filter=None,
 
     print(f"[CACHE] Loaded {len(cache_df)} records from cache ({len(cached_keys)} unique entries).")
 
+    # Sync existing cache to CSV immediately if input is a CSV
+    if input_file and input_file.lower().endswith('.csv'):
+        sync_cnt = sync_cache_to_csv(input_file, cache_df)
+        if sync_cnt > 0:
+            print(f"[CSV SYNC] Pre-synced {sync_cnt:,d} existing coordinates to {os.path.basename(input_file)}")
+
     # 4. Filter pending deeds
     pending_records = []
     seen = set()
@@ -190,20 +287,25 @@ def run_enrichment(input_file=None, cache_file=CACHE_PATH, province_filter=None,
 
     with sync_playwright() as p:
         print("\n[BROWSER] Launching Chrome browser...")
+        launch_args = ['--disable-blink-features=AutomationControlled', '--no-sandbox']
         try:
-            browser = p.chromium.launch(channel='chrome', headless=headless)
+            browser = p.chromium.launch(channel='chrome', headless=headless, args=launch_args)
         except Exception:
             # Fallback to default chromium
-            browser = p.chromium.launch(headless=headless)
+            browser = p.chromium.launch(headless=headless, args=launch_args)
 
-        page = browser.new_page()
-        page.set_default_timeout(30000)
+        context = browser.new_context(
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+            viewport={"width": 1366, "height": 768}
+        )
+        page = context.new_page()
+        page.set_default_timeout(35000)
 
         print("[BROWSER] Navigating to https://landsmaps.dol.go.th/ ...")
-        page.goto("https://landsmaps.dol.go.th/", wait_until="commit")
+        page.goto("https://landsmaps.dol.go.th/", wait_until="domcontentloaded")
 
         # Dismiss initial announcement modal if present
-        time.sleep(2)
+        time.sleep(3)
         try:
             page.evaluate("""() => {
                 const closeBtn = document.querySelector('button.close, [data-dismiss="modal"]');
@@ -216,10 +318,19 @@ def run_enrichment(input_file=None, cache_file=CACHE_PATH, province_filter=None,
 
         # Wait for province dropdown to populate
         print("[BROWSER] Waiting for LandsMaps options to load...")
-        page.wait_for_function(
-            "() => { const el = document.getElementById('cbprovince'); return el && el.options && el.options.length > 10; }",
-            timeout=30000
-        )
+        try:
+            page.wait_for_function(
+                "() => { const el = document.getElementById('cbprovince'); return el && el.options && el.options.length > 10; }",
+                timeout=35000
+            )
+        except Exception:
+            print("[BROWSER] Retrying page reload once...")
+            page.reload(wait_until="domcontentloaded")
+            time.sleep(3)
+            page.wait_for_function(
+                "() => { const el = document.getElementById('cbprovince'); return el && el.options && el.options.length > 10; }",
+                timeout=35000
+            )
         time.sleep(1)
 
         current_prov = None
@@ -420,11 +531,13 @@ def run_enrichment(input_file=None, cache_file=CACHE_PATH, province_filter=None,
 
                 processed_count += 1
 
-                # Periodically save cache every 10 deeds
+                # Periodically save cache and update CSV every 10 deeds
                 if len(new_results) >= 10:
                     batch_df = pd.DataFrame(new_results)
                     cache_df = pd.concat([cache_df, batch_df], ignore_index=True)
                     save_cache(cache_df, cache_file)
+                    if input_file and input_file.lower().endswith('.csv'):
+                        sync_cache_to_csv(input_file, cache_df)
                     new_results.clear()
                     print(f"  [SAVED] Progress saved to {cache_file} (Total in cache: {len(cache_df)})")
 
@@ -439,6 +552,8 @@ def run_enrichment(input_file=None, cache_file=CACHE_PATH, province_filter=None,
                 cache_df = pd.concat([cache_df, batch_df], ignore_index=True)
                 save_cache(cache_df, cache_file)
                 print(f"[SAVED] Final progress saved to {cache_file} (Total in cache: {len(cache_df)})")
+            if input_file and input_file.lower().endswith('.csv'):
+                sync_cache_to_csv(input_file, cache_df)
 
             browser.close()
 
@@ -454,6 +569,9 @@ def run_enrichment(input_file=None, cache_file=CACHE_PATH, province_filter=None,
         print(f" - Total in cache: {len(cache_df)}")
     print("=" * 45)
 
+    if auto_merge:
+        trigger_dashboard_merge()
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Scrape real coordinates from LandsMaps for LED assets")
@@ -463,6 +581,7 @@ if __name__ == '__main__':
     parser.add_argument('--limit', type=int, default=0, help="Limit number of deeds to process (0 = all)")
     parser.add_argument('--delay', type=float, default=1.2, help="Delay between searches in seconds")
     parser.add_argument('--headless', action='store_true', help="Run browser in headless mode")
+    parser.add_argument('--no-merge', action='store_true', help="Do not auto-merge into all_assets.parquet after completion")
 
     args = parser.parse_args()
     run_enrichment(
@@ -471,5 +590,6 @@ if __name__ == '__main__':
         province_filter=args.province,
         limit=args.limit,
         delay=args.delay,
-        headless=args.headless
+        headless=args.headless,
+        auto_merge=not args.no_merge
     )

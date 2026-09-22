@@ -24,7 +24,9 @@ def get_company_logo_data_uri(comp_id):
     # Priority order for file extensions
     for ext in ['.png', '.svg', '.webp', '.jpg', '.jpeg']:
         for fname in [f"{target}{ext}", f"{target.upper()}{ext}", f"{target.capitalize()}{ext}"]:
-            p = os.path.join('assets', 'logos', fname)
+            p = os.path.join('logo', 'logos', fname)
+            if not os.path.exists(p):
+                p = os.path.join('assets', 'logos', fname)
             if os.path.exists(p):
                 try:
                     mime = 'image/svg+xml' if ext == '.svg' else f"image/{ext.replace('.', '')}"

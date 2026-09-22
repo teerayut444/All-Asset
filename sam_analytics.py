@@ -207,7 +207,11 @@ def render_same_project_leaflet_map_html(proj_units, proj_name, is_dark_mode=Fal
 
     # Load logo dictionary with tight crop & centering
     base_dir = Path(__file__).resolve().parent
-    logo_dir = base_dir / "assets" / "logos"
+    logo_dir = base_dir / "logo" / "logos"
+    if not logo_dir.exists():
+        logo_dir = Path("logo/logos")
+    if not logo_dir.exists():
+        logo_dir = base_dir / "assets" / "logos"
     if not logo_dir.exists():
         logo_dir = Path("assets/logos")
         
@@ -2154,7 +2158,9 @@ def render_sam_tab(df_raw, df_filtered, is_dark_mode=False, plotly_template="plo
     # -------------------------------------------------------------------------
     # SAM HEADER & BRAND BANNER
     # -------------------------------------------------------------------------
-    sam_logo_path = Path("assets/logos/SAM.png")
+    sam_logo_path = Path("logo/logos/SAM.png")
+    if not sam_logo_path.exists():
+        sam_logo_path = Path("assets/logos/SAM.png")
     sam_logo_b64 = ""
     if sam_logo_path.exists():
         with open(sam_logo_path, "rb") as img_f:

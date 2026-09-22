@@ -5,16 +5,34 @@ title LandsMaps Real Coordinates Enrichment Tool
 echo ====================================================================
 echo   LandsMaps Real GPS Coordinates Enrichment for LED Assets
 echo ====================================================================
-echo.
-echo This tool searches real GPS coordinates from the Department of Lands
-echo (https://landsmaps.dol.go.th/) using deed numbers for LED assets.
-echo Progress is saved incrementally in data\led_coords_cache.parquet
+echo ระบบดึงพิกัดจริงระดับแปลงจากโฉนดที่ดิน (https://landsmaps.dol.go.th/)
+echo บันทึกแคชอัตโนมัติ: data\led_coords_cache.parquet
+echo ====================================================================
 echo.
 
-set /p PROV="Enter Province to filter (e.g. ปทุมธานี or press Enter for ALL): "
-set /p LIMIT="Enter Deed Limit (e.g. 50 or press Enter for ALL pending): "
+if not "%1"=="" (
+    echo รันด้วยคำสั่งพารามิเตอร์: %*
+    python tools\enrich_led_landsmaps.py %*
+    goto end
+)
+
+echo เลือกรูปแบบการทำงาน:
+echo  [1] รันเบื้องหลัง (Headless - ซ่อนหน้าต่างเบราว์เซอร์ ไม่กวนหน้าจอ) [แนะนำ]
+echo  [2] รันแบบเปิดหน้าต่าง Chrome ให้เห็นการทำงาน
+echo.
+set /p MODE="เลือกโหมด [1/2] (กด Enter = [1] รันเบื้องหลัง): "
 
 set CMD_ARGS=
+if "%MODE%"=="2" (
+    echo โหมด: เปิดหน้าต่างเบราว์เซอร์ Chrome
+) else (
+    echo โหมด: รันเบื้องหลัง (Headless)
+    set CMD_ARGS=--headless
+)
+echo.
+
+set /p PROV="ระบุจังหวัดที่ต้องการกรอง (เช่น ปทุมธานี หรือกด Enter เพื่อดึงทุกจังหวัด): "
+set /p LIMIT="ระบุจำนวนโฉนดที่ต้องการดึง (เช่น 50, 100 หรือกด Enter เพื่อดึงทั้งหมด): "
 
 if not "%PROV%"=="" (
     set CMD_ARGS=%CMD_ARGS% --province %PROV%
@@ -25,11 +43,15 @@ if not "%LIMIT%"=="" (
 )
 
 echo.
-echo Starting enrichment with args: %CMD_ARGS%
 echo ====================================================================
+echo กำลังเริ่มต้นค้นหาพิกัดจริง...
+echo (สามารถกด Ctrl+C เพื่อหยุดเมื่อไหร่ก็ได้ ข้อมูลจะปลอดภัย 100%%)
+echo ====================================================================
+echo.
 
 python tools\enrich_led_landsmaps.py %CMD_ARGS%
 
+:end
 echo.
 echo ====================================================================
 echo Finished processing.
