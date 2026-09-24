@@ -37,7 +37,7 @@ def render_sidebar(df_raw):
                 st.markdown(f'''<div style="padding-top: 6px; font-size: 1.15rem; color: {'#34d399' if is_dark_mode else '#6ee7b7'};"><i class="fa-solid fa-moon"></i></div>''', unsafe_allow_html=True)
         
         if df_raw is not None and not df_raw.empty:
-            src_name = getattr(df_raw, 'attrs', {}).get('source', 'all_assets.parquet')
+            src_name = getattr(df_raw, 'attrs', {}).get('source', 'all_asset.parquet')
             _, exact_date_str = get_dataset_month_year(df_raw)
             st.markdown(f"""
             <div style="background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(110, 231, 183, 0.25); border-radius: 8px; padding: 7px 10px; margin-top: 5px; margin-bottom: 8px; font-size: 0.8rem; color: #f0fdf4; font-weight: 600;">

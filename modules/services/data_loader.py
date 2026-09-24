@@ -16,39 +16,23 @@ from modules.services.geo_service import (
 )
 
 def get_latest_parquet_path():
-    """Find the newest dated all_assets_YYYY_MM_DD.parquet file, fallback to all_asset.parquet or all_assets.parquet."""
-    candidates = list(Path(".").glob("all_assets_*.parquet"))
-    dated = [p for p in candidates if not p.name.endswith("_no_centroid.parquet") and re.match(r'^all_assets_\d{4}_\d{2}_\d{2}\.parquet$', p.name)]
-    if dated:
-        dated.sort(key=lambda p: (p.name, p.stat().st_mtime), reverse=True)
-        return dated[0]
-    if Path("all_asset.parquet").exists():
-        return Path("all_asset.parquet")
-    return Path("all_assets.parquet")
+    """Returns the primary dashboard dataset path strictly: all_asset.parquet."""
+    return Path("all_asset.parquet")
 
 def get_data_mtime():
-    """Get modification timestamp of the active parquet data file."""
+    """Get modification timestamp of all_asset.parquet."""
     p = get_latest_parquet_path()
     if p.exists():
         return p.stat().st_mtime
-    for fallback_name in ["all_asset.parquet", "all_assets.parquet"]:
-        p_fallback = Path(fallback_name)
-        if p_fallback.exists():
-            return p_fallback.stat().st_mtime
     return 0
 
-@st.cache_data(ttl=3600, show_spinner="กำลังโหลดฐานข้อมูลทรัพย์สิน (Parquet)...")
+@st.cache_data(ttl=3600, show_spinner="กำลังโหลดฐานข้อมูลทรัพย์สิน (all_asset.parquet)...")
 def load_properties_data(data_version=0):
-    """Load property dataset from Parquet file and run initial derivation/enrichment."""
+    """Load property dataset strictly from all_asset.parquet and run initial derivation/enrichment."""
     parquet_file = get_latest_parquet_path()
-    if not parquet_file.exists():
-        if Path("all_asset.parquet").exists():
-            parquet_file = Path("all_asset.parquet")
-        elif Path("all_assets.parquet").exists():
-            parquet_file = Path("all_assets.parquet")
     
     if not parquet_file.exists():
-        st.error("ไม่พบไฟล์ข้อมูล 'all_asset.parquet' กรุณารันสคริปต์ convert_csv_to_parquet.py เพื่อสร้างไฟล์")
+        st.error("ไม่พบไฟล์ข้อมูล 'all_asset.parquet' กรุณาตรวจสอบไฟล์ในโฟลเดอร์หลัก")
         return None
 
     try:

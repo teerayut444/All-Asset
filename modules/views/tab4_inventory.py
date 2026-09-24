@@ -9,41 +9,31 @@ from modules.services.export_service import render_import_export_section
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def get_tab4_search_options(df_filtered):
-    """Build fast, memory-safe dropdown options for Tab 4 across all companies."""
-    # 1. Projects specifically from SAM properties
+    """Build fast, memory-safe dropdown options for Tab 4 (SAM projects & SAM asset codes)."""
     sam_projs = []
-    if 'บริษัท' in df_filtered.columns and 'ชื่อโครงการ' in df_filtered.columns:
+    sam_codes = []
+
+    if 'บริษัท' in df_filtered.columns:
         sam_df = df_filtered[df_filtered['บริษัท'].astype(str).str.strip().str.upper() == 'SAM']
-        projs = sam_df['ชื่อโครงการ'].dropna().astype(str).str.strip()
-        projs = projs[~projs.isin(['-', '', 'nan', 'None', 'ไม่ระบุ', 'undefined', 'โครงการไม่มีชื่อ', 'null'])]
-        sam_projs = sorted(projs.unique().tolist())
-    elif 'ชื่อโครงการ' in df_filtered.columns:
-        projs = df_filtered['ชื่อโครงการ'].dropna().astype(str).str.strip()
-        projs = projs[~projs.isin(['-', '', 'nan', 'None', 'ไม่ระบุ', 'undefined', 'โครงการไม่มีชื่อ', 'null'])]
-        sam_projs = sorted(projs.value_counts().head(2000).index.tolist())
+        if 'ชื่อโครงการ' in sam_df.columns:
+            projs = sam_df['ชื่อโครงการ'].dropna().astype(str).str.strip()
+            projs = projs[~projs.isin(['-', '', 'nan', 'None', 'ไม่ระบุ', 'undefined', 'โครงการไม่มีชื่อ', 'null'])]
+            sam_projs = sorted(projs.unique().tolist())
+        if 'รหัสทรัพย์' in sam_df.columns:
+            codes = sam_df['รหัสทรัพย์'].dropna().astype(str).str.strip()
+            codes = codes[~codes.isin(['-', '', 'nan', 'None', 'ไม่ระบุ', 'undefined', 'null'])]
+            sam_codes = sorted(codes.unique().tolist())
+    else:
+        if 'ชื่อโครงการ' in df_filtered.columns:
+            projs = df_filtered['ชื่อโครงการ'].dropna().astype(str).str.strip()
+            projs = projs[~projs.isin(['-', '', 'nan', 'None', 'ไม่ระบุ', 'undefined', 'โครงการไม่มีชื่อ', 'null'])]
+            sam_projs = sorted(projs.value_counts().head(2000).index.tolist())
+        if 'รหัสทรัพย์' in df_filtered.columns:
+            codes = df_filtered['รหัสทรัพย์'].dropna().astype(str).str.strip()
+            codes = codes[~codes.isin(['-', '', 'nan', 'None', 'ไม่ระบุ', 'undefined', 'null'])]
+            sam_codes = sorted(codes.value_counts().head(5000).index.tolist())
 
-    # 2. Comprehensive asset codes across all 14 companies (safe ~35k size for browser)
-    code_list = []
-    if 'บริษัท' in df_filtered.columns and 'รหัสทรัพย์' in df_filtered.columns:
-        # Full 100% of SAM, KTB, SCB, GSB, Chayo555
-        for comp in ['SAM', 'KTB', 'SCB', 'GSB', 'Chayo555']:
-            sub = df_filtered[df_filtered['บริษัท'] == comp]['รหัสทรัพย์'].dropna().astype(str).str.strip()
-            code_list.extend(sub.unique().tolist())
-        # Balanced quotas for others
-        quotas = {
-            'BAM': 4000, 'KBANK': 3000, 'GHB': 3000, 'LED': 4000,
-            'Baania': 1000, 'NaYoo': 1000, 'Livinginsider': 1500,
-            'DDproperty': 1500, 'ZmyHome': 1000
-        }
-        for comp, q in quotas.items():
-            sub = df_filtered[df_filtered['บริษัท'] == comp]['รหัสทรัพย์'].dropna().astype(str).str.strip()
-            code_list.extend(sub.head(q).unique().tolist())
-    elif 'รหัสทรัพย์' in df_filtered.columns:
-        sub = df_filtered['รหัสทรัพย์'].dropna().astype(str).str.strip()
-        code_list = sub.head(25000).unique().tolist()
-
-    clean_codes = sorted(list(set(c for c in code_list if c and c not in ['-', '', 'nan', 'None', 'null', 'undefined'])))
-    return sam_projs, clean_codes
+    return sam_projs, sam_codes
 
 def render_tab4_inventory_view(df_filtered, is_dark_mode):
     """
@@ -60,14 +50,14 @@ def render_tab4_inventory_view(df_filtered, is_dark_mode):
 
     st.markdown(f"### <i class='fa-solid fa-table-list' style='color:#059669; margin-right:8px;'></i>รายการทรัพย์สินที่ค้นพบ ({len(df_filtered):,} รายการ)", unsafe_allow_html=True)
     
-    # Preload options (SAM projects & all-company asset codes)
+    # Preload options specifically from SAM properties
     proj_options, code_options = get_tab4_search_options(df_filtered)
 
     col_code, col_proj, col_limit = st.columns([1.8, 2.2, 0.8], gap="medium")
     with col_code:
         st.markdown(
             f"<div style='font-size:0.875rem; font-weight:600; margin-bottom:4px; color:{'#f8fafc' if is_dark_mode else '#0f172a'}; display:flex; align-items:center; gap:6px;'>"
-            f"<i class='fa-solid fa-barcode' style='color:#059669;'></i><span>รหัสทรัพย์ (Dropdown ทุกบริษัท)</span>"
+            f"<i class='fa-solid fa-barcode' style='color:#059669;'></i><span>รหัสทรัพย์ (SAM)</span>"
             f"</div>",
             unsafe_allow_html=True
         )
@@ -75,7 +65,7 @@ def render_tab4_inventory_view(df_filtered, is_dark_mode):
             "รหัสทรัพย์",
             options=code_options,
             default=[],
-            placeholder="พิมพ์เพื่อค้นหา หรือเลือกจาก Dropdown...",
+            placeholder="พิมพ์หรือเลือกค้นหารหัสทรัพย์ของ SAM...",
             label_visibility="collapsed",
             key="tab4_multiselect_code"
         )
@@ -224,7 +214,7 @@ def render_tab4_inventory_view(df_filtered, is_dark_mode):
     elif has_active_search:
         filter_parts = []
         if selected_codes:
-            filter_parts.append(f"รหัสทรัพย์ที่เลือก {len(selected_codes):,} รายการ")
+            filter_parts.append(f"รหัสทรัพย์ที่เลือก {len(selected_codes):,} รายการ (SAM)")
         if selected_projs:
             filter_parts.append(f"โครงการที่เลือก {len(selected_projs):,} โครงการ (SAM)")
 

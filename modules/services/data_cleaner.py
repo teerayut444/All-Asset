@@ -205,7 +205,7 @@ def get_dataset_month_year(_df):
             except Exception:
                 pass
     try:
-        p_path = Path("all_asset.parquet") if Path("all_asset.parquet").exists() else Path("all_assets.parquet")
+        p_path = Path("all_asset.parquet")
         if p_path.exists():
             dt = datetime.datetime.fromtimestamp(p_path.stat().st_mtime)
             thai_year = dt.year + 543 if dt.year < 2500 else dt.year
