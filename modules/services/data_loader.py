@@ -49,31 +49,49 @@ def get_sam_project_options(_df):
     """Pre-computes and caches list of SAM projects and their unit counts across all companies."""
     if _df is None or _df.empty or 'ชื่อโครงการ' not in _df.columns or 'บริษัท' not in _df.columns:
         return [], {}
+    from modules.views.tab4_inventory import normalize_project_name, get_brand_search_tag
+
     sam_mask = _df['บริษัท'].astype(str).str.strip().str.upper() == 'SAM'
     sam_projs = set(_df[sam_mask]['ชื่อโครงการ'].dropna().astype(str).str.strip())
-    sam_projs = {p for p in sam_projs if p and p not in ['-', 'ไม่มีชื่อ', 'nan', 'None', 'ไม่ระบุ', 'null', 'undefined']}
-    
-    valid_df = _df[_df['ชื่อโครงการ'].astype(str).str.strip().isin(sam_projs)]
-    sam_cnt = valid_df[valid_df['บริษัท'].astype(str).str.strip().str.upper() == 'SAM']['ชื่อโครงการ'].astype(str).str.strip().value_counts()
-    other_cnt = valid_df[valid_df['บริษัท'].astype(str).str.strip().str.upper() != 'SAM']['ชื่อโครงการ'].astype(str).str.strip().value_counts()
-    
+    sam_projs = {p for p in sam_projs if p and p not in ['-', 'ไม่มีชื่อ', 'nan', 'None', 'ไม่ระบุ', 'null', 'undefined', 'โครงการไม่มีชื่อ']}
+
+    raw_to_norm = {p: normalize_project_name(p) for p in sam_projs}
+    all_sam_norm_keys = set(k for k in raw_to_norm.values() if k)
+
+    all_unique_projs = _df['ชื่อโครงการ'].dropna().astype(str).str.strip().unique()
+    all_norm_map = {p: normalize_project_name(p) for p in all_unique_projs if p}
+
+    df_sub = _df[['ชื่อโครงการ', 'บริษัท']].dropna().copy()
+    df_sub['norm_k'] = df_sub['ชื่อโครงการ'].astype(str).str.strip().map(all_norm_map)
+    matched = df_sub[df_sub['norm_k'].isin(all_sam_norm_keys)]
+
+    sam_counts = matched[matched['บริษัท'].astype(str).str.strip().str.upper() == 'SAM'].groupby('norm_k').size()
+    comp_df = matched[matched['บริษัท'].astype(str).str.strip().str.upper() != 'SAM']
+    comp_counts = comp_df.groupby('norm_k').size()
+    comp_companies = comp_df.groupby('norm_k')['บริษัท'].nunique()
+
     # Strictly filter for projects where sam_cnt > 0
-    sam_projs = {p for p in sam_projs if int(sam_cnt.get(p, 0)) > 0}
-    
+    sam_projs = {p for p in sam_projs if int(sam_counts.get(raw_to_norm.get(p, ''), 0)) > 0}
+
     def sort_key(p):
-        o = int(other_cnt.get(p, 0))
-        s = int(sam_cnt.get(p, 0))
+        k = raw_to_norm.get(p, '')
+        o = int(comp_counts.get(k, 0)) if k else 0
+        s = int(sam_counts.get(k, 0)) if k else 0
         return (1 if o > 0 else 0, o, s)
-    
+
     sorted_projs = sorted(list(sam_projs), key=sort_key, reverse=True)
     labels = {}
     for p in sorted_projs:
-        s = int(sam_cnt.get(p, 0))
-        o = int(other_cnt.get(p, 0))
+        k = raw_to_norm.get(p, '')
+        s = int(sam_counts.get(k, 0)) if k else 0
+        o = int(comp_counts.get(k, 0)) if k else 0
+        cj = int(comp_companies.get(k, 0)) if k else 0
+        tag = get_brand_search_tag(p)
+        tag_suffix = f"  [{tag}]" if tag else ""
         if o > 0:
-            labels[p] = f"{p} (SAM: {s}, คู่แข่ง: {o})"
+            labels[p] = f"{p}  ➔  SAM: {s}  |  คู่แข่ง: {cj} เจ้า ({o} ทรัพย์){tag_suffix}"
         else:
-            labels[p] = f"{p} (SAM: {s})"
+            labels[p] = f"{p}  ➔  SAM: {s}  |  ไม่มีคู่แข่ง{tag_suffix}"
     return sorted_projs, labels
 
 @st.cache_data(show_spinner=False)

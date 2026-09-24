@@ -7,38 +7,188 @@ from modules.config.constants import is_true_centroid
 from modules.services.data_cleaner import to_float_sqwah, to_float_sqm, format_to_rai_ngan_wah
 from modules.services.export_service import render_import_export_section
 
+fragment_decorator = getattr(st, "fragment", lambda f: f)
+
+# Project normalization patterns & Brand tags (aligned with Tab 2 Map)
+_PROJECT_BRAND_MAP = {
+    'ไอดิโอ': 'ไอดีโอ',
+    'ideo': 'ไอดีโอ',
+    'lumpini': 'ลุมพินี',
+    'lpn': 'ลุมพินี',
+    'pruksa': 'พฤกษา',
+    'ps': 'พฤกษา',
+    'supalai': 'ศุภาลัย',
+    'aspire': 'แอสปาย',
+    'dcondo': 'ดีคอนโด',
+    'the base': 'เดอะเบส',
+    'thebase': 'เดอะเบส',
+    'เดอะ เบส': 'เดอะเบส',
+    'เดอะเบส': 'เดอะเบส',
+    'life': 'ไลฟ์',
+    'rhythm': 'ริทึ่ม',
+    'knightsbridge': 'ไนท์บริดจ์',
+    'plum': 'พลัม',
+    'casa': 'คาซ่า',
+    'centric': 'เซ็นทริค',
+    'condolette': 'คอนโดเลต',
+    'u delight': 'ยูดีไลท์',
+    'udelight': 'ยูดีไลท์',
+    'chapter one': 'แชปเตอร์วัน',
+    'chapterone': 'แชปเตอร์วัน',
+    'regent': 'รีเจ้นท์',
+    'noble': 'โนเบิล',
+    'parkland': 'พาร์คแลนด์',
+    'ashton': 'แอชตัน',
+    'เอลลิโอ': 'เอลิโอ',
+    'elio': 'เอลิโอ',
+    'unio': 'ยูนิโอ',
+    'modiz': 'โมดิซ',
+    'atmoz': 'แอทโมซ',
+    'kave': 'เคฟ',
+}
+
+_BRAND_TAG_PATTERNS = [
+    (re.compile(r'ไอดีโอ|ไอดิโอ|ideo', re.I), 'IDEO / ไอดิโอ'),
+    (re.compile(r'ลุมพินี|lumpini|lpn', re.I), 'LPN / Lumpini'),
+    (re.compile(r'พฤกษา|pruksa|ps\b', re.I), 'Pruksa / PS'),
+    (re.compile(r'ศุภาลัย|supalai', re.I), 'Supalai'),
+    (re.compile(r'แอสปาย|aspire', re.I), 'Aspire'),
+    (re.compile(r'ดีคอนโด|dcondo', re.I), 'Dcondo'),
+    (re.compile(r'เดอะ\s*เบส|the\s*base', re.I), 'The Base'),
+    (re.compile(r'ไลฟ์|life\b', re.I), 'Life'),
+    (re.compile(r'ริทึ่ม|rhythm', re.I), 'Rhythm'),
+    (re.compile(r'ไนท์บริดจ์|knightsbridge', re.I), 'Knightsbridge'),
+    (re.compile(r'พลัม|plum', re.I), 'Plum'),
+    (re.compile(r'คาซ่า|casa', re.I), 'Casa'),
+    (re.compile(r'เซ็นทริค|centric', re.I), 'Centric'),
+    (re.compile(r'คอนโดเลต|condolette', re.I), 'Condolette'),
+    (re.compile(r'ยูดีไลท์|u\s*delight|udelight', re.I), 'U Delight'),
+    (re.compile(r'แชปเตอร์วัน|chapter\s*one', re.I), 'Chapter One'),
+    (re.compile(r'รีเจ้นท์|regent', re.I), 'Regent'),
+    (re.compile(r'โนเบิล|noble', re.I), 'Noble'),
+    (re.compile(r'พาร์คแลนด์|parkland', re.I), 'Parkland'),
+    (re.compile(r'แอชตัน|ashton', re.I), 'Ashton'),
+    (re.compile(r'เอลิโอ|เอลลิโอ|elio', re.I), 'Elio'),
+    (re.compile(r'ยูนิโอ|unio', re.I), 'Unio'),
+    (re.compile(r'โมดิซ|modiz', re.I), 'Modiz'),
+    (re.compile(r'แอทโมซ|atmoz', re.I), 'Atmoz'),
+    (re.compile(r'เคฟ|kave', re.I), 'Kave'),
+]
+
+_PREFIX_PAT = re.compile(
+    r'^(คอนโด\s*โครงการ|โครงการ\s*คอนโด|โครงการ\s*หมู่บ้าน|อาคารชุด|คอนโดมิเนียม|มีเนียม|โครงการ|หมู่บ้าน|คอนโด|บ้านเดี่ยว|บ้านแฝด|บ้าน|ทาวน์โฮม|ทาวน์เฮ้าส์|ขายคอนโด)\s*',
+    re.I
+)
+_SUFFIX_PAT = re.compile(
+    r'(\[.*?\]|\(.*?\)|,\s*(กรุงเทพมหานคร|กรุงเทพฯ|กรุงเทพ|นนทบุรี|ปทุมธานี|สมุทรปราการ|ชลบุรี|เชียงใหม่|ระยอง|ภูเก็ต).*$|ชั้น\s*\d+.*$|\b(ติด|ใกล้)\s*(bts|mrt).*$)',
+    re.I
+)
+_SPACE_CLEAN = re.compile(r'[\s\-_/.,:;()\[\]{}]+')
+
+def normalize_project_name(s):
+    """Normalizes project names to link variations (e.g. ไอดิโอ <-> ไอดีโอ <-> IDEO) like in Tab 2."""
+    if not s or pd.isna(s):
+        return ''
+    txt = str(s).strip()
+    if ' : ' in txt:
+        parts = txt.split(' : ')
+        txt = parts[1] if len(parts) > 1 else parts[0]
+    while True:
+        nt = _PREFIX_PAT.sub('', txt).strip()
+        if nt == txt:
+            break
+        txt = nt
+    txt = _SUFFIX_PAT.sub('', txt).strip()
+    txt_lower = txt.lower()
+    for b_from, b_to in _PROJECT_BRAND_MAP.items():
+        txt_lower = re.sub(r'\b' + re.escape(b_from) + r'\b', b_to, txt_lower)
+        txt_lower = txt_lower.replace(b_from, b_to)
+    res = _SPACE_CLEAN.sub('', txt_lower)
+    if res in ['บ้าน', 'คอนโด', 'ที่ดิน', 'ทาวน์โฮม', 'อาคารพาณิชย์', '']:
+        return ''
+    return res
+
+def get_brand_search_tag(raw_name):
+    """Returns alias search tag (e.g. IDEO / ไอดิโอ, LPN / Lumpini) to ensure instant search in Streamlit dropdown."""
+    name_str = str(raw_name).strip()
+    for pat, tag in _BRAND_TAG_PATTERNS:
+        if pat.search(name_str):
+            return tag
+    return ""
+
 @st.cache_data(ttl=3600, show_spinner=False)
-def get_tab4_search_options(df_filtered):
-    """Build fast, memory-safe dropdown options for Tab 4 (SAM projects & SAM asset codes)."""
+def get_tab4_search_options(_df_filtered):
+    """Build fast, memory-safe dropdown options for Tab 4 (SAM projects with competitor stats & SAM asset codes)."""
     sam_projs = []
     sam_codes = []
+    proj_options = []
+    proj_label_to_raw = {}
+    proj_label_to_norm = {}
 
-    if 'บริษัท' in df_filtered.columns:
-        sam_df = df_filtered[df_filtered['บริษัท'].astype(str).str.strip().str.upper() == 'SAM']
-        if 'ชื่อโครงการ' in sam_df.columns:
-            projs = sam_df['ชื่อโครงการ'].dropna().astype(str).str.strip()
-            projs = projs[~projs.isin(['-', '', 'nan', 'None', 'ไม่ระบุ', 'undefined', 'โครงการไม่มีชื่อ', 'null'])]
-            sam_projs = sorted(projs.unique().tolist())
+    if _df_filtered is None or _df_filtered.empty:
+        return proj_options, sam_codes, proj_label_to_raw, proj_label_to_norm
+
+    # 1. Extract SAM asset codes & raw project names
+    if 'บริษัท' in _df_filtered.columns:
+        sam_df = _df_filtered[_df_filtered['บริษัท'].astype(str).str.strip().str.upper() == 'SAM']
         if 'รหัสทรัพย์' in sam_df.columns:
             codes = sam_df['รหัสทรัพย์'].dropna().astype(str).str.strip()
             codes = codes[~codes.isin(['-', '', 'nan', 'None', 'ไม่ระบุ', 'undefined', 'null'])]
             sam_codes = sorted(codes.unique().tolist())
-    else:
-        if 'ชื่อโครงการ' in df_filtered.columns:
-            projs = df_filtered['ชื่อโครงการ'].dropna().astype(str).str.strip()
+        if 'ชื่อโครงการ' in sam_df.columns:
+            projs = sam_df['ชื่อโครงการ'].dropna().astype(str).str.strip()
             projs = projs[~projs.isin(['-', '', 'nan', 'None', 'ไม่ระบุ', 'undefined', 'โครงการไม่มีชื่อ', 'null'])]
-            sam_projs = sorted(projs.value_counts().head(2000).index.tolist())
-        if 'รหัสทรัพย์' in df_filtered.columns:
-            codes = df_filtered['รหัสทรัพย์'].dropna().astype(str).str.strip()
-            codes = codes[~codes.isin(['-', '', 'nan', 'None', 'ไม่ระบุ', 'undefined', 'null'])]
-            sam_codes = sorted(codes.value_counts().head(5000).index.tolist())
+            sam_projs = sorted(projs.unique().tolist())
 
-    return sam_projs, sam_codes
+    # 2. Normalize and compute Same-Project Competitor Statistics
+    if 'ชื่อโครงการ' in _df_filtered.columns and sam_projs:
+        raw_to_norm = {p: normalize_project_name(p) for p in sam_projs}
+        all_sam_norm_keys = set(k for k in raw_to_norm.values() if k)
 
+        # Build normalized keys across all projects in the dataset
+        all_unique_projs = _df_filtered['ชื่อโครงการ'].dropna().astype(str).str.strip().unique()
+        all_norm_map = {p: normalize_project_name(p) for p in all_unique_projs if p}
+
+        # Vectorized lookup on subset
+        df_sub = _df_filtered[['ชื่อโครงการ', 'บริษัท']].dropna().copy()
+        df_sub['norm_k'] = df_sub['ชื่อโครงการ'].astype(str).str.strip().map(all_norm_map)
+        matched = df_sub[df_sub['norm_k'].isin(all_sam_norm_keys)]
+
+        sam_counts = matched[matched['บริษัท'].astype(str).str.strip().str.upper() == 'SAM'].groupby('norm_k').size()
+        comp_df = matched[matched['บริษัท'].astype(str).str.strip().str.upper() != 'SAM']
+        comp_counts = comp_df.groupby('norm_k').size()
+        comp_companies = comp_df.groupby('norm_k')['บริษัท'].nunique()
+
+        # Build formatted dropdown labels
+        items = []
+        for p in sam_projs:
+            k = raw_to_norm.get(p, '')
+            sc = int(sam_counts.get(k, 0)) if k else 0
+            cc = int(comp_counts.get(k, 0)) if k else 0
+            cj = int(comp_companies.get(k, 0)) if k else 0
+            tag = get_brand_search_tag(p)
+            tag_suffix = f"  [{tag}]" if tag else ""
+
+            if cc > 0:
+                label = f"{p}  ➔  SAM: {sc:,}  |  คู่แข่ง: {cj} เจ้า ({cc:,} ทรัพย์){tag_suffix}"
+            else:
+                label = f"{p}  ➔  SAM: {sc:,}  |  ไม่มีคู่แข่ง{tag_suffix}"
+
+            items.append((label, cc, sc, p, k))
+            proj_label_to_raw[label] = p
+            proj_label_to_norm[label] = k
+
+        # Sort: Projects with competitor comparisons first (most competitor assets first), then most SAM assets, then Thai alphabet
+        items.sort(key=lambda x: (1 if x[1] > 0 else 0, x[1], x[2]), reverse=True)
+        proj_options = [x[0] for x in items]
+
+    return proj_options, sam_codes, proj_label_to_raw, proj_label_to_norm
+
+@fragment_decorator
 def render_tab4_inventory_view(df_filtered, is_dark_mode):
     """
     Renders Tab 4: Property Listing / Inventory Explorer:
-    - Searchable multi-select dropdowns (รหัสทรัพย์, ชื่อโครงการ)
+    - Searchable multi-select dropdowns (รหัสทรัพย์, โครงการเดียวกับ SAM)
     - Row limit controller
     - Smart quick sort presets (Min/Max price, cheapest sqm/sqw, latest update, largest area)
     - Formatted columns with LandsMaps link, coordinates precision, and currency formatting
@@ -50,8 +200,8 @@ def render_tab4_inventory_view(df_filtered, is_dark_mode):
 
     st.markdown(f"### <i class='fa-solid fa-table-list' style='color:#059669; margin-right:8px;'></i>รายการทรัพย์สินที่ค้นพบ ({len(df_filtered):,} รายการ)", unsafe_allow_html=True)
     
-    # Preload options specifically from SAM properties
-    proj_options, code_options = get_tab4_search_options(df_filtered)
+    # Preload options (SAM projects with competitor stats & SAM asset codes)
+    proj_options, code_options, proj_label_to_raw, proj_label_to_norm = get_tab4_search_options(df_filtered)
 
     col_code, col_proj, col_limit = st.columns([1.8, 2.2, 0.8], gap="medium")
     with col_code:
@@ -73,15 +223,15 @@ def render_tab4_inventory_view(df_filtered, is_dark_mode):
     with col_proj:
         st.markdown(
             f"<div style='font-size:0.875rem; font-weight:600; margin-bottom:4px; color:{'#f8fafc' if is_dark_mode else '#0f172a'}; display:flex; align-items:center; gap:6px;'>"
-            f"<i class='fa-solid fa-city' style='color:#059669;'></i><span>ชื่อโครงการ (SAM)</span>"
+            f"<i class='fa-solid fa-city' style='color:#059669;'></i><span>โครงการเดียวกับ SAM</span>"
             f"</div>",
             unsafe_allow_html=True
         )
         selected_projs = st.multiselect(
-            "ชื่อโครงการ",
+            "โครงการเดียวกับ SAM",
             options=proj_options,
             default=[],
-            placeholder="พิมพ์หรือเลือกโครงการของ SAM...",
+            placeholder="เลือกหรือพิมพ์ค้นหาโครงการเดียวกับ SAM...",
             label_visibility="collapsed",
             key="tab4_multiselect_proj"
         )
@@ -144,12 +294,20 @@ def render_tab4_inventory_view(df_filtered, is_dark_mode):
                 mask_code = mask_code | df_table_source['ID'].astype(str).str.strip().isin(code_set)
             df_table_source = df_table_source[mask_code]
 
-        # 2. Filter by Projects (from SAM projects dropdown)
+        # 2. Filter by Projects (Same-project matching including name variations as in Tab 2)
         if selected_projs:
-            proj_set = set(selected_projs)
+            selected_raw_names = set(proj_label_to_raw.get(l, l) for l in selected_projs)
+            selected_norm_keys = {proj_label_to_norm.get(l, normalize_project_name(l)) for l in selected_projs}
+            selected_norm_keys = {k for k in selected_norm_keys if k}
+
             if 'ชื่อโครงการ' in df_table_source.columns:
-                mask_proj = df_table_source['ชื่อโครงการ'].astype(str).str.strip().isin(proj_set)
-                df_table_source = df_table_source[mask_proj]
+                proj_col_clean = df_table_source['ชื่อโครงการ'].astype(str).str.strip()
+                # 1. Exact raw name match
+                mask_raw = proj_col_clean.isin(selected_raw_names)
+                # 2. Normalized name match (e.g. ไอดิโอ, ไอดีโอ, IDEO)
+                norm_series = proj_col_clean.map(lambda s: normalize_project_name(s))
+                mask_norm = norm_series.isin(selected_norm_keys) if selected_norm_keys else pd.Series(False, index=df_table_source.index)
+                df_table_source = df_table_source[mask_raw | mask_norm]
 
         # Apply Quick Sort logic
         active_sort_label = ""
@@ -216,7 +374,7 @@ def render_tab4_inventory_view(df_filtered, is_dark_mode):
         if selected_codes:
             filter_parts.append(f"รหัสทรัพย์ที่เลือก {len(selected_codes):,} รายการ (SAM)")
         if selected_projs:
-            filter_parts.append(f"โครงการที่เลือก {len(selected_projs):,} โครงการ (SAM)")
+            filter_parts.append(f"โครงการเดียวกับ SAM {len(selected_projs):,} โครงการ")
 
         filter_desc = " และ ".join(filter_parts) if filter_parts else "ตัวเลือกที่ระบุ"
         st.markdown(
@@ -291,4 +449,5 @@ def render_tab4_inventory_view(df_filtered, is_dark_mode):
             "รูปแปลงที่ดิน": st.column_config.LinkColumn("รูปแปลงที่ดิน (LED)", display_text="LandsMaps", help="คลิกเพื่อเปิดระบบค้นหารูปแปลงที่ดิน กรมที่ดิน (เฉพาะกรมบังคับคดี)")
         }
     )
-    render_import_export_section(df_table_source if not df_table_source.empty else df_filtered, filename_prefix="npa_property_listing", key_suffix="tab4")
+    if not df_table_source.empty:
+        render_import_export_section(df_table_source, filename_prefix="npa_property_listing", key_suffix="tab4")

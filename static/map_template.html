@@ -3268,37 +3268,50 @@
       // SEARCHABLE COMBOBOX ENGINE (PROVINCE, DISTRICT, SUBDISTRICT, PROJECT)
       // ==========================================
       let allProjectsList = [];
-      let samProjectStatsMap = new Map(); // stores { sam: number, other: number }
+      let samProjectStatsMap = new Map(); // stores { sam: number, other: number, normKey: string }
       let currentActiveCombo = null;
 
       function buildSamProjectOptions(data, lutSamPrj) {
         samProjectStatsMap.clear();
         if (data && data.length > 0) {
-          // 1. Build counts directly from actual map data points
+          // 1. Build counts grouped by normalized project key
+          const samCountsByNorm = new Map();
+          const otherCountsByNorm = new Map();
+          const projToNorm = new Map();
+
           data.forEach(d => {
             const p = (d._project || '').trim();
             if (!p || p === '-' || p === 'ไม่มีข้อมูล' || p === 'ไม่มีชื่อ' || p === 'ไม่ระบุ') return;
-            if (!samProjectStatsMap.has(p)) {
-              samProjectStatsMap.set(p, { sam: 0, other: 0 });
+            let nk = projToNorm.get(p);
+            if (nk === undefined) {
+              nk = normalizeProjectKeyword(p);
+              projToNorm.set(p, nk);
             }
-            const stats = samProjectStatsMap.get(p);
+            if (!nk) return;
+
             if (d._company === 'SAM') {
-              stats.sam++;
+              samCountsByNorm.set(nk, (samCountsByNorm.get(nk) || 0) + 1);
             } else {
-              stats.other++;
+              otherCountsByNorm.set(nk, (otherCountsByNorm.get(nk) || 0) + 1);
             }
           });
 
           // 2. STRICT FILTER: Keep ONLY projects where SAM count > 0!
-          // Under no circumstances can a project with 0 SAM units be included!
           const validSamProjects = [];
-          for (const [proj, stats] of samProjectStatsMap.entries()) {
-            if (stats.sam > 0) {
-              validSamProjects.push(proj);
-            } else {
-              samProjectStatsMap.delete(proj);
-            }
-          }
+          const seenSamProjs = new Set();
+          data.forEach(d => {
+            if (d._company !== 'SAM') return;
+            const p = (d._project || '').trim();
+            if (!p || p === '-' || p === 'ไม่มีข้อมูล' || p === 'ไม่มีชื่อ' || p === 'ไม่ระบุ') return;
+            if (seenSamProjs.has(p)) return;
+            seenSamProjs.add(p);
+
+            const nk = projToNorm.get(p) || normalizeProjectKeyword(p);
+            const sc = samCountsByNorm.get(nk) || 1;
+            const oc = otherCountsByNorm.get(nk) || 0;
+            samProjectStatsMap.set(p, { sam: sc, other: oc, normKey: nk });
+            validSamProjects.push(p);
+          });
 
           // 3. Sort: Projects with competitor comparisons first, then by competitor count, then SAM count
           validSamProjects.sort((a, b) => {
@@ -3450,8 +3463,18 @@
 
       function normalizeProjectKeyword(str) {
         if (!str) return '';
-        return str.toLowerCase()
-          .replace(/[\s\-_/.]+/g, '')
+        let txt = str.toString().trim();
+        if (txt.includes(' : ')) {
+          const parts = txt.split(' : ');
+          txt = parts.length > 1 ? parts[1] : parts[0];
+        }
+        // Strip common prefixes
+        txt = txt.replace(/^(คอนโด\s*โครงการ|โครงการ\s*คอนโด|โครงการ\s*หมู่บ้าน|อาคารชุด|คอนโดมิเนียม|มีเนียม|โครงการ|หมู่บ้าน|คอนโด|บ้านเดี่ยว|บ้านแฝด|บ้าน|ทาวน์โฮม|ทาวน์เฮ้าส์|ขายคอนโด)\s*/i, '');
+        // Strip common suffixes
+        txt = txt.replace(/(\[.*?\]|\(.*?\)|,\s*(กรุงเทพมหานคร|กรุงเทพฯ|กรุงเทพ|นนทบุรี|ปทุมธานี|สมุทรปราการ|ชลบุรี|เชียงใหม่|ระยอง|ภูเก็ต).*$|ชั้น\s*\d+.*$|\b(ติด|ใกล้)\s*(bts|mrt).*$)/gi, '');
+
+        let res = txt.toLowerCase()
+          .replace(/[\s\-_/.,:;()\[\]{}]+/g, '')
           // Normalize Ideo / ไอดีโอ / ไอดิโอ / ideo:
           .replace(/ไอดิโอ/g, 'ไอดีโอ')
           .replace(/ideo/g, 'ไอดีโอ')
@@ -3469,6 +3492,7 @@
           .replace(/dcondo/g, 'ดีคอนโด')
           // The Base:
           .replace(/thebase/g, 'เดอะเบส')
+          .replace(/เดอะเบส/g, 'เดอะเบส')
           // Life:
           .replace(/life/g, 'ไลฟ์')
           // Rhythm:
@@ -3476,7 +3500,39 @@
           // Knightsbridge:
           .replace(/knightsbridge/g, 'ไนท์บริดจ์')
           // Plum:
-          .replace(/plum/g, 'พลัม');
+          .replace(/plum/g, 'พลัม')
+          // Casa:
+          .replace(/casa/g, 'คาซ่า')
+          // Centric:
+          .replace(/centric/g, 'เซ็นทริค')
+          // Condolette:
+          .replace(/condolette/g, 'คอนโดเลต')
+          // U Delight:
+          .replace(/udelight/g, 'ยูดีไลท์')
+          // Chapter One:
+          .replace(/chapterone/g, 'แชปเตอร์วัน')
+          // Regent:
+          .replace(/regent/g, 'รีเจ้นท์')
+          // Noble:
+          .replace(/noble/g, 'โนเบิล')
+          // Parkland:
+          .replace(/parkland/g, 'พาร์คแลนด์')
+          // Ashton:
+          .replace(/ashton/g, 'แอชตัน')
+          // Elio:
+          .replace(/elio/g, 'เอลิโอ')
+          .replace(/เอลลิโอ/g, 'เอลิโอ')
+          // Unio:
+          .replace(/unio/g, 'ยูนิโอ')
+          // Modiz:
+          .replace(/modiz/g, 'โมดิซ')
+          // Atmoz:
+          .replace(/atmoz/g, 'แอทโมซ')
+          // Kave:
+          .replace(/kave/g, 'เคฟ');
+
+        if (['บ้าน', 'คอนโด', 'ที่ดิน', 'ทาวน์โฮม', 'อาคารพาณิชย์'].includes(res)) return '';
+        return res;
       }
 
       function matchProjectSearchItem(itemName, rawQuery) {
@@ -4323,6 +4379,9 @@
           }
           const cnt = inMapFilterState.samProjects.size;
           inMapFilterState.samProject = cnt === 1 ? Array.from(inMapFilterState.samProjects)[0] : (cnt > 1 ? `เลือก ${cnt} โครงการ` : null);
+          inMapFilterState.samProjectsNorm = new Set(
+            Array.from(inMapFilterState.samProjects || []).map(p => normalizeProjectKeyword(p)).filter(Boolean)
+          );
         }
 
         currentActiveCombo = 'prj';
@@ -5531,10 +5590,17 @@
         }
         if (inMapFilterState.samProjects && inMapFilterState.samProjects.size > 0) {
           const pName = (d._project || '').trim();
-          if (!inMapFilterState.samProjects.has(pName)) return false;
+          if (!inMapFilterState.samProjects.has(pName)) {
+            const nk = normalizeProjectKeyword(pName);
+            if (!nk || !inMapFilterState.samProjectsNorm || !inMapFilterState.samProjectsNorm.has(nk)) return false;
+          }
         } else if (inMapFilterState.samProject && inMapFilterState.samProject !== '') {
           const pName = (d._project || '').trim();
-          if (pName !== inMapFilterState.samProject) return false;
+          if (pName !== inMapFilterState.samProject) {
+            const nk = normalizeProjectKeyword(pName);
+            const targetNk = normalizeProjectKeyword(inMapFilterState.samProject);
+            if (!nk || !targetNk || nk !== targetNk) return false;
+          }
         }
 
         if (!hasProj) {
