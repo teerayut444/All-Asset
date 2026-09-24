@@ -21,20 +21,28 @@
 ```text
 📁 All Asset Dashboard/
 │
-├── 🚀 start_dashboard.bat        # ดับเบิ้ลคลิกเพื่อสร้าง .venv ติดตั้ง และรัน Dashboard
-├── 📄 requirements.txt           # รายการ Python Libraries ที่จำเป็น
-├── 📄 all_assets.parquet         # ฐานข้อมูลหลักของทรัพย์สิน NPA (~200,000+ รายการ)
-├── 📄 README.md                  # เอกสารคู่มือการติดตั้งและใช้งาน
+├── 🚀 run_dashboard.bat               # รัน Dashboard หลัก (Modular Version - เร็วและเสถียร)
+├── 🚀 run_legacy_backup.bat           # รัน Dashboard สำรองเวอร์ชันเดิม (Monolithic Backup)
+├── ⚙️ Scraper_Monthly_Parallel.exe     # โปรแกรมดึงข้อมูลรายเดือน 14 สถาบัน (EXE)
+├── 🔨 build_scraper_exe.bat           # สคริปต์คอมไพล์ Scraper เป็น EXE
 │
-├── 🐍 app.py                     # แอปพลิเคชันหลัก (Streamlit Web Dashboard)
-├── 🐍 sam_analytics.py           # โมดูลวิเคราะห์โครงการเดียวกัน & สถิติเชิงลึก
-├── 🐍 bubble_chart.py            # โมดูล 3D Glossy Bubble Chart
-├── 🐍 dashboard_metrics.py       # โมดูลคำนวณ KPI และเมตริกภาพรวม
-├── 🐍 chart_3d_analytics.py      # โมดูลกราฟ 3D Interactive Analytics
+├── 📄 all_assets.parquet              # ฐานข้อมูลหลักของทรัพย์สิน NPA (~200,000+ รายการ)
+├── 📄 requirements.txt                # รายการ Python Libraries ที่จำเป็น
+├── 📄 README.md                       # เอกสารคู่มือการติดตั้งและใช้งาน
 │
-├── 📁 .streamlit/                # ตั้งค่า Theme และ Streamlit Server (config.toml)
-├── 📁 logo/                      # รูปภาพ Logo และโลโก้สถาบันการเงิน (logos/)
-└── 📁 static/                    # ไฟล์ Static และแผนที่ (d3.js, deck.gl.js, map_template.html)
+├── 🐍 app.py                          # แอปพลิเคชันหลัก Modular Entrypoint (~110 บรรทัด)
+├── 🐍 app_legacy_monolithic.py        # โค้ดสำรองเวอร์ชันเดิม Monolithic Backup (~8,760 บรรทัด)
+├── 🐍 sam_analytics.py                # โมดูลวิเคราะห์โครงการเดียวกัน & สถิติเชิงลึก
+├── 🐍 bubble_chart.py                 # โมดูล 3D Glossy Bubble Chart
+│
+├── 📁 modules/                        # โครงสร้างโมดูลหลัก (config, services, ui, views)
+├── 📁 packaging/                      # แหล่งรวมสคริปต์บิลด์และ Deploy Package
+├── 📁 Py Scraper/                     # สคริปต์ดึงข้อมูล 14 สถาบันและตัวรวมข้อมูล
+├── 📁 QA_Checker/                     # เครื่องมือตรวจสอบคุณภาพข้อมูล
+├── 📁 tools/                          # สคริปต์เสริมและเครื่องมือวิเคราะห์
+├── 📁 data/                           # ฐานข้อมูลพิกัดและ GeoJSON ขอบเขต
+├── 📁 logo/ & static/ & assets/       # โลโก้และสไตล์แผนที่
+└── 📁 backups/                        # คลังสำรองโค้ดเวอร์ชันเดิมทั้งหมด
 ```
 
 ---

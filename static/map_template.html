@@ -951,6 +951,30 @@
         border-color: rgba(52, 211, 153, 0.25);
         box-shadow: 0 16px 36px -6px rgba(0, 0, 0, 0.65);
       }
+      #combo-menu-prj {
+        min-width: 270px;
+        max-width: 380px;
+        max-height: 300px;
+      }
+      .combobox-header-bar {
+        position: sticky;
+        top: -5px;
+        z-index: 10;
+        background: rgba(255, 255, 255, 0.98);
+        padding: 5px 6px 7px 6px;
+        margin-bottom: 5px;
+        border-bottom: 1.2px solid rgba(16, 185, 129, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px;
+        border-top-left-radius: 8px;
+        border-top-right-radius: 8px;
+      }
+      body.dark-theme .combobox-header-bar {
+        background: rgba(15, 23, 42, 0.98);
+        border-bottom-color: rgba(52, 211, 153, 0.25);
+      }
       .combobox-option {
         padding: 6px 10px;
         font-size: 12px;
@@ -1988,7 +2012,7 @@
           <div class="map-location-group" id="map-project-group" title="เลือก/พิมพ์ค้นหาโครงการเดียวกับ SAM (ดึงทรัพย์สินทั้งหมดในโครงการนี้จากทุกสถาบัน/คู่แข่ง)">
             <div class="map-loc-item combobox-container" id="combo-container-prj">
               <i class="fa-solid fa-building-flag" style="color: #059669; font-size: 12px;"></i>
-              <input type="text" id="inmap-project-input" class="inmap-loc-input" placeholder="ทุกโครงการ SAM" autocomplete="off" style="width: 135px;" onfocus="openCombobox('prj')" oninput="handleComboboxInput('prj', this)" onkeydown="handleComboboxKeydown('prj', event)" />
+              <input type="text" id="inmap-project-input" class="inmap-loc-input" placeholder="ทุกโครงการ SAM" autocomplete="off" style="width: 145px;" onfocus="openCombobox('prj')" onclick="openCombobox('prj')" oninput="handleComboboxInput('prj', this)" onkeydown="handleComboboxKeydown('prj', event)" />
               <i class="fa-solid fa-chevron-down combobox-chevron" id="combo-chevron-prj" onclick="toggleCombobox('prj')" title="เปิดรายการโครงการ SAM"></i>
               <div class="combobox-menu" id="combo-menu-prj" style="display: none;"></div>
             </div>
@@ -2150,9 +2174,8 @@
       <div class="card-actions">
         <button id="btn-open-link" class="btn-primary-link" onclick="openPropertyLink()"><i class="fa-solid fa-arrow-up-right-from-square"></i> เปิดดูทรัพย์สิน (เว็บไซต์)</button>
         <button id="btn-copy-id" class="btn-secondary-action" onclick="copyCardId()"><i class="fa-regular fa-copy"></i> รหัส</button>
-        <div id="led-map-group" style="display:none; width:100%; gap:6px; margin-top:2px;">
-          <button id="btn-led-map" class="btn-primary-link" style="background:linear-gradient(135deg, #0d9488, #0f766e); color:#ffffff; box-shadow:0 4px 12px rgba(13,148,136,0.35); flex:1;" onclick="openLedMap()"><i class="fa-solid fa-map-location-dot"></i> ดูแปลงที่ดิน (LandsMaps)</button>
-          <button id="btn-led-help" type="button" class="btn-secondary-action" style="padding:0 12px; font-size:11.5px; flex:0 0 auto; color:#0d9488; font-weight:700; border-color:rgba(13,148,136,0.4);" onclick="openLandsmapsHelperModal()" title="วิธีตั้งค่าปุ่มค้นหาอัตโนมัติ 1-คลิก บน LandsMaps"><i class="fa-solid fa-wand-magic-sparkles"></i> ตั้งค่าออโต้</button>
+        <div id="led-map-group" style="display:none; width:100%; margin-top:2px;">
+          <button id="btn-led-map" class="btn-primary-link" style="background:linear-gradient(135deg, #0d9488, #0f766e); color:#ffffff; box-shadow:0 4px 12px rgba(13,148,136,0.35); width:100%;" onclick="openLedMap()"><i class="fa-solid fa-map-location-dot"></i> ดูแปลงที่ดิน (LandsMaps)</button>
         </div>
         <button id="btn-gmap" class="btn-secondary-action" onclick="openGoogleMaps()"><i class="fa-solid fa-map"></i> แผนที่ Google</button>
         <button id="btn-set-ref-card" class="btn-primary-link" style="background: linear-gradient(135deg, #059669, #047857); color: #ffffff; width: 100%; margin-top: 4px; box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);" onclick="setCardAsReferencePoint()"><i class="fa-solid fa-crosshairs"></i> ตั้งเป็นจุดอ้างอิงเปรียบเทียบ (ดูด้านล่าง)</button>
@@ -3139,7 +3162,7 @@
         "ทาวน์เฮ้าส์": [245, 158, 11],
         "ที่ดินเปล่า": [139, 69, 19],
         "ที่ดิน": [139, 69, 19],
-        "ที่ดินพร้อมสิ่งปลูกสร้าง": [160, 82, 45],
+        "ที่ดินพร้อมสิ่งปลูกสร้าง": [249, 115, 22],
         "อาคารพาณิชย์": [244, 63, 94],
         "วิลล่า": [236, 72, 153],
         "โรงงาน/โกดัง": [6, 182, 212],
@@ -3245,7 +3268,58 @@
       // SEARCHABLE COMBOBOX ENGINE (PROVINCE, DISTRICT, SUBDISTRICT, PROJECT)
       // ==========================================
       let allProjectsList = [];
+      let samProjectStatsMap = new Map(); // stores { sam: number, other: number }
       let currentActiveCombo = null;
+
+      function buildSamProjectOptions(data, lutSamPrj) {
+        samProjectStatsMap.clear();
+        if (data && data.length > 0) {
+          // 1. Build counts directly from actual map data points
+          data.forEach(d => {
+            const p = (d._project || '').trim();
+            if (!p || p === '-' || p === 'ไม่มีข้อมูล' || p === 'ไม่มีชื่อ' || p === 'ไม่ระบุ') return;
+            if (!samProjectStatsMap.has(p)) {
+              samProjectStatsMap.set(p, { sam: 0, other: 0 });
+            }
+            const stats = samProjectStatsMap.get(p);
+            if (d._company === 'SAM') {
+              stats.sam++;
+            } else {
+              stats.other++;
+            }
+          });
+
+          // 2. STRICT FILTER: Keep ONLY projects where SAM count > 0!
+          // Under no circumstances can a project with 0 SAM units be included!
+          const validSamProjects = [];
+          for (const [proj, stats] of samProjectStatsMap.entries()) {
+            if (stats.sam > 0) {
+              validSamProjects.push(proj);
+            } else {
+              samProjectStatsMap.delete(proj);
+            }
+          }
+
+          // 3. Sort: Projects with competitor comparisons first, then by competitor count, then SAM count
+          validSamProjects.sort((a, b) => {
+            const statsA = samProjectStatsMap.get(a) || { sam: 0, other: 0 };
+            const statsB = samProjectStatsMap.get(b) || { sam: 0, other: 0 };
+            const hasCompA = statsA.other > 0 ? 1 : 0;
+            const hasCompB = statsB.other > 0 ? 1 : 0;
+            if (hasCompA !== hasCompB) return hasCompB - hasCompA;
+            if (statsA.other !== statsB.other) return statsB.other - statsA.other;
+            if (statsA.sam !== statsB.sam) return statsB.sam - statsA.sam;
+            return a.localeCompare(b, 'th');
+          });
+
+          allProjectsList = validSamProjects;
+        } else if (lutSamPrj && Array.isArray(lutSamPrj) && lutSamPrj.length > 0) {
+          allProjectsList = lutSamPrj.filter(p => p && p !== '-' && p !== 'ไม่มีข้อมูล' && p !== 'ไม่มีชื่อ' && p !== 'ไม่ระบุ');
+        } else {
+          allProjectsList = [];
+        }
+        syncComboboxInputs();
+      }
 
       function closeAllComboboxes() {
         ['prov', 'dist', 'subdist', 'prj'].forEach(type => {
@@ -3265,39 +3339,44 @@
       }
 
       document.addEventListener('click', function(e) {
-        if (!e.target.closest('.combobox-container')) {
+        const path = e.composedPath ? e.composedPath() : [];
+        const clickedInsideCombo = path.some(el => el && el.classList && (
+          el.classList.contains('combobox-container') ||
+          el.classList.contains('combobox-menu') ||
+          el.classList.contains('combobox-option') ||
+          el.classList.contains('combobox-header-bar') ||
+          el.classList.contains('map-loc-item')
+        ));
+        if (!clickedInsideCombo && !e.target.closest('.combobox-container') && !e.target.closest('.combobox-menu')) {
           closeAllComboboxes();
         }
       });
 
       function syncComboboxInputs() {
         const pInp = document.getElementById('inmap-province-input');
-        if (pInp) pInp.value = currentSelectedProv || '';
+        if (pInp && currentActiveCombo !== 'prov') pInp.value = currentSelectedProv || '';
 
         const dInp = document.getElementById('inmap-district-input');
         if (dInp) {
           dInp.disabled = !currentSelectedProv;
-          dInp.value = currentSelectedDist || '';
+          if (currentActiveCombo !== 'dist') dInp.value = currentSelectedDist || '';
           dInp.placeholder = currentSelectedProv ? 'ทุกอำเภอ/เขต' : 'เลือกจังหวัดก่อน';
         }
 
         const sInp = document.getElementById('inmap-subdistrict-input');
         if (sInp) {
           sInp.disabled = !currentSelectedDist;
-          sInp.value = currentSelectedSubdist || '';
+          if (currentActiveCombo !== 'subdist') sInp.value = currentSelectedSubdist || '';
           sInp.placeholder = currentSelectedDist ? 'ทุกตำบล/แขวง' : 'เลือกอำเภอก่อน';
         }
 
         const prjInp = document.getElementById('inmap-project-input');
         if (prjInp) {
           const prjCount = inMapFilterState.samProjects ? inMapFilterState.samProjects.size : 0;
-          if (prjCount === 0) {
-            prjInp.value = inMapFilterState.samProject || '';
-            prjInp.placeholder = 'ทุกโครงการ SAM';
-          } else if (prjCount === 1) {
-            prjInp.value = Array.from(inMapFilterState.samProjects)[0];
-          } else {
-            prjInp.value = `เลือก ${prjCount} โครงการ`;
+          const displayLabel = prjCount === 0 ? '' : (prjCount === 1 ? Array.from(inMapFilterState.samProjects)[0] : `เลือก ${prjCount} โครงการ`);
+          prjInp.placeholder = prjCount > 0 ? displayLabel : 'ทุกโครงการ SAM';
+          if (currentActiveCombo !== 'prj') {
+            prjInp.value = displayLabel;
           }
         }
       }
@@ -3369,6 +3448,47 @@
         return 'ทั้งหมด';
       }
 
+      function normalizeProjectKeyword(str) {
+        if (!str) return '';
+        return str.toLowerCase()
+          .replace(/[\s\-_/.]+/g, '')
+          // Normalize Ideo / ไอดีโอ / ไอดิโอ / ideo:
+          .replace(/ไอดิโอ/g, 'ไอดีโอ')
+          .replace(/ideo/g, 'ไอดีโอ')
+          // Lumpini / LPN:
+          .replace(/lumpini/g, 'ลุมพินี')
+          .replace(/lpn/g, 'ลุมพินี')
+          // Pruksa / PS:
+          .replace(/pruksa/g, 'พฤกษา')
+          .replace(/ps/g, 'พฤกษา')
+          // Supalai:
+          .replace(/supalai/g, 'ศุภาลัย')
+          // Aspire:
+          .replace(/aspire/g, 'แอสปาย')
+          // Dcondo:
+          .replace(/dcondo/g, 'ดีคอนโด')
+          // The Base:
+          .replace(/thebase/g, 'เดอะเบส')
+          // Life:
+          .replace(/life/g, 'ไลฟ์')
+          // Rhythm:
+          .replace(/rhythm/g, 'ริทึ่ม')
+          // Knightsbridge:
+          .replace(/knightsbridge/g, 'ไนท์บริดจ์')
+          // Plum:
+          .replace(/plum/g, 'พลัม');
+      }
+
+      function matchProjectSearchItem(itemName, rawQuery) {
+        if (!rawQuery) return true;
+        const lowItem = (itemName || '').toLowerCase();
+        const lowQ = (rawQuery || '').toLowerCase().trim();
+        if (lowItem.includes(lowQ)) return true;
+        const normItem = normalizeProjectKeyword(itemName);
+        const normQ = normalizeProjectKeyword(rawQuery);
+        return normItem.includes(normQ);
+      }
+
       function renderComboboxMenu(type, query = '') {
         const menu = document.getElementById(`combo-menu-${type}`);
         if (!menu) return;
@@ -3380,7 +3500,11 @@
         const cleanQuery = (query || '').trim().toLowerCase();
         let filtered = allItems;
         if (cleanQuery) {
-          filtered = allItems.filter(item => item.toLowerCase().includes(cleanQuery));
+          if (type === 'prj') {
+            filtered = allItems.filter(item => matchProjectSearchItem(item, cleanQuery));
+          } else {
+            filtered = allItems.filter(item => item.toLowerCase().includes(cleanQuery));
+          }
         }
 
         let html = '';
@@ -3388,28 +3512,85 @@
           // Multi-Select Combobox for SAM Projects
           const selSet = inMapFilterState.samProjects || new Set();
           const isAll = (selSet.size === 0);
+
+          // Sticky Top Action Bar for Multi-Select
+          html += `<div class="combobox-header-bar">` +
+            `<div style="font-size:11px; font-weight:700; color:#059669; display:flex; align-items:center; gap:4px;">` +
+            `<i class="fa-solid fa-building-flag"></i> ${selSet.size > 0 ? 'เลือก ' + selSet.size + ' โครงการ' : 'โครงการ SAM'}` +
+            `</div>` +
+            `<div style="display:flex; align-items:center; gap:4px;">` +
+            (selSet.size > 0 ? `<button type="button" onclick="toggleProjectOption('', '${cleanQuery.replace(/'/g, "\\'")}', event)" style="background:none; border:none; color:#ef4444; font-size:10.5px; font-weight:600; cursor:pointer; padding:2px 4px;" title="ล้างทั้งหมด">ล้าง</button>` : '') +
+            `<button type="button" onclick="closeAllComboboxes(); if(event){event.stopPropagation();}" style="background:#10b981; border:none; color:#fff; font-size:11px; font-weight:700; border-radius:6px; padding:2.5px 8px; cursor:pointer; display:inline-flex; align-items:center; gap:3px;"><i class="fa-solid fa-check" style="font-size:9px;"></i>เสร็จสิ้น</button>` +
+            `</div>` +
+            `</div>`;
+
           if (!cleanQuery || allLabel.toLowerCase().includes(cleanQuery)) {
-            html += `<div class="combobox-option ${isAll ? 'selected' : ''}" onclick="toggleProjectOption('', '${cleanQuery.replace(/'/g, "\\'")}')" style="display:flex; align-items:center; justify-content:space-between; font-weight:700;">` +
+            html += `<div class="combobox-option ${isAll ? 'selected' : ''}" onclick="toggleProjectOption('', '${cleanQuery.replace(/'/g, "\\'")}', event)" style="display:flex; align-items:center; justify-content:space-between; font-weight:700;">` +
               `<span style="display:flex; align-items:center;"><i class="fa-solid fa-list" style="margin-right:6px; font-size:10px; opacity:0.6;"></i>${allLabel}</span>` +
               `<span style="font-size:10.5px; opacity:0.75; color:${isAll ? '#059669' : '#dc2626'};">${isAll ? '✓ แสดงทั้งหมด' : '✕ ล้างที่เลือก (' + selSet.size + ')'}</span></div>`;
           }
 
           if (filtered.length === 0 && (!html || cleanQuery)) {
-            html += `<div class="combobox-empty"><i class="fa-solid fa-circle-question" style="margin-right:4px;"></i>ไม่พบ "${query}"</div>`;
+            html += `<div class="combobox-empty"><i class="fa-solid fa-circle-question" style="margin-right:4px;"></i>ไม่พบ "${query}" ในโครงการของ SAM<div style="font-size:10px; color:#94a3b8; margin-top:4px;">(แสดงเฉพาะโครงการที่ SAM มีทรัพย์สินอยู่)</div></div>`;
           } else {
-            const maxRender = !cleanQuery ? 50 : 100;
-            const sliceItems = filtered.slice(0, maxRender);
-            sliceItems.forEach(item => {
-              const isSel = selSet.has(item);
+            // Group into selected items and unselected items so selected ones are ALWAYS at the top!
+            const selectedItems = [];
+            const unselectedItems = [];
+            for (let i = 0; i < filtered.length; i++) {
+              const item = filtered[i];
+              if (selSet.has(item)) {
+                selectedItems.push(item);
+              } else {
+                unselectedItems.push(item);
+              }
+            }
+
+            const maxRender = !cleanQuery ? 60 : 100;
+            const remainingCount = Math.max(maxRender - selectedItems.length, 25);
+            const renderUnselected = unselectedItems.slice(0, remainingCount);
+
+            // 1. Render Selected Projects first (always pinned at the top)
+            if (selectedItems.length > 0) {
+              html += `<div style="font-size:10px; font-weight:800; color:#059669; padding:4px 10px; text-transform:uppercase; letter-spacing:0.5px; background:rgba(16,185,129,0.08); display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid rgba(16,185,129,0.2); margin-bottom:2px;">` +
+                `<span><i class="fa-solid fa-square-check" style="margin-right:4px;"></i>โครงการที่เลือก (${selectedItems.length})</span>` +
+                `<span style="font-size:9px; font-weight:700; opacity:0.85; background:rgba(16,185,129,0.18); padding:1px 6px; border-radius:4px;">อยู่บนสุด</span>` +
+                `</div>`;
+
+              selectedItems.forEach(item => {
+                const safeItem = item.replace(/'/g, "\\'");
+                const stats = samProjectStatsMap.get(item) || { sam: 1, other: 0 };
+                const samBadge = `<span style="font-size:9px; font-weight:700; background:rgba(255,255,255,0.25); color:#ffffff; padding:1px 5px; border-radius:4px; margin-left:6px; flex-shrink:0;">SAM: ${stats.sam}</span>`;
+                const compBadge = stats.other > 0 ? `<span style="font-size:9px; font-weight:600; background:rgba(0,0,0,0.22); color:#ffffff; padding:1px 5px; border-radius:4px; margin-left:3px; flex-shrink:0;">คู่แข่ง: ${stats.other}</span>` : '';
+                html += `<div class="combobox-option selected" onclick="toggleProjectOption('${safeItem}', '${cleanQuery.replace(/'/g, "\\'")}', event)" style="display:flex; align-items:center; margin-bottom:2px;">` +
+                  `<i class="fa-solid fa-square-check" style="color:#ffffff; font-size:13px; margin-right:8px; flex-shrink:0;"></i>` +
+                  `<span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${item}</span>` +
+                  samBadge + compBadge +
+                  `<span style="font-size:9.5px; background:rgba(255,255,255,0.22); color:#ffffff; padding:1px 6px; border-radius:4px; margin-left:6px; flex-shrink:0; font-weight:700;">เลือกแล้ว</span>` +
+                  `</div>`;
+              });
+
+              if (renderUnselected.length > 0) {
+                html += `<div style="font-size:10px; font-weight:700; color:#64748b; padding:6px 10px 3px; text-transform:uppercase; letter-spacing:0.4px; border-top:1px solid rgba(148,163,184,0.25); margin-top:4px; margin-bottom:2px;">` +
+                  `<i class="fa-solid fa-building" style="margin-right:4px; opacity:0.7;"></i>โครงการอื่นๆ (${unselectedItems.length.toLocaleString()})</div>`;
+              }
+            }
+
+            // 2. Render Unselected Projects
+            renderUnselected.forEach(item => {
               const safeItem = item.replace(/'/g, "\\'");
-              const checkIcon = isSel
-                ? '<i class="fa-solid fa-square-check" style="color:#059669; font-size:13px; margin-right:8px; flex-shrink:0;"></i>'
-                : '<i class="fa-regular fa-square" style="opacity:0.35; font-size:13px; margin-right:8px; flex-shrink:0;"></i>';
-              html += `<div class="combobox-option ${isSel ? 'selected' : ''}" onclick="toggleProjectOption('${safeItem}', '${cleanQuery.replace(/'/g, "\\'")}')" style="display:flex; align-items:center;">` +
-                `${checkIcon}<span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${item}</span></div>`;
+              const stats = samProjectStatsMap.get(item) || { sam: 1, other: 0 };
+              const samBadge = `<span style="font-size:9px; font-weight:800; background:rgba(16,185,129,0.15); color:#059669; border:1px solid rgba(16,185,129,0.3); padding:0px 5px; border-radius:4px; margin-left:6px; flex-shrink:0;">SAM: ${stats.sam}</span>`;
+              const compBadge = stats.other > 0 ? `<span style="font-size:9px; font-weight:600; background:rgba(100,116,139,0.12); color:#475569; padding:0px 5px; border-radius:4px; margin-left:3px; flex-shrink:0;">คู่แข่ง: ${stats.other}</span>` : '';
+              html += `<div class="combobox-option" onclick="toggleProjectOption('${safeItem}', '${cleanQuery.replace(/'/g, "\\'")}', event)" style="display:flex; align-items:center;">` +
+                `<i class="fa-regular fa-square" style="opacity:0.35; font-size:13px; margin-right:8px; flex-shrink:0;"></i>` +
+                `<span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${item}</span>` +
+                samBadge + compBadge +
+                `</div>`;
             });
-            if (filtered.length > maxRender) {
-              html += `<div class="combobox-empty" style="font-size:10.5px; opacity:0.75;">และอีก ${(filtered.length - maxRender).toLocaleString()} รายการ (พิมพ์เพื่อเจาะจงผลลัพธ์)</div>`;
+
+            const totalRendered = selectedItems.length + renderUnselected.length;
+            if (filtered.length > totalRendered) {
+              html += `<div class="combobox-empty" style="font-size:10.5px; opacity:0.75;">และอีก ${(filtered.length - totalRendered).toLocaleString()} รายการ (พิมพ์เพื่อเจาะจงผลลัพธ์)</div>`;
             }
           }
         } else {
@@ -3435,7 +3616,15 @@
           }
         }
 
+        const prevScrollTop = menu.scrollTop;
         menu.innerHTML = html;
+        menu.scrollTop = prevScrollTop;
+
+        if (type === 'prj' && currentActiveCombo === 'prj') {
+          menu.style.display = 'block';
+          const chev = document.getElementById('combo-chevron-prj');
+          if (chev) chev.classList.add('open');
+        }
       }
 
       function openCombobox(type) {
@@ -3517,7 +3706,6 @@
           if (type === 'prov' && currentSelectedProv) onMapProvinceChange('');
           else if (type === 'dist' && currentSelectedDist) onMapDistrictChange('');
           else if (type === 'subdist' && currentSelectedSubdist) onMapSubdistrictChange('');
-          else if (type === 'prj' && inMapFilterState.samProject) onMapProjectChange('');
         }
       }
 
@@ -3859,12 +4047,14 @@
             if (selectedProv) {
               u.searchParams.set('map_prov', selectedProv);
             } else {
-              u.searchParams.delete('map_prov');
+              u.searchParams.set('map_prov', '__ALL__');
             }
             u.searchParams.delete('map_dist');
             u.searchParams.delete('map_subdist');
             u.searchParams.delete('map_ref_id');
             u.searchParams.delete('map_proj');
+            u.searchParams.delete('map_ref_lat');
+            u.searchParams.delete('map_ref_lon');
             window.parent.history.replaceState({}, '', u.toString());
             try {
               window.parent.dispatchEvent(new PopStateEvent('popstate', { state: {} }));
@@ -3875,11 +4065,13 @@
         }
         // 7. Auto-sync to Streamlit for realtime comparison
         triggerStreamlitSync({
-          prov: (selectedProv && selectedProv !== '__ALL__') ? selectedProv.trim() : '',
+          prov: (selectedProv && selectedProv !== '__ALL__') ? selectedProv.trim() : '__ALL__',
           dist: '',
           subdist: '',
           proj: '',
           id: '',
+          lat: 0,
+          lon: 0,
           mode: 'location',
           compare_active: true
         });
@@ -4095,7 +4287,12 @@
         } catch(e) {}
       }
 
-      function toggleProjectOption(proj, query = '') {
+      function toggleProjectOption(proj, query = '', event = null) {
+        if (event) {
+          try {
+            event.stopPropagation();
+          } catch(e) {}
+        }
         const cleanPrj = (proj && proj.trim()) ? proj.trim() : null;
         if (!inMapFilterState.samProjects) {
           inMapFilterState.samProjects = new Set();
@@ -4128,8 +4325,21 @@
           inMapFilterState.samProject = cnt === 1 ? Array.from(inMapFilterState.samProjects)[0] : (cnt > 1 ? `เลือก ${cnt} โครงการ` : null);
         }
 
+        currentActiveCombo = 'prj';
         syncComboboxInputs();
         renderComboboxMenu('prj', query);
+
+        // Keep combobox menu explicitly open and visible for multi-selection
+        const menu = document.getElementById('combo-menu-prj');
+        if (menu) menu.style.display = 'block';
+        const chev = document.getElementById('combo-chevron-prj');
+        if (chev) chev.classList.add('open');
+
+        const subrow2 = document.querySelector('.map-filter-controls-stack > .map-filter-subrow:nth-child(2)');
+        if (subrow2) subrow2.style.zIndex = '30000';
+        const prjGroup = document.getElementById('map-project-group');
+        if (prjGroup) prjGroup.style.zIndex = '30000';
+
         applyInMapFilters();
 
         const projStr = (inMapFilterState.samProjects && inMapFilterState.samProjects.size > 0)
@@ -4198,11 +4408,13 @@
           });
         }
 
-        // Tier 5: Title / Project match
-        if (!match && cleanId.length >= 3) {
+        // Tier 5: Title / Project match with normalization (e.g. ไอดิโอ <-> ไอดีโอ <-> ideo)
+        if (!match && cleanId.length >= 2) {
           match = cachedData.find(d => {
             const tit = (d._title || '').trim().toLowerCase();
-            return tit.includes(cleanId);
+            const prj = (d._project || '').trim().toLowerCase();
+            if (tit.includes(cleanId) || prj.includes(cleanId)) return true;
+            return matchProjectSearchItem(d._title, rawQ) || matchProjectSearchItem(d._project, rawQ);
           });
         }
 
@@ -5243,21 +5455,11 @@
 
         // Store SAM projects in memory for the searchable combobox (Matching Tab 4 SAM projects)
         if (lut && lut.sam_prj && Array.isArray(lut.sam_prj) && lut.sam_prj.length > 0) {
-          allProjectsList = lut.sam_prj;
+          allProjectsList = lut.sam_prj.filter(p => p && p !== '-' && p !== 'ไม่มีข้อมูล' && p !== 'ไม่มีชื่อ' && p !== 'ไม่ระบุ');
         } else if (cachedData && cachedData.length > 0) {
-          const samProjSet = new Set();
-          cachedData.forEach(d => {
-            if (d._company === 'SAM' && d._project && d._project !== '-' && d._project !== 'ไม่มีข้อมูล' && d._project !== 'ไม่มีชื่อ') {
-              samProjSet.add(d._project.trim());
-            }
-          });
-          if (samProjSet.size > 0) {
-            allProjectsList = Array.from(samProjSet).sort((a, b) => a.localeCompare(b, 'th'));
-          } else if (lut && lut.prj) {
-            allProjectsList = lut.prj.filter(p => p && p !== '-' && p !== 'ไม่มีข้อมูล').sort((a, b) => a.localeCompare(b, 'th'));
-          }
-        } else if (lut && lut.prj) {
-          allProjectsList = lut.prj.filter(p => p && p !== '-' && p !== 'ไม่มีข้อมูล').sort((a, b) => a.localeCompare(b, 'th'));
+          buildSamProjectOptions(cachedData);
+        } else {
+          allProjectsList = [];
         }
         syncComboboxInputs();
       }
@@ -5329,77 +5531,70 @@
         }
         if (inMapFilterState.samProjects && inMapFilterState.samProjects.size > 0) {
           const pName = (d._project || '').trim();
-          let match = false;
-          for (const selPrj of inMapFilterState.samProjects) {
-            if (pName === selPrj || pName.includes(selPrj)) {
-              match = true;
-              break;
-            }
-          }
-          if (!match) return false;
+          if (!inMapFilterState.samProjects.has(pName)) return false;
         } else if (inMapFilterState.samProject && inMapFilterState.samProject !== '') {
           const pName = (d._project || '').trim();
-          if (pName !== inMapFilterState.samProject && !pName.includes(inMapFilterState.samProject)) return false;
+          if (pName !== inMapFilterState.samProject) return false;
         }
 
         if (!hasProj) {
           if (inMapFilterState.companies.size > 0 && !inMapFilterState.companies.has(d._company)) {
             return false;
           }
-          if (inMapFilterState.types.size > 0 && !inMapFilterState.types.has(d._type)) {
-            return false;
-          }
-          if (inMapFilterState.sales.size > 0 && !inMapFilterState.sales.has(d._sale)) {
-            return false;
-          }
-          const minP = inMapFilterState.minPrice;
-          if (minP !== null && !isNaN(minP) && minP > 0) {
-            if ((d._price || 0) < minP) return false;
-          }
-          const maxP = inMapFilterState.maxPrice;
-          if (maxP !== null && !isNaN(maxP) && maxP > 0) {
-            if ((d._price || 0) > maxP) return false;
-          }
+        }
+        if (inMapFilterState.types.size > 0 && !inMapFilterState.types.has(d._type)) {
+          return false;
+        }
+        if (inMapFilterState.sales.size > 0 && !inMapFilterState.sales.has(d._sale)) {
+          return false;
+        }
+        const minP = inMapFilterState.minPrice;
+        if (minP !== null && !isNaN(minP) && minP > 0) {
+          if ((d._price || 0) < minP) return false;
+        }
+        const maxP = inMapFilterState.maxPrice;
+        if (maxP !== null && !isNaN(maxP) && maxP > 0) {
+          if ((d._price || 0) > maxP) return false;
+        }
 
-          // Filter 5: ขนาดเนื้อที่ดิน (ตร.ว.)
-          const minSqw = inMapFilterState.minSqw;
-          if (minSqw !== null && !isNaN(minSqw) && minSqw > 0) {
-            if ((d._sqw || 0) < minSqw) return false;
-          }
-          const maxSqw = inMapFilterState.maxSqw;
-          if (maxSqw !== null && !isNaN(maxSqw) && maxSqw > 0) {
-            if ((d._sqw || 0) > maxSqw) return false;
-          }
+        // Filter 5: ขนาดเนื้อที่ดิน (ตร.ว.)
+        const minSqw = inMapFilterState.minSqw;
+        if (minSqw !== null && !isNaN(minSqw) && minSqw > 0) {
+          if ((d._sqw || 0) < minSqw) return false;
+        }
+        const maxSqw = inMapFilterState.maxSqw;
+        if (maxSqw !== null && !isNaN(maxSqw) && maxSqw > 0) {
+          if ((d._sqw || 0) > maxSqw) return false;
+        }
 
-          // Filter 6: พื้นที่ใช้สอย (ตร.ม.)
-          const minSqm = inMapFilterState.minSqm;
-          if (minSqm !== null && !isNaN(minSqm) && minSqm > 0) {
-            if ((d._sqm || 0) < minSqm) return false;
-          }
-          const maxSqm = inMapFilterState.maxSqm;
-          if (maxSqm !== null && !isNaN(maxSqm) && maxSqm > 0) {
-            if ((d._sqm || 0) > maxSqm) return false;
-          }
+        // Filter 6: พื้นที่ใช้สอย (ตร.ม.)
+        const minSqm = inMapFilterState.minSqm;
+        if (minSqm !== null && !isNaN(minSqm) && minSqm > 0) {
+          if ((d._sqm || 0) < minSqm) return false;
+        }
+        const maxSqm = inMapFilterState.maxSqm;
+        if (maxSqm !== null && !isNaN(maxSqm) && maxSqm > 0) {
+          if ((d._sqm || 0) > maxSqm) return false;
+        }
 
-          // Filter 7: ราคาต่อ ตร.ว.
-          const minPuw = inMapFilterState.minPuw;
-          if (minPuw !== null && !isNaN(minPuw) && minPuw > 0) {
-            if ((d._puw || 0) < minPuw) return false;
-          }
-          const maxPuw = inMapFilterState.maxPuw;
-          if (maxPuw !== null && !isNaN(maxPuw) && maxPuw > 0) {
-            if ((d._puw || 0) > maxPuw) return false;
-          }
+        // Filter 7: ราคาต่อ ตร.ว.
+        const minPuw = inMapFilterState.minPuw;
+        if (minPuw !== null && !isNaN(minPuw) && minPuw > 0) {
+          if ((d._puw || 0) < minPuw) return false;
+        }
+        const maxPuw = inMapFilterState.maxPuw;
+        if (maxPuw !== null && !isNaN(maxPuw) && maxPuw > 0) {
+          if ((d._puw || 0) > maxPuw) return false;
+        }
 
-          // Filter 8: ราคาต่อ ตร.ม.
-          const minPum = inMapFilterState.minPum;
-          if (minPum !== null && !isNaN(minPum) && minPum > 0) {
-            if ((d._pum || 0) < minPum) return false;
-          }
-          const maxPum = inMapFilterState.maxPum;
-          if (maxPum !== null && !isNaN(maxPum) && maxPum > 0) {
-            if ((d._pum || 0) > maxPum) return false;
-          }
+        // Filter 8: ราคาต่อ ตร.ม.
+        const minPum = inMapFilterState.minPum;
+        if (minPum !== null && !isNaN(minPum) && minPum > 0) {
+          if ((d._pum || 0) < minPum) return false;
+        }
+        const maxPum = inMapFilterState.maxPum;
+        if (maxPum !== null && !isNaN(maxPum) && maxPum > 0) {
+          if ((d._pum || 0) > maxPum) return false;
         }
 
         return true;
@@ -5542,7 +5737,9 @@
             if (currentSelectedProv && currentSelectedProv !== '__ALL__') {
               u.searchParams.set('map_prov', currentSelectedProv);
             } else {
-              u.searchParams.delete('map_prov');
+              u.searchParams.set('map_prov', '__ALL__');
+              u.searchParams.delete('map_dist');
+              u.searchParams.delete('map_subdist');
             }
             if (currentSelectedDist && currentSelectedDist !== '__ALL__') {
               u.searchParams.set('map_dist', currentSelectedDist);
@@ -5629,7 +5826,7 @@
       }
 
       function getMapSyncPayload() {
-        var p = (currentSelectedProv && currentSelectedProv !== '__ALL__') ? currentSelectedProv.trim() : '';
+        var p = (currentSelectedProv && currentSelectedProv !== '__ALL__') ? currentSelectedProv.trim() : '__ALL__';
         var d = (currentSelectedDist && currentSelectedDist !== '__ALL__') ? currentSelectedDist.trim() : '';
         var s = (currentSelectedSubdist && currentSelectedSubdist !== '__ALL__') ? currentSelectedSubdist.trim() : '';
         var id = currentRefProp ? (currentRefProp._id || '') : (currentRefId || '');
@@ -5641,6 +5838,14 @@
         } else if (inMapFilterState && inMapFilterState.samProject) {
           projStr = inMapFilterState.samProject;
         }
+        var cosList = (inMapFilterState && inMapFilterState.companies && inMapFilterState.companies.size > 0) ? Array.from(inMapFilterState.companies) : [];
+        var typesList = (inMapFilterState && inMapFilterState.types && inMapFilterState.types.size > 0) ? Array.from(inMapFilterState.types) : [];
+        var minP = inMapFilterState ? (inMapFilterState.minPrice || 0) : 0;
+        var maxP = inMapFilterState ? (inMapFilterState.maxPrice || 0) : 0;
+        var minSqw = inMapFilterState ? (inMapFilterState.minSqw || 0) : 0;
+        var maxSqw = inMapFilterState ? (inMapFilterState.maxSqw || 0) : 0;
+        var minSqm = inMapFilterState ? (inMapFilterState.minSqm || 0) : 0;
+        var maxSqm = inMapFilterState ? (inMapFilterState.maxSqm || 0) : 0;
         return {
           prov: p,
           dist: d,
@@ -5651,67 +5856,128 @@
           lon: lon,
           radius: currentRadiusKm || 5.0,
           mode: mapPinMode || 'location',
+          cos: cosList,
+          types: typesList,
+          min_p: minP,
+          max_p: maxP,
+          min_sqw: minSqw,
+          max_sqw: maxSqw,
+          min_sqm: minSqm,
+          max_sqm: maxSqm,
           compare_active: true
         };
       }
 
-      function triggerStreamlitSync(customPayload) {
+      var streamlitSyncTimer = null;
+      var lastSyncPayload = null;
+
+      function triggerStreamlitSync(customPayload, delayMs) {
+        var delay = (delayMs !== undefined) ? delayMs : 320;
+        lastSyncPayload = customPayload || getMapSyncPayload();
+        if (streamlitSyncTimer) {
+          clearTimeout(streamlitSyncTimer);
+          streamlitSyncTimer = null;
+        }
+        if (delay <= 0) {
+          executeStreamlitSync(lastSyncPayload);
+          return;
+        }
+        streamlitSyncTimer = setTimeout(function() {
+          executeStreamlitSync(lastSyncPayload);
+          streamlitSyncTimer = null;
+        }, delay);
+      }
+
+      function executeStreamlitSync(payload) {
         try {
           if (!window.parent) return;
-          var pdoc = window.parent.document;
-          var payload = customPayload || getMapSyncPayload();
-          var jsonStr = JSON.stringify(payload);
+          var pWin = window.parent;
+          var pdoc = pWin.document;
+          var finalPayload = payload || lastSyncPayload || getMapSyncPayload();
+          var jsonStr = JSON.stringify(finalPayload);
 
           // 1. Dispatch popstate on window.parent to sync URL params
           try {
-            window.parent.dispatchEvent(new PopStateEvent('popstate', { state: {} }));
+            pWin.dispatchEvent(new PopStateEvent('popstate', { state: {} }));
           } catch(pe) {}
 
           // 2. Set hidden bridge input to pass exact data directly to Streamlit Python
           try {
             if (pdoc) {
               var bridgeInput = pdoc.querySelector('.st-key-map_sync_bridge_payload input') ||
-                                pdoc.querySelector('input[aria-label="map_sync_bridge"]');
+                                pdoc.querySelector('input[aria-label="map_sync_bridge"]') ||
+                                (function() {
+                                  var inps = pdoc.querySelectorAll('input');
+                                  for (var i = 0; i < inps.length; i++) {
+                                    if (inps[i].getAttribute('aria-label') === 'map_sync_bridge') return inps[i];
+                                  }
+                                  return null;
+                                })();
               if (bridgeInput) {
-                var nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-                nativeSetter.call(bridgeInput, jsonStr);
+                var pProto = (pWin.HTMLInputElement && pWin.HTMLInputElement.prototype) ||
+                             (bridgeInput.ownerDocument && bridgeInput.ownerDocument.defaultView && bridgeInput.ownerDocument.defaultView.HTMLInputElement && bridgeInput.ownerDocument.defaultView.HTMLInputElement.prototype) ||
+                             window.HTMLInputElement.prototype;
+                var nativeSetter = Object.getOwnPropertyDescriptor(pProto, 'value').set;
+                if (nativeSetter) {
+                  nativeSetter.call(bridgeInput, jsonStr);
+                } else {
+                  bridgeInput.value = jsonStr;
+                }
+                if (bridgeInput._valueTracker) {
+                  bridgeInput._valueTracker.setValue('');
+                }
                 bridgeInput.dispatchEvent(new Event('input', { bubbles: true }));
                 bridgeInput.dispatchEvent(new Event('change', { bubbles: true }));
+                // Streamlit TextInput commits widget value on Enter key and on Blur!
+                try {
+                  bridgeInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+                  bridgeInput.dispatchEvent(new Event('blur', { bubbles: true }));
+                  if (typeof bridgeInput.blur === 'function') bridgeInput.blur();
+                } catch(ke) {}
               }
             }
           } catch(ie) {
             console.warn('bridgeInput sync error:', ie);
           }
 
-          // 3. Click sync button as primary/fallback trigger
-          var syncBtn = pdoc.querySelector('.st-key-btn_map_filter_sync button');
-          if (!syncBtn) {
-            syncBtn = pdoc.querySelector('button[key="btn_map_filter_sync"]');
-          }
-          if (!syncBtn) {
-            var anchor = pdoc.querySelector('#map-sync-anchor');
-            if (anchor) {
-              var parentContainer = anchor.closest('[data-testid="stElementContainer"]') || anchor.parentElement;
-              if (parentContainer && parentContainer.nextElementSibling) {
-                syncBtn = parentContainer.nextElementSibling.querySelector('button');
+          // 3. Click sync button after 80ms so React text_input commits value to Streamlit
+          setTimeout(function() {
+            try {
+              var syncBtn = pdoc.querySelector('.st-key-btn_map_filter_sync button') ||
+                            pdoc.querySelector('button[key="btn_map_filter_sync"]');
+              if (!syncBtn) {
+                var anchor = pdoc.querySelector('#map-sync-anchor');
+                if (anchor) {
+                  var parentContainer = anchor.closest('[data-testid="stElementContainer"]') || anchor.parentElement;
+                  if (parentContainer) {
+                    var sib = parentContainer.nextElementSibling;
+                    while (sib) {
+                      var b = sib.querySelector('button');
+                      if (b) { syncBtn = b; break; }
+                      sib = sib.nextElementSibling;
+                    }
+                  }
+                }
               }
-            }
-          }
-          if (!syncBtn) {
-            var allBtns = pdoc.querySelectorAll('button');
-            for (var i = 0; i < allBtns.length; i++) {
-              var txt = allBtns[i].textContent ? allBtns[i].textContent.trim() : '';
-              if (txt === 'sync_map_filter') {
-                syncBtn = allBtns[i];
-                break;
+              if (!syncBtn) {
+                var allBtns = pdoc.querySelectorAll('button');
+                for (var i = 0; i < allBtns.length; i++) {
+                  var txt = allBtns[i].textContent ? allBtns[i].textContent.trim() : '';
+                  if (txt === 'sync_map_filter') {
+                    syncBtn = allBtns[i];
+                    break;
+                  }
+                }
               }
+              if (syncBtn) {
+                syncBtn.click();
+              }
+            } catch(be) {
+              console.warn('syncBtn click error:', be);
             }
-          }
-          if (syncBtn) {
-            syncBtn.click();
-          }
+          }, 80);
         } catch(e) {
-          console.warn('triggerStreamlitSync error:', e);
+          console.warn('executeStreamlitSync error:', e);
         }
       }
 
@@ -5726,11 +5992,10 @@
               el.style.position = 'absolute';
               el.style.left = '-99999px';
               el.style.top = '-99999px';
-              el.style.height = '0px';
-              el.style.width = '0px';
+              el.style.height = '1px';
+              el.style.width = '1px';
               el.style.overflow = 'hidden';
               el.style.opacity = '0';
-              el.style.pointerEvents = 'none';
             }
           }
         } catch(e) {}
@@ -5913,12 +6178,31 @@
         let subCountDesc = '';
         let subTotalDesc = '';
 
+        const hasProjFilter = inMapFilterState && ((inMapFilterState.samProjects && inMapFilterState.samProjects.size > 0) || (inMapFilterState.samProject && inMapFilterState.samProject !== ''));
+        const hasOtherFilters = inMapFilterState && (
+          (inMapFilterState.companies && inMapFilterState.companies.size > 0) ||
+          (inMapFilterState.types && inMapFilterState.types.size > 0) ||
+          (inMapFilterState.sales && inMapFilterState.sales.size > 0) ||
+          inMapFilterState.minPrice !== null || inMapFilterState.maxPrice !== null ||
+          inMapFilterState.minSqw !== null || inMapFilterState.maxSqw !== null ||
+          inMapFilterState.minSqm !== null || inMapFilterState.maxSqm !== null ||
+          inMapFilterState.minPuw !== null || inMapFilterState.maxPuw !== null ||
+          inMapFilterState.minPum !== null || inMapFilterState.maxPum !== null
+        );
+
         if (mapPinMode === 'radius' && referencePoint) {
           activeData = (currentNearbyData && currentNearbyData.length > 0) ? currentNearbyData : [];
           const rDisp = formatRadiusDisplay(currentRadiusKm);
           scopeBadgeText = `รัศมี ${rDisp}`;
           subCountDesc = `ในรัศมี ${rDisp} (จุดอ้างอิง)`;
           subTotalDesc = `มูลค่าในรัศมีที่ตรวจ`;
+        } else if (hasProjFilter) {
+          activeData = (currentNearbyData && currentNearbyData.length > 0) ? currentNearbyData : [];
+          const prjCount = inMapFilterState.samProjects ? inMapFilterState.samProjects.size : 1;
+          const projDesc = prjCount > 1 ? `${prjCount} โครงการ SAM` : (Array.from(inMapFilterState.samProjects)[0] || inMapFilterState.samProject);
+          scopeBadgeText = projDesc;
+          subCountDesc = `โครงการ: ${projDesc}`;
+          subTotalDesc = `มูลค่ารวมในโครงการ`;
         } else if (mapPinMode === 'location' && currentSelectedProv && currentSelectedProv !== '__ALL__') {
           activeData = (currentNearbyData && currentNearbyData.length > 0) ? currentNearbyData : [];
           let locDesc = currentSelectedProv;
@@ -5926,12 +6210,17 @@
           scopeBadgeText = locDesc;
           subCountDesc = `ตามทำเล: ${locDesc}`;
           subTotalDesc = `มูลค่ารวมในพื้นที่เลือก`;
+        } else if (hasOtherFilters) {
+          activeData = (cachedData || []).filter(filterItemPasses);
+          scopeBadgeText = 'ตัวกรองแผนที่';
+          subCountDesc = `ตามตัวกรองบนแผนที่`;
+          subTotalDesc = `มูลค่ารวมตามตัวกรอง`;
         } else {
-          // General map scope: all points with valid coordinates on map
-          activeData = (cachedData && cachedData.length > 0) ? cachedData : (currentNearbyData || []);
-          scopeBadgeText = 'บนแผนที่';
-          subCountDesc = `พิกัดจริงบนแผนที่`;
-          subTotalDesc = `มูลค่ารวมทรัพย์บนแผนที่`;
+          // Default nationwide map scope: sync with nationwide map pins (418,055)
+          activeData = (cachedData || []).filter(filterItemPasses);
+          scopeBadgeText = 'ทั่วประเทศ (มีหมุด)';
+          subCountDesc = 'ทรัพย์สินที่มีพิกัดบนแผนที่';
+          subTotalDesc = 'มูลค่ารวมทรัพย์ที่มีหมุด';
         }
 
         const stats = calculateKpiStats(activeData);
@@ -6016,7 +6305,7 @@
           } else if (hasProjFilter) {
             activeData = (currentNearbyData && currentNearbyData.length > 0) ? currentNearbyData : [];
           } else {
-            activeData = (cachedData && cachedData.length > 0) ? cachedData : (currentNearbyData || []);
+            activeData = (cachedData || []).filter(filterItemPasses);
           }
 
           const matchedCount = activeData.length;
@@ -6152,12 +6441,340 @@
         }
       }
 
+      function isPureLandProperty(typeStr) {
+        if (!typeStr) return false;
+        const s = String(typeStr);
+        const hasLand = /ที่ดินเปล่า|ที่ดิน/.test(s);
+        const hasBld = /บ้าน|อาคาร|ทาวน์|คอนโด|ตึก|โรงงาน|พาณิชย์|หอพัก|สิ่งปลูกสร้าง|พร้อมสิ่งปลูกสร้าง/.test(s);
+        return hasLand && !hasBld;
+      }
+
+      function calcMedianMinMax(rates) {
+        if (!rates || rates.length === 0) {
+          return { count: 0, median: 0, min: 0, max: 0, has: false };
+        }
+        const sorted = rates.slice().sort((a, b) => a - b);
+        const count = sorted.length;
+        const min = sorted[0];
+        const max = sorted[count - 1];
+        const mid = Math.floor(count / 2);
+        const median = (count % 2 !== 0) ? sorted[mid] : ((sorted[mid - 1] + sorted[mid]) / 2);
+        return { count, median, min, max, has: true };
+      }
+
+      function updateParentMedianCards() {
+        try {
+          if (!window.parent || !window.parent.document) return;
+          const pdoc = window.parent.document;
+
+          // Check if Tab 2 (Map) is currently active in Streamlit tablist
+          try {
+            const tablist = pdoc.querySelector('.st-key-main_tabs_container [role="tablist"]');
+            if (tablist) {
+              const tabs = tablist.querySelectorAll('[role="tab"]');
+              if (tabs.length >= 2 && tabs[1].getAttribute('aria-selected') !== 'true') {
+                return;
+              }
+            }
+          } catch(e) {}
+
+          const card1 = pdoc.getElementById('median-card-1');
+          if (!card1) return;
+
+          // 1. Determine active comparison dataset
+          let activeData = [];
+          let scopeHeader = '';
+          const hasRef = !!referencePoint;
+          const isRadiusMode = (mapPinMode === 'radius');
+          const hasProjFilter = inMapFilterState && ((inMapFilterState.samProjects && inMapFilterState.samProjects.size > 0) || (inMapFilterState.samProject && inMapFilterState.samProject !== ''));
+          const hasProv = !!(currentSelectedProv && currentSelectedProv.trim() !== '' && currentSelectedProv !== '__ALL__');
+
+          if (isRadiusMode && hasRef) {
+            activeData = (currentNearbyData && currentNearbyData.length > 0) ? currentNearbyData : [];
+            const rDisp = formatRadiusDisplay(currentRadiusKm);
+            scopeHeader = `(ในรัศมี ${rDisp} จากจุดอ้างอิง)`;
+          } else if (hasProjFilter) {
+            activeData = (currentNearbyData && currentNearbyData.length > 0) ? currentNearbyData : [];
+            const prjCount = inMapFilterState.samProjects ? inMapFilterState.samProjects.size : 1;
+            const projDesc = prjCount > 1 ? `${prjCount} โครงการ SAM` : (Array.from(inMapFilterState.samProjects)[0] || inMapFilterState.samProject);
+            scopeHeader = `(โครงการ: ${projDesc})`;
+          } else if (mapPinMode === 'location' && hasProv) {
+            activeData = (currentNearbyData && currentNearbyData.length > 0) ? currentNearbyData : [];
+            let locDesc = currentSelectedProv;
+            if (currentSelectedDist) locDesc += ' > ' + currentSelectedDist;
+            if (currentSelectedSubdist) locDesc += ' > ' + currentSelectedSubdist;
+            scopeHeader = `(ทำเล ${locDesc})`;
+          } else {
+            activeData = (cachedData || []).filter(filterItemPasses);
+            scopeHeader = '(ภาพรวมทั่วประเทศ)';
+          }
+
+          // Update Scope Header Text
+          const scopeHeaderEl = pdoc.getElementById('median-scope-header-text');
+          if (scopeHeaderEl) scopeHeaderEl.innerText = scopeHeader;
+
+          // Card 1: Reference Info (Total Count as Primary Metric)
+          const totalNearbyCnt = activeData.length;
+          const card1Val = pdoc.getElementById('median-card1-val');
+          if (card1Val) {
+            card1Val.innerHTML = `${totalNearbyCnt.toLocaleString('en-US')} <span style='font-size:0.85rem; font-weight:600; color:#64748b;'>รายการ</span>`;
+          }
+          const card1Loc = pdoc.getElementById('median-card1-loc');
+          if (card1Loc) {
+            let locStr = '';
+            if (hasRef) {
+              locStr = `${referencePoint[1].toFixed(5)}, ${referencePoint[0].toFixed(5)} (รัศมี ${formatRadiusDisplay(currentRadiusKm)})`;
+            } else {
+              locStr = scopeHeader.replace(/^\(/, '').replace(/\)$/, '');
+            }
+            card1Loc.innerHTML = `<i class='fa-solid fa-location-dot' style='color:#10b981; font-size:0.72rem; margin-right:3px;'></i>${locStr}`;
+          }
+          const card1Sub = pdoc.getElementById('median-card1-sub');
+          if (card1Sub) {
+            if (currentRefProp && currentRefProp._id) {
+              const pCo = currentRefProp._company || '-';
+              const pCode = currentRefProp._id || '-';
+              const pType = currentRefProp._type || '-';
+              card1Sub.innerHTML = `[${pCo}] ${pCode} &bull; ${pType}`;
+            } else if (hasRef) {
+              card1Sub.innerText = 'กำหนดจากพิกัดแผนที่';
+            } else {
+              card1Sub.innerText = scopeHeader.replace(/^\(/, '').replace(/\)$/, '');
+            }
+          }
+
+          // Card 2: ราคากลาง / ตร.ม. (Median Sq. Metre for All Properties with sqm > 0 and price > 0)
+          const sqmRates = [];
+          for (let i = 0; i < activeData.length; i++) {
+            const d = activeData[i];
+            if (d._price > 0 && d._sqm > 0) {
+              const r = (d._pum && d._pum > 0) ? d._pum : (d._price / d._sqm);
+              if (r > 0) sqmRates.push(r);
+            }
+          }
+          const sqmStats = calcMedianMinMax(sqmRates);
+          const card2Badge = pdoc.getElementById('median-card2-badge');
+          const card2Val = pdoc.getElementById('median-card2-val');
+          const card2Sub = pdoc.getElementById('median-card2-sub');
+          if (sqmStats.has) {
+            if (card2Badge) card2Badge.innerHTML = `<span style='font-size:0.74rem; font-weight:600; color:#10b981;'>(${sqmStats.count.toLocaleString('en-US')} แปลง)</span>`;
+            if (card2Val) card2Val.innerHTML = `฿${Math.round(sqmStats.median).toLocaleString('en-US')} <span style='font-size:0.85rem; font-weight:600; color:#64748b;'>/ตร.ม.</span>`;
+            if (card2Sub) card2Sub.innerHTML = `ต่ำสุด ฿${Math.round(sqmStats.min).toLocaleString('en-US')} &bull; สูงสุด ฿${Math.round(sqmStats.max).toLocaleString('en-US')}`;
+          } else {
+            if (card2Badge) card2Badge.innerHTML = '';
+            if (card2Val) card2Val.innerHTML = `-`;
+            if (card2Sub) card2Sub.innerText = 'ไม่มีข้อมูลพื้นที่ใช้สอย';
+          }
+
+          // Card 3: Target Type Median
+          let targetType = null;
+          const selectedTypesSet = (inMapFilterState && inMapFilterState.types && inMapFilterState.types.size > 0) ? inMapFilterState.types : null;
+          if (currentRefProp && currentRefProp._type && currentRefProp._type !== '-') {
+            targetType = currentRefProp._type;
+          } else if (selectedTypesSet) {
+            targetType = Array.from(selectedTypesSet).join(', ');
+          }
+
+          const targetTypeLabel = targetType || 'ประเภททรัพย์เป้าหมาย';
+          const isCondo = /คอนโด|ห้องชุด/.test((targetType || '').toLowerCase());
+          const unitLbl = isCondo ? 'ตร.ม.' : 'ตร.ว.';
+
+          const targetRates = [];
+          for (let i = 0; i < activeData.length; i++) {
+            const d = activeData[i];
+            if (d._price <= 0) continue;
+            if (currentRefProp && currentRefProp._type && currentRefProp._type !== '-') {
+              if ((d._type || '').trim() !== currentRefProp._type.trim()) continue;
+            } else if (selectedTypesSet) {
+              if (!selectedTypesSet.has(d._type)) continue;
+            } else {
+              if (isPureLandProperty(d._type)) continue;
+            }
+
+            let r = null;
+            if (isCondo) {
+              r = (d._pum && d._pum > 0) ? d._pum : ((d._sqm && d._sqm > 0) ? d._price / d._sqm : null);
+            } else {
+              r = (d._puw && d._puw > 0) ? d._puw : ((d._sqw && d._sqw > 0) ? d._price / d._sqw : ((d._pum && d._pum > 0) ? d._pum : null));
+            }
+            if (r && r > 0) targetRates.push(r);
+          }
+
+          const targetStats = calcMedianMinMax(targetRates);
+          const card3Title = pdoc.getElementById('median-card3-title');
+          const card3Val = pdoc.getElementById('median-card3-val');
+          const card3Sub = pdoc.getElementById('median-card3-sub');
+
+          if (card3Title) {
+            card3Title.innerHTML = `<i class='fa-solid fa-house' style='color: #10b981; margin-right:4px;'></i> ราคากลาง ${targetTypeLabel} <span id='median-card3-badge'></span>`;
+          }
+          const activeBadgeEl = pdoc.getElementById('median-card3-badge');
+
+          if (targetStats.has) {
+            if (activeBadgeEl) activeBadgeEl.innerHTML = `<span style='font-size:0.74rem; font-weight:600; color:#10b981;'>(${targetStats.count.toLocaleString('en-US')} แปลง)</span>`;
+            if (card3Val) card3Val.innerHTML = `฿${Math.round(targetStats.median).toLocaleString('en-US')} <span style='font-size:0.85rem; font-weight:600; color:#64748b;'>/${unitLbl}</span>`;
+            if (card3Sub) card3Sub.innerHTML = `ต่ำสุด ฿${Math.round(targetStats.min).toLocaleString('en-US')} &bull; สูงสุด ฿${Math.round(targetStats.max).toLocaleString('en-US')}`;
+          } else {
+            if (activeBadgeEl) activeBadgeEl.innerHTML = '';
+            if (card3Val) card3Val.innerHTML = `-`;
+            if (card3Sub) card3Sub.innerText = `ไม่มีข้อมูลราคาสำหรับ ${targetTypeLabel}`;
+          }
+
+          // Card 4: Pure Land Median (Strictly separated)
+          let landPool = [];
+          let sourceIcon = 'fa-circle-dot';
+          let landSourceDesc = '';
+
+          if (isRadiusMode && hasRef) {
+            const landRadius = Math.max(parseFloat(currentRadiusKm) || 5.0, 1.0);
+            sourceIcon = 'fa-circle-dot';
+            landSourceDesc = `ตามรัศมี ${landRadius.toFixed(1)} กม. รอบจุดอ้างอิง`;
+            if (currentRadiusKm >= 1.0 && currentNearbyData && currentNearbyData.length > 0) {
+              landPool = currentNearbyData;
+            } else {
+              landPool = queryPointsInRadius(referencePoint[0], referencePoint[1], landRadius);
+            }
+          } else if (hasProjFilter) {
+            sourceIcon = 'fa-mountain-sun';
+            const prjCount = inMapFilterState.samProjects ? inMapFilterState.samProjects.size : 1;
+            const projDesc = prjCount > 1 ? `${prjCount} โครงการ SAM` : (Array.from(inMapFilterState.samProjects)[0] || inMapFilterState.samProject);
+
+            // 1. Check if the project itself contains pure land
+            const projItems = (cachedData || []).filter(function(d) {
+              if (inMapFilterState.samProjects && inMapFilterState.samProjects.size > 0) {
+                return inMapFilterState.samProjects.has(d._project);
+              }
+              return (d._project || '').trim() === (inMapFilterState.samProject || '').trim();
+            });
+            const projPureLand = projItems.filter(d => isPureLandProperty(d._type) && d._price > 0);
+
+            if (projPureLand.length > 0) {
+              landSourceDesc = `ในโครงการ: ${projDesc}`;
+              landPool = projItems;
+            } else {
+              // Project has no pure land (condo/village) -> Fetch pure land from nearby location of this project!
+              landPool = [];
+              let pLats = [], pLons = [];
+              let pProv = '', pDist = '';
+              for (let i = 0; i < projItems.length; i++) {
+                const item = projItems[i];
+                if (item.lat && item.lon) {
+                  pLats.push(item.lat);
+                  pLons.push(item.lon);
+                }
+                if (!pProv && item._prov && item._prov !== '-' && item._prov !== 'ไม่มีข้อมูล') pProv = item._prov.trim();
+                if (!pDist && item._district && item._district !== '-' && item._district !== 'ไม่มีข้อมูล') pDist = item._district.trim();
+              }
+
+              if (pLats.length > 0 && pLons.length > 0) {
+                const cLat = pLats.reduce((a, b) => a + b, 0) / pLats.length;
+                const cLon = pLons.reduce((a, b) => a + b, 0) / pLons.length;
+                // Try 5 km radius, then 10 km
+                for (const rDist of [5.0, 10.0]) {
+                  const cand = queryPointsInRadius(cLon, cLat, rDist);
+                  const candPure = cand.filter(d => isPureLandProperty(d._type) && d._price > 0);
+                  if (candPure.length >= 2) {
+                    landPool = cand;
+                    landSourceDesc = `ที่ดินเปล่ารอบโครงการ (รัศมี ${rDist.toFixed(0)} กม.)`;
+                    break;
+                  }
+                }
+              }
+
+              // Fallback to District / Province of project
+              if (landPool.length === 0 && cachedData && cachedData.length > 0) {
+                if (pDist && pProv) {
+                  const distCand = cachedData.filter(d => (d._district || '').trim() === pDist && (d._prov || '').trim() === pProv);
+                  const distPure = distCand.filter(d => isPureLandProperty(d._type) && d._price > 0);
+                  if (distPure.length > 0) {
+                    landPool = distCand;
+                    landSourceDesc = `ที่ดินเปล่ารอบโครงการ (อ.${pDist} จ.${pProv})`;
+                  }
+                }
+                if (landPool.length === 0 && pProv) {
+                  const provCand = cachedData.filter(d => (d._prov || '').trim() === pProv);
+                  const provPure = provCand.filter(d => isPureLandProperty(d._type) && d._price > 0);
+                  if (provPure.length > 0) {
+                    landPool = provCand;
+                    landSourceDesc = `ที่ดินเปล่ารอบโครงการ (จ.${pProv})`;
+                  }
+                }
+              }
+
+              if (landPool.length === 0) {
+                landSourceDesc = `ตามโครงการ: ${projDesc}`;
+                landPool = projItems;
+              }
+            }
+          } else {
+            sourceIcon = 'fa-location-dot';
+            let locDesc = currentSelectedProv && currentSelectedProv !== '__ALL__' ? currentSelectedProv : '';
+            if (currentSelectedDist && currentSelectedDist !== '__ALL__') locDesc = `อ.${currentSelectedDist} จ.${locDesc}`;
+            if (currentSelectedSubdist && currentSelectedSubdist !== '__ALL__') locDesc = `ต.${currentSelectedSubdist} ` + locDesc;
+            landSourceDesc = locDesc ? `ตามทำเล ${locDesc}` : 'ตามทำเล ภาพรวมทั่วประเทศ';
+            landPool = cachedData || [];
+            if (currentSelectedSubdist && currentSelectedSubdist !== '__ALL__') {
+              landPool = landPool.filter(d => (d._subdistrict || '').trim() === currentSelectedSubdist.trim());
+            } else if (currentSelectedDist && currentSelectedDist !== '__ALL__') {
+              landPool = landPool.filter(d => (d._district || '').trim() === currentSelectedDist.trim());
+            } else if (currentSelectedProv && currentSelectedProv !== '__ALL__') {
+              landPool = landPool.filter(d => (d._prov || '').trim() === currentSelectedProv.trim());
+            }
+          }
+
+          // Filter for pure land with price > 0
+          const activeCompanies = (inMapFilterState && inMapFilterState.companies && inMapFilterState.companies.size > 0) ? inMapFilterState.companies : null;
+          let pureLandItems = landPool.filter(d => isPureLandProperty(d._type) && d._price > 0);
+          if (activeCompanies && pureLandItems.length > 0) {
+            const coFiltered = pureLandItems.filter(d => activeCompanies.has(d._company));
+            if (coFiltered.length > 0) pureLandItems = coFiltered;
+          }
+
+          const landRates = [];
+          for (let i = 0; i < pureLandItems.length; i++) {
+            const d = pureLandItems[i];
+            const r = (d._puw && d._puw > 0) ? d._puw : ((d._sqw && d._sqw > 0) ? d._price / d._sqw : null);
+            if (r && r > 0) landRates.push(r);
+          }
+
+          const landStats = calcMedianMinMax(landRates);
+          const card4Badge = pdoc.getElementById('median-card4-badge');
+          const card4Val = pdoc.getElementById('median-card4-val');
+          const card4Source = pdoc.getElementById('median-card4-source');
+          const card4Sub = pdoc.getElementById('median-card4-sub');
+
+          if (card4Source) {
+            card4Source.innerHTML = `<i class='fa-solid ${sourceIcon}' style='font-size:0.72rem; margin-right:3px;'></i>${landSourceDesc}`;
+            card4Source.title = landSourceDesc;
+          }
+
+          if (landStats.has) {
+            if (card4Badge) card4Badge.innerHTML = `<span style='font-size:0.74rem; font-weight:600; color:#10b981;'>(${landStats.count.toLocaleString('en-US')} แปลง)</span>`;
+            if (card4Val) card4Val.innerHTML = `฿${Math.round(landStats.median).toLocaleString('en-US')} <span style='font-size:0.85rem; font-weight:600; color:#64748b;'>/ตร.ว.</span>`;
+            if (card4Sub) card4Sub.innerHTML = `ต่ำสุด ฿${Math.round(landStats.min).toLocaleString('en-US')} &bull; สูงสุด ฿${Math.round(landStats.max).toLocaleString('en-US')}`;
+          } else {
+            if (card4Badge) card4Badge.innerHTML = '';
+            if (card4Val) card4Val.innerHTML = `-`;
+            if (card4Sub) card4Sub.innerText = 'ไม่พบข้อมูลที่ดินเปล่าในขอบเขตนี้';
+          }
+
+          // Table Title realtime update
+          const tableTitleEl = pdoc.getElementById('median-table-title');
+          if (tableTitleEl) {
+            tableTitleEl.innerText = `รายการทรัพย์สิน (${totalNearbyCnt.toLocaleString('en-US')} รายการ ${scopeHeader})`;
+          }
+        } catch(e) {
+          console.warn('updateParentMedianCards error:', e);
+        }
+      }
+
       let kpiUpdateRaf = null;
       function scheduleParentKpiUpdate() {
         if (kpiUpdateRaf) cancelAnimationFrame(kpiUpdateRaf);
         kpiUpdateRaf = requestAnimationFrame(() => {
           updateParentKpiCards();
           updateParentFilterStatusBanner();
+          updateParentMedianCards();
         });
       }
 
@@ -6182,6 +6799,7 @@
                     if (idx === 1) {
                       updateParentKpiCards();
                       updateParentFilterStatusBanner();
+                      updateParentMedianCards();
                     } else {
                       restoreDefaultParentKpiCards();
                     }
@@ -6197,6 +6815,7 @@
                 if (isTab2Active) {
                   updateParentKpiCards();
                   updateParentFilterStatusBanner();
+                  updateParentMedianCards();
                 } else {
                   restoreDefaultParentKpiCards();
                 }
@@ -6208,6 +6827,7 @@
             if (tabs[1] && tabs[1].getAttribute('aria-selected') === 'true') {
               updateParentKpiCards();
               updateParentFilterStatusBanner();
+              updateParentMedianCards();
             }
 
             return true;
@@ -6560,6 +7180,7 @@
 
           cachedData = data;
           spatialGrid = buildSpatialGrid(data);
+          buildSamProjectOptions(data, _lut && _lut.sam_prj);
           currentNearbyData = [];
           currentCoordMap = new Map();
           setupParentTabListeners();

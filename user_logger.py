@@ -273,3 +273,8 @@ def clear_old_logs(days=90):
         pass
     finally:
         conn.close()
+
+
+# Alias for aggregated visitor logs
+get_aggregated_visitor_logs = get_all_logs
+

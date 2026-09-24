@@ -836,9 +836,26 @@ CONDITION_SUFFIX_REGEX = re.compile(
     re.IGNORECASE
 )
 
+# Import enhanced project standardization engine
+try:
+    from clean_project_util import clean_sam_project_name
+except ImportError:
+    try:
+        import sys
+        _scr_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Py Scraper")
+        if _scr_dir not in sys.path:
+            sys.path.insert(0, _scr_dir)
+        from clean_project_util import clean_sam_project_name
+    except Exception:
+        clean_sam_project_name = None
+
 def clean_project_name(name):
     """Standardizes project name, removes undefined/junk labels, extracts real names from bank prefixes,
     filters out ad titles, storey/bedroom descriptors, specs, and trailing province suffixes."""
+    if clean_sam_project_name is not None:
+        res = clean_sam_project_name(name)
+        return res if res else None
+
     if not name or pd.isna(name):
         return None
     n = str(name).strip()

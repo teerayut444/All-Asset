@@ -1,0 +1,1187 @@
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+Thai:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+Thai:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200');
+@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
+
+@font-face {
+  font-family: 'Font Awesome 6 Free';
+  font-style: normal;
+  font-weight: 900;
+  font-display: block;
+  src: url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/webfonts/fa-solid-900.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Material Symbols Rounded';
+  font-style: normal;
+  font-weight: 100 700;
+  src: url(https://fonts.gstatic.com/s/materialsymbolsrounded/v369/sykg-zNym6YjUruM-QrEh7-nyTnjDwKNJ_190Fjzag.woff2) format('woff2');
+}
+
+:root {
+    ROOT_VARS_PLACEHOLDER
+}
+
+/* Material Icons must ALWAYS use Material Symbols (Monochrome Vector Icons) */
+span[data-testid="stIconMaterial"],
+i[data-testid="stIconMaterial"],
+[data-testid="stIconMaterial"],
+.material-symbols-rounded,
+[class*="material-symbols"] {
+    font-family: 'Material Symbols Rounded' !important;
+    font-weight: normal !important;
+    font-style: normal !important;
+    line-height: 1 !important;
+    letter-spacing: normal !important;
+    text-transform: none !important;
+    display: inline-block !important;
+    white-space: nowrap !important;
+    word-wrap: normal !important;
+    direction: ltr !important;
+    -webkit-font-feature-settings: 'liga' 1 !important;
+    -webkit-font-smoothing: antialiased !important;
+}
+
+/* Tab Icon Size & Alignment - clean monochrome theme */
+[data-baseweb="tab"] [data-testid="stIconMaterial"],
+[data-baseweb="tab"] .material-symbols-rounded {
+    font-size: 1.15rem !important;
+    margin-right: 5px !important;
+    vertical-align: middle !important;
+}
+
+/* Font Awesome Icons */
+.fa, .fas, .fa-solid, .fa-regular, .fa-brands, [class*="fa-"] {
+    font-family: "Font Awesome 6 Free", "FontAwesome" !important;
+}
+
+/* Universal Typography: Noto Sans Thai for Thai & Inter for Latin/Numbers */
+html, body, .stApp, [data-testid="stAppViewContainer"], [data-testid="stSidebar"],
+h1, h2, h3, h4, h5, h6,
+p, label, input, button, select, textarea,
+div[data-testid*="stMarkdownContainer"] p,
+div[data-testid*="stMarkdownContainer"] span:not([data-testid="stIconMaterial"]):not([class*="material"]):not([class*="fa"]),
+div[data-testid*="stMarkdownContainer"] div,
+div[data-testid*="stText"],
+div[data-testid*="stWidgetLabel"] label,
+div[data-testid*="stWidgetLabel"] p,
+div[data-testid*="stWidgetLabel"] span:not([data-testid="stIconMaterial"]):not([class*="material"]),
+button span:not([data-testid="stIconMaterial"]):not([class*="material"]):not([class*="fa"]),
+button p,
+.stTabs [data-baseweb="tab"] p,
+.stTabs [data-baseweb="tab"] span:not([data-testid="stIconMaterial"]):not([class*="material"]),
+[data-testid="stPills"] button,
+[data-testid="stSegmentedControl"] button,
+[data-testid="stSelectbox"] div,
+[data-testid="stMultiSelect"] div,
+[data-testid="stTextInput"] input,
+[data-testid="stNumberInput"] input,
+[data-testid="stSlider"] div,
+[data-testid="stMetricValue"] div,
+[data-testid="stMetricLabel"] div,
+[data-testid="stDataFrame"] * {
+    font-family: 'Noto Sans Thai', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
+
+.floating-card {
+    background: var(--card-bg) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border: 1px solid var(--kpi-border, rgba(4, 120, 87, 0.16)) !important;
+    border-top: 3.5px solid var(--kpi-accent-bar, #047857) !important;
+    border-radius: 14px !important;
+    padding: 14px 18px !important;
+    box-shadow: 0 4px 20px rgba(4, 120, 87, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02) !important;
+    flex: 1;
+    transition: transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.floating-card:hover {
+    transform: translateY(-3px);
+    background: var(--card-bg) !important;
+    border-color: var(--kpi-hover-border, #047857) !important;
+    border-top-color: var(--kpi-accent-bar, #047857) !important;
+    box-shadow: 0 12px 28px var(--kpi-hover-shadow, rgba(4, 120, 87, 0.14)), 0 2px 8px rgba(4, 120, 87, 0.06) !important;
+}
+
+.floating-card-title {
+    font-size: 0.74rem;
+    color: var(--card-subtext) !important;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 5px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.floating-card-value {
+    font-size: 1.48rem;
+    font-weight: 800;
+    background: var(--kpi-gradient, linear-gradient(135deg, #064e3b 0%, #047857 55%, #059669 100%)); 
+    -webkit-background-clip: text; 
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -0.5px;
+    line-height: 1.25;
+}
+
+.floating-card-sub {
+    font-size: 0.70rem;
+    color: var(--card-subtext) !important;
+    margin-top: 4px;
+    font-weight: 500;
+}
+
+.kpi-scope-badge {
+    margin-left: auto;
+    font-size: 0.65rem !important;
+    font-weight: 700 !important;
+    padding: 2px 7px !important;
+    border-radius: 6px !important;
+    background: rgba(16, 185, 129, 0.12) !important;
+    color: #059669 !important;
+    border: 1px solid rgba(16, 185, 129, 0.28) !important;
+    text-transform: none !important;
+    letter-spacing: 0 !important;
+    display: none;
+    align-items: center;
+    gap: 3px;
+    transition: all 0.2s ease;
+}
+
+.floating-card.kpi-synced-map {
+    border-top-color: #10b981 !important;
+    box-shadow: 0 4px 20px rgba(16, 185, 129, 0.12), 0 1px 3px rgba(0, 0, 0, 0.02) !important;
+}
+
+html, body, [data-testid="stSidebar"], .stApp {
+    font-family: 'Noto Sans Thai', 'Inter', sans-serif !important;
+    color-scheme: var(--app-color-scheme, light) !important;
+}
+
+/* Clean layout adapting to active background theme color */
+body, .stApp {
+    background-color: var(--page-bg) !important;
+    color: var(--card-text) !important;
+}
+
+/* Make right panel container borderless and expand naturally under the header */
+div[data-testid="stAppViewBlockContainer"],
+.main .block-container,
+.block-container {
+    padding-top: 55px !important; /* To prevent header from covering the tabs! */
+    padding-bottom: 4px !important;
+    padding-left: 20px !important;
+    padding-right: 20px !important;
+    max-width: 100% !important;
+    position: relative !important;
+}
+
+.main {
+    position: relative !important;
+}
+
+/* Solid SAM Green Sidebar styling with crisp contrast */
+section[data-testid="stSidebar"],
+section[data-testid="stSidebar"] div[data-testid="stSidebarContent"],
+section[data-testid="stSidebar"] div[data-testid="stSidebarUserContent"] {
+    background: var(--sidebar-bg) !important;
+    background-color: var(--sidebar-bg) !important;
+    border-right: 1.5px solid var(--sidebar-border) !important;
+}
+
+/* Sidebar Headings & Labels in pure white */
+section[data-testid="stSidebar"] label p, 
+section[data-testid="stSidebar"] label span, 
+section[data-testid="stSidebar"] h1, 
+section[data-testid="stSidebar"] h2, 
+section[data-testid="stSidebar"] h3, 
+section[data-testid="stSidebar"] h4, 
+section[data-testid="stSidebar"] h5, 
+section[data-testid="stSidebar"] h6,
+section[data-testid="stSidebar"] [data-testid="stWidgetLabel"] label,
+section[data-testid="stSidebar"] [data-testid="stWidgetLabel"] p,
+section[data-testid="stSidebar"] [data-testid="stWidgetLabel"] span {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    font-weight: 600 !important;
+}
+
+section[data-testid="stSidebar"] div[data-testid="stMarkdownContainer"]:not(button *):not([data-testid="stButtonGroup"] *):not(.stButtonGroup *) p,
+section[data-testid="stSidebar"] div[data-testid="stMarkdownContainer"]:not(button *):not([data-testid="stButtonGroup"] *):not(.stButtonGroup *) span:not([data-testid="stIconMaterial"]):not([class*="material"]):not([class*="fa"]) {
+    color: #ecfdf5 !important;
+    -webkit-text-fill-color: #ecfdf5 !important;
+}
+
+/* Sidebar Pills & ButtonGroups (Filter Items) - High Contrast White Pills on Green Sidebar */
+section[data-testid="stSidebar"] div[data-testid="stButtonGroup"] button,
+section[data-testid="stSidebar"] div[data-testid="stButtonGroup"] button[data-variant="pills"],
+section[data-testid="stSidebar"] .stButtonGroup button,
+section[data-testid="stSidebar"] div[data-testid="stPills"] button,
+section[data-testid="stSidebar"] div[data-testid="stPills"] [data-testid="stPillsItem"],
+section[data-testid="stSidebar"] div[data-testid="stPills"] [data-testid^="stBaseButton"] {
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+    color: #064e3b !important;
+    -webkit-text-fill-color: #064e3b !important;
+    border: 1.5px solid #a7f3d0 !important;
+    border-radius: 20px !important;
+    padding: 4px 12px !important;
+    font-size: 0.82rem !important;
+    font-weight: 700 !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12) !important;
+    transition: all 0.2s ease !important;
+}
+
+section[data-testid="stSidebar"] div[data-testid="stButtonGroup"] button *,
+section[data-testid="stSidebar"] div[data-testid="stButtonGroup"] button p,
+section[data-testid="stSidebar"] div[data-testid="stButtonGroup"] button span,
+section[data-testid="stSidebar"] .stButtonGroup button *,
+section[data-testid="stSidebar"] .stButtonGroup button p,
+section[data-testid="stSidebar"] .stButtonGroup button span,
+section[data-testid="stSidebar"] div[data-testid="stPills"] button *,
+section[data-testid="stSidebar"] div[data-testid="stPills"] button p,
+section[data-testid="stSidebar"] div[data-testid="stPills"] button span,
+section[data-testid="stSidebar"] div[data-testid="stPills"] [data-testid="stPillsItem"] *,
+section[data-testid="stSidebar"] div[data-testid="stPills"] [data-testid="stPillsItem"] p,
+section[data-testid="stSidebar"] div[data-testid="stPills"] [data-testid="stPillsItem"] span {
+    color: #064e3b !important;
+    -webkit-text-fill-color: #064e3b !important;
+    font-weight: 700 !important;
+}
+
+section[data-testid="stSidebar"] div[data-testid="stButtonGroup"] button:hover,
+section[data-testid="stSidebar"] .stButtonGroup button:hover,
+section[data-testid="stSidebar"] div[data-testid="stPills"] button:hover {
+    background-color: #ecfdf5 !important;
+    background: #ecfdf5 !important;
+    border-color: #047857 !important;
+    color: #047857 !important;
+    -webkit-text-fill-color: #047857 !important;
+}
+
+section[data-testid="stSidebar"] div[data-testid="stButtonGroup"] button:hover *,
+section[data-testid="stSidebar"] div[data-testid="stButtonGroup"] button:hover p,
+section[data-testid="stSidebar"] .stButtonGroup button:hover *,
+section[data-testid="stSidebar"] .stButtonGroup button:hover p,
+section[data-testid="stSidebar"] div[data-testid="stPills"] button:hover *,
+section[data-testid="stSidebar"] div[data-testid="stPills"] [data-testid="stPillsItem"]:hover * {
+    color: #047857 !important;
+    -webkit-text-fill-color: #047857 !important;
+}
+
+section[data-testid="stSidebar"] div[data-testid="stButtonGroup"] button[aria-pressed="true"],
+section[data-testid="stSidebar"] div[data-testid="stButtonGroup"] button[data-selected="true"],
+section[data-testid="stSidebar"] div[data-testid="stButtonGroup"] button[aria-selected="true"],
+section[data-testid="stSidebar"] .stButtonGroup button[aria-pressed="true"],
+section[data-testid="stSidebar"] .stButtonGroup button[data-selected="true"],
+section[data-testid="stSidebar"] .stButtonGroup button[aria-selected="true"],
+section[data-testid="stSidebar"] div[data-testid="stPills"] button[aria-selected="true"],
+section[data-testid="stSidebar"] div[data-testid="stPills"] button[data-selected="true"],
+section[data-testid="stSidebar"] div[data-testid="stPills"] button[aria-checked="true"],
+section[data-testid="stSidebar"] div[data-testid="stPills"] [aria-checked="true"] {
+    background-color: #047857 !important;
+    background: #047857 !important;
+    border: 2px solid #34d399 !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35) !important;
+}
+
+section[data-testid="stSidebar"] div[data-testid="stButtonGroup"] button[aria-pressed="true"] *,
+section[data-testid="stSidebar"] div[data-testid="stButtonGroup"] button[aria-pressed="true"] p,
+section[data-testid="stSidebar"] div[data-testid="stButtonGroup"] button[aria-pressed="true"] span,
+section[data-testid="stSidebar"] div[data-testid="stButtonGroup"] button[data-selected="true"] *,
+section[data-testid="stSidebar"] div[data-testid="stButtonGroup"] button[data-selected="true"] p,
+section[data-testid="stSidebar"] div[data-testid="stButtonGroup"] button[data-selected="true"] span,
+section[data-testid="stSidebar"] .stButtonGroup button[aria-pressed="true"] *,
+section[data-testid="stSidebar"] .stButtonGroup button[aria-pressed="true"] p,
+section[data-testid="stSidebar"] .stButtonGroup button[aria-pressed="true"] span,
+section[data-testid="stSidebar"] .stButtonGroup button[data-selected="true"] *,
+section[data-testid="stSidebar"] .stButtonGroup button[data-selected="true"] p,
+section[data-testid="stSidebar"] .stButtonGroup button[data-selected="true"] span,
+section[data-testid="stSidebar"] div[data-testid="stPills"] button[aria-selected="true"] *,
+section[data-testid="stSidebar"] div[data-testid="stPills"] button[data-selected="true"] *,
+section[data-testid="stSidebar"] div[data-testid="stPills"] button[aria-checked="true"] *,
+section[data-testid="stSidebar"] div[data-testid="stPills"] [aria-checked="true"] * {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    font-weight: 800 !important;
+}
+
+/* Sidebar Expander Custom Styling (Dark Emerald Card - Single Clean Frame) */
+section[data-testid="stSidebar"] [data-testid="stExpander"] {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin-bottom: 10px !important;
+}
+
+section[data-testid="stSidebar"] [data-testid="stExpander"] > details {
+    background-color: rgba(2, 44, 34, 0.85) !important;
+    background: rgba(2, 44, 34, 0.85) !important;
+    border: 1px solid rgba(52, 211, 153, 0.35) !important;
+    border-radius: 10px !important;
+    overflow: hidden !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+section[data-testid="stSidebar"] [data-testid="stExpander"] > details > summary {
+    background-color: transparent !important;
+    background: transparent !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 9px 12px !important;
+    margin: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    cursor: pointer !important;
+    transition: background-color 0.2s ease !important;
+}
+
+section[data-testid="stSidebar"] [data-testid="stExpander"] > details > summary:hover {
+    background-color: rgba(16, 185, 129, 0.15) !important;
+    background: rgba(16, 185, 129, 0.15) !important;
+}
+
+section[data-testid="stSidebar"] [data-testid="stExpander"] > details[open] > summary {
+    border-bottom: 1px solid rgba(52, 211, 153, 0.25) !important;
+}
+
+section[data-testid="stSidebar"] [data-testid="stExpander"] > details > summary p,
+section[data-testid="stSidebar"] [data-testid="stExpander"] > details > summary span,
+section[data-testid="stSidebar"] [data-testid="stExpander"] > details > summary div {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    font-weight: 700 !important;
+    font-size: 0.88rem !important;
+}
+
+section[data-testid="stSidebar"] [data-testid="stExpander"] > details > summary [data-testid="stIconMaterial"],
+section[data-testid="stSidebar"] [data-testid="stExpander"] > details > summary i {
+    color: #34d399 !important;
+    -webkit-text-fill-color: #34d399 !important;
+    font-size: 1.15rem !important;
+    margin-right: 6px !important;
+}
+
+section[data-testid="stSidebar"] [data-testid="stExpander"] > details > summary svg {
+    fill: #34d399 !important;
+    color: #34d399 !important;
+}
+
+section[data-testid="stSidebar"] [data-testid="stExpander"] [data-testid="stExpanderDetails"] {
+    background-color: transparent !important;
+    background: transparent !important;
+    border: none !important;
+    padding: 10px 12px 14px 12px !important;
+}
+
+/* Sidebar Select boxes, Number inputs, Text inputs */
+section[data-testid="stSidebar"] div[data-baseweb="select"] > div,
+section[data-testid="stSidebar"] div[data-testid="stTextInput"],
+section[data-testid="stSidebar"] div[data-testid="stTextInputRootElement"],
+section[data-testid="stSidebar"] div[data-testid="stTextInputRootElement"] > div,
+section[data-testid="stSidebar"] div[data-baseweb="base-input"],
+section[data-testid="stSidebar"] div[data-baseweb="input"],
+section[data-testid="stSidebar"] div[data-testid="stTextInput"] input,
+section[data-testid="stSidebar"] div[data-testid="stNumberInput"] input {
+    background-color: rgba(2, 44, 34, 0.85) !important;
+    border: 1px solid rgba(52, 211, 153, 0.35) !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    border-radius: 8px !important;
+}
+
+section[data-testid="stSidebar"] div[data-testid="stTextInput"] input {
+    background-color: transparent !important;
+    border: none !important;
+}
+
+section[data-testid="stSidebar"] div[data-testid="stTextInput"] button {
+    background-color: transparent !important;
+    border: none !important;
+    color: #34d399 !important;
+}
+
+section[data-testid="stSidebar"] div[data-testid="stTextInput"] button svg,
+section[data-testid="stSidebar"] div[data-testid="stTextInput"] svg {
+    fill: #34d399 !important;
+    color: #34d399 !important;
+}
+
+section[data-testid="stSidebar"] div[data-baseweb="select"] div,
+section[data-testid="stSidebar"] div[data-baseweb="select"] span {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+}
+
+section[data-testid="stSidebar"] div[data-testid="stNumberInput"] button {
+    background-color: rgba(2, 44, 34, 0.85) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(52, 211, 153, 0.35) !important;
+}
+
+/* Sidebar Clear Cache button */
+section[data-testid="stSidebar"] button[kind="secondary"],
+section[data-testid="stSidebar"] button[kind="primary"] {
+    background-color: rgba(255, 255, 255, 0.12) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(110, 231, 183, 0.35) !important;
+    border-radius: 8px !important;
+    font-weight: 700 !important;
+    transition: all 0.2s ease !important;
+}
+
+section[data-testid="stSidebar"] button[kind="secondary"] *,
+section[data-testid="stSidebar"] button[kind="primary"] * {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+}
+
+section[data-testid="stSidebar"] button[kind="secondary"]:hover,
+section[data-testid="stSidebar"] button[kind="primary"]:hover {
+    background-color: #10b981 !important;
+    color: #022c22 !important;
+    border-color: #34d399 !important;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.45) !important;
+}
+
+section[data-testid="stSidebar"] button[kind="secondary"]:hover *,
+section[data-testid="stSidebar"] button[kind="primary"]:hover * {
+    color: #022c22 !important;
+    -webkit-text-fill-color: #022c22 !important;
+}
+
+/* Sidebar Sliders */
+section[data-testid="stSidebar"] div[data-testid="stSlider"] div,
+section[data-testid="stSidebar"] div[data-testid="stSlider"] span,
+section[data-testid="stSidebar"] div[data-testid="stSlider"] p {
+    color: #ecfdf5 !important;
+    -webkit-text-fill-color: #ecfdf5 !important;
+}
+
+section[data-testid="stSidebar"] div[data-testid="stSlider"] [data-baseweb="slider"] div[role="slider"] {
+    background-color: #34d399 !important;
+    border: 2px solid #ffffff !important;
+}
+
+header[data-testid="stHeader"] {
+    background-color: var(--page-bg) !important;
+    border-bottom: 1px solid var(--sidebar-border) !important;
+    height: 55px !important;
+}
+
+/* Universal Label overrides across all forms in Main Page & Sidebar */
+label p, label span, h1, h2, h3, h4, h5, h6 {
+    color: var(--card-text) !important;
+    -webkit-text-fill-color: var(--card-text) !important;
+}
+
+/* Universal Radio Buttons styling */
+div[data-testid="stRadio"] *,
+div[data-testid="stRadio"] label p,
+div[data-testid="stRadio"] label span,
+div[data-testid="stRadio"] div[role="radiogroup"] label p,
+div[data-testid="stRadio"] div[role="radiogroup"] label span {
+    color: var(--card-text) !important;
+    -webkit-text-fill-color: var(--card-text) !important;
+}
+
+/* BaseWeb Select dropdowns and input boxes */
+div[data-baseweb="select"] > div {
+    background-color: var(--input-bg) !important;
+    border: 1px solid var(--input-border) !important;
+    border-radius: 8px !important;
+}
+
+div[data-baseweb="select"] div,
+div[data-baseweb="select"] span,
+div[data-baseweb="select"] input {
+    color: var(--input-text) !important;
+    -webkit-text-fill-color: var(--input-text) !important;
+}
+
+/* Number Input & Text Input styling across Main Page and Sidebar */
+div[data-testid="stNumberInput"] input,
+div[data-testid="stNumberInput"] div[data-baseweb="input"],
+div[data-testid="stNumberInput"] button,
+div[data-testid="stTextInput"] input {
+    background-color: var(--input-bg) !important;
+    color: var(--input-text) !important;
+    -webkit-text-fill-color: var(--input-text) !important;
+    border: 1px solid var(--input-border) !important;
+    border-radius: 8px !important;
+}
+
+div[data-testid="stNumberInput"] label p,
+div[data-testid="stNumberInput"] label span,
+div[data-testid="stTextInput"] label p,
+div[data-testid="stTextInput"] label span {
+    color: var(--card-text) !important;
+    -webkit-text-fill-color: var(--card-text) !important;
+}
+
+/* Multiselect selected items (chips/tags) override */
+span[data-baseweb="tag"] {
+    background-color: var(--tag-bg) !important;
+    border: 1px solid var(--tag-border) !important;
+    border-radius: 6px !important;
+}
+
+span[data-baseweb="tag"] span {
+    color: var(--tag-text) !important;
+    -webkit-text-fill-color: var(--tag-text) !important;
+    background-color: transparent !important;
+}
+
+span[data-baseweb="tag"] svg {
+    fill: var(--card-subtext) !important;
+}
+
+/* Dropdown listbox items (when expanding dropdown) */
+div[role="listbox"], ul[role="listbox"], div[data-baseweb="menu"] {
+    background-color: var(--input-bg) !important;
+    border: 1px solid var(--card-border) !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25) !important;
+}
+
+div[role="listbox"] div, ul[role="listbox"] li, div[data-baseweb="menu"] div {
+    background-color: var(--input-bg) !important;
+    color: var(--input-text) !important;
+    -webkit-text-fill-color: var(--input-text) !important;
+}
+
+div[role="option"]:hover, li[role="option"]:hover, div[data-baseweb="menu"] div:hover {
+    background-color: var(--hover-bg) !important;
+    color: var(--input-text) !important;
+}
+
+/* Slider values styling */
+div[data-testid="stSlider"] div,
+div[data-testid="stSlider"] span,
+div[data-testid="stSlider"] p {
+    color: var(--card-text) !important;
+    -webkit-text-fill-color: var(--card-text) !important;
+}
+
+/* Toggle (Checkbox/Switch) label styling */
+div[data-testid="stCheckbox"] label span,
+div[data-testid="stCheckbox"] label p,
+div[data-testid="stToggle"] label span,
+div[data-testid="stToggle"] label p {
+    color: var(--card-text) !important;
+    -webkit-text-fill-color: var(--card-text) !important;
+}
+
+/* Custom st.dataframe styling to align with active Light/Dark theme */
+div[data-testid="stDataFrame"],
+div[data-testid="stDataFrame"] > div,
+div[data-testid="stDataFrame"] iframe,
+div[data-testid="stDataFrame"] canvas {
+    color-scheme: var(--app-color-scheme, light) !important;
+}
+
+div[data-testid="stDataFrame"] {
+    background-color: var(--card-bg) !important;
+    border: 1px solid var(--card-border) !important;
+    border-radius: 10px !important;
+    overflow: hidden !important;
+}
+
+/* Hide Streamlit default component skeleton loading placeholder */
+[data-testid="stSkeleton"],
+.stSkeleton {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    height: 0 !important;
+    pointer-events: none !important;
+}
+
+/* Ensure welcome enter button is never displayed on dashboard */
+.st-key-btn_frameless_enter,
+div[data-testid="stElementContainer"]:has(.st-key-btn_frameless_enter) {
+    display: none !important;
+}
+
+/* Card container styling for bordered containers across dashboard */
+div[data-testid="stVerticalBlockBorderWrapper"] {
+    background: var(--card-bg, #ffffff) !important;
+    border: 1.5px solid var(--kpi-border, rgba(4, 120, 87, 0.18)) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 4px 20px rgba(4, 120, 87, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02) !important;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+div[data-testid="stVerticalBlockBorderWrapper"]:hover {
+    border-color: var(--kpi-hover-border, #047857) !important;
+    box-shadow: 0 8px 24px rgba(4, 120, 87, 0.09), 0 2px 6px rgba(0, 0, 0, 0.03) !important;
+}
+
+/* Custom st.pills styling - Guaranteed high contrast in Light and Dark modes */
+div[data-testid="stPills"] {
+    gap: 8px !important;
+    padding-top: 4px !important;
+}
+div[data-testid="stPills"] button,
+div[data-testid="stPills"] button[kind],
+div[data-testid="stPills"] [data-testid="stPillsItem"],
+div[data-testid="stPills"] [data-testid^="stBaseButton"] {
+    background-color: var(--pill-bg) !important;
+    color: var(--pill-text) !important;
+    border: 1px solid var(--pill-border) !important;
+    border-radius: 20px !important;
+    padding: 4px 14px !important;
+    font-size: 0.82rem !important;
+    font-weight: 600 !important;
+    transition: all 0.2s ease !important;
+}
+div[data-testid="stPills"] button *,
+div[data-testid="stPills"] button p,
+div[data-testid="stPills"] button span,
+div[data-testid="stPills"] [data-testid="stPillsItem"] *,
+div[data-testid="stPills"] [data-testid="stPillsItem"] p,
+div[data-testid="stPills"] [data-testid="stPillsItem"] span {
+    color: var(--pill-text) !important;
+    -webkit-text-fill-color: var(--pill-text) !important;
+}
+
+div[data-testid="stPills"] button:hover,
+div[data-testid="stPills"] [data-testid="stPillsItem"]:hover {
+    border-color: var(--primary-accent, #047857) !important;
+    background-color: var(--hover-bg) !important;
+}
+div[data-testid="stPills"] button:hover *,
+div[data-testid="stPills"] button:hover p,
+div[data-testid="stPills"] button:hover span,
+div[data-testid="stPills"] [data-testid="stPillsItem"]:hover *,
+div[data-testid="stPills"] [data-testid="stPillsItem"]:hover p,
+div[data-testid="stPills"] [data-testid="stPillsItem"]:hover span {
+    color: var(--primary-accent, #047857) !important;
+    -webkit-text-fill-color: var(--primary-accent, #047857) !important;
+}
+
+/* Style selected pill buttons with explicit SAM green background and white text */
+div[data-testid="stPills"] button[aria-checked="true"],
+div[data-testid="stPills"] button[aria-pressed="true"],
+div[data-testid="stPills"] button[data-selected="true"],
+div[data-testid="stPills"] button[aria-selected="true"],
+div[data-testid="stPills"] [data-testid="stPillsItem"][aria-checked="true"],
+div[data-testid="stPills"] [data-testid="stPillsItem"][data-selected="true"] {
+    background-color: var(--primary-accent, #047857) !important;
+    border-color: var(--primary-accent, #047857) !important;
+    box-shadow: 0 4px 12px rgba(4, 120, 87, 0.35) !important;
+}
+div[data-testid="stPills"] button[aria-checked="true"] *,
+div[data-testid="stPills"] button[aria-checked="true"] p,
+div[data-testid="stPills"] button[aria-checked="true"] span,
+div[data-testid="stPills"] button[aria-pressed="true"] *,
+div[data-testid="stPills"] button[aria-pressed="true"] p,
+div[data-testid="stPills"] button[aria-pressed="true"] span,
+div[data-testid="stPills"] button[data-selected="true"] *,
+div[data-testid="stPills"] button[data-selected="true"] p,
+div[data-testid="stPills"] button[data-selected="true"] span,
+div[data-testid="stPills"] button[aria-selected="true"] *,
+div[data-testid="stPills"] button[aria-selected="true"] p,
+div[data-testid="stPills"] button[aria-selected="true"] span,
+div[data-testid="stPills"] [data-testid="stPillsItem"][aria-checked="true"] *,
+div[data-testid="stPills"] [data-testid="stPillsItem"][aria-checked="true"] p,
+div[data-testid="stPills"] [data-testid="stPillsItem"][aria-checked="true"] span {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+}
+
+/* =========================================================================
+   ULTRA-SPECIFIC OVERRIDE FOR SIDEBAR PILLS & BUTTON GROUPS (CRISP WHITE PILLS + DEEP GREEN TEXT)
+   ========================================================================= */
+section[data-testid="stSidebar"] div[data-testid="stButtonGroup"],
+section[data-testid="stSidebar"] .stButtonGroup,
+section[data-testid="stSidebar"] div[data-testid="stPills"] {
+    gap: 6px !important;
+}
+
+section[data-testid="stSidebar"] div[data-testid="stButtonGroup"] button,
+section[data-testid="stSidebar"] div[data-testid="stButtonGroup"] button[data-variant="pills"],
+section[data-testid="stSidebar"] .stButtonGroup button,
+section[data-testid="stSidebar"] div[data-testid="stPills"] button,
+section[data-testid="stSidebar"] div[data-testid="stPills"] button[kind],
+section[data-testid="stSidebar"] div[data-testid="stPills"] [data-testid="stPillsItem"],
+section[data-testid="stSidebar"] div[data-testid="stPills"] [data-testid^="stBaseButton"] {
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+    border: 1.5px solid #a7f3d0 !important;
+    border-radius: 20px !important;
+    padding: 5px 12px !important;
+    font-size: 0.82rem !important;
+    font-weight: 700 !important;
+    color: #064e3b !important;
+    -webkit-text-fill-color: #064e3b !important;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15) !important;
+    transition: all 0.2s ease !important;
+}
+
+section[data-testid="stSidebar"] div[data-testid="stButtonGroup"] button *,
+section[data-testid="stSidebar"] div[data-testid="stButtonGroup"] button p,
+section[data-testid="stSidebar"] div[data-testid="stButtonGroup"] button span,
+section[data-testid="stSidebar"] .stButtonGroup button *,
+section[data-testid="stSidebar"] .stButtonGroup button p,
+section[data-testid="stSidebar"] .stButtonGroup button span,
+section[data-testid="stSidebar"] div[data-testid="stPills"] button *,
+section[data-testid="stSidebar"] div[data-testid="stPills"] button p,
+section[data-testid="stSidebar"] div[data-testid="stPills"] button span,
+section[data-testid="stSidebar"] div[data-testid="stPills"] [data-testid="stPillsItem"] *,
+section[data-testid="stSidebar"] div[data-testid="stPills"] [data-testid="stPillsItem"] p,
+section[data-testid="stSidebar"] div[data-testid="stPills"] [data-testid="stPillsItem"] span {
+    color: #064e3b !important;
+    -webkit-text-fill-color: #064e3b !important;
+    font-weight: 700 !important;
+}
+
+/* Sidebar Pills: Hover State */
+section[data-testid="stSidebar"] div[data-testid="stButtonGroup"] button:hover,
+section[data-testid="stSidebar"] .stButtonGroup button:hover,
+section[data-testid="stSidebar"] div[data-testid="stPills"] button:hover,
+section[data-testid="stSidebar"] div[data-testid="stPills"] [data-testid="stPillsItem"]:hover {
+    background-color: #ecfdf5 !important;
+    background: #ecfdf5 !important;
+    border-color: #047857 !important;
+    color: #047857 !important;
+    -webkit-text-fill-color: #047857 !important;
+    transform: translateY(-1px) !important;
+}
+
+section[data-testid="stSidebar"] div[data-testid="stButtonGroup"] button:hover *,
+section[data-testid="stSidebar"] div[data-testid="stButtonGroup"] button:hover p,
+section[data-testid="stSidebar"] .stButtonGroup button:hover *,
+section[data-testid="stSidebar"] .stButtonGroup button:hover p,
+section[data-testid="stSidebar"] div[data-testid="stPills"] button:hover *,
+section[data-testid="stSidebar"] div[data-testid="stPills"] [data-testid="stPillsItem"]:hover * {
+    color: #047857 !important;
+    -webkit-text-fill-color: #047857 !important;
+}
+
+/* Sidebar Pills: Active / Selected State (Deep SAM Green Background with Pure White Bold Text) */
+section[data-testid="stSidebar"] div[data-testid="stButtonGroup"] button[aria-pressed="true"],
+section[data-testid="stSidebar"] div[data-testid="stButtonGroup"] button[data-selected="true"],
+section[data-testid="stSidebar"] div[data-testid="stButtonGroup"] button[aria-selected="true"],
+section[data-testid="stSidebar"] .stButtonGroup button[aria-pressed="true"],
+section[data-testid="stSidebar"] .stButtonGroup button[data-selected="true"],
+section[data-testid="stSidebar"] .stButtonGroup button[aria-selected="true"],
+section[data-testid="stSidebar"] div[data-testid="stPills"] button[aria-checked="true"],
+section[data-testid="stSidebar"] div[data-testid="stPills"] button[aria-pressed="true"],
+section[data-testid="stSidebar"] div[data-testid="stPills"] button[data-selected="true"],
+section[data-testid="stSidebar"] div[data-testid="stPills"] button[aria-selected="true"],
+section[data-testid="stSidebar"] div[data-testid="stPills"] [data-testid="stPillsItem"][aria-checked="true"],
+section[data-testid="stSidebar"] div[data-testid="stPills"] [data-testid="stPillsItem"][data-selected="true"] {
+    background-color: #047857 !important;
+    background: #047857 !important;
+    border: 2px solid #34d399 !important;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4) !important;
+}
+
+section[data-testid="stSidebar"] div[data-testid="stButtonGroup"] button[aria-pressed="true"] *,
+section[data-testid="stSidebar"] div[data-testid="stButtonGroup"] button[aria-pressed="true"] p,
+section[data-testid="stSidebar"] div[data-testid="stButtonGroup"] button[aria-pressed="true"] span,
+section[data-testid="stSidebar"] div[data-testid="stButtonGroup"] button[data-selected="true"] *,
+section[data-testid="stSidebar"] div[data-testid="stButtonGroup"] button[data-selected="true"] p,
+section[data-testid="stSidebar"] div[data-testid="stButtonGroup"] button[data-selected="true"] span,
+section[data-testid="stSidebar"] .stButtonGroup button[aria-pressed="true"] *,
+section[data-testid="stSidebar"] .stButtonGroup button[aria-pressed="true"] p,
+section[data-testid="stSidebar"] .stButtonGroup button[aria-pressed="true"] span,
+section[data-testid="stSidebar"] .stButtonGroup button[data-selected="true"] *,
+section[data-testid="stSidebar"] .stButtonGroup button[data-selected="true"] p,
+section[data-testid="stSidebar"] .stButtonGroup button[data-selected="true"] span,
+section[data-testid="stSidebar"] div[data-testid="stPills"] button[aria-checked="true"] *,
+section[data-testid="stSidebar"] div[data-testid="stPills"] button[aria-checked="true"] p,
+section[data-testid="stSidebar"] div[data-testid="stPills"] button[aria-checked="true"] span,
+section[data-testid="stSidebar"] div[data-testid="stPills"] button[aria-pressed="true"] *,
+section[data-testid="stSidebar"] div[data-testid="stPills"] button[aria-pressed="true"] p,
+section[data-testid="stSidebar"] div[data-testid="stPills"] button[aria-pressed="true"] span,
+section[data-testid="stSidebar"] div[data-testid="stPills"] button[data-selected="true"] *,
+section[data-testid="stSidebar"] div[data-testid="stPills"] button[data-selected="true"] p,
+section[data-testid="stSidebar"] div[data-testid="stPills"] button[data-selected="true"] span,
+section[data-testid="stSidebar"] div[data-testid="stPills"] button[aria-selected="true"] *,
+section[data-testid="stSidebar"] div[data-testid="stPills"] button[aria-selected="true"] p,
+section[data-testid="stSidebar"] div[data-testid="stPills"] button[aria-selected="true"] span,
+section[data-testid="stSidebar"] div[data-testid="stPills"] [data-testid="stPillsItem"][aria-checked="true"] *,
+section[data-testid="stSidebar"] div[data-testid="stPills"] [data-testid="stPillsItem"][aria-checked="true"] p,
+section[data-testid="stSidebar"] div[data-testid="stPills"] [data-testid="stPillsItem"][aria-checked="true"] span {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    font-weight: 800 !important;
+}
+
+/* Metrics panel styling with executive SAM green theme */
+.metric-card {
+    background: var(--card-bg) !important;
+    border: 1px solid var(--kpi-border, rgba(4, 120, 87, 0.16)) !important;
+    border-top: 3.5px solid var(--kpi-accent-bar, #047857) !important;
+    border-radius: 16px;
+    padding: 24px;
+    text-align: center;
+    box-shadow: 0 4px 20px rgba(4, 120, 87, 0.04);
+    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.metric-card:hover {
+    transform: translateY(-3px);
+    border-color: var(--kpi-hover-border, #047857) !important;
+    border-top-color: var(--kpi-accent-bar, #047857) !important;
+    box-shadow: 0 12px 28px var(--kpi-hover-shadow, rgba(4, 120, 87, 0.12)), 0 2px 10px rgba(4, 120, 87, 0.06) !important;
+    background: var(--card-bg) !important;
+}
+.metric-title {
+    font-size: 0.85rem;
+    color: var(--card-subtext) !important;
+    margin-bottom: 8px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.metric-value {
+    font-size: 1.9rem;
+    font-weight: 800;
+    background: var(--kpi-gradient, linear-gradient(135deg, #064e3b 0%, #047857 100%)); 
+    -webkit-background-clip: text; 
+    -webkit-text-fill-color: transparent;
+}
+.metric-sub {
+    font-size: 0.78rem;
+    color: var(--card-subtext) !important;
+    margin-top: 6px;
+    font-weight: 500;
+}
+
+/* =========================================================================
+   EXECUTIVE MODERN UNDERLINE BAR (OPTION 2 - BLOOMBERG / VERCEL / GITHUB)
+   ========================================================================= */
+
+/* Container Spacing: Tighten top and bottom vertical whitespace */
+.stTabs, div[data-testid="stTabs"] {
+    margin-top: 0px !important;
+    padding-top: 0px !important;
+}
+
+/* Main Tab Row Container */
+.stTabs [data-baseweb="tab-list"],
+div[data-baseweb="tab-list"],
+div[role="tablist"] {
+    background: transparent !important;
+    border: none !important;
+    border-bottom: 1px solid var(--tab-container-border, #e2e8f0) !important;
+    border-radius: 0px !important;
+    padding: 0px 4px !important;
+    gap: 24px !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: flex-end !important;
+    box-shadow: none !important;
+    margin-top: 0px !important;
+    margin-bottom: 6px !important;
+    width: 100% !important;
+}
+
+/* Remove default Streamlit highlight line */
+div[data-baseweb="tab-highlight"],
+div[data-baseweb="tab-border"],
+[data-baseweb="tab-highlight"],
+[data-baseweb="tab-border"] {
+    display: none !important;
+    height: 0px !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+}
+
+/* Individual Tab Button - Sleek, Flat */
+.stTabs [data-baseweb="tab"],
+div[data-baseweb="tab"],
+div[role="tab"],
+button[data-baseweb="tab"] {
+    background: transparent !important;
+    border: none !important;
+    border-bottom: 3px solid transparent !important;
+    border-radius: 6px 6px 0 0 !important;
+    padding: 6px 12px 8px 12px !important;
+    margin-bottom: -1px !important;
+    color: var(--tab-inactive-text, #64748b) !important;
+    -webkit-text-fill-color: var(--tab-inactive-text, #64748b) !important;
+    font-weight: 600 !important;
+    font-size: 1.10rem !important;
+    transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease !important;
+    cursor: pointer !important;
+    outline: none !important;
+    height: auto !important;
+    box-shadow: none !important;
+    transform: none !important;
+}
+
+.stTabs [data-baseweb="tab"] p,
+div[data-baseweb="tab"] p,
+div[data-baseweb="tab"] div {
+    color: inherit !important;
+    -webkit-text-fill-color: inherit !important;
+    margin: 0 !important;
+    line-height: 1.4 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    font-size: 1.10rem !important;
+}
+
+/* Hover Tab State */
+.stTabs [data-baseweb="tab"]:hover,
+div[data-baseweb="tab"]:hover,
+div[role="tab"]:hover {
+    background: var(--nav-item-hover-bg, rgba(0, 0, 0, 0.03)) !important;
+    color: var(--tab-hover-text, #0f172a) !important;
+    -webkit-text-fill-color: var(--tab-hover-text, #0f172a) !important;
+    border-bottom: 3px solid var(--card-border, #cbd5e1) !important;
+}
+
+.stTabs [data-baseweb="tab"]:hover p,
+div[data-baseweb="tab"]:hover p {
+    color: var(--tab-hover-text, #0f172a) !important;
+    -webkit-text-fill-color: var(--tab-hover-text, #0f172a) !important;
+}
+
+/* Active Tab (Underline Indicator) */
+.stTabs [data-baseweb="tab"][aria-selected="true"],
+div[data-baseweb="tab"][aria-selected="true"],
+div[role="tab"][aria-selected="true"] {
+    background: transparent !important;
+    color: var(--tab-active-text, #065f46) !important;
+    -webkit-text-fill-color: var(--tab-active-text, #065f46) !important;
+    border: none !important;
+    border-bottom: 3.5px solid var(--tab-active-border, #059669) !important;
+    border-radius: 0 !important;
+    font-weight: 700 !important;
+    font-size: 1.10rem !important;
+    box-shadow: none !important;
+    transform: none !important;
+}
+
+.stTabs [data-baseweb="tab"][aria-selected="true"] p,
+div[data-baseweb="tab"][aria-selected="true"] p,
+div[data-baseweb="tab"][aria-selected="true"] div {
+    color: var(--tab-active-text, #065f46) !important;
+    -webkit-text-fill-color: var(--tab-active-text, #065f46) !important;
+    font-weight: 700 !important;
+    font-size: 1.10rem !important;
+}
+
+/* Main Navigation Tabs: Font Awesome Solid Icons scoped strictly to main tabs container */
+.st-key-main_tabs_container [role="tab"]:nth-child(1) p::before,
+.st-key-main_tabs_container div[role="tablist"] > div:nth-child(1) p::before {
+    font-family: "Font Awesome 6 Free", "FontAwesome" !important;
+    font-weight: 900 !important;
+    content: "\f200\a0" !important;
+    color: inherit !important;
+    -webkit-text-fill-color: inherit !important;
+    display: inline-block !important;
+    margin-right: 4px !important;
+    font-style: normal !important;
+    font-variant: normal !important;
+    text-rendering: auto !important;
+    -webkit-font-smoothing: antialiased !important;
+}
+
+.st-key-main_tabs_container [role="tab"]:nth-child(2) p::before,
+.st-key-main_tabs_container div[role="tablist"] > div:nth-child(2) p::before {
+    font-family: "Font Awesome 6 Free", "FontAwesome" !important;
+    font-weight: 900 !important;
+    content: "\f279\a0" !important;
+    color: inherit !important;
+    -webkit-text-fill-color: inherit !important;
+    display: inline-block !important;
+    margin-right: 4px !important;
+    font-style: normal !important;
+    font-variant: normal !important;
+    text-rendering: auto !important;
+    -webkit-font-smoothing: antialiased !important;
+}
+
+.st-key-main_tabs_container [role="tab"]:nth-child(3) p::before,
+.st-key-main_tabs_container div[role="tablist"] > div:nth-child(3) p::before {
+    font-family: "Font Awesome 6 Free", "FontAwesome" !important;
+    font-weight: 900 !important;
+    content: "\f080\a0" !important;
+    color: inherit !important;
+    -webkit-text-fill-color: inherit !important;
+    display: inline-block !important;
+    margin-right: 4px !important;
+    font-style: normal !important;
+    font-variant: normal !important;
+    text-rendering: auto !important;
+    -webkit-font-smoothing: antialiased !important;
+}
+
+.st-key-main_tabs_container [role="tab"]:nth-child(4) p::before,
+.st-key-main_tabs_container div[role="tablist"] > div:nth-child(4) p::before {
+    font-family: "Font Awesome 6 Free", "FontAwesome" !important;
+    font-weight: 900 !important;
+    content: "\f03a\a0" !important;
+    color: inherit !important;
+    -webkit-text-fill-color: inherit !important;
+    display: inline-block !important;
+    margin-right: 4px !important;
+    font-style: normal !important;
+    font-variant: normal !important;
+    text-rendering: auto !important;
+    -webkit-font-smoothing: antialiased !important;
+}
+
+.st-key-main_tabs_container [role="tab"]:nth-child(5) p::before,
+.st-key-main_tabs_container div[role="tablist"] > div:nth-child(5) p::before {
+    font-family: "Font Awesome 6 Free", "FontAwesome" !important;
+    font-weight: 900 !important;
+    content: "\f03a\a0" !important;
+    color: inherit !important;
+    -webkit-text-fill-color: inherit !important;
+    display: inline-block !important;
+    margin-right: 4px !important;
+    font-style: normal !important;
+    font-variant: normal !important;
+    text-rendering: auto !important;
+    -webkit-font-smoothing: antialiased !important;
+}
+
+.st-key-main_tabs_container [role="tab"][aria-selected="true"] p::before,
+.st-key-main_tabs_container div[role="tablist"] > div[aria-selected="true"] p::before {
+    color: var(--tab-active-border, #059669) !important;
+    -webkit-text-fill-color: var(--tab-active-border, #059669) !important;
+}
+
+/* ========================================================================= */
+/* Apple / macOS Elevated Floating Pill Segmented Control (Compact) */
+/* ========================================================================= */
+div[data-testid="stSegmentedControl"] {
+    background: var(--seg-track-bg, rgba(148, 163, 184, 0.14)) !important;
+    border: none !important;
+    border-color: transparent !important;
+    border-radius: 9999px !important;
+    padding: 2px !important;
+    box-shadow: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    width: fit-content !important;
+}
+
+div[data-testid="stSegmentedControl"] div[data-testid="stButtonGroup"],
+div[data-testid="stSegmentedControl"] div[role="radiogroup"] {
+    border: none !important;
+    background: transparent !important;
+    gap: 2px !important;
+    padding: 0 !important;
+    border-radius: 9999px !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+div[data-testid="stSegmentedControl"] button,
+div[data-testid="stSegmentedControl"] button[data-variant="segmented_control"],
+div[data-testid="stSegmentedControl"] button[data-testid*="stBaseButton"],
+div[data-testid="stSegmentedControl"] div[role="radiogroup"] > button {
+    border: none !important;
+    border-color: transparent !important;
+    outline: none !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    border-radius: 9999px !important;
+    padding: 3px 12px !important;
+    min-height: 28px !important;
+    font-weight: 600 !important;
+    font-size: 0.80rem !important;
+    letter-spacing: -0.01em !important;
+    color: var(--seg-inactive-text, #64748b) !important;
+    -webkit-text-fill-color: var(--seg-inactive-text, #64748b) !important;
+    transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    box-shadow: none !important;
+    cursor: pointer !important;
+}
+
+div[data-testid="stSegmentedControl"] button span[data-testid="stIconMaterial"] {
+    font-size: 15px !important;
+    width: 15px !important;
+    height: 15px !important;
+    line-height: 15px !important;
+    margin-right: 2px !important;
+}
+
+div[data-testid="stSegmentedControl"] button:hover {
+    color: var(--card-text, #0f172a) !important;
+    -webkit-text-fill-color: var(--card-text, #0f172a) !important;
+    background: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* Active Segment: Cyber Frosted Glass & Neon Aura */
+div[data-testid="stSegmentedControl"] button[aria-checked="true"],
+div[data-testid="stSegmentedControl"] button[data-checked="true"],
+div[data-testid="stSegmentedControl"] button[aria-pressed="true"],
+div[data-testid="stSegmentedControl"] button[data-variant="segmented_control"][aria-checked="true"],
+div[data-testid="stSegmentedControl"] div[role="radiogroup"] > button[aria-checked="true"] {
+    background: var(--seg-active-bg, rgba(16, 185, 129, 0.14)) !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+    color: var(--seg-active-text, #065f46) !important;
+    -webkit-text-fill-color: var(--seg-active-text, #065f46) !important;
+    border: 1.5px solid var(--seg-active-border, #059669) !important;
+    border-radius: 9999px !important;
+    box-shadow: var(--seg-active-shadow, 0 0 14px rgba(16, 185, 129, 0.38)) !important;
+    font-weight: 700 !important;
+    transform: translateY(-0.5px) !important;
+}
+
+/* Inner Text & Icons */
+div[data-testid="stSegmentedControl"] button[aria-checked="true"] *,
+div[data-testid="stSegmentedControl"] button[aria-checked="true"] p,
+div[data-testid="stSegmentedControl"] button[aria-checked="true"] span,
+div[data-testid="stSegmentedControl"] button[aria-checked="true"] [data-testid="stIconMaterial"] {
+    color: var(--seg-active-text, #065f46) !important;
+    -webkit-text-fill-color: var(--seg-active-text, #065f46) !important;
+    font-weight: 700 !important;
+}
+
+div[data-testid="stSegmentedControl"] button:not([aria-checked="true"]) *,
+div[data-testid="stSegmentedControl"] button:not([aria-checked="true"]) p,
+div[data-testid="stSegmentedControl"] button:not([aria-checked="true"]) span,
+div[data-testid="stSegmentedControl"] button:not([aria-checked="true"]) [data-testid="stIconMaterial"] {
+    color: var(--seg-inactive-text, #64748b) !important;
+    -webkit-text-fill-color: var(--seg-inactive-text, #64748b) !important;
+    font-weight: 600 !important;
+}
+
+div[data-testid="stSegmentedControl"] hr,
+div[data-testid="stSegmentedControl"] button::before,
+div[data-testid="stSegmentedControl"] button::after {
+    display: none !important;
+    border: none !important;
+}
+
+/* Tab Panel content area styling */
+div[data-baseweb="tab-panel"], div[data-testid="stTabPanel"] {
+    position: relative !important;
+    padding-top: 4px !important;
+    padding-left: 0px !important;
+    padding-right: 0px !important;
+}
+
+.floating-kpi-container {
+    position: relative !important;
+    margin: 10px 0px 4px 0px !important;
+    z-index: 999;
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)) !important;
+    gap: 12px !important;
+}
+
+#MainMenu {visibility: hidden;}
+footer {visibility: hidden;}
+</style>

@@ -28,6 +28,41 @@ _ROOT_DIR = os.path.dirname(_SCRIPT_DIR) if os.path.basename(_SCRIPT_DIR).lower(
 CACHE_PATH = os.path.join(_ROOT_DIR, "data", "led_coords_cache.parquet")
 COORD_REGEX = re.compile(r'(\d{1,2}\.\d{5,})\s*,\s*(\d{2,3}\.\d{5,})')
 
+_SPINNER_CHARS = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+_spinner_frame = 0
+
+def make_progress_bar(pct, length=18):
+    global _spinner_frame
+    _spinner_frame = (_spinner_frame + 1) % len(_SPINNER_CHARS)
+    spin = _SPINNER_CHARS[_spinner_frame]
+    pct = max(0, min(100, pct))
+    filled = int(length * pct / 100)
+    bar = '█' * filled + '░' * (length - filled)
+    return f"[{bar}] {pct:3d}% {spin}"
+
+def format_eta(elapsed_sec, completed_units, total_units, start_unit=1):
+    completed_in_session = max(1, completed_units - start_unit + 1)
+    remaining_units = max(0, total_units - completed_units)
+    if remaining_units <= 0:
+        return "ใกล้เสร็จสมบูรณ์"
+    if completed_in_session <= 0 or elapsed_sec <= 0:
+        return "กำลังคำนวณ..."
+    rate = completed_in_session / elapsed_sec
+    eta_seconds = remaining_units / rate
+    finish_timestamp = time.time() + eta_seconds
+    finish_clock = datetime.fromtimestamp(finish_timestamp).strftime('%H:%M:%S')
+    
+    if eta_seconds < 60:
+        return f"เหลืออีก ~{int(eta_seconds)}ว. ({finish_clock} น.)"
+    elif eta_seconds < 3600:
+        mins = int(eta_seconds // 60)
+        secs = int(eta_seconds % 60)
+        return f"เหลืออีก ~{mins}น. {secs}ว. ({finish_clock} น.)"
+    else:
+        hours = int(eta_seconds // 3600)
+        mins = int((eta_seconds % 3600) // 60)
+        return f"เหลืออีก ~{hours}ชม. {mins}น. ({finish_clock} น.)"
+
 
 def load_cache(cache_file=CACHE_PATH):
     """Load existing cache or create an empty DataFrame."""
@@ -128,6 +163,11 @@ def sync_cache_to_csv(input_csv, cache_df):
         df = pd.read_csv(input_csv, dtype=str, low_memory=False)
         if 'เลขโฉนด' not in df.columns or 'จังหวัด' not in df.columns:
             return 0
+
+        if 'ละติจูด' not in df.columns:
+            df['ละติจูด'] = ""
+        if 'ลองจิจูด' not in df.columns:
+            df['ลองจิจูด'] = ""
 
         updated_count = 0
         prov_series = df['จังหวัด'].apply(clean_province_name)
@@ -335,6 +375,14 @@ def run_enrichment(input_file=None, cache_file=CACHE_PATH, province_filter=None,
 
         current_prov = None
         current_dist = None
+        found_in_session = 0
+        not_found_in_session = 0
+        total_pending = len(pending_records)
+        search_start_time = time.time()
+
+        print("\n" + "=" * 65, flush=True)
+        print(f"🚀 เริ่มค้นหาพิกัดจริง LandsMaps ทั้งหมด {total_pending:,d} รายการ", flush=True)
+        print("=" * 65, flush=True)
 
         try:
             for idx, item in enumerate(pending_records, 1):
@@ -342,7 +390,20 @@ def run_enrichment(input_file=None, cache_file=CACHE_PATH, province_filter=None,
                 dist = item['อำเภอ']
                 deed = item['เลขโฉนด']
 
-                print(f"\n[{idx}/{len(pending_records)}] Searching: {prov} -> {dist} -> โฉนด {deed}", flush=True)
+                # Periodic memory cleanup every 150 items to free DOM / WebGL canvas memory
+                if idx > 1 and idx % 150 == 0:
+                    print(f"  🧹 [MEMORY REFRESH] ล้างหน่วยความจำเบราว์เซอร์ (รายการที่ {idx:,d})...", flush=True)
+                    try:
+                        page.reload(wait_until="domcontentloaded")
+                        time.sleep(3)
+                        page.wait_for_function(
+                            "() => { const el = document.getElementById('cbprovince'); return el && el.options && el.options.length > 10; }",
+                            timeout=35000
+                        )
+                        current_prov = None
+                        current_dist = None
+                    except Exception as e:
+                        print(f"  ⚠️ [MEMORY REFRESH] รีเฟรชหน้าเว็บไม่สำเร็จ: {e}", flush=True)
 
                 # Step A: Select Province if changed
                 if prov != current_prov:
@@ -360,7 +421,6 @@ def run_enrichment(input_file=None, cache_file=CACHE_PATH, province_filter=None,
                     }}""", prov)
 
                     if not prov_res.get('success'):
-                        print(f"  ❌ Province '{prov}' not found in dropdown!")
                         new_results.append({
                             'จังหวัด': item['จังหวัด_orig'],
                             'อำเภอ': item['อำเภอ_orig'],
@@ -370,6 +430,12 @@ def run_enrichment(input_file=None, cache_file=CACHE_PATH, province_filter=None,
                             'สถานะ': 'PROVINCE_NOT_FOUND',
                             'วันที่ดึง': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                         })
+                        pct = int((idx / total_pending) * 100)
+                        pbar = make_progress_bar(pct, length=18)
+                        elapsed = time.time() - search_start_time
+                        eta_str = format_eta(elapsed, idx, total_pending, 1)
+                        print(f"[LandsMaps    ] {pbar} | ({idx:4d}/{total_pending:4d} โฉนด) | พบพิกัดจริง: {found_in_session:,d} | {eta_str}", flush=True)
+                        print(f"  └─ {prov} > {dist} > โฉนด {deed} -> ❌ ไม่พบจังหวัดในระบบ", flush=True)
                         continue
 
                     current_prov = prov
@@ -397,7 +463,6 @@ def run_enrichment(input_file=None, cache_file=CACHE_PATH, province_filter=None,
                     }}""", dist)
 
                     if not dist_res.get('success'):
-                        print(f"  ❌ District '{dist}' not matched! Options: {dist_res.get('all', [])[:5]}...")
                         new_results.append({
                             'จังหวัด': item['จังหวัด_orig'],
                             'อำเภอ': item['อำเภอ_orig'],
@@ -407,6 +472,12 @@ def run_enrichment(input_file=None, cache_file=CACHE_PATH, province_filter=None,
                             'สถานะ': 'DISTRICT_NOT_FOUND',
                             'วันที่ดึง': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                         })
+                        pct = int((idx / total_pending) * 100)
+                        pbar = make_progress_bar(pct, length=18)
+                        elapsed = time.time() - search_start_time
+                        eta_str = format_eta(elapsed, idx, total_pending, 1)
+                        print(f"[LandsMaps    ] {pbar} | ({idx:4d}/{total_pending:4d} โฉนด) | พบพิกัดจริง: {found_in_session:,d} | {eta_str}", flush=True)
+                        print(f"  └─ {prov} > {dist} > โฉนด {deed} -> ❌ ไม่พบอำเภอในระบบ", flush=True)
                         continue
 
                     current_dist = dist
@@ -483,9 +554,17 @@ def run_enrichment(input_file=None, cache_file=CACHE_PATH, province_filter=None,
                         }
                         const notFoundModal = Array.from(document.querySelectorAll('.modal, .sweet-alert, div[role="dialog"]'))
                             .some(m => m.offsetParent !== null && m.innerText.includes('ไม่พบข้อมูล'));
+                        const quotaModal = Array.from(document.querySelectorAll('.modal, .sweet-alert, div[role="dialog"], .swal2-container, .bootbox'))
+                            .some(m => m.offsetParent !== null && (
+                                m.innerText.includes('เกินจำกัด') || 
+                                m.innerText.includes('เกินจำนวน') || 
+                                m.innerText.includes('20 ครั้ง') ||
+                                m.innerText.includes('เข้าสู่ระบบเพื่อ')
+                            ));
                         return {
                             coords: linkMatch || (match ? [match[1], match[2]] : null),
-                            notFound: notFoundModal
+                            notFound: notFoundModal,
+                            quotaExceeded: quotaModal
                         };
                     }""")
 
@@ -493,8 +572,7 @@ def run_enrichment(input_file=None, cache_file=CACHE_PATH, province_filter=None,
                         lat_found = float(check['coords'][0])
                         lon_found = float(check['coords'][1])
                         status = 'FOUND'
-                        print(f"  🎯 [FOUND] Real GPS: Lat={lat_found:.8f}, Lon={lon_found:.8f}", flush=True)
-
+                        found_in_session += 1
                         # Dismiss the parcel info card to clean DOM for next search
                         page.evaluate("""() => {
                             const btn = Array.from(document.querySelectorAll('button, a')).find(b => b.innerText.includes('ปิดหน้าต่าง'));
@@ -504,7 +582,7 @@ def run_enrichment(input_file=None, cache_file=CACHE_PATH, province_filter=None,
 
                     if check.get('notFound'):
                         status = 'NOT_FOUND'
-                        print("  ❌ [NOT FOUND] Dismissed modal.", flush=True)
+                        not_found_in_session += 1
                         # Click 'ตกลง' to dismiss
                         page.evaluate("""() => {
                             const btns = Array.from(document.querySelectorAll('button, a')).filter(b => b.innerText.trim() === 'ตกลง');
@@ -516,8 +594,35 @@ def run_enrichment(input_file=None, cache_file=CACHE_PATH, province_filter=None,
                         }""")
                         break
 
-                if status == 'TIMEOUT':
-                    print("  ⚠️ [TIMEOUT] No response within 12 seconds.")
+                    if check.get('quotaExceeded'):
+                        status = 'QUOTA_EXCEEDED'
+                        page.evaluate("""() => {
+                            const btns = Array.from(document.querySelectorAll('button, a')).filter(b => b.innerText.trim() === 'ตกลง' || b.innerText.trim() === 'ปิด');
+                            if (btns.length > 0) { btns[btns.length - 1].click(); }
+                            if (window.jQuery) { window.jQuery('.modal').modal('hide'); }
+                            document.querySelectorAll('.modal-backdrop').forEach(e => e.remove());
+                        }""")
+                        break
+
+                # Print clean Progress Bar + ETA like monthly scrapers
+                pct = int((idx / total_pending) * 100)
+                pbar = make_progress_bar(pct, length=18)
+                elapsed = time.time() - search_start_time
+                eta_str = format_eta(elapsed, idx, total_pending, 1)
+
+                if status == 'FOUND':
+                    res_desc = f"🎯 พิกัดจริง: ({lat_found:.6f}, {lon_found:.6f})"
+                elif status == 'NOT_FOUND':
+                    res_desc = "❌ ไม่พบข้อมูลแปลงที่ดิน"
+                elif status == 'QUOTA_EXCEEDED':
+                    res_desc = "🚨 ติดโควตาบุคคลทั่วไปของกรมที่ดิน (20 ครั้ง/วัน)"
+                else:
+                    res_desc = "⚠️ ไม่ตอบสนอง (Timeout 12s)"
+
+                prog_line = f"[LandsMaps    ] {pbar} | ({idx:4d}/{total_pending:4d} โฉนด) | พบพิกัดจริง: {found_in_session:,d} | {eta_str}"
+                detail_line = f"  └─ ล่าสุด: {prov} > {dist} > โฉนด {deed} -> {res_desc}"
+                print(prog_line, flush=True)
+                print(detail_line, flush=True)
 
                 new_results.append({
                     'จังหวัด': item['จังหวัด_orig'],
@@ -530,6 +635,10 @@ def run_enrichment(input_file=None, cache_file=CACHE_PATH, province_filter=None,
                 })
 
                 processed_count += 1
+
+                if status == 'QUOTA_EXCEEDED':
+                    print("\n🛑 หยุดการค้นหาอัตโนมัติเนื่องจากติดโควตาประจำวันของกรมที่ดิน (ข้อมูลถูกบันทึกสมบูรณ์)", flush=True)
+                    break
 
                 # Periodically save cache and update CSV every 10 deeds
                 if len(new_results) >= 10:

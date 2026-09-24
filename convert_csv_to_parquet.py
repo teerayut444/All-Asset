@@ -294,6 +294,13 @@ def optimize_and_clean_dataframe(df, exclude_unwanted=True):
     else:
         df['เลขโฉนด'] = ''
 
+    # 8.5. ยอดเข้าชม และ ยอดคลิก
+    for c in ['ยอดเข้าชม', 'ยอดคลิก']:
+        if c in df.columns:
+            df[c] = pd.to_numeric(df[c], errors='coerce').astype('Int32')
+        else:
+            df[c] = pd.Series(dtype='Int32')
+
     # 9. คำนวณราคาต่อหน่วย (ราคา/ตร.ว. และ ราคา/ตร.ม.)
     if 'ราคาต่อตารางวา' not in df.columns:
         df['ราคาต่อตารางวา'] = np.where((df['พื้นที่_ตารางวา'] > 0) & (df['ราคา'] > 0), df['ราคา'] / df['พื้นที่_ตารางวา'], np.nan).astype('float32')
@@ -319,6 +326,20 @@ def optimize_and_clean_dataframe(df, exclude_unwanted=True):
                 if c == 'จังหวัด':
                     df[c] = df[c].str.replace(r'^(จ\.|จังหวัด)\s*', '', regex=True)
             df[c] = df[c].astype('category')
+
+    # 10.5. จัดมาตรฐานชื่อโครงการ (Project Name Normalization)
+    if 'ชื่อโครงการ' in df.columns:
+        try:
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            monthly_dir = os.path.join(base_dir, "Py Scraper") if os.path.exists(os.path.join(base_dir, "Py Scraper")) else os.path.join(base_dir, "Monthly all new")
+            if monthly_dir not in sys.path:
+                sys.path.insert(0, monthly_dir)
+            from clean_project_util import clean_sam_project_name
+            u_p = df['ชื่อโครงการ'].dropna().unique()
+            p_map = {p: clean_sam_project_name(p) for p in u_p}
+            df['ชื่อโครงการ'] = df['ชื่อโครงการ'].map(p_map).fillna('')
+        except Exception:
+            pass
 
     # 11. ตรวจสอบชื่อประกาศและลิงก์
     if 'ชื่อประกาศ' not in df.columns and 'ชื่อโครงการ' in df.columns:

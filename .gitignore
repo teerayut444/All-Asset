@@ -12,6 +12,14 @@ htmlcov/
 venv/
 env/
 ENV/
+.env
+*.env
+.env.*
+
+# ==============================================================================
+# Streamlit Secrets & Local Config
+# ==============================================================================
+.streamlit/secrets.toml
 
 # ==============================================================================
 # Logs, Temp & Swap Files
@@ -55,7 +63,7 @@ Py Scraper/
 QA_Checker/
 CSV_Output/
 py/
-run_all_scrapers.*
+/run_all_scrapers.*
 scraping*.log
 .*_state_*.json
 
@@ -76,9 +84,10 @@ scratch*
 
 # Parquet — ignore large snapshot / intermediate files (>35 MB each)
 *.parquet
+Parquet/
 data/*.parquet
 
-# GeoJSON — very large boundary files (~3–10 MB each)
+# GeoJSON — general boundary files
 *.geojson
 
 # SQLite databases (user logs, caches)
@@ -87,7 +96,10 @@ data/*.parquet
 # ==============================================================================
 # Whitelist — primary dashboard dataset & reference tables
 # ==============================================================================
+!all_asset.parquet
 !all_assets.parquet
+!data/districts.geojson
+!data/subdistricts.geojson
 !references/thailand_provinces_districts_subdistricts.csv
 !references/thailand_provinces_districts_subdistricts.json
 !references/thailand_provinces_districts_subdistricts.xlsx

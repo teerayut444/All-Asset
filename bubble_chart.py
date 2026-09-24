@@ -285,26 +285,34 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
     if df_filtered is not None and not df_filtered.empty and 'วันที่ดึงข้อมูล' in df_filtered.columns:
         try:
             for c_name, grp in df_filtered.groupby('บริษัท'):
+                c_key = str(c_name).strip()
                 s_d = grp['วันที่ดึงข้อมูล'].dropna().astype(str).str.strip()
                 s_d = s_d[~s_d.isin(['', 'nan', 'None', '-', 'NaT'])]
                 if not s_d.empty:
-                    dts = pd.to_datetime(s_d, errors='coerce').dropna()
+                    # Distinguish ISO YYYY-MM-DD from Slash DD/MM/YYYY to avoid swapping month and day
+                    is_iso = s_d.str.match(r'^\d{4}[-/]\d{1,2}[-/]\d{1,2}')
+                    dts = pd.Series(index=s_d.index, dtype='datetime64[ns]')
+                    if is_iso.any():
+                        dts.loc[is_iso] = pd.to_datetime(s_d[is_iso], format='mixed', dayfirst=False, errors='coerce')
+                    if (~is_iso).any():
+                        dts.loc[~is_iso] = pd.to_datetime(s_d[~is_iso], format='mixed', dayfirst=True, errors='coerce')
+                    dts = dts.dropna()
                     if not dts.empty:
                         min_d, max_d = dts.min(), dts.max()
                         m_str = thai_short_m[max_d.month - 1]
                         y_short = (max_d.year + 543) % 100 if max_d.year < 2500 else max_d.year % 100
                         if min_d.date() == max_d.date():
-                            co_dates_map[c_name] = f"{max_d.day} {m_str} {y_short}"
+                            co_dates_map[c_key] = f"{max_d.day} {m_str} {y_short}"
                         elif min_d.year == max_d.year and min_d.month == max_d.month:
-                            co_dates_map[c_name] = f"{min_d.day}-{max_d.day} {m_str} {y_short}"
+                            co_dates_map[c_key] = f"{min_d.day}-{max_d.day} {m_str} {y_short}"
                         else:
-                            co_dates_map[c_name] = f"{min_d.day} {thai_short_m[min_d.month-1]}-{max_d.day} {m_str} {y_short}"
+                            co_dates_map[c_key] = f"{min_d.day} {thai_short_m[min_d.month-1]}-{max_d.day} {m_str} {y_short}"
         except Exception:
             pass
 
     FALLBACK_COMPANY_DATES = {
-        "LED": "8 ก.ย. 69",
-        "SAM": "8-9 ก.ย. 69",
+        "LED": "21 ก.ย. 69",
+        "SAM": "18 ก.ย. 69",
         "BAM": "9-10 ก.ย. 69",
         "Chayo555": "8 ก.ย. 69",
         "KBANK": "9 ก.ย. 69",
@@ -341,6 +349,7 @@ def generate_3d_glossy_bubble_chart_html(df_filtered, bubble_metric="สัด�
     hover_classes_list = []
 
     for comp in companies_meta:
+        comp_name = comp["name"]
         st_data = comp_stats.get(comp["id"], {"count": 0, "val": 0.0, "centroid": 0})
         c_count = st_data["count"]
         if c_count == 0:
